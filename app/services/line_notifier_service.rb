@@ -23,8 +23,10 @@ class LineNotifierService
   def build_message_text(messages)
     lines = ["📬 Picroに#{messages.size}件の新着メッセージがあります\n"]
     messages.first(5).each do |msg|
-      title = msg[:title].presence || "(件名なし)"
+      title   = msg[:title].presence || "(件名なし)"
+      preview = msg[:preview].presence
       lines << "・#{title}"
+      lines << preview if preview
     end
     lines << "\n#{BASE_URL}/sports/amitie/messages/inbox"
     lines.join("\n")
