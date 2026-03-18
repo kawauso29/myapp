@@ -12,10 +12,7 @@ response = agent.get('https://picro.jp/sports/amitie/messages/searchInboxMessage
 data = JSON.parse(response.body)
 messages = data['data'] || []
 puts "#{messages.size}件取得"
-messages.first(3).each do |item|
-  puts "---"
-  puts "ID: #{item['MessageInbox']['id']}"
-  puts "件名: #{item['Message']['subject']}"
-  puts "受信: #{item['MessageInbox']['recieved']}"
-  puts "フィールド: #{item['Message'].keys.join(', ')}"
-end
+item = messages.first
+puts "Team: #{item['Message']['Team'].inspect}"
+puts "Instructor: #{item['Message']['Instructor'].inspect}"
+puts "Member: #{item['Message']['Member'].inspect}"
