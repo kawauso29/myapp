@@ -75,23 +75,18 @@
 
 ## これからやるタスク
 
-### Phase 4: ローカルDocker開発環境 ⬜（未着手）
+### Phase 4: ローカルDocker開発環境 ✅
 
-ローカルPC（Windows、Docker Desktop入り）にDocker開発環境を構築する。
-
-やること:
-1. myappリポジトリをローカルにgit clone
-2. `Dockerfile` 作成（Ruby 3.3.7ベース）
-3. `docker-compose.yml` 作成（Rails + PostgreSQL + Redis）
-4. `docker compose up` で開発サーバーが立ち上がることを確認
-5. ローカルで開発 → git push → 自動デプロイの流れを確認
+- `Dockerfile.dev`（Ruby 3.3.7ベース）
+- `docker-compose.yml`（Rails + PostgreSQL）
+- `docker compose up` で開発サーバー起動確認済み
 
 ### Phase 5: AI開発ツール導入 ⬜（未着手）
 
 GitHub CodespaceにClaude Codeを導入予定。
 Codespace上で開発 → git push → 自動デプロイの流れ。
 
-### 機能開発1: Picro新着チェック → LINE通知 ⬜（未着手）
+### 機能開発1: Picro新着チェック → LINE通知 🔄（実装済み・設定待ち）
 
 **概要**: https://picro.jp のログイン先にメッセージが届く。毎日新着を確認し、あればLINEに通知する。
 
