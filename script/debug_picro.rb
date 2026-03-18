@@ -13,5 +13,8 @@ data = JSON.parse(response.body)
 messages = data['data'] || []
 puts "#{messages.size}件取得"
 item = messages.first
-puts "MessageInbox keys: #{item['MessageInbox'].keys.join(', ')}"
-puts "MessageInbox full: #{item['MessageInbox'].inspect}"
+puts "top-level keys: #{item.keys.join(', ')}"
+item.each do |k, v|
+  next if %w[MessageInbox Message].include?(k)
+  puts "#{k}: #{v.inspect}"
+end
