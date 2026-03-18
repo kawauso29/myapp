@@ -1,2 +1,3 @@
 require "line/bot"
-puts "Line::Bot::V2 constants: #{Line::Bot::V2.constants.inspect}"
+consts = Line::Bot::V2::MessagingApi.constants.map(&:to_s)
+puts consts.grep(/[Cc]lient|[Aa]pi/).inspect
