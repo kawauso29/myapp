@@ -1,3 +1,2 @@
 require "line/bot"
-puts "Line::Bot constants: #{Line::Bot.constants.inspect}"
-puts "Line constants: #{Line.constants.inspect}"
+puts "Line::Bot::V2 constants: #{Line::Bot::V2.constants.inspect}"
