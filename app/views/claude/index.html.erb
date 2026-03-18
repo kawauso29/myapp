@@ -1,0 +1,99 @@
+<div id="terminal-container"></div>
+
+<script>
+(function() {
+  const statusBar = document.getElementById('status-bar');
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: "'Courier New', Menlo, Monaco, monospace",
+    theme: {
+      background: '#1a1a1a',
+      foreground: '#d4d4d4',
+      cursor:     '#d4d4d4',
+    },
+    scrollback: 5000,
+    convertEol: false,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal-container'));
+  fitAddon.fit();
+
+  // ActionCable WebSocket protocol
+  const proto      = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws         = new WebSocket(`${proto}://${location.host}/cable`);
+  const identifier = JSON.stringify({ channel: 'ClaudeChannel' });
+  let subscribed   = false;
+
+  function sendToChannel(action, payload) {
+    if (!subscribed) return;
+    ws.send(JSON.stringify({
+      command:    'message',
+      identifier: identifier,
+      data:       JSON.stringify(Object.assign({ action }, payload)),
+    }));
+  }
+
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ command: 'subscribe', identifier: identifier }));
+  };
+
+  ws.onclose = function() {
+    statusBar.className = 'disconnected';
+    statusBar.textContent = '● disconnected';
+    term.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
+  };
+
+  ws.onerror = function() {
+    term.write('\r\n\x1b[31m[WebSocket error]\x1b[0m\r\n');
+  };
+
+  ws.onmessage = function(event) {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+
+    if (msg.type === 'welcome') return;
+    if (msg.type === 'ping')    return;
+
+    if (msg.type === 'confirm_subscription') {
+      subscribed = true;
+      statusBar.className = 'connected';
+      statusBar.textContent = '● claude';
+      // Send initial terminal size
+      sendToChannel('resize', { rows: term.rows, cols: term.cols });
+      return;
+    }
+
+    if (msg.type === 'reject_subscription') {
+      term.write('\x1b[31m[Authentication failed — please reload and log in again]\x1b[0m\r\n');
+      return;
+    }
+
+    if (msg.message) {
+      const m = msg.message;
+      if (m.type === 'output') {
+        term.write(m.data);
+      } else if (m.type === 'exit') {
+        statusBar.className = 'disconnected';
+        statusBar.textContent = '● exited';
+        term.write('\r\n\x1b[33m[Claude session ended]\x1b[0m\r\n');
+      } else if (m.type === 'error') {
+        term.write(`\r\n\x1b[31m[Error: ${m.message}]\x1b[0m\r\n`);
+      }
+    }
+  };
+
+  // Terminal input → Claude
+  term.onData(function(data) {
+    sendToChannel('input', { text: data });
+  });
+
+  // Terminal resize
+  window.addEventListener('resize', function() {
+    fitAddon.fit();
+    sendToChannel('resize', { rows: term.rows, cols: term.cols });
+  });
+})();
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Claude Terminal</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
+      #terminal-container { width: 100%; height: 100vh; padding: 6px; }
+      #status-bar {
+        position: fixed; top: 0; right: 0;
+        padding: 2px 8px; font-size: 11px;
+        font-family: monospace; color: #666; z-index: 100;
+      }
+      #status-bar.connected { color: #4caf50; }
+      #status-bar.disconnected { color: #f44336; }
+    </style>
+  </head>
+  <body>
+    <div id="status-bar">●</div>
+    <%= yield %>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm-addon-fit@0.10.0/lib/xterm-addon-fit.min.js"></script>
+  </body>
+</html>
