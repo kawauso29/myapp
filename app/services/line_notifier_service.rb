@@ -1,3 +1,5 @@
+require "line/bot"
+
 class LineNotifierService
   def notify_new_messages(messages)
     return if messages.empty?
