@@ -2,37 +2,44 @@
 
 <script>
 (function() {
-  const statusBar = document.getElementById('status-bar');
-  const term = new Terminal({
+  var statusBar = document.getElementById('status-bar');
+
+  var term = new Terminal({
     cursorBlink: true,
     fontSize: 14,
-    fontFamily: "'Courier New', Menlo, Monaco, monospace",
-    theme: {
-      background: '#1a1a1a',
-      foreground: '#d4d4d4',
-      cursor:     '#d4d4d4',
-    },
+    fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+    theme: { background: '#1a1a1a', foreground: '#d4d4d4', cursor: '#d4d4d4' },
     scrollback: 5000,
     convertEol: false,
   });
 
-  const fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
-  term.open(document.getElementById('terminal-container'));
-  fitAddon.fit();
+  var container = document.getElementById('terminal-container');
+  term.open(container);
+
+  function fitTerminal() {
+    var rect = container.getBoundingClientRect();
+    var charW = term._core._renderService.dimensions.css.cell.width  || 8.4;
+    var charH = term._core._renderService.dimensions.css.cell.height || 17;
+    var cols = Math.max(10, Math.floor((rect.width  - 12) / charW));
+    var rows = Math.max(5,  Math.floor((rect.height - 12) / charH));
+    term.resize(cols, rows);
+    return { rows: rows, cols: cols };
+  }
+
+  setTimeout(fitTerminal, 100);
 
   // ActionCable WebSocket protocol
-  const proto      = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws         = new WebSocket(`${proto}://${location.host}/cable`);
-  const identifier = JSON.stringify({ channel: 'ClaudeChannel' });
-  let subscribed   = false;
+  var proto      = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws         = new WebSocket(proto + '://' + location.host + '/cable');
+  var identifier = JSON.stringify({ channel: 'ClaudeChannel' });
+  var subscribed = false;
 
   function sendToChannel(action, payload) {
-    if (!subscribed) return;
+    if (!subscribed || ws.readyState !== 1) return;
     ws.send(JSON.stringify({
       command:    'message',
       identifier: identifier,
-      data:       JSON.stringify(Object.assign({ action }, payload)),
+      data:       JSON.stringify(Object.assign({ action: action }, payload)),
     }));
   }
 
@@ -41,59 +48,58 @@
   };
 
   ws.onclose = function() {
-    statusBar.className = 'disconnected';
     statusBar.textContent = '● disconnected';
+    statusBar.style.color = '#f44';
     term.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
   };
 
   ws.onerror = function() {
+    statusBar.textContent = '● error';
+    statusBar.style.color = '#f44';
     term.write('\r\n\x1b[31m[WebSocket error]\x1b[0m\r\n');
   };
 
   ws.onmessage = function(event) {
-    let msg;
-    try { msg = JSON.parse(event.data); } catch { return; }
+    var msg;
+    try { msg = JSON.parse(event.data); } catch(e) { return; }
 
-    if (msg.type === 'welcome') return;
-    if (msg.type === 'ping')    return;
+    if (msg.type === 'welcome' || msg.type === 'ping') return;
 
     if (msg.type === 'confirm_subscription') {
       subscribed = true;
-      statusBar.className = 'connected';
       statusBar.textContent = '● claude';
-      // Send initial terminal size
-      sendToChannel('resize', { rows: term.rows, cols: term.cols });
+      statusBar.style.color = '#4caf50';
+      var size = fitTerminal();
+      sendToChannel('resize', size);
       return;
     }
 
     if (msg.type === 'reject_subscription') {
-      term.write('\x1b[31m[Authentication failed — please reload and log in again]\x1b[0m\r\n');
+      term.write('\x1b[31m[Auth failed]\x1b[0m\r\n');
       return;
     }
 
     if (msg.message) {
-      const m = msg.message;
+      var m = msg.message;
       if (m.type === 'output') {
         term.write(m.data);
       } else if (m.type === 'exit') {
-        statusBar.className = 'disconnected';
         statusBar.textContent = '● exited';
-        term.write('\r\n\x1b[33m[Claude session ended]\x1b[0m\r\n');
+        statusBar.style.color = '#ff9800';
+        term.write('\r\n\x1b[33m[Session ended]\x1b[0m\r\n');
       } else if (m.type === 'error') {
-        term.write(`\r\n\x1b[31m[Error: ${m.message}]\x1b[0m\r\n`);
+        term.write('\r\n\x1b[31m[Error: ' + m.message + ']\x1b[0m\r\n');
       }
     }
   };
 
-  // Terminal input → Claude
   term.onData(function(data) {
     sendToChannel('input', { text: data });
   });
 
-  // Terminal resize
   window.addEventListener('resize', function() {
-    fitAddon.fit();
-    sendToChannel('resize', { rows: term.rows, cols: term.cols });
+    var size = fitTerminal();
+    sendToChannel('resize', size);
   });
 })();
 </script>
