@@ -17,4 +17,4 @@ production:
   picro_check:
     class: PicroCheckJob
     queue: default
-    schedule: every 6 hours
+    schedule: every hour
