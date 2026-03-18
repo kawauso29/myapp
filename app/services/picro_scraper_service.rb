@@ -1,7 +1,7 @@
 class PicroScraperService
   BASE_URL = "https://picro.jp"
   LOGIN_URL = "#{BASE_URL}/".freeze
-  MESSAGES_URL = "#{BASE_URL}/sports/amitie/messages/inbox".freeze
+  MESSAGES_URL = "#{BASE_URL}/sports/amitie/messages/searchInboxMessages/1".freeze
 
   Result = Data.define(:success, :messages, :error)
 
