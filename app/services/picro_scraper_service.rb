@@ -45,37 +45,28 @@ class PicroScraperService
   end
 
   def fetch_messages(agent)
-    page = agent.get(MESSAGES_URL)
-    parse_messages(page)
+    response = agent.get(MESSAGES_URL)
+    data = JSON.parse(response.body)
+    parse_messages(data)
   end
 
-  def parse_messages(page)
-    messages = []
+  def parse_messages(data)
+    messages = (data["data"] || []).map do |item|
+      inbox   = item["MessageInbox"]
+      message = item["Message"]
+      next unless inbox && message
 
-    page.search("tr.messages--box--list-item").each do |row|
-      sender   = row.at("td.messages--box--name")&.text&.strip
-      date_str = row.at("td.messages--box--date")&.text&.strip
-      title_td = row.at("td.messages--box--title")
-      title    = title_td&.children&.first&.text&.strip
-      preview  = title_td&.at("p.messages--box--excerpt")&.text&.strip&.truncate(200)
-
-      next if sender.blank? || date_str.blank?
-
-      messages << {
-        message_id:  build_message_id(sender, date_str),
-        sender_name: sender,
-        title:       title,
-        preview:     preview,
-        received_at: parse_date(date_str)
+      {
+        message_id:  inbox["id"],
+        sender_name: message["from_name"].presence,
+        title:       message["subject"],
+        preview:     message["body"]&.truncate(200),
+        received_at: parse_date(inbox["recieved"])
       }
-    end
+    end.compact
 
     Rails.logger.info("[PicroScraperService] #{messages.size}件取得")
     messages
-  end
-
-  def build_message_id(sender, date_str)
-    Digest::SHA1.hexdigest("#{sender}|#{date_str}")[0, 16]
   end
 
   def parse_date(text)
