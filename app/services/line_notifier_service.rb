@@ -28,8 +28,8 @@ class LineNotifierService
     lines = ["📬 Picroに#{messages.size}件の新着メッセージがあります\n"]
     messages.first(5).each do |msg|
       sender = msg[:sender_name].presence || "不明"
-      preview = msg[:preview].presence || ""
-      lines << "・#{sender}: #{preview}"
+      title  = msg[:title].presence || "(件名なし)"
+      lines << "・#{sender}「#{title}」"
     end
     lines << "\n#{BASE_URL}/members/messages/" if messages.size > 0
     lines.join("\n")

@@ -1,7 +1,7 @@
 class PicroScraperService
   BASE_URL = "https://picro.jp"
   LOGIN_URL = "#{BASE_URL}/".freeze
-  MESSAGES_URL = "#{BASE_URL}/members/messages/".freeze
+  MESSAGES_URL = "#{BASE_URL}/sports/amitie/messages/inbox".freeze
 
   Result = Data.define(:success, :messages, :error)
 
@@ -26,14 +26,11 @@ class PicroScraperService
   def login(agent)
     page = agent.get(LOGIN_URL)
 
-    form = page.form_with(action: /login|member/i) || page.forms.first
+    form = page.form_with(id: "MemberIndexForm")
     raise "ログインフォームが見つかりません" unless form
 
-    # フィールド名は実際のHTMLに合わせて調整が必要
-    # ブラウザDevToolsで form の action と input の name を確認すること
-    login_field = form.field_with(id: "MemberLoginid") ||
-                  form.field_with(name: /login_id|email|loginid/i)
-    password_field = form.field_with(name: /password|passwd/i)
+    login_field    = form.field_with(name: "data[Member][loginid]")
+    password_field = form.field_with(name: "data[Member][passwd]")
 
     raise "ログインIDフィールドが見つかりません" unless login_field
     raise "パスワードフィールドが見つかりません" unless password_field
@@ -52,23 +49,24 @@ class PicroScraperService
     parse_messages(page)
   end
 
-  # メッセージ一覧のHTML構造に合わせてパース処理を調整すること
-  # ブラウザDevToolsでメッセージ一覧ページの構造を確認の上、
-  # セレクタを修正してください
   def parse_messages(page)
     messages = []
 
-    # TODO: 実際のHTML構造を確認してセレクタを調整
-    # 例: page.search(".message-item") など
-    page.search(".message-list-item, .message-row, li.message").each do |node|
-      message_id = extract_message_id(node)
-      next if message_id.nil?
+    page.search("tr.messages--box--list-item").each do |row|
+      sender   = row.at("td.messages--box--name")&.text&.strip
+      date_str = row.at("td.messages--box--date")&.text&.strip
+      title_td = row.at("td.messages--box--title")
+      title    = title_td&.children&.first&.text&.strip
+      preview  = title_td&.at("p.messages--box--excerpt")&.text&.strip&.truncate(200)
+
+      next if sender.blank? || date_str.blank?
 
       messages << {
-        message_id: message_id,
-        sender_name: node.at(".sender-name, .from, .username")&.text&.strip,
-        preview: node.at(".message-preview, .body, .content")&.text&.strip&.truncate(100),
-        received_at: parse_date(node.at(".date, .time, .received-at")&.text)
+        message_id:  build_message_id(sender, date_str),
+        sender_name: sender,
+        title:       title,
+        preview:     preview,
+        received_at: parse_date(date_str)
       }
     end
 
@@ -76,10 +74,8 @@ class PicroScraperService
     messages
   end
 
-  def extract_message_id(node)
-    # data-id属性 or リンクのIDパラメータから取得
-    node["data-id"] ||
-      node.at("a[href*='/messages/']")&.[]("href")&.match(%r{/messages/(\w+)})&.[](1)
+  def build_message_id(sender, date_str)
+    Digest::SHA1.hexdigest("#{sender}|#{date_str}")[0, 16]
   end
 
   def parse_date(text)

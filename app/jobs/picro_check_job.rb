@@ -29,6 +29,7 @@ class PicroCheckJob < ApplicationJob
       PicroMessage.create!(
         message_id:  msg[:message_id],
         sender_name: msg[:sender_name],
+        title:       msg[:title],
         preview:     msg[:preview],
         received_at: msg[:received_at],
         notified:    false
