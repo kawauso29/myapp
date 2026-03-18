@@ -44,7 +44,7 @@ gem "image_processing", "~> 1.2"
 gem "mechanize"
 
 # LINE Messaging API
-gem "line-bot-api"
+gem "line-bot-api", "~> 1.28"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
