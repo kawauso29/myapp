@@ -13,6 +13,5 @@ data = JSON.parse(response.body)
 messages = data['data'] || []
 puts "#{messages.size}件取得"
 item = messages.first
-puts "Team: #{item['Message']['Team'].inspect}"
-puts "Instructor: #{item['Message']['Instructor'].inspect}"
-puts "Member: #{item['Message']['Member'].inspect}"
+puts "MessageInbox keys: #{item['MessageInbox'].keys.join(', ')}"
+puts "MessageInbox full: #{item['MessageInbox'].inspect}"
