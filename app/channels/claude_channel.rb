@@ -47,6 +47,8 @@ class ClaudeChannel < ApplicationCable::Channel
       begin
         loop do
           data = @master.readpartial(4096)
+          data = data.force_encoding("UTF-8")
+          data = data.encode("UTF-8", invalid: :replace, undef: :replace, replace: "?") unless data.valid_encoding?
           transmit({ type: "output", data: data })
         end
       rescue Errno::EIO, EOFError, IOError
