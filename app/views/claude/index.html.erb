@@ -71,6 +71,7 @@
       statusBar.style.color = '#4caf50';
       var size = fitTerminal();
       sendToChannel('resize', size);
+      term.focus();
       return;
     }
 
@@ -94,7 +95,9 @@
   };
 
   term.onData(function(data) {
+    statusBar.textContent = '● claude [sending]';
     sendToChannel('input', { text: data });
+    setTimeout(function() { statusBar.textContent = '● claude'; }, 300);
   });
 
   window.addEventListener('resize', function() {
