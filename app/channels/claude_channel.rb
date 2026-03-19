@@ -34,11 +34,14 @@ class ClaudeChannel < ApplicationCable::Channel
   private
 
   def start_claude_process
-    working_dir = ENV.fetch("CLAUDE_WORKING_DIR", Rails.root.to_s)
-    claude_bin  = ENV.fetch("CLAUDE_BIN", "claude")
-    env = { "TERM" => "xterm-256color", "COLORTERM" => "truecolor" }
+    working_dir = ENV["CLAUDE_WORKING_DIR"].presence || Rails.root.to_s
+    working_dir = Rails.root.to_s unless Dir.exist?(working_dir)
+    claude_bin  = ENV["CLAUDE_BIN"].presence || `which claude`.strip
+    env = { "TERM" => "xterm-256color", "COLORTERM" => "truecolor", "HOME" => Dir.home }
 
-    @master, @slave, @pid = PTY.spawn(env, claude_bin, "--dangerously-skip-permissions", chdir: working_dir)
+    Dir.chdir(working_dir) do
+      @master, @slave, @pid = PTY.spawn(env, claude_bin, "--dangerously-skip-permissions")
+    end
 
     @read_thread = Thread.new do
       begin
