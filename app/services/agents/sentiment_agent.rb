@@ -28,12 +28,11 @@ module Agents
         - 主要ニュースがネガティブ（Fed引き締め・景気後退・信用不安など）の場合は慎重に
         - センチメントが極端に一方向の場合は逆張りを検討
 
-        必ず以下のフォーマットで回答してください:
+        必ず以下のフォーマットのみで回答してください（他の文章は不要）:
         JUDGMENT: buy|sell|skip
         CONFIDENCE: 0.0〜1.0の数値
-        VETO: true|false（センチメントが明確に逆サインの場合はtrue）
-        VETO_REASON: （vetoがtrueの場合のみ記載）
-        REASONING: 判断の根拠を日本語で記載
+        VETO: true|false
+        VETO_REASON: （veto=trueの場合のみ1行で記載）
       PROMPT
 
       user_message = <<~MSG

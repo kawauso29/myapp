@@ -30,12 +30,11 @@ module Agents
         - サポートに近い場合は買い、レジスタンスに近い場合は売りまたはskip
         - ボリンジャーバンド収縮中はレンジ、拡張時はトレンド
 
-        必ず以下のフォーマットで回答してください:
+        必ず以下のフォーマットのみで回答してください（他の文章は不要）:
         JUDGMENT: buy|sell|skip
         CONFIDENCE: 0.0〜1.0の数値
-        VETO: true|false（テクニカル的に明確な逆サインがある場合はtrue）
-        VETO_REASON: （vetoがtrueの場合のみ記載）
-        REASONING: 判断の根拠を日本語で記載
+        VETO: true|false
+        VETO_REASON: （veto=trueの場合のみ1行で記載）
       PROMPT
 
       user_message = <<~MSG

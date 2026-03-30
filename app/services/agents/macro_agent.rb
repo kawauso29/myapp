@@ -28,12 +28,11 @@ module Agents
         - VIXが20を超えている場合はリスクオフとして慎重に判断
         - 景気後退懸念が強い局面はskipを推奨
 
-        必ず以下のフォーマットで回答してください:
+        必ず以下のフォーマットのみで回答してください（他の文章は不要）:
         JUDGMENT: buy|sell|skip
         CONFIDENCE: 0.0〜1.0の数値
-        VETO: true|false（市場環境が極めて悪い場合はtrue）
-        VETO_REASON: （vetoがtrueの場合のみ記載）
-        REASONING: 判断の根拠を日本語で記載
+        VETO: true|false
+        VETO_REASON: （veto=trueの場合のみ1行で記載）
       PROMPT
 
       user_message = <<~MSG

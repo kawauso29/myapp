@@ -28,12 +28,11 @@ module Agents
         - Put/Call Ratio が1.2以上は市場参加者が弱気（逆張りの買いシグナルになる場合も）
         - 機関投資家の大量買いは強いシグナル
 
-        必ず以下のフォーマットで回答してください:
+        必ず以下のフォーマットのみで回答してください（他の文章は不要）:
         JUDGMENT: buy|sell|skip
         CONFIDENCE: 0.0〜1.0の数値
         VETO: true|false
-        VETO_REASON: （vetoがtrueの場合のみ記載）
-        REASONING: 判断の根拠を日本語で記載
+        VETO_REASON: （veto=trueの場合のみ1行で記載）
       PROMPT
 
       user_message = <<~MSG
