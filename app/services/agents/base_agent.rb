@@ -47,15 +47,25 @@ module Agents
     end
 
     # Claude API を呼び出す共通ヘルパー
+    #
+    # コスト設計:
+    #   - 各エージェントの一次判断は claude-haiku-4-5（安価・高速）
+    #   - Orchestrator の最終スコアリングのみ claude-opus-4-6（高精度）
+    #
+    # 概算コスト比較（1回の分析サイクル・5エージェント）:
+    #   全 Opus: 約 $0.09/回 → 5分ごと 24h で約 $26/日
+    #   全 Haiku: 約 $0.002/回 → 5分ごと 24h で約 $0.58/日（約45分の1）
+    #
     # @param system_prompt [String]
     # @param user_message  [String]
+    # @param model [String] デフォルトは Haiku（安価）。重要判断のみ呼び出し元で Opus を指定
     # @return [String] AIの応答テキスト
-    def call_claude(system_prompt:, user_message:)
+    def call_claude(system_prompt:, user_message:, model: "claude-haiku-4-5-20251001")
       client = Anthropic::Client.new
       response = client.messages(
         parameters: {
-          model:      "claude-opus-4-6",
-          max_tokens: 1024,
+          model:      model,
+          max_tokens: 512,
           system:     system_prompt,
           messages:   [{ role: "user", content: user_message }]
         }

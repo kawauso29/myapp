@@ -5,11 +5,31 @@
 #
 # 将来的にはデータソース（MT4 EA / 外部API）からリアルタイムデータを取得する。
 # 現在はデモ用のスタブデータを使用する。
+#
+# APIコスト最適化:
+#   1. 市場時間外（NAS100が取引されていない時間）はスキップ
+#   2. Layer 0 で dangerous/low-confidence と判断された場合はエージェントを呼ばない
+#      （Orchestrator が担保しているが、ジョブ層でも早期 return する）
+#   3. エージェントは安価な Haiku を使用（base_agent.rb 参照）
+#
+# 概算コスト:
+#   市場時間内のみ・Haiku 使用 → 約 $0.10〜0.20/日
 
 class MarketAnalysisJob < ApplicationJob
+  # NAS100（CME先物）の主要取引時間帯（米国東部時間）
+  # 実質的にボラティリティと流動性がある時間帯に絞る
+  # 日本時間: 22:30〜翌6:00（夏時間）/ 23:30〜翌7:00（冬時間）
+  MARKET_OPEN_HOUR_ET  = 9   # 9:30 ET
+  MARKET_CLOSE_HOUR_ET = 16  # 16:00 ET（通常セッション終了）
+
   queue_as :market_analysis
 
   def perform
+    unless market_open?
+      Rails.logger.info "[MarketAnalysisJob] 市場時間外のためスキップ (#{Time.current})"
+      return
+    end
+
     Rails.logger.info "[MarketAnalysisJob] 市場分析開始 #{Time.current}"
 
     market_data = fetch_market_data
@@ -50,6 +70,16 @@ class MarketAnalysisJob < ApplicationJob
       mag7_earnings_today:   false,
       fomc_today:            false
     }
+  end
+
+  # NAS100の主要取引時間内かどうかを確認
+  # 週末・祝日は除外（簡易実装）
+  def market_open?
+    now_et = Time.current.in_time_zone("Eastern Time (US & Canada)")
+    return false if now_et.saturday? || now_et.sunday?
+
+    hour = now_et.hour
+    hour >= MARKET_OPEN_HOUR_ET && hour < MARKET_CLOSE_HOUR_ET
   end
 
   def fetch_nas100_price
