@@ -48,18 +48,17 @@ module Agents
 
     # LLM API 呼び出し共通ヘルパー
     #
-    # AI_PROVIDER 環境変数で切り替え可能:
-    #   AI_PROVIDER=claude  → Claude Haiku（デフォルト） ~$9/月
-    #   AI_PROVIDER=openai  → GPT-4o mini              ~$1.5/月
+    # モデルはエージェントごとに llm_model で定義する（サブクラスでオーバーライド可）。
+    # AI_PROVIDER=openai のとき OpenAI、それ以外は Claude を使用。
     #
-    # コスト最小化のため:
-    #   - max_tokens: 80（一次判断は数値のみ）
-    #   - REASONING はプロンプトに含めない
+    # エージェント別モデル設定（.env）:
+    #   TECHNICAL_MODEL=gpt-5.4-nano    # 数値分類 → nano で十分
+    #   MOMENTUM_MODEL=gpt-5.4-nano
+    #   EVENT_RISK_MODEL=gpt-5.4-nano
+    #   MACRO_MODEL=gpt-5.4-mini        # 文脈理解 → mini 推奨
+    #   SENTIMENT_MODEL=gpt-5.4-mini
     #
-    # @param system_prompt [String]
-    # @param user_message  [String]
-    # @param max_tokens [Integer]
-    # @return [String]
+    # 月額試算: nano×3 + mini×2 ≒ $0.8/月
     def call_llm(system_prompt:, user_message:, max_tokens: 80)
       case ENV.fetch("AI_PROVIDER", "claude")
       when "openai"
@@ -69,11 +68,17 @@ module Agents
       end
     end
 
+    # サブクラスで使用モデルを定義する。
+    # 例: def llm_model = ENV.fetch("MACRO_MODEL", "gpt-5.4-mini")
+    def llm_model
+      raise NotImplementedError, "#{self.class.name}#llm_model を実装してください"
+    end
+
     def call_claude(system_prompt:, user_message:, max_tokens: 80)
       client = Anthropic::Client.new
       response = client.messages(
         parameters: {
-          model:      ENV.fetch("CLAUDE_MODEL", "claude-haiku-4-5-20251001"),
+          model:      llm_model,
           max_tokens: max_tokens,
           system:     system_prompt,
           messages:   [{ role: "user", content: user_message }]
@@ -90,7 +95,7 @@ module Agents
       client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
       response = client.chat(
         parameters: {
-          model:      ENV.fetch("OPENAI_MODEL", "gpt-4o-mini"),
+          model:      llm_model,
           max_tokens: max_tokens,
           messages:   [
             { role: "system", content: system_prompt },

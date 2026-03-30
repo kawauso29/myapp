@@ -12,9 +12,8 @@ module Agents
   class TechnicalAgent < BaseAgent
     private
 
-    def agent_type
-      "technical"
-    end
+    def agent_type = "technical"
+    def llm_model  = ENV.fetch("TECHNICAL_MODEL", "gpt-5.4-nano")
 
     def analyze(snapshot)
       raw = snapshot.raw_data&.symbolize_keys || {}

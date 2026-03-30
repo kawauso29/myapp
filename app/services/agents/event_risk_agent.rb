@@ -19,9 +19,8 @@ module Agents
 
     private
 
-    def agent_type
-      "event_risk"
-    end
+    def agent_type = "event_risk"
+    def llm_model  = ENV.fetch("EVENT_RISK_MODEL", "gpt-5.4-nano")
 
     def analyze(snapshot)
       raw = snapshot.raw_data&.symbolize_keys || {}

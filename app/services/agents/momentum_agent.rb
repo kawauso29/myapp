@@ -11,9 +11,8 @@ module Agents
   class MomentumAgent < BaseAgent
     private
 
-    def agent_type
-      "momentum"
-    end
+    def agent_type = "momentum"
+    def llm_model  = ENV.fetch("MOMENTUM_MODEL", "gpt-5.4-nano")
 
     def analyze(snapshot)
       raw = snapshot.raw_data&.symbolize_keys || {}

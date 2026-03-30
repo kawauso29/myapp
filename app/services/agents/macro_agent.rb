@@ -11,9 +11,8 @@ module Agents
   class MacroAgent < BaseAgent
     private
 
-    def agent_type
-      "macro"
-    end
+    def agent_type = "macro"
+    def llm_model  = ENV.fetch("MACRO_MODEL", "gpt-5.4-mini")
 
     def analyze(snapshot)
       raw = snapshot.raw_data&.symbolize_keys || {}

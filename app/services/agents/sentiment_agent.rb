@@ -11,9 +11,8 @@ module Agents
   class SentimentAgent < BaseAgent
     private
 
-    def agent_type
-      "sentiment"
-    end
+    def agent_type = "sentiment"
+    def llm_model  = ENV.fetch("SENTIMENT_MODEL", "gpt-5.4-mini")
 
     def analyze(snapshot)
       raw = snapshot.raw_data&.symbolize_keys || {}
