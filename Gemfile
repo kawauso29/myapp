@@ -47,7 +47,8 @@ gem "mechanize"
 gem "line-bot-api", "~> 1.28"
 
 # AI Trading System
-gem "anthropic"          # Claude API client
+gem "anthropic"          # Claude API client（AI_PROVIDER=claude のとき使用）
+gem "ruby-openai"        # OpenAI API client（AI_PROVIDER=openai のとき使用）
 gem "httparty"           # MT4ブリッジ用HTTPクライアント
 gem "sidekiq", "~> 7.0"  # バックグラウンドジョブ
 

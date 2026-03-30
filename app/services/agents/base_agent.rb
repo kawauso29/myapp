@@ -46,27 +46,34 @@ module Agents
       )
     end
 
-    # Claude API を呼び出す共通ヘルパー
+    # LLM API 呼び出し共通ヘルパー
     #
-    # コスト設計（output が input の5倍高いため output 削減が最重要）:
-    #   - 一次判断: 数値のみ返答（~40 output tokens）
-    #   - 理由は execute 判断時のみ追加取得（~150 output tokens）
-    #   - モデルは Haiku（Opus の約1/20）
+    # AI_PROVIDER 環境変数で切り替え可能:
+    #   AI_PROVIDER=claude  → Claude Haiku（デフォルト） ~$9/月
+    #   AI_PROVIDER=openai  → GPT-4o mini              ~$1.5/月
     #
-    # 概算コスト（5エージェント・市場時間内のみ・5分ごと）:
-    #   一次判断のみ: ~$0.02/日
-    #   execute 時の理由取得込み: ~$0.05〜0.10/日（execute は全判断の数%）
+    # コスト最小化のため:
+    #   - max_tokens: 80（一次判断は数値のみ）
+    #   - REASONING はプロンプトに含めない
     #
     # @param system_prompt [String]
     # @param user_message  [String]
-    # @param model [String] デフォルトは Haiku
     # @param max_tokens [Integer]
     # @return [String]
-    def call_claude(system_prompt:, user_message:, model: "claude-haiku-4-5-20251001", max_tokens: 80)
+    def call_llm(system_prompt:, user_message:, max_tokens: 80)
+      case ENV.fetch("AI_PROVIDER", "claude")
+      when "openai"
+        call_openai(system_prompt: system_prompt, user_message: user_message, max_tokens: max_tokens)
+      else
+        call_claude(system_prompt: system_prompt, user_message: user_message, max_tokens: max_tokens)
+      end
+    end
+
+    def call_claude(system_prompt:, user_message:, max_tokens: 80)
       client = Anthropic::Client.new
       response = client.messages(
         parameters: {
-          model:      model,
+          model:      ENV.fetch("CLAUDE_MODEL", "claude-haiku-4-5-20251001"),
           max_tokens: max_tokens,
           system:     system_prompt,
           messages:   [{ role: "user", content: user_message }]
@@ -75,6 +82,25 @@ module Agents
       response.dig("content", 0, "text").to_s
     rescue => e
       Rails.logger.error "[#{self.class.name}] Claude API error: #{e.message}"
+      ""
+    end
+
+    def call_openai(system_prompt:, user_message:, max_tokens: 80)
+      require "openai"
+      client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
+      response = client.chat(
+        parameters: {
+          model:      ENV.fetch("OPENAI_MODEL", "gpt-4o-mini"),
+          max_tokens: max_tokens,
+          messages:   [
+            { role: "system", content: system_prompt },
+            { role: "user",   content: user_message }
+          ]
+        }
+      )
+      response.dig("choices", 0, "message", "content").to_s
+    rescue => e
+      Rails.logger.error "[#{self.class.name}] OpenAI API error: #{e.message}"
       ""
     end
 

@@ -47,7 +47,7 @@ module Agents
         センチメントの観点からNAS100の売買判断を行ってください。
       MSG
 
-      response = call_claude(system_prompt: system_prompt, user_message: user_message)
+      response = call_llm(system_prompt: system_prompt, user_message: user_message)
       return fallback_result("Claude APIレスポンスなし") if response.blank?
 
       parse_ai_response(response)
