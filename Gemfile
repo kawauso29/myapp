@@ -46,6 +46,11 @@ gem "mechanize"
 # LINE Messaging API
 gem "line-bot-api", "~> 1.28"
 
+# AI Trading System
+gem "anthropic"          # Claude API client
+gem "httparty"           # MT4ブリッジ用HTTPクライアント
+gem "sidekiq", "~> 7.0"  # バックグラウンドジョブ
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
