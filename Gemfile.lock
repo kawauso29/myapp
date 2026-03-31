@@ -115,6 +115,9 @@ GEM
       reline (>= 0.3.8)
     domain_name (0.6.20240107)
     dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     ed25519 (1.4.0)
     erb (6.0.2)
@@ -474,6 +477,7 @@ DEPENDENCIES
   bundler-audit
   capybara
   debug
+  dotenv-rails
   httparty
   image_processing (~> 1.2)
   importmap-rails
