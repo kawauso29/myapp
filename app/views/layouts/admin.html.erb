@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Trading Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #0f1117; color: #e2e8f0; font-size: 14px; }
+
+    /* ナビ */
+    nav { background: #1a1d2e; border-bottom: 1px solid #2d3748; padding: 12px 24px;
+          display: flex; align-items: center; gap: 24px; }
+    nav .logo { font-size: 16px; font-weight: 700; color: #63b3ed; }
+    nav a { color: #a0aec0; text-decoration: none; }
+    nav a:hover { color: #e2e8f0; }
+
+    /* メインコンテンツ */
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+    /* カード */
+    .card { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 8px;
+             padding: 16px; margin-bottom: 16px; }
+    .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
+                color: #718096; margin-bottom: 12px; }
+
+    /* 統計グリッド */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .stat { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 8px;
+             padding: 16px; text-align: center; }
+    .stat .value { font-size: 28px; font-weight: 700; }
+    .stat .label { font-size: 12px; color: #718096; margin-top: 4px; }
+    .stat.green .value { color: #68d391; }
+    .stat.red   .value { color: #fc8181; }
+    .stat.blue  .value { color: #63b3ed; }
+    .stat.yellow .value { color: #f6e05e; }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 12px; color: #718096; font-weight: 600;
+         border-bottom: 1px solid #2d3748; font-size: 12px; text-transform: uppercase; }
+    td { padding: 8px 12px; border-bottom: 1px solid #1e2433; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #232637; }
+
+    /* バッジ */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+              font-size: 11px; font-weight: 600; }
+    .badge.bull     { background: #1c4532; color: #68d391; }
+    .badge.bear     { background: #4a1942; color: #fc8181; }
+    .badge.ranging  { background: #1a365d; color: #63b3ed; }
+    .badge.dangerous { background: #4a1942; color: #fc8181; }
+    .badge.execute  { background: #1c4532; color: #68d391; }
+    .badge.skip     { background: #2d3748; color: #a0aec0; }
+    .badge.buy      { background: #1c4532; color: #68d391; }
+    .badge.sell     { background: #4a1942; color: #fc8181; }
+    .badge.win      { background: #1c4532; color: #68d391; }
+    .badge.loss     { background: #4a1942; color: #fc8181; }
+    .badge.veto     { background: #4a1942; color: #fc8181; }
+    .badge.draft    { background: #2d4a1e; color: #9ae6b4; }
+
+    /* 2カラムグリッド */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* エージェントカード */
+    .agents-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .agent-card { background: #232637; border-radius: 6px; padding: 12px; }
+    .agent-card .name { font-size: 12px; color: #718096; margin-bottom: 8px; }
+    .agent-card .judgment { font-size: 18px; font-weight: 700; }
+    .agent-card .confidence { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+    .agent-card .veto-flag { font-size: 11px; color: #fc8181; margin-top: 4px; }
+
+    /* 市場状態パネル */
+    .market-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .market-item .label { font-size: 11px; color: #718096; }
+    .market-item .value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+    /* 損益 */
+    .pnl.positive { color: #68d391; }
+    .pnl.negative { color: #fc8181; }
+
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="logo">📈 AI Trading Dashboard</span>
+    <a href="/admin">ダッシュボード</a>
+  </nav>
+  <main>
+    <%= yield %>
+  </main>
+</body>
+</html>

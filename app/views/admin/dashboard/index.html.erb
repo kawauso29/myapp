@@ -1,0 +1,252 @@
+<% content_for :title, "AI Trading Dashboard" %>
+
+<%# ===== 今日の統計 ===== %>
+<div class="stats-grid" style="margin-bottom:16px;">
+  <div class="stat blue">
+    <div class="value"><%= @today_stats[:total] %></div>
+    <div class="label">本日の分析回数</div>
+  </div>
+  <div class="stat green">
+    <div class="value"><%= @today_stats[:execute] %></div>
+    <div class="label">執行シグナル</div>
+  </div>
+  <div class="stat">
+    <div class="value"><%= @today_stats[:skip] %></div>
+    <div class="label">見送り</div>
+  </div>
+  <div class="stat green">
+    <div class="value"><%= @today_stats[:wins] %></div>
+    <div class="label">本日の勝ち</div>
+  </div>
+  <div class="stat red">
+    <div class="value"><%= @today_stats[:losses] %></div>
+    <div class="label">本日の負け</div>
+  </div>
+  <div class="stat <%= @today_stats[:pnl] >= 0 ? 'green' : 'red' %>">
+    <div class="value pnl <%= @today_stats[:pnl] >= 0 ? 'positive' : 'negative' %>">
+      $<%= @today_stats[:pnl] %>
+    </div>
+    <div class="label">本日損益</div>
+  </div>
+  <div class="stat <%= @total_pnl >= 0 ? 'green' : 'red' %>">
+    <div class="value pnl <%= @total_pnl >= 0 ? 'positive' : 'negative' %>">
+      $<%= @total_pnl %>
+    </div>
+    <div class="label">累計損益</div>
+  </div>
+</div>
+
+<%# ===== 現在の市場状態 ===== %>
+<% if @latest_snapshot %>
+  <div class="card">
+    <h2>現在の市場状態
+      <span style="float:right; font-size:11px; color:#4a5568;">
+        <%= @latest_snapshot.captured_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %> 更新
+      </span>
+    </h2>
+    <div class="market-panel">
+      <div class="market-item">
+        <div class="label">状態</div>
+        <div class="value">
+          <span class="badge <%= @latest_snapshot.state %>">
+            <%= { "trending_bull" => "↑ Bull", "trending_bear" => "↓ Bear",
+                  "ranging" => "→ Range", "dangerous" => "⚠ 危険" }[@latest_snapshot.state] %>
+          </span>
+        </div>
+      </div>
+      <div class="market-item">
+        <div class="label">確信度</div>
+        <div class="value"><%= (@latest_snapshot.state_confidence.to_f * 100).round %>%</div>
+      </div>
+      <div class="market-item">
+        <div class="label">NAS100</div>
+        <div class="value"><%= @latest_snapshot.nas100_price&.round(1) || "—" %></div>
+      </div>
+      <div class="market-item">
+        <div class="label">VIX</div>
+        <div class="value" style="<%= @latest_snapshot.vix.to_f > 25 ? 'color:#fc8181' : '' %>">
+          <%= @latest_snapshot.vix&.round(2) || "—" %>
+        </div>
+      </div>
+      <div class="market-item">
+        <div class="label">DXY</div>
+        <div class="value"><%= @latest_snapshot.dxy&.round(2) || "—" %></div>
+      </div>
+    </div>
+  </div>
+
+  <%# ===== 最新エージェント判断 ===== %>
+  <% if @latest_judgments.any? %>
+    <div class="card">
+      <h2>最新エージェント判断</h2>
+      <div class="agents-grid">
+        <% @latest_judgments.each do |j| %>
+          <div class="agent-card">
+            <div class="name">
+              <%= { "macro" => "マクロ", "technical" => "テクニカル", "momentum" => "モメンタム",
+                    "event_risk" => "イベントリスク", "sentiment" => "センチメント" }[j.agent_type] || j.agent_type %>
+            </div>
+            <div class="judgment">
+              <span class="badge <%= j.judgment %>">
+                <%= { "buy" => "↑ BUY", "sell" => "↓ SELL", "skip" => "→ SKIP" }[j.judgment] %>
+              </span>
+            </div>
+            <div class="confidence">確信度: <%= (j.confidence.to_f * 100).round %>%</div>
+            <% if j.veto? %>
+              <div class="veto-flag">⛔ VETO: <%= j.veto_reason %></div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+<% else %>
+  <div class="card">
+    <p style="color:#718096; text-align:center; padding:24px;">
+      まだ市場データがありません。MarketAnalysisJob が実行されると表示されます。
+    </p>
+  </div>
+<% end %>
+
+<div class="grid-2">
+  <%# ===== 直近の売買判断 ===== %>
+  <div class="card">
+    <h2>直近の売買判断</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>時刻</th>
+          <th>判断</th>
+          <th>方向</th>
+          <th>スコア</th>
+          <th>理由</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_decisions.each do |d| %>
+          <tr>
+            <td style="color:#a0aec0; white-space:nowrap;">
+              <%= d.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+            </td>
+            <td><span class="badge <%= d.decision %>"><%= d.decision.upcase %></span></td>
+            <td>
+              <% if d.direction %>
+                <span class="badge <%= d.direction %>"><%= d.direction.upcase %></span>
+              <% else %>
+                <span style="color:#4a5568;">—</span>
+              <% end %>
+            </td>
+            <td><%= d.final_score&.round(1) || "—" %></td>
+            <td style="color:#718096; font-size:12px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                title="<%= d.skip_reason %>">
+              <%= d.skip_reason&.truncate(40) %>
+            </td>
+          </tr>
+        <% end %>
+        <% if @recent_decisions.empty? %>
+          <tr><td colspan="5" style="color:#4a5568; text-align:center;">データなし</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <%# ===== 直近の執行結果 ===== %>
+  <div class="card">
+    <h2>直近の執行結果</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>時刻</th>
+          <th>結果</th>
+          <th>Pips</th>
+          <th>損益</th>
+          <th>保有時間</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_results.each do |r| %>
+          <tr>
+            <td style="color:#a0aec0; white-space:nowrap;">
+              <%= r.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+            </td>
+            <td><span class="badge <%= r.outcome %>"><%= r.outcome.upcase %></span></td>
+            <td class="<%= r.pips.to_f >= 0 ? 'pnl positive' : 'pnl negative' %>">
+              <%= r.pips&.round(1) || "—" %>
+            </td>
+            <td class="<%= r.profit_loss.to_f >= 0 ? 'pnl positive' : 'pnl negative' %>">
+              $<%= r.profit_loss&.round(2) || "—" %>
+            </td>
+            <td style="color:#718096;"><%= r.duration_minutes ? "#{r.duration_minutes}分" : "—" %></td>
+          </tr>
+        <% end %>
+        <% if @recent_results.empty? %>
+          <tr><td colspan="5" style="color:#4a5568; text-align:center;">データなし</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%# ===== 直近の市場スナップショット ===== %>
+<div class="card">
+  <h2>直近の市場スナップショット（10件）</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>時刻</th>
+        <th>状態</th>
+        <th>確信度</th>
+        <th>NAS100</th>
+        <th>VIX</th>
+        <th>DXY</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @recent_snapshots.each do |s| %>
+        <tr>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= s.captured_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+          </td>
+          <td>
+            <span class="badge <%= s.state %>">
+              <%= { "trending_bull" => "↑ Bull", "trending_bear" => "↓ Bear",
+                    "ranging" => "→ Range", "dangerous" => "⚠ 危険" }[s.state] %>
+            </span>
+          </td>
+          <td><%= (s.state_confidence.to_f * 100).round %>%</td>
+          <td><%= s.nas100_price&.round(1) || "—" %></td>
+          <td style="<%= s.vix.to_f > 25 ? 'color:#fc8181' : '' %>">
+            <%= s.vix&.round(2) || "—" %>
+          </td>
+          <td><%= s.dxy&.round(2) || "—" %></td>
+        </tr>
+      <% end %>
+      <% if @recent_snapshots.empty? %>
+        <tr><td colspan="6" style="color:#4a5568; text-align:center;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%# ===== 未レビューの分析レポート ===== %>
+<% if @pending_reports.any? %>
+  <div class="card" style="border-color:#f6e05e;">
+    <h2 style="color:#f6e05e;">⚠ 人間レビュー待ちの改善提案 (<%= @pending_reports.count %>件)</h2>
+    <% @pending_reports.each do |r| %>
+      <div style="border:1px solid #2d3748; border-radius:6px; padding:12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span class="badge draft"><%= r.report_type.upcase %></span>
+          <span style="color:#718096; font-size:12px;">
+            <%= r.period_start&.strftime("%Y/%m/%d") %> 〜 <%= r.period_end&.strftime("%Y/%m/%d") %>
+          </span>
+        </div>
+        <div style="font-size:13px; color:#a0aec0; white-space:pre-line;">
+          <%= r.improvement_suggestions&.truncate(300) %>
+        </div>
+        <div style="margin-top:8px; font-size:12px; color:#718096;">
+          ※ 本番反映は人間レビュー後に AnalysisReport#<%= r.id %>.approve! を実行
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>

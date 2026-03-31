@@ -17,6 +17,11 @@ Rails.application.routes.draw do
     end
   end
 
+  # 管理画面
+  namespace :admin do
+    root to: "dashboard#index"
+  end
+
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
