@@ -69,7 +69,7 @@ module Market
     private
 
     def determine_state(data)
-      return ["dangerous", 1.0] if dangerous?(data)
+      return [ "dangerous", 1.0 ] if dangerous?(data)
 
       classify_trend(data)
     end
@@ -107,15 +107,15 @@ module Market
       if adx >= TREND_ADX_THRESHOLD
         if above_ema200
           confidence = normalize_adx_confidence(adx)
-          ["trending_bull", confidence]
+          [ "trending_bull", confidence ]
         else
           confidence = normalize_adx_confidence(adx)
-          ["trending_bear", confidence]
+          [ "trending_bear", confidence ]
         end
       else
         # レンジ相場: ADX が低いほど確信度が高い
         confidence = 1.0 - (adx / TREND_ADX_THRESHOLD)
-        ["ranging", confidence.clamp(0.0, 1.0)]
+        [ "ranging", confidence.clamp(0.0, 1.0) ]
       end
     end
 

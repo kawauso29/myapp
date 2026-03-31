@@ -81,7 +81,7 @@ module Agents
           model:      llm_model,
           max_tokens: max_tokens,
           system:     system_prompt,
-          messages:   [{ role: "user", content: user_message }]
+          messages:   [ { role: "user", content: user_message } ]
         }
       )
       response.dig("content", 0, "text").to_s

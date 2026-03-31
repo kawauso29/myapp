@@ -103,9 +103,9 @@ class Orchestrator
     end
 
     if buy_score >= sell_score
-      [buy_score, "buy"]
+      [ buy_score, "buy" ]
     else
-      [sell_score, "sell"]
+      [ sell_score, "sell" ]
     end
   end
 

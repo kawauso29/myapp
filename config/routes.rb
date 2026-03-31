@@ -13,7 +13,7 @@ Rails.application.routes.draw do
   # AI自動売買システム API (MT4 EA連携)
   namespace :api do
     namespace :v1 do
-      resource :signal, only: [:show, :create]
+      resource :signal, only: [ :show, :create ]
     end
   end
 

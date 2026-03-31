@@ -51,7 +51,7 @@ class DefeatAnalysisJob < ApplicationJob
     TradeResult
       .joins(trade_decision: :market_snapshot)
       .where(market_snapshots: { captured_at: start_time..end_time })
-      .includes(trade_decision: [:market_snapshot, { market_snapshot: :agent_judgments }])
+      .includes(trade_decision: [ :market_snapshot, { market_snapshot: :agent_judgments } ])
   end
 
   def analyze_loss_patterns(results)
@@ -141,7 +141,7 @@ class DefeatAnalysisJob < ApplicationJob
         model:      "claude-opus-4-6",
         max_tokens: 2048,
         system:     system_prompt,
-        messages:   [{ role: "user", content: user_message }]
+        messages:   [ { role: "user", content: user_message } ]
       }
     )
 
