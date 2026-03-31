@@ -18,3 +18,22 @@ production:
     class: PicroCheckJob
     queue: default
     schedule: every hour
+
+  # AI自動売買システム: 市場分析（15分ごと）
+  # 市場時間外はジョブ内でスキップされる
+  market_analysis:
+    class: MarketAnalysisJob
+    queue: market_analysis
+    schedule: every 15 minutes
+
+  # 週次敗因分析（月曜 朝6時 JST）
+  defeat_analysis_weekly:
+    class: DefeatAnalysisJob
+    queue: analysis
+    schedule: every Monday at 6am
+
+  # 月次レポート（毎月1日 朝6時 JST）
+  monthly_report:
+    class: MonthlyReportJob
+    queue: analysis
+    schedule: on the 1st day of the month at 6am
