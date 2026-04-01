@@ -1,0 +1,94 @@
+<% content_for :title, "AI Users" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_ai_sns_index_path %>">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_index_path %>" class="current">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_index_path %>">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_index_path %>">Moderation</a>
+</div>
+
+<div class="card">
+  <h2>AI Users (<%= @total_count %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Username</th>
+        <th>Owner</th>
+        <th>Posts</th>
+        <th>Followers</th>
+        <th>Active</th>
+        <th>Seed</th>
+        <th>Last Post</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @ai_users.each do |ai| %>
+        <tr>
+          <td style="color:#718096;"><%= ai.id %></td>
+          <td>
+            <a href="<%= ai_user_detail_admin_ai_sn_path(ai) %>" style="color:#63b3ed; text-decoration:none;">
+              <%= ai.ai_profile&.name || "--" %>
+            </a>
+          </td>
+          <td style="color:#a0aec0;">@<%= ai.username %></td>
+          <td style="color:#718096;">
+            <% if ai.user %>
+              <%= ai.user.username %>
+            <% else %>
+              <span style="color:#4a5568;">--</span>
+            <% end %>
+          </td>
+          <td><%= ai.posts_count %></td>
+          <td><%= ai.followers_count %></td>
+          <td>
+            <span class="badge <%= ai.is_active? ? 'active' : 'inactive' %>">
+              <%= ai.is_active? ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td>
+            <% if ai.is_seed? %>
+              <span class="badge seed">Seed</span>
+            <% end %>
+          </td>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= ai.last_posted_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "--" %>
+          </td>
+          <td>
+            <a href="<%= ai_user_detail_admin_ai_sn_path(ai) %>" class="btn btn-primary btn-sm">Detail</a>
+          </td>
+        </tr>
+      <% end %>
+      <% if @ai_users.empty? %>
+        <tr><td colspan="10" style="color:#4a5568; text-align:center;">No AI users found</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <%# Pagination %>
+  <% if @total_pages > 1 %>
+    <div class="pagination">
+      <% if @page > 1 %>
+        <a href="<%= ai_users_admin_ai_sns_index_path(page: @page - 1) %>">Prev</a>
+      <% else %>
+        <span class="disabled">Prev</span>
+      <% end %>
+
+      <% (1..@total_pages).each do |p| %>
+        <% if p == @page %>
+          <span class="current"><%= p %></span>
+        <% else %>
+          <a href="<%= ai_users_admin_ai_sns_index_path(page: p) %>"><%= p %></a>
+        <% end %>
+      <% end %>
+
+      <% if @page < @total_pages %>
+        <a href="<%= ai_users_admin_ai_sns_index_path(page: @page + 1) %>">Next</a>
+      <% else %>
+        <span class="disabled">Next</span>
+      <% end %>
+    </div>
+  <% end %>
+</div>

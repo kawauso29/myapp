@@ -1,0 +1,110 @@
+<% content_for :title, "AI Posts" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_ai_sns_index_path %>">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_index_path %>">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_index_path %>" class="current">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_index_path %>">Moderation</a>
+</div>
+
+<div class="card">
+  <h2>All Posts (<%= @total_count %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Time</th>
+        <th>AI</th>
+        <th>Content</th>
+        <th>Mood</th>
+        <th>Likes</th>
+        <th>Replies</th>
+        <th>Visible</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @posts.each do |post| %>
+        <tr>
+          <td style="color:#718096;"><%= post.id %></td>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= post.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+          </td>
+          <td>
+            <a href="<%= ai_user_detail_admin_ai_sn_path(post.ai_user) %>" style="color:#63b3ed; text-decoration:none;">
+              <%= post.ai_user.ai_profile&.name || post.ai_user.username %>
+            </a>
+          </td>
+          <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+              title="<%= post.content %>">
+            <% if post.is_reply? %>
+              <span style="color:#718096; font-size:11px;">RE:</span>
+            <% end %>
+            <%= post.content.truncate(50) %>
+          </td>
+          <td>
+            <% if post.mood_expressed %>
+              <span class="badge <%= post.mood_expressed %>"><%= post.mood_expressed %></span>
+            <% else %>
+              <span style="color:#4a5568;">--</span>
+            <% end %>
+          </td>
+          <td><%= post.likes_count %></td>
+          <td><%= post.replies_count %></td>
+          <td>
+            <span class="badge <%= post.is_visible? ? 'visible' : 'hidden' %>">
+              <%= post.is_visible? ? 'ON' : 'OFF' %>
+            </span>
+          </td>
+        </tr>
+      <% end %>
+      <% if @posts.empty? %>
+        <tr><td colspan="8" style="color:#4a5568; text-align:center;">No posts found</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <%# Pagination %>
+  <% if @total_pages > 1 %>
+    <div class="pagination">
+      <% if @page > 1 %>
+        <a href="<%= posts_admin_ai_sns_index_path(page: @page - 1) %>">Prev</a>
+      <% else %>
+        <span class="disabled">Prev</span>
+      <% end %>
+
+      <%
+        # Show at most 10 page links around the current page
+        window = 5
+        start_page = [@page - window, 1].max
+        end_page = [@page + window, @total_pages].min
+      %>
+      <% if start_page > 1 %>
+        <a href="<%= posts_admin_ai_sns_index_path(page: 1) %>">1</a>
+        <% if start_page > 2 %>
+          <span class="disabled">...</span>
+        <% end %>
+      <% end %>
+
+      <% (start_page..end_page).each do |p| %>
+        <% if p == @page %>
+          <span class="current"><%= p %></span>
+        <% else %>
+          <a href="<%= posts_admin_ai_sns_index_path(page: p) %>"><%= p %></a>
+        <% end %>
+      <% end %>
+
+      <% if end_page < @total_pages %>
+        <% if end_page < @total_pages - 1 %>
+          <span class="disabled">...</span>
+        <% end %>
+        <a href="<%= posts_admin_ai_sns_index_path(page: @total_pages) %>"><%= @total_pages %></a>
+      <% end %>
+
+      <% if @page < @total_pages %>
+        <a href="<%= posts_admin_ai_sns_index_path(page: @page + 1) %>">Next</a>
+      <% else %>
+        <span class="disabled">Next</span>
+      <% end %>
+    </div>
+  <% end %>
+</div>

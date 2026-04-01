@@ -13,8 +13,9 @@
     nav { background: #1a1d2e; border-bottom: 1px solid #2d3748; padding: 12px 24px;
           display: flex; align-items: center; gap: 24px; }
     nav .logo { font-size: 16px; font-weight: 700; color: #63b3ed; }
-    nav a { color: #a0aec0; text-decoration: none; }
+    nav a { color: #a0aec0; text-decoration: none; font-size: 14px; }
     nav a:hover { color: #e2e8f0; }
+    nav a.active { color: #63b3ed; font-weight: 600; }
 
     /* メインコンテンツ */
     main { padding: 24px; max-width: 1400px; margin: 0 auto; }
@@ -80,15 +81,71 @@
     .pnl.positive { color: #68d391; }
     .pnl.negative { color: #fc8181; }
 
+    /* AI SNS badges */
+    .badge.active   { background: #1c4532; color: #68d391; }
+    .badge.inactive { background: #4a1942; color: #fc8181; }
+    .badge.seed     { background: #1a365d; color: #63b3ed; }
+    .badge.positive { background: #1c4532; color: #68d391; }
+    .badge.neutral  { background: #2d3748; color: #a0aec0; }
+    .badge.negative { background: #4a1942; color: #fc8181; }
+    .badge.visible  { background: #1c4532; color: #68d391; }
+    .badge.hidden   { background: #4a1942; color: #fc8181; }
+    .badge.warning  { background: #5a3e1b; color: #f6e05e; }
+    .badge.info     { background: #1a365d; color: #63b3ed; }
+
+    /* ボタン */
+    .btn { display: inline-block; padding: 6px 14px; border-radius: 6px;
+           font-size: 12px; font-weight: 600; text-decoration: none;
+           cursor: pointer; border: none; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #3182ce; color: #fff; }
+    .btn-danger  { background: #e53e3e; color: #fff; }
+    .btn-success { background: #38a169; color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* サブナビ */
+    .sub-nav { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .sub-nav a { display: inline-block; padding: 6px 16px; border-radius: 6px;
+                 background: #232637; color: #a0aec0; text-decoration: none;
+                 font-size: 13px; font-weight: 500; border: 1px solid #2d3748; }
+    .sub-nav a:hover { background: #2d3748; color: #e2e8f0; }
+    .sub-nav a.current { background: #3182ce; color: #fff; border-color: #3182ce; }
+
+    /* プロフィールカード */
+    .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+    .profile-grid dt { color: #718096; }
+    .profile-grid dd { color: #e2e8f0; margin: 0; }
+
+    /* ページネーション */
+    .pagination { display: flex; gap: 8px; margin-top: 16px; justify-content: center; }
+    .pagination a, .pagination span { display: inline-block; padding: 4px 12px;
+      border-radius: 4px; font-size: 13px; text-decoration: none;
+      border: 1px solid #2d3748; color: #a0aec0; }
+    .pagination a:hover { background: #2d3748; color: #e2e8f0; }
+    .pagination .current { background: #3182ce; color: #fff; border-color: #3182ce; }
+    .pagination .disabled { color: #4a5568; cursor: default; }
+
+    /* フラッシュメッセージ */
+    .flash { padding: 10px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+    .flash.notice { background: #1c4532; color: #68d391; border: 1px solid #276749; }
+    .flash.alert  { background: #4a1942; color: #fc8181; border: 1px solid #742a2a; }
+
     @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <nav>
-    <span class="logo">📈 AI Trading Dashboard</span>
-    <a href="/admin">ダッシュボード</a>
+    <span class="logo">Admin Dashboard</span>
+    <a href="/admin" class="<%= 'active' if controller_path == 'admin/dashboard' %>">Trading</a>
+    <a href="/admin/ai_sns" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
   </nav>
   <main>
+    <% if flash[:notice] %>
+      <div class="flash notice"><%= flash[:notice] %></div>
+    <% end %>
+    <% if flash[:alert] %>
+      <div class="flash alert"><%= flash[:alert] %></div>
+    <% end %>
     <%= yield %>
   </main>
 </body>
