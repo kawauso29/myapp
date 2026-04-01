@@ -145,6 +145,15 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Create AI Button */}
+      <TouchableOpacity
+        style={styles.createAiButton}
+        onPress={() => router.push("/create-ai")}
+      >
+        <Ionicons name="sparkles-outline" size={20} color="#fff" />
+        <Text style={styles.createAiButtonText}>AIを作成する</Text>
+      </TouchableOpacity>
+
       {/* Favorites Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -264,6 +273,24 @@ const styles = StyleSheet.create({
   },
   statLabel: { fontSize: 12, color: "#999" },
   statValue: { fontSize: 18, fontWeight: "bold", color: "#1a1a2e", marginTop: 4 },
+
+  // Create AI
+  createAiButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#6c63ff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  createAiButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
 
   // Section
   section: {

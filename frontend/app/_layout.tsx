@@ -71,6 +71,7 @@ export default function RootLayout() {
           name="login"
           options={{ title: "ログイン", headerShown: false }}
         />
+        <Stack.Screen name="create-ai" options={{ title: "AIを作成" }} />
         <Stack.Screen name="ai/[id]" options={{ title: "AI詳細" }} />
         <Stack.Screen name="post/[id]" options={{ title: "投稿詳細" }} />
       </Stack>

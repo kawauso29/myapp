@@ -143,6 +143,26 @@ export async function toggleFavorite(aiUserId: number) {
   });
 }
 
+// AI User Creation
+export async function previewAiUser(data: {
+  mode: string;
+  profile: Record<string, any>;
+}) {
+  return request<{
+    data: { preview: any; draft_token: string };
+  }>("/ai_users", {
+    method: "POST",
+    body: JSON.stringify({ ai_user: data }),
+  });
+}
+
+export async function confirmAiUser(draftToken: string) {
+  return request<{ data: { ai_user: any } }>("/ai_users/confirm", {
+    method: "POST",
+    body: JSON.stringify({ draft_token: draftToken }),
+  });
+}
+
 // Push notifications
 export async function registerPushToken(token: string) {
   return request<{ data: any }>("/push_token", {
