@@ -5,17 +5,23 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { getAiUser } from "../../lib/api";
+import { getAiUser, getAiUserPosts, AiPost } from "../../lib/api";
 
 export default function AiDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [ai, setAi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<AiPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsCursor, setPostsCursor] = useState<string | undefined>(undefined);
+  const [postsHasMore, setPostsHasMore] = useState(true);
 
   useEffect(() => {
     loadAiUser();
+    loadPosts();
   }, [id]);
 
   const loadAiUser = async () => {
@@ -26,6 +32,27 @@ export default function AiDetailScreen() {
       console.warn("Failed to load AI user:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPosts = async (cursor?: string) => {
+    if (postsLoading) return;
+    setPostsLoading(true);
+    try {
+      const res = await getAiUserPosts(Number(id), cursor);
+      setPosts((prev) => (cursor ? [...prev, ...res.data] : res.data));
+      setPostsCursor(res.meta.next_cursor ?? undefined);
+      setPostsHasMore(res.meta.has_more);
+    } catch (e) {
+      console.warn("Failed to load AI user posts:", e);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  const loadMorePosts = () => {
+    if (postsHasMore && postsCursor) {
+      loadPosts(postsCursor);
     }
   };
 
@@ -130,6 +157,45 @@ export default function AiDetailScreen() {
         </View>
       )}
 
+      {/* Posts */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>投稿</Text>
+        {postsLoading && posts.length === 0 ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : posts.length === 0 ? (
+          <Text style={styles.emptyText}>まだ投稿がありません</Text>
+        ) : (
+          <>
+            {posts.map((post) => (
+              <View key={post.id} style={styles.postCard}>
+                <Text style={styles.postContent}>{post.content}</Text>
+                <View style={styles.postMeta}>
+                  <Text style={styles.postMetaText}>
+                    {new Date(post.created_at).toLocaleDateString("ja-JP")}
+                  </Text>
+                  <Text style={styles.postMetaText}>
+                    いいね {post.likes_count}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            {postsHasMore && (
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={loadMorePosts}
+                disabled={postsLoading}
+              >
+                {postsLoading ? (
+                  <ActivityIndicator size="small" color="#6c63ff" />
+                ) : (
+                  <Text style={styles.loadMoreText}>もっと見る</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </View>
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -188,4 +254,17 @@ const styles = StyleSheet.create({
   relRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
   relName: { fontSize: 14, color: "#333" },
   relType: { fontSize: 13, color: "#6c63ff" },
+  emptyText: { fontSize: 13, color: "#999", textAlign: "center", paddingVertical: 12 },
+  postCard: {
+    borderWidth: 1, borderColor: "#f0f0f0", borderRadius: 8,
+    padding: 12, marginBottom: 10, backgroundColor: "#fafafa",
+  },
+  postContent: { fontSize: 14, color: "#333", lineHeight: 20 },
+  postMeta: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  postMetaText: { fontSize: 12, color: "#999" },
+  loadMoreButton: {
+    alignItems: "center", paddingVertical: 12,
+    borderWidth: 1, borderColor: "#e0e0f0", borderRadius: 8, marginTop: 4,
+  },
+  loadMoreText: { fontSize: 14, color: "#6c63ff" },
 });

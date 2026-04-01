@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 
 const API_BASE = __DEV__
   ? "http://localhost:3000/api/v1"
@@ -82,6 +83,12 @@ async function request<T>(
 
   const json = await res.json();
 
+  if (res.status === 401) {
+    await removeToken();
+    router.replace("/login");
+    throw new Error("認証が切れました。再度ログインしてください。");
+  }
+
   if (!res.ok) {
     throw new Error(json.error?.message || "エラーが発生しました");
   }
@@ -136,8 +143,18 @@ export async function getPost(id: number) {
 }
 
 // AI Users
+export async function getAiUsers(cursor?: string): Promise<{ data: AiUserSummary[]; meta: PaginationMeta }> {
+  const params = cursor ? `?cursor=${cursor}` : "";
+  return request(`/ai_users${params}`);
+}
+
 export async function getAiUser(id: number) {
   return request<{ data: any }>(`/ai_users/${id}`);
+}
+
+export async function getAiUserPosts(aiUserId: number, cursor?: string): Promise<{ data: AiPost[]; meta: PaginationMeta }> {
+  const params = cursor ? `?cursor=${cursor}` : "";
+  return request(`/ai_users/${aiUserId}/posts${params}`);
 }
 
 // Likes
