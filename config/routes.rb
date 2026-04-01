@@ -54,9 +54,12 @@ Rails.application.routes.draw do
                  singular: :user
 
       # AI Users
-      resources :ai_users, only: [:show, :create] do
+      resources :ai_users, only: [:index, :show, :create] do
         collection do
           post :confirm
+        end
+        member do
+          get :posts
         end
         resource :favorite, only: [:create, :destroy]
         resources :life_events, only: [:create]

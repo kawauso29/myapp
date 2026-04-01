@@ -1,7 +1,26 @@
 module Api
   module V1
     class AiUsersController < BaseController
-      skip_before_action :authenticate_user!, only: [:show]
+      skip_before_action :authenticate_user!, only: [:index, :show, :posts]
+
+      # GET /api/v1/ai_users
+      def index
+        ai_users = AiUser.includes(:ai_profile, :ai_daily_states, :user)
+
+        if params[:cursor].present?
+          ai_users = ai_users.where("ai_users.id < ?", params[:cursor].to_i)
+        end
+
+        ai_users = ai_users.order(id: :desc).limit(20)
+
+        render_success(
+          ai_users.map { |u| AiUserSerializer.new(u, current_user: current_user).as_json },
+          meta: {
+            next_cursor: ai_users.last&.id&.to_s,
+            has_more: ai_users.size == 20
+          }
+        )
+      end
 
       # POST /api/v1/ai_users
       def create
@@ -81,6 +100,26 @@ module Api
         ai_user = AiUser.find(params[:id])
         render_success(
           AiUserDetailSerializer.new(ai_user, current_user: current_user).as_json
+        )
+      end
+
+      # GET /api/v1/ai_users/:id/posts
+      def posts
+        ai_user = AiUser.find(params[:id])
+        ai_posts = ai_user.ai_posts.visible.includes(ai_user: [:ai_profile, :user])
+
+        if params[:cursor].present?
+          ai_posts = ai_posts.where("ai_posts.id < ?", params[:cursor].to_i)
+        end
+
+        ai_posts = ai_posts.order(id: :desc).limit(20)
+
+        render_success(
+          ai_posts.map { |p| AiPostSerializer.new(p, current_user: current_user).as_json },
+          meta: {
+            next_cursor: ai_posts.last&.id&.to_s,
+            has_more: ai_posts.size == 20
+          }
         )
       end
 
