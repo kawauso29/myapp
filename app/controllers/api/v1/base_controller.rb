@@ -13,6 +13,14 @@ module Api
 
       private
 
+      def current_user
+        @current_user ||= warden.authenticate(scope: :user)
+      end
+
+      def warden
+        request.env["warden"]
+      end
+
       def render_success(data, status: :ok, meta: nil)
         body = { data: data }
         body[:meta] = meta if meta
