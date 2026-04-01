@@ -18,6 +18,7 @@ jobs:
             cd ~/myapp
             git pull origin main
             bundle install
-            RAILS_ENV=production rails db:migrate
-            RAILS_ENV=production rails assets:precompile
+            RAILS_ENV=production bin/rails db:migrate
+            RAILS_ENV=production bin/rails assets:precompile
+            RAILS_ENV=production bin/rails solid_queue:update_recurring
             sudo systemctl restart puma
