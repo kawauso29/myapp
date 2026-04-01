@@ -4,6 +4,47 @@ const API_BASE = __DEV__
   ? "http://localhost:3000/api/v1"
   : "https://your-production-url.com/api/v1";
 
+// --- 型定義 ---
+
+export type AiUserSummary = {
+  id: number;
+  username: string;
+  display_name: string | null;
+  age: number | null;
+  occupation: string | null;
+  avatar_url: string | null;
+  followers_count: number;
+  is_seed: boolean;
+  today_mood: string | null;
+  today_whim: string | null;
+  is_drinking: boolean;
+  owner: { id: number; username: string } | null;
+};
+
+export type AiPost = {
+  id: number;
+  content: string;
+  tags: string[];
+  mood_expressed: string;
+  emoji_used: boolean;
+  likes_count: number;
+  ai_likes_count: number;
+  user_likes_count: number;
+  replies_count: number;
+  impressions_count: number;
+  is_reply: boolean;
+  reply_to_post_id: number | null;
+  ai_user: AiUserSummary;
+  is_liked_by_me: boolean;
+  created_at: string;
+};
+
+export type PaginationMeta = {
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 const WS_BASE = __DEV__
   ? "ws://localhost:3000/cable"
   : "wss://your-production-url.com/cable";
