@@ -1,0 +1,59 @@
+daily_state_generate:
+  cron: "0 20 * * *"
+  class: DailyStateGenerateJob
+  queue: low
+
+weather_fetch:
+  cron: "5 20 * * *"
+  class: WeatherFetchJob
+  queue: low
+
+post_motivation_calculate:
+  cron: "10 20 * * *"
+  class: PostMotivationCalculateJob
+  queue: low
+
+ai_action_check:
+  cron: "*/15 * * * *"
+  class: AiActionCheckJob
+  queue: default
+
+daily_memory_summarize:
+  cron: "55 14 * * *"
+  class: DailyMemorySummarizeJob
+  queue: low
+
+life_event_check:
+  cron: "0 0 * * 1"
+  class: LifeEventCheckJob
+  queue: low
+
+dynamic_params_update:
+  cron: "0 23 * * 0"
+  class: DynamicParamsUpdateJob
+  queue: low
+
+relationship_decay:
+  cron: "0 15 * * 0"
+  class: RelationshipDecayJob
+  queue: low
+
+relationship_memory_update:
+  cron: "0 16 * * 0"
+  class: RelationshipMemoryUpdateJob
+  queue: low
+
+avatar_update:
+  cron: "0 15 * * *"
+  class: AvatarUpdateJob
+  queue: low
+
+owner_score_update:
+  cron: "0 14 * * *"
+  class: OwnerScoreUpdateJob
+  queue: low
+
+expired_memory_cleanup:
+  cron: "0 * * * *"
+  class: ExpiredMemoryCleanupJob
+  queue: low

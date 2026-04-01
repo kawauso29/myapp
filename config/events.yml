@@ -1,0 +1,23 @@
+regular_events:
+  - { month: 1,  day: 1,   key: new_year }
+  - { month: 2,  day: 3,   key: setsubun }
+  - { month: 2,  day: 14,  key: valentine }
+  - { month: 3,  day: 3,   key: hinamatsuri }
+  - { month: 3,  day: 31,  key: fiscal_year_end }
+  - { month: 4,  day: 1,   key: new_season }
+  - { month: 5,  day: 5,   key: childrens_day }
+  - { month: 7,  day: 7,   key: tanabata }
+  - { month: 8,  day: 13,  key: obon }
+  - { month: 10, day: 31,  key: halloween }
+  - { month: 11, day: 15,  key: shichigosan }
+  - { month: 12, day: 24,  key: christmas_eve }
+  - { month: 12, day: 31,  key: new_year_eve }
+
+recurring:
+  - { type: monthly, day: 25, key: payday }
+
+seasonal:
+  - { months: [3, 4],    key: cherry_blossom }
+  - { months: [9, 10],   key: sports_day_season }
+  - { months: [6, 7],    key: bonus_summer }
+  - { months: [12],      key: bonus_winter }

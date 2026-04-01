@@ -1,0 +1,251 @@
+<% content_for :title, "AI Detail: #{@ai_user.ai_profile&.name || @ai_user.username}" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_ai_sns_index_path %>">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_index_path %>">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_index_path %>">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_index_path %>">Moderation</a>
+</div>
+
+<div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+  <h1 style="font-size:20px; font-weight:700; color:#e2e8f0; margin:0;">
+    <%= @ai_user.ai_profile&.name || @ai_user.username %>
+    <span style="font-size:14px; color:#718096; font-weight:400;">@<%= @ai_user.username %></span>
+  </h1>
+  <span class="badge <%= @ai_user.is_active? ? 'active' : 'inactive' %>">
+    <%= @ai_user.is_active? ? 'Active' : 'Inactive' %>
+  </span>
+  <% if @ai_user.is_seed? %>
+    <span class="badge seed">Seed</span>
+  <% end %>
+
+  <%= button_to(@ai_user.is_active? ? "Deactivate" : "Activate",
+        toggle_active_admin_ai_sn_path(@ai_user),
+        method: :post,
+        class: "btn #{@ai_user.is_active? ? 'btn-danger' : 'btn-success'} btn-sm") %>
+</div>
+
+<div class="grid-2">
+  <%# ===== Profile ===== %>
+  <div class="card">
+    <h2>Profile</h2>
+    <% profile = @ai_user.ai_profile %>
+    <% if profile %>
+      <dl class="profile-grid">
+        <dt>Name</dt>
+        <dd><%= profile.name %></dd>
+        <dt>Age</dt>
+        <dd><%= profile.age %></dd>
+        <dt>Gender</dt>
+        <dd><%= profile.gender || "--" %></dd>
+        <dt>Location</dt>
+        <dd><%= profile.location || "--" %></dd>
+        <dt>Occupation</dt>
+        <dd><%= profile.occupation || "--" %> (<%= profile.occupation_type || "--" %>)</dd>
+        <dt>Life Stage</dt>
+        <dd><%= profile.life_stage || "--" %></dd>
+        <dt>Relationship</dt>
+        <dd><%= profile.relationship_status || "--" %></dd>
+        <dt>Bio</dt>
+        <dd><%= profile.bio || "--" %></dd>
+        <dt>Hobbies</dt>
+        <dd><%= profile.hobbies.present? ? profile.hobbies.join(", ") : "--" %></dd>
+      </dl>
+    <% else %>
+      <p style="color:#4a5568;">No profile data</p>
+    <% end %>
+  </div>
+
+  <%# ===== Personality ===== %>
+  <div class="card">
+    <h2>Personality</h2>
+    <% personality = @ai_user.ai_personality %>
+    <% if personality %>
+      <dl class="profile-grid">
+        <dt>Sociability</dt>
+        <dd><%= personality.sociability %></dd>
+        <dt>Post Frequency</dt>
+        <dd><%= personality.post_frequency %></dd>
+        <dt>Need for Approval</dt>
+        <dd><%= personality.need_for_approval %></dd>
+        <dt>Emotional Range</dt>
+        <dd><%= personality.emotional_range %></dd>
+        <dt>Self Expression</dt>
+        <dd><%= personality.self_expression %></dd>
+        <dt>Self Esteem</dt>
+        <dd><%= personality.self_esteem %></dd>
+        <dt>Empathy</dt>
+        <dd><%= personality.empathy %></dd>
+        <dt>Curiosity</dt>
+        <dd><%= personality.curiosity %></dd>
+        <dt>Jealousy</dt>
+        <dd><%= personality.jealousy %></dd>
+        <dt>Risk Tolerance</dt>
+        <dd><%= personality.risk_tolerance %></dd>
+        <dt>Primary Purpose</dt>
+        <dd><%= personality.primary_purpose %></dd>
+        <dt>Follow Philosophy</dt>
+        <dd><%= personality.follow_philosophy %></dd>
+      </dl>
+    <% else %>
+      <p style="color:#4a5568;">No personality data</p>
+    <% end %>
+  </div>
+</div>
+
+<div class="grid-2">
+  <%# ===== Today's State ===== %>
+  <div class="card">
+    <h2>Today's State (<%= Date.current.strftime("%Y/%m/%d") %>)</h2>
+    <% if @today_state %>
+      <dl class="profile-grid">
+        <dt>Mood</dt>
+        <dd><span class="badge <%= {positive: 'active', neutral: 'neutral', negative: 'inactive', very_negative: 'inactive'}[@today_state.mood.to_sym] || '' %>"><%= @today_state.mood %></span></dd>
+        <dt>Physical</dt>
+        <dd><%= @today_state.physical %></dd>
+        <dt>Energy</dt>
+        <dd><%= @today_state.energy %></dd>
+        <dt>Busyness</dt>
+        <dd><%= @today_state.busyness %></dd>
+        <dt>Daily Whim</dt>
+        <dd><%= @today_state.daily_whim %></dd>
+        <dt>Timeline Urge</dt>
+        <dd><%= @today_state.timeline_urge %></dd>
+        <dt>Post Motivation</dt>
+        <dd><%= @today_state.post_motivation %>%</dd>
+        <dt>Fatigue</dt>
+        <dd><%= @today_state.fatigue_carried %>%</dd>
+        <dt>Drinking</dt>
+        <dd><%= @today_state.is_drinking? ? "Yes (Lv#{@today_state.drinking_level})" : "No" %></dd>
+        <dt>Weather</dt>
+        <dd><%= @today_state.weather_condition || "--" %> <%= @today_state.weather_temp ? "#{@today_state.weather_temp}C" : "" %></dd>
+      </dl>
+    <% else %>
+      <p style="color:#4a5568;">No state generated for today</p>
+    <% end %>
+  </div>
+
+  <%# ===== Dynamic Params ===== %>
+  <div class="card">
+    <h2>Dynamic Params</h2>
+    <% dp = @ai_user.ai_dynamic_params %>
+    <% if dp %>
+      <dl class="profile-grid">
+        <dt>Happiness</dt>
+        <dd><%= dp.happiness %></dd>
+        <dt>Loneliness</dt>
+        <dd><%= dp.loneliness %></dd>
+        <dt>Boredom</dt>
+        <dd><%= dp.boredom %></dd>
+        <dt>Dissatisfaction</dt>
+        <dd><%= dp.dissatisfaction %></dd>
+        <dt>Fatigue Carried</dt>
+        <dd><%= dp.fatigue_carried %></dd>
+        <dt>Relationship Dissatisfaction</dt>
+        <dd><%= dp.relationship_dissatisfaction %></dd>
+      </dl>
+    <% else %>
+      <p style="color:#4a5568;">No dynamic params</p>
+    <% end %>
+  </div>
+</div>
+
+<div class="grid-2">
+  <%# ===== Stats ===== %>
+  <div class="card">
+    <h2>Stats</h2>
+    <dl class="profile-grid">
+      <dt>Posts</dt>
+      <dd><%= @ai_user.posts_count %></dd>
+      <dt>Followers</dt>
+      <dd><%= @ai_user.followers_count %></dd>
+      <dt>Following</dt>
+      <dd><%= @ai_user.following_count %></dd>
+      <dt>Total Likes</dt>
+      <dd><%= @ai_user.total_likes %></dd>
+      <dt>Violations</dt>
+      <dd style="<%= @ai_user.violation_count > 0 ? 'color:#fc8181;' : '' %>"><%= @ai_user.violation_count %></dd>
+      <dt>Owner</dt>
+      <dd><%= @ai_user.user&.username || "--" %></dd>
+      <dt>Created</dt>
+      <dd><%= @ai_user.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %></dd>
+    </dl>
+  </div>
+
+  <%# ===== Recent Events ===== %>
+  <div class="card">
+    <h2>Recent Life Events</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Manual</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_events.each do |event| %>
+          <tr>
+            <td style="color:#a0aec0; white-space:nowrap;">
+              <%= event.fired_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+            </td>
+            <td><span class="badge info"><%= event.event_type %></span></td>
+            <td><%= event.manually_triggered? ? "Yes" : "No" %></td>
+          </tr>
+        <% end %>
+        <% if @recent_events.empty? %>
+          <tr><td colspan="3" style="color:#4a5568; text-align:center;">No events</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%# ===== Recent Posts ===== %>
+<div class="card">
+  <h2>Recent Posts (Last 10)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Content</th>
+        <th>Mood</th>
+        <th>Motivation</th>
+        <th>Likes</th>
+        <th>Replies</th>
+        <th>Visible</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @recent_posts.each do |post| %>
+        <tr>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= post.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+          </td>
+          <td style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+              title="<%= post.content %>">
+            <%= post.content.truncate(80) %>
+          </td>
+          <td>
+            <% if post.mood_expressed %>
+              <span class="badge <%= post.mood_expressed %>"><%= post.mood_expressed %></span>
+            <% else %>
+              <span style="color:#4a5568;">--</span>
+            <% end %>
+          </td>
+          <td style="color:#718096;"><%= post.motivation_type || "--" %></td>
+          <td><%= post.likes_count %></td>
+          <td><%= post.replies_count %></td>
+          <td>
+            <span class="badge <%= post.is_visible? ? 'visible' : 'hidden' %>">
+              <%= post.is_visible? ? 'ON' : 'OFF' %>
+            </span>
+          </td>
+        </tr>
+      <% end %>
+      <% if @recent_posts.empty? %>
+        <tr><td colspan="7" style="color:#4a5568; text-align:center;">No posts yet</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

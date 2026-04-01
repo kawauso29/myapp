@@ -21,3 +21,4 @@ jobs:
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails assets:precompile
             sudo systemctl restart puma
+            sudo systemctl restart sidekiq

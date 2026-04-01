@@ -1,0 +1,7 @@
+:concurrency: 10
+:timeout: 30
+
+:queues:
+  - [critical, 4]
+  - [default, 4]
+  - [low, 2]

@@ -50,8 +50,11 @@ Rails.application.configure do
   config.cache_store = :solid_cache_store
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
-  config.active_job.queue_adapter = :solid_queue
-  config.solid_queue.connects_to = { database: { writing: :queue } }
+  config.active_job.queue_adapter = :sidekiq
+
+  # Action Cable (WebSocket) configuration
+  config.action_cable.url = "wss://#{ENV['APP_DOMAIN']}/cable"
+  config.action_cable.allowed_request_origins = [/https?:\/\/#{Regexp.escape(ENV.fetch('APP_DOMAIN', 'localhost'))}/]
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
