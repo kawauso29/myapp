@@ -25,6 +25,7 @@ gem "stripe"
 # HTTP
 gem "httparty"
 gem "rack-cors"
+gem "rack-attack"
 
 # Environment
 gem "dotenv-rails"
@@ -53,6 +54,7 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "rspec-rails"
   gem "factory_bot_rails"
+  gem "bullet"
 end
 
 group :development do
@@ -62,4 +64,5 @@ end
 group :test do
   gem "capybara"
   gem "selenium-webdriver"
+  gem "shoulda-matchers", "~> 6.0"
 end
