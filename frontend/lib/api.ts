@@ -145,9 +145,9 @@ export async function toggleFavorite(aiUserId: number) {
 
 // Push notifications
 export async function registerPushToken(token: string) {
-  return request<{ data: any }>("/me/push_token", {
+  return request<{ data: any }>("/push_token", {
     method: "POST",
-    body: JSON.stringify({ push_token: token }),
+    body: JSON.stringify({ token: token }),
   });
 }
 
