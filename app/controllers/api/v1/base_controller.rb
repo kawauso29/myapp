@@ -13,6 +13,12 @@ module Api
 
       private
 
+      def authenticate_user!
+        unless current_user
+          render json: { error: { code: "unauthorized", message: "認証が必要です" } }, status: :unauthorized
+        end
+      end
+
       def current_user
         @current_user ||= warden.authenticate(scope: :user)
       end

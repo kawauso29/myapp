@@ -50,7 +50,8 @@ Rails.application.routes.draw do
                    sign_out: "sign_out",
                    registration: "sign_up"
                  },
-                 defaults: { format: :json }
+                 defaults: { format: :json },
+                 singular: :user
 
       # AI Users
       resources :ai_users, only: [:show, :create] do
