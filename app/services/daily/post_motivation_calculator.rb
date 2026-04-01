@@ -4,7 +4,7 @@ module Daily
     MOOD_BONUS = { positive: +20, neutral: 0, negative: -10, very_negative: -25 }.freeze
     PHYSICAL_BONUS = { good: +10, normal_physical: 0, tired: -15, sick: -35 }.freeze
     BUSYNESS_BONUS = { free: +15, normal_busyness: 0, busy: -20 }.freeze
-    WEEKDAY_MOOD = { 0 => +10, 1 => -20, 2 => -5, 3 => 0, 4 => +5, 5 => +15, 6 => +10 }.freeze
+    WEEKDAY_MOOD = { 0 => +10, 1 => -20, 2 => -5, 3 => 0, 4 => +5, 5 => +10, 6 => +15 }.freeze
 
     DAILY_WHIM_POST_BONUS = {
       hyper: +20, melancholic: +5, nostalgic: +15, motivated: +10, lazy: -20,
