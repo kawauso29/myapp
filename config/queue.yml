@@ -2,7 +2,6 @@ default: &default
   dispatchers:
     - polling_interval: 1
       batch_size: 500
-      recurring_tasks_config: config/recurring.yml
   workers:
     - queues: "*"
       threads: 3
