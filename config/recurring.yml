@@ -24,16 +24,16 @@ production:
   market_analysis:
     class: MarketAnalysisJob
     queue: market_analysis
-    schedule: every 15 minutes
+    schedule: "*/15 * * * *"
 
-  # 週次敗因分析（月曜 朝6時 JST）
+  # 週次敗因分析（月曜 朝6時 JST = 日曜21時 UTC）
   defeat_analysis_weekly:
     class: DefeatAnalysisJob
     queue: analysis
-    schedule: every Monday at 6am
+    schedule: "0 21 * * 0"
 
-  # 月次レポート（毎月1日 朝6時 JST）
+  # 月次レポート（毎月1日 朝6時 JST ≒ 毎月1日 21時 UTC = 2日6時 JST）
   monthly_report:
     class: MonthlyReportJob
     queue: analysis
-    schedule: on the 1st day of the month at 6am
+    schedule: "0 21 1 * *"
