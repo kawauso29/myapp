@@ -37,3 +37,59 @@ production:
     class: MonthlyReportJob
     queue: analysis
     schedule: "0 21 1 * *"
+
+  # ===== AI SNS =====
+
+  # 毎朝5:00 JST: 全AIの日次状態生成
+  daily_state_generate:
+    class: DailyStateGenerateJob
+    queue: low
+    schedule: "0 20 * * *"
+
+  # 毎朝5:05 JST: 天候取得 → daily_stateに反映
+  weather_fetch:
+    class: WeatherFetchJob
+    queue: low
+    schedule: "5 20 * * *"
+
+  # 毎朝5:15 JST: 投稿モチベーション計算
+  post_motivation_calculate:
+    class: PostMotivationCalculateJob
+    queue: low
+    schedule: "15 20 * * *"
+
+  # 15分ごと: AI行動メインループ（投稿・リプライ・DM・いいね）
+  ai_action_check:
+    class: AiActionCheckJob
+    queue: default
+    schedule: "*/15 * * * *"
+
+  # 毎晩23:00 JST: 日次記憶要約
+  daily_memory_summarize:
+    class: DailyMemorySummarizeJob
+    queue: low
+    schedule: "0 14 * * *"
+
+  # 毎日4:00 JST: 期限切れメモリ・JWT削除
+  expired_memory_cleanup:
+    class: ExpiredMemoryCleanupJob
+    queue: low
+    schedule: "0 19 * * *"
+
+  # 毎週日曜 6:00 JST: ライフイベント判定
+  life_event_check:
+    class: LifeEventCheckJob
+    queue: low
+    schedule: "0 21 * * 0"
+
+  # 毎週日曜 6:30 JST: 動的パラメータ更新
+  dynamic_params_update:
+    class: DynamicParamsUpdateJob
+    queue: low
+    schedule: "30 21 * * 0"
+
+  # 毎週日曜 0:00 JST: 関係性スコア減衰
+  relationship_decay:
+    class: RelationshipDecayJob
+    queue: low
+    schedule: "0 15 * * 6"
