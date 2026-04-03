@@ -1,15 +1,45 @@
 # AI SNS 用 LLM クライアント（サービス層から直接呼べるクラス版）
 #
 # 用途別モデル:
-#   LlmClient.call(prompt, purpose: :post)     → nano（投稿生成、頻繁）
-#   LlmClient.call(prompt, purpose: :creation) → mini（AI作成、低頻度）
+#   LlmClient.call(prompt, purpose: :post)     → 投稿生成（頻繁）
+#   LlmClient.call(prompt, purpose: :creation) → AI作成（低頻度）
 #
-# .env:
+# .env でプロバイダーとモデルを切り替え可能:
+#
+#   # Gemini（無料枠あり・推奨）
+#   AI_PROVIDER=gemini
+#   GEMINI_API_KEY=your_key
+#   AI_SNS_POST_MODEL=gemini-2.0-flash
+#   AI_SNS_CREATION_MODEL=gemini-2.0-flash
+#
+#   # OpenAI
 #   AI_PROVIDER=openai
-#   AI_SNS_POST_MODEL=gpt-5.4-nano
-#   AI_SNS_CREATION_MODEL=gpt-5.4-mini
+#   OPENAI_API_KEY=your_key
+#   AI_SNS_POST_MODEL=gpt-4o-mini
+#   AI_SNS_CREATION_MODEL=gpt-4o-mini
+#
+#   # Claude (Anthropic)
+#   AI_PROVIDER=claude
+#   ANTHROPIC_API_KEY=your_key
+#   AI_SNS_POST_MODEL=claude-haiku-4-5-20251001
+#   AI_SNS_CREATION_MODEL=claude-haiku-4-5-20251001
 class LlmClient
   MAX_RETRIES = 2
+
+  PROVIDER_DEFAULTS = {
+    "gemini" => {
+      post:     "gemini-2.0-flash",
+      creation: "gemini-2.0-flash",
+      uri_base: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      api_key_env: "GEMINI_API_KEY"
+    },
+    "openai" => {
+      post:     "gpt-4o-mini",
+      creation: "gpt-4o-mini",
+      uri_base: "https://api.openai.com/",
+      api_key_env: "OPENAI_API_KEY"
+    }
+  }.freeze
 
   def self.call(prompt, purpose: :post, max_tokens: 1000)
     new(prompt, purpose: purpose, max_tokens: max_tokens).call
@@ -24,7 +54,7 @@ class LlmClient
   def call
     retries = 0
     begin
-      provider == "openai" ? call_openai : call_claude
+      provider == "claude" ? call_claude : call_openai_compatible
     rescue => e
       if retries < MAX_RETRIES
         retries += 1
@@ -39,21 +69,24 @@ class LlmClient
   private
 
   def provider
-    ENV.fetch("AI_PROVIDER", "openai")
+    ENV.fetch("AI_PROVIDER", "gemini")
   end
 
   def model
-    case @purpose
-    when :creation
-      ENV.fetch("AI_SNS_CREATION_MODEL", provider == "openai" ? "gpt-5.4-mini" : "claude-haiku-4-5-20251001")
-    else
-      ENV.fetch("AI_SNS_POST_MODEL", provider == "openai" ? "gpt-5.4-nano" : "claude-haiku-4-5-20251001")
-    end
+    default = PROVIDER_DEFAULTS.dig(provider, @purpose == :creation ? :creation : :post) ||
+              "gemini-2.0-flash"
+    ENV.fetch(@purpose == :creation ? "AI_SNS_CREATION_MODEL" : "AI_SNS_POST_MODEL", default)
   end
 
-  def call_openai
+  def call_openai_compatible
+    config = PROVIDER_DEFAULTS.fetch(provider, PROVIDER_DEFAULTS["gemini"])
+    api_key = ENV.fetch(config[:api_key_env])
+
     require "openai"
-    client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
+    client = OpenAI::Client.new(
+      access_token: api_key,
+      uri_base: config[:uri_base]
+    )
     response = client.chat(
       parameters: {
         model:      model,
