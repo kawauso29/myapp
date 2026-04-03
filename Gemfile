@@ -45,7 +45,7 @@ gem "image_processing", "~> 1.2"
 gem "mechanize"
 
 # LINE Messaging API
-gem "line-bot-api", "~> 1.28"
+gem "line-bot-api", "~> 2.6"
 
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
