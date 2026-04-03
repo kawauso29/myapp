@@ -33,12 +33,11 @@ Rails.application.configure do
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
-  # Log to STDOUT and log/production.log
+  # Log to STDOUT by default, also write to log/production.log
   config.log_tags = [ :request_id ]
-  file_logger   = ActiveSupport::Logger.new(Rails.root.join("log/production.log"), 5, 50.megabytes)
-  stdout_logger = ActiveSupport::Logger.new(STDOUT)
-  config.logger = ActiveSupport::TaggedLogging.new(file_logger)
-  config.logger.broadcast_to(stdout_logger)
+  config.logger = ActiveSupport::TaggedLogging.logger(
+    Rails.root.join("log/production.log"), 5, 50.megabytes
+  )
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
