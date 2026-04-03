@@ -61,6 +61,8 @@ module Agents
     # 月額試算: nano×3 + mini×2 ≒ $0.8/月
     def call_llm(system_prompt:, user_message:, max_tokens: 80)
       case ENV.fetch("AI_PROVIDER", "claude")
+      when "gemini"
+        call_gemini(system_prompt: system_prompt, user_message: user_message, max_tokens: max_tokens)
       when "openai"
         call_openai(system_prompt: system_prompt, user_message: user_message, max_tokens: max_tokens)
       else
@@ -72,6 +74,37 @@ module Agents
     # 例: def llm_model = ENV.fetch("MACRO_MODEL", "gpt-5.4-mini")
     def llm_model
       raise NotImplementedError, "#{self.class.name}#llm_model を実装してください"
+    end
+
+    def call_gemini(system_prompt:, user_message:, max_tokens: 80)
+      model = ENV.fetch("GEMINI_AGENT_MODEL", "gemini-2.0-flash")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
+      body = {
+        systemInstruction: { parts: [{ text: system_prompt }] },
+        contents: [{ parts: [{ text: user_message }] }],
+        generationConfig: { maxOutputTokens: max_tokens }
+      }
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.open_timeout = 10
+      http.read_timeout = 30
+
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+
+      response = http.request(request)
+      parsed = JSON.parse(response.body)
+
+      if response.code.to_i != 200
+        raise "Gemini API error #{response.code}: #{parsed.dig('error', 'message') || response.body}"
+      end
+
+      parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s
+    rescue => e
+      Rails.logger.error "[#{self.class.name}] Gemini API error: #{e.message}"
+      ""
     end
 
     def call_claude(system_prompt:, user_message:, max_tokens: 80)
@@ -141,7 +174,7 @@ module Agents
     # @param judgment      [String] 一次判断の結果
     # @return [String] 判断理由テキスト
     def fetch_reasoning(system_prompt:, user_message:, judgment:)
-      call_claude(
+      call_llm(
         system_prompt: system_prompt,
         user_message:  "#{user_message}\n\n前回の判断: #{judgment}\nその判断理由を2〜3文で日本語説明してください。",
         max_tokens:    200
