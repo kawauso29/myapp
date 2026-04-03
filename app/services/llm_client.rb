@@ -1,13 +1,12 @@
 # AI SNS 用 LLM クライアント（サービス層から直接呼べるクラス版）
 #
 # 用途別モデル:
-#   LlmClient.call(prompt, purpose: :post)     → nano（投稿生成、頻繁）
-#   LlmClient.call(prompt, purpose: :creation) → mini（AI作成、低頻度）
+#   LlmClient.call(prompt, purpose: :post)     → 軽量モデル（投稿生成、頻繁）
+#   LlmClient.call(prompt, purpose: :creation) → 高性能モデル（AI作成、低頻度）
 #
 # .env:
-#   AI_PROVIDER=openai
-#   AI_SNS_POST_MODEL=gpt-5.4-nano
-#   AI_SNS_CREATION_MODEL=gpt-5.4-mini
+#   AI_PROVIDER=gemini|openai|claude
+#   GEMINI_API_KEY=xxx
 class LlmClient
   MAX_RETRIES = 2
 
@@ -24,7 +23,11 @@ class LlmClient
   def call
     retries = 0
     begin
-      provider == "openai" ? call_openai : call_claude
+      case provider
+      when "gemini"  then call_gemini
+      when "openai"  then call_openai
+      else                call_claude
+      end
     rescue => e
       if retries < MAX_RETRIES
         retries += 1
@@ -39,16 +42,44 @@ class LlmClient
   private
 
   def provider
-    ENV.fetch("AI_PROVIDER", "openai")
+    ENV.fetch("AI_PROVIDER", "gemini")
   end
 
   def model
-    case @purpose
-    when :creation
-      ENV.fetch("AI_SNS_CREATION_MODEL", provider == "openai" ? "gpt-5.4-mini" : "claude-haiku-4-5-20251001")
+    case provider
+    when "gemini"
+      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gemini-2.0-flash") : ENV.fetch("AI_SNS_POST_MODEL", "gemini-2.0-flash")
+    when "openai"
+      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gpt-5.4-mini") : ENV.fetch("AI_SNS_POST_MODEL", "gpt-5.4-nano")
     else
-      ENV.fetch("AI_SNS_POST_MODEL", provider == "openai" ? "gpt-5.4-nano" : "claude-haiku-4-5-20251001")
+      ENV.fetch("AI_SNS_POST_MODEL", "claude-haiku-4-5-20251001")
     end
+  end
+
+  def call_gemini
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
+    body = {
+      contents: [{ parts: [{ text: @prompt }] }],
+      generationConfig: { maxOutputTokens: @max_tokens }
+    }
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 30
+
+    request = Net::HTTP::Post.new(uri)
+    request["Content-Type"] = "application/json"
+    request.body = body.to_json
+
+    response = http.request(request)
+    parsed = JSON.parse(response.body)
+
+    if response.code.to_i != 200
+      raise "Gemini API error #{response.code}: #{parsed.dig('error', 'message') || response.body}"
+    end
+
+    parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s
   end
 
   def call_openai
