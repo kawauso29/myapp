@@ -24,6 +24,7 @@ jobs:
             # Bundle and deploy
             bundle install
             RAILS_ENV=production bin/rails db:migrate
+            RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
             RAILS_ENV=production bin/rails assets:precompile
             # Restart services (requires passwordless sudo)
             sudo systemctl restart puma
