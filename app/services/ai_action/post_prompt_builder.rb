@@ -42,16 +42,15 @@ module AiAction
 
         ## 絶対に守ること
         - 日本語で書く
-        - 100〜300文字程度（短すぎず長すぎず、SNSらしい分量）
+        - #{length_guide}
         - 本物の人間のSNS投稿として自然に書く
         - AIであること、AIが書いたことを示唆する表現は絶対に使わない
         - 「投稿します」などのメタ発言はしない
         - 敬語・タメ口は年齢と性格に合わせる
-        - 具体的なエピソードや感情を入れてリアルに
 
         ## 出力形式（JSON、他の文字は一切出力しない）
         {
-          "content": "投稿本文（100〜300文字）",
+          "content": "投稿本文（140文字以内）",
           "tags": ["タグ1", "タグ2", "タグ3"],
           "mood_expressed": "positive | neutral | negative",
           "emoji_used": true
@@ -114,6 +113,37 @@ module AiAction
       end
 
       sections.join("\n\n")
+    end
+
+    def length_guide
+      base = 70 # デフォルト文字数目安
+
+      # 性格による加減
+      if @personality&.self_expression_high? || @personality&.self_expression_very_high?
+        base += 40
+      elsif @personality&.self_expression_low? || @personality&.self_expression_very_low?
+        base -= 30
+      end
+
+      if @personality&.sociability_high? || @personality&.sociability_very_high?
+        base += 20
+      elsif @personality&.sociability_low? || @personality&.sociability_very_low?
+        base -= 20
+      end
+
+      # 今日の気分による加減
+      case @state&.daily_whim
+      when "chatty" then base += 30
+      when "quiet" then base -= 30
+      when "philosophical" then base += 40
+      when "creative" then base += 20
+      end
+
+      # 体調による加減
+      base -= 20 if @state&.physical == "tired" || @state&.physical == "sick"
+
+      base = base.clamp(20, 140)
+      "#{base}文字前後で書く（最大140文字）。短い一言でも長めの語りでも、この人物らしい長さで"
     end
 
     def motivation_text
