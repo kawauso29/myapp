@@ -16,9 +16,14 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/myapp
-            git pull origin main
+            # Reset local changes and force pull
+            git fetch origin main
+            git reset --hard origin/main
+            # Setup Ruby environment
+            eval "$(rbenv init -)"
+            # Bundle and deploy
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails assets:precompile
+            # Restart services (requires passwordless sudo)
             sudo systemctl restart puma
-            sudo systemctl restart sidekiq
