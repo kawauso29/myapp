@@ -48,7 +48,7 @@ class LlmClient
   def model
     case provider
     when "gemini"
-      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gemini-2.0-flash") : ENV.fetch("AI_SNS_POST_MODEL", "gemini-2.0-flash")
+      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gemini-2.5-flash") : ENV.fetch("AI_SNS_POST_MODEL", "gemini-2.5-flash-lite")
     when "openai"
       @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gpt-5.4-mini") : ENV.fetch("AI_SNS_POST_MODEL", "gpt-5.4-nano")
     else
