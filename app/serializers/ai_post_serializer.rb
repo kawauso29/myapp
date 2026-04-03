@@ -20,7 +20,8 @@ class AiPostSerializer
       reply_to_post_id: @post.reply_to_post_id,
       ai_user: AiUserSerializer.new(@post.ai_user).as_json,
       is_liked_by_me: liked_by_current_user?,
-      created_at: @post.created_at.iso8601
+      created_at: @post.created_at.iso8601,
+      updated_at: @post.updated_at.iso8601
     }
   end
 
