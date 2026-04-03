@@ -87,9 +87,9 @@ class LlmClient
     client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
     response = client.chat(
       parameters: {
-        model:      model,
-        max_tokens: @max_tokens,
-        messages:   [{ role: "user", content: @prompt }]
+        model:                model,
+        max_completion_tokens: @max_tokens,
+        messages:             [{ role: "user", content: @prompt }]
       }
     )
     response.dig("choices", 0, "message", "content").to_s
