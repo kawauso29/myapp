@@ -11,6 +11,12 @@ module Api
         render json: { error: { code: "validation_error", message: e.message } }, status: :unprocessable_entity
       end
 
+      rescue_from StandardError do |e|
+        notify_slack_on_error(e)
+        render json: { error: { code: "internal_server_error", message: "サーバーエラーが発生しました" } }, status: :internal_server_error
+        raise e
+      end
+
       private
 
       def authenticate_user!
@@ -35,6 +41,20 @@ module Api
 
       def render_error(code:, message:, status: :bad_request)
         render json: { error: { code: code, message: message } }, status: status
+      end
+
+      def notify_slack_on_error(exception)
+        return unless Rails.env.production?
+        SlackNotifierService.notify(
+          text: ":rotating_light: *APIエラー*",
+          color: :danger,
+          fields: [
+            { title: "エラー",      value: "#{exception.class}: #{exception.message}" },
+            { title: "コントローラ", value: "#{controller_name}##{action_name}" },
+            { title: "パス",        value: request.fullpath },
+            { title: "IPアドレス",  value: request.remote_ip }
+          ]
+        )
       end
     end
   end

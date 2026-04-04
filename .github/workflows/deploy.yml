@@ -8,6 +8,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Notify Slack (deploy start)
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#36c5f0\",\"text\":\":rocket: *デプロイ開始* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -28,3 +34,17 @@ jobs:
             RAILS_ENV=production bin/rails assets:precompile
             # Restart services (requires passwordless sudo)
             sudo systemctl restart puma
+
+      - name: Notify Slack (deploy success)
+        if: success()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#2eb886\",\"text\":\":white_check_mark: *デプロイ成功* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"サーバー\",\"value\":\"133.167.124.112\",\"short\":true}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+
+      - name: Notify Slack (deploy failure)
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#e01e5a\",\"text\":\":x: *デプロイ失敗* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"ログ\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"

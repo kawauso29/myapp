@@ -10,6 +10,16 @@ Sidekiq.configure_server do |config|
 
   config.death_handlers << ->(job, ex) do
     Rails.logger.error("[DeadJob] #{job['class']} failed permanently: #{ex.message}")
+    SlackNotifierService.notify(
+      text: ":skull: *Sidekiqジョブが永久に失敗しました*",
+      color: :danger,
+      fields: [
+        { title: "ジョブクラス", value: job["class"] },
+        { title: "エラー",       value: "#{ex.class}: #{ex.message}" },
+        { title: "JID",          value: job["jid"] },
+        { title: "試行回数",     value: job["retry_count"].to_s }
+      ]
+    )
   end
 end
 
