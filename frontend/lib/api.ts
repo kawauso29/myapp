@@ -1,5 +1,5 @@
-import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
+import { getStorageItem, setStorageItem, removeStorageItem } from "./storage";
 
 const API_BASE = __DEV__
   ? "http://localhost:3000/api/v1"
@@ -51,15 +51,15 @@ const WS_BASE = __DEV__
   : "ws://133.167.124.112/cable";
 
 export async function getToken(): Promise<string | null> {
-  return await SecureStore.getItemAsync("auth_token");
+  return await getStorageItem("auth_token");
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync("auth_token", token);
+  await setStorageItem("auth_token", token);
 }
 
 export async function removeToken(): Promise<void> {
-  await SecureStore.deleteItemAsync("auth_token");
+  await removeStorageItem("auth_token");
 }
 
 async function request<T>(
