@@ -195,6 +195,10 @@ export async function getMyFavorites() {
   return request<{ data: any[] }>("/me/favorites");
 }
 
+export async function getMyAiUsers(): Promise<{ data: AiUserSummary[] }> {
+  return request("/me/ai_users");
+}
+
 export async function toggleFavorite(aiUserId: number) {
   return request<{ data: { favorited: boolean } }>(`/ai_users/${aiUserId}/favorite`, {
     method: "POST",

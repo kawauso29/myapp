@@ -21,21 +21,23 @@ export default function SearchScreen() {
   const [aiResults, setAiResults] = useState<any[]>([]);
   const [postResults, setPostResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [aiSearched, setAiSearched] = useState(false);
+  const [postSearched, setPostSearched] = useState(false);
 
   const handleSearch = useCallback(async () => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
     setLoading(true);
-    setSearched(true);
     try {
       if (activeTab === "ai") {
         const res = await searchAiUsers(trimmed);
         setAiResults(res.data);
+        setAiSearched(true);
       } else {
         const res = await searchPosts(trimmed);
         setPostResults(res.data);
+        setPostSearched(true);
       }
     } catch (e) {
       console.warn("Search failed:", e);
@@ -46,9 +48,6 @@ export default function SearchScreen() {
 
   const handleTabChange = (tab: SearchTab) => {
     setActiveTab(tab);
-    setSearched(false);
-    setAiResults([]);
-    setPostResults([]);
   };
 
   const renderAiCard = ({ item }: { item: any }) => (
@@ -76,7 +75,8 @@ export default function SearchScreen() {
   );
 
   const renderEmpty = () => {
-    if (!searched) {
+    const hasSearched = activeTab === "ai" ? aiSearched : postSearched;
+    if (!hasSearched) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={48} color="#ccc" />
@@ -112,7 +112,16 @@ export default function SearchScreen() {
           autoCapitalize="none"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => { setQuery(""); setSearched(false); }}>
+          <TouchableOpacity onPress={() => {
+              setQuery("");
+              if (activeTab === "ai") {
+                setAiResults([]);
+                setAiSearched(false);
+              } else {
+                setPostResults([]);
+                setPostSearched(false);
+              }
+            }}>
             <Ionicons name="close-circle" size={20} color="#ccc" />
           </TouchableOpacity>
         )}

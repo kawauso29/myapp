@@ -10,12 +10,22 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getToken, getMe, getMyFavorites, signOut, toggleFavorite } from "../../lib/api";
+import { getToken, getMe, getMyFavorites, getMyAiUsers, signOut, toggleFavorite } from "../../lib/api";
+
+function moodEmoji(mood: string | null): string {
+  switch (mood) {
+    case "positive": return "😊";
+    case "negative": return "😔";
+    case "very_negative": return "😢";
+    default: return "😐";
+  }
+}
 
 export default function ProfileScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [favorites, setFavorites] = useState<any[]>([]);
+  const [myAis, setMyAis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,12 +46,14 @@ export default function ProfileScreen() {
 
   const loadData = async () => {
     try {
-      const [meRes, favsRes] = await Promise.all([
+      const [meRes, favsRes, myAisRes] = await Promise.all([
         getMe(),
         getMyFavorites(),
+        getMyAiUsers(),
       ]);
       setUser(meRes.data);
       setFavorites(favsRes.data);
+      setMyAis(myAisRes.data);
     } catch (e) {
       console.warn("Failed to load profile:", e);
     } finally {
@@ -64,6 +76,7 @@ export default function ProfileScreen() {
     setIsLoggedIn(false);
     setUser(null);
     setFavorites([]);
+    setMyAis([]);
   };
 
   const handleRemoveFavorite = async (aiUserId: number) => {
@@ -153,6 +166,50 @@ export default function ProfileScreen() {
         <Ionicons name="sparkles-outline" size={20} color="#fff" />
         <Text style={styles.createAiButtonText}>AIを作成する</Text>
       </TouchableOpacity>
+
+      {/* My AI Section */}
+      <View style={styles.section}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0, marginBottom: 0 }]}>
+            マイAI ({myAis.length} / {user?.plan_limits?.max_ai_count ?? 1})
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/create-ai")}>
+            <Ionicons name="add-circle-outline" size={22} color="#6c63ff" />
+          </TouchableOpacity>
+        </View>
+        {myAis.length === 0 ? (
+          <View style={styles.emptyFavorites}>
+            <Ionicons name="sparkles-outline" size={36} color="#ccc" />
+            <Text style={styles.emptyFavoritesText}>
+              まだAIを作っていません
+            </Text>
+          </View>
+        ) : (
+          myAis.map((ai) => (
+            <TouchableOpacity
+              key={ai.id}
+              style={styles.favoriteCard}
+              onPress={() => router.push(`/ai/${ai.id}`)}
+            >
+              <View style={styles.favoriteAvatar}>
+                <Text style={styles.favoriteAvatarText}>
+                  {ai.display_name?.[0] || "?"}
+                </Text>
+              </View>
+              <View style={styles.favoriteInfo}>
+                <Text style={styles.favoriteName}>{ai.display_name}</Text>
+                <Text style={styles.favoriteUsername}>@{ai.username}</Text>
+                {ai.occupation && (
+                  <Text style={styles.aiOccupation}>{ai.occupation}</Text>
+                )}
+              </View>
+              <View style={styles.aiMoodBadge}>
+                <Text style={styles.aiMoodText}>{moodEmoji(ai.today_mood)}</Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
 
       {/* Favorites Section */}
       <View style={styles.section}>
@@ -336,6 +393,9 @@ const styles = StyleSheet.create({
   favoriteName: { fontSize: 15, fontWeight: "bold", color: "#1a1a2e" },
   favoriteUsername: { fontSize: 12, color: "#999", marginTop: 1 },
   removeFavoriteButton: { padding: 8 },
+  aiOccupation: { fontSize: 12, color: "#6c63ff", marginTop: 1 },
+  aiMoodBadge: { width: 30, alignItems: "center" },
+  aiMoodText: { fontSize: 18 },
 
   // Sign out
   signOutButton: {

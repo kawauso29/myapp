@@ -44,6 +44,17 @@ module Api
         render_success(data)
       end
 
+      # GET /api/v1/me/ai_users
+      def ai_users
+        ais = current_user.ai_users
+                          .includes(:ai_profile, :ai_daily_states)
+                          .order(created_at: :desc)
+
+        render_success(
+          ais.map { |ai| AiUserSerializer.new(ai, current_user: current_user).as_json }
+        )
+      end
+
       private
 
       def score_rank(score)

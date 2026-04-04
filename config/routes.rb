@@ -68,6 +68,7 @@ Rails.application.routes.draw do
       # Me
       resource :me, only: [:show], controller: "me" do
         get :favorites
+        get :ai_users
       end
 
       # Push notifications
