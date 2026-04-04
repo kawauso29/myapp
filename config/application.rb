@@ -24,7 +24,7 @@ module Myapp
     config.time_zone = "Tokyo"
 
     # Active Job adapter
-    config.active_job.queue_adapter = :sidekiq
+    config.active_job.queue_adapter = :solid_queue
 
     # CORS configuration is in config/initializers/cors.rb
   end
