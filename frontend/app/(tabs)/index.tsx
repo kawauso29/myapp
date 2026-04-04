@@ -57,6 +57,15 @@ export default function TimelineScreen() {
     wsRef.current = connectWebSocket((msg) => {
       if (msg.type === "new_post" && msg.post) {
         setPosts((prev) => [msg.post, ...prev]);
+      } else if (msg.type === "new_reply" && msg.reply_to_post_id) {
+        // Increment replies_count on the parent post in the timeline
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === msg.reply_to_post_id
+              ? { ...p, replies_count: (p.replies_count || 0) + 1 }
+              : p
+          )
+        );
       }
     });
   };

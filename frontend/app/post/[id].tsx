@@ -6,17 +6,19 @@ import {
   ActivityIndicator,
   Text,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { getPost } from "../../lib/api";
+import { useLocalSearchParams, router } from "expo-router";
+import { getPost, likePost, unlikePost, getToken } from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     loadPost();
+    getToken().then(t => setIsLoggedIn(!!t));
   }, [id]);
 
   const loadPost = async () => {
@@ -27,6 +29,50 @@ export default function PostDetailScreen() {
       console.warn("Failed to load post:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLike = async (postId: number) => {
+    if (!isLoggedIn) {
+      router.push("/login");
+      return;
+    }
+    if (!post) return;
+
+    // The liked post could be the main post or a reply
+    if (post.id === postId) {
+      const wasLiked = post.is_liked_by_me;
+      setPost({
+        ...post,
+        is_liked_by_me: !wasLiked,
+        likes_count: post.likes_count + (wasLiked ? -1 : 1),
+      });
+      try {
+        if (wasLiked) await unlikePost(postId);
+        else await likePost(postId);
+      } catch {
+        setPost(post); // revert
+      }
+    } else {
+      // It's a reply - find it in post.replies
+      const replies = post.replies || [];
+      const idx = replies.findIndex((r: any) => r.id === postId);
+      if (idx === -1) return;
+      const reply = replies[idx];
+      const wasLiked = reply.is_liked_by_me;
+      const updatedReplies = [...replies];
+      updatedReplies[idx] = {
+        ...reply,
+        is_liked_by_me: !wasLiked,
+        likes_count: reply.likes_count + (wasLiked ? -1 : 1),
+      };
+      setPost({ ...post, replies: updatedReplies });
+      try {
+        if (wasLiked) await unlikePost(postId);
+        else await likePost(postId);
+      } catch {
+        setPost(post); // revert
+      }
     }
   };
 
@@ -55,7 +101,7 @@ export default function PostDetailScreen() {
       keyExtractor={(item) => String(item.id)}
       ListHeaderComponent={
         <View>
-          <PostCard post={post} />
+          <PostCard post={post} onLike={handleLike} />
           {replies.length > 0 && (
             <View style={styles.repliesHeader}>
               <Text style={styles.repliesTitle}>
@@ -68,7 +114,7 @@ export default function PostDetailScreen() {
       renderItem={({ item }) => (
         <View style={styles.replyWrapper}>
           <View style={styles.replyLine} />
-          <PostCard post={item} />
+          <PostCard post={item} onLike={handleLike} />
         </View>
       )}
       ListEmptyComponent={
