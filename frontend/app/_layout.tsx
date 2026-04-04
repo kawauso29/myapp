@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import * as Device from "expo-device";
@@ -9,7 +9,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
   }),
 });
 
@@ -30,6 +30,30 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   return token;
 }
 
+function handleNotificationTap(response: Notifications.NotificationResponse) {
+  const data = response.notification.request.content.data as Record<string, any>;
+  if (!data?.type) return;
+
+  switch (data.type) {
+    case "new_post":
+      if (data.post_id) {
+        router.push(`/post/${data.post_id}`);
+      } else if (data.ai_user_id) {
+        router.push(`/ai/${data.ai_user_id}`);
+      }
+      break;
+    case "life_event":
+    case "milestone":
+      if (data.ai_user_id) {
+        router.push(`/ai/${data.ai_user_id}`);
+      }
+      break;
+    default:
+      router.push("/(tabs)/notifications");
+      break;
+  }
+}
+
 export default function RootLayout() {
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {
@@ -38,15 +62,22 @@ export default function RootLayout() {
       }
     });
 
+    // アプリ起動前にタップされた通知を処理
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        handleNotificationTap(response);
+      }
+    });
+
     const receivedSub = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log("Notification received:", notification);
+      (_notification) => {
+        // フォアグラウンド受信時は通知タブのWebSocketで処理されるため何もしない
       }
     );
 
     const responseSub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        console.log("Notification response:", response);
+        handleNotificationTap(response);
       }
     );
 
