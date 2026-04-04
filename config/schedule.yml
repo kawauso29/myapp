@@ -9,7 +9,7 @@ weather_fetch:
   queue: low
 
 post_motivation_calculate:
-  cron: "10 20 * * *"
+  cron: "15 20 * * *"
   class: PostMotivationCalculateJob
   queue: low
 
@@ -19,22 +19,22 @@ ai_action_check:
   queue: default
 
 daily_memory_summarize:
-  cron: "55 14 * * *"
+  cron: "0 14 * * *"
   class: DailyMemorySummarizeJob
   queue: low
 
 life_event_check:
-  cron: "0 0 * * 1"
+  cron: "0 21 * * 0"
   class: LifeEventCheckJob
   queue: low
 
 dynamic_params_update:
-  cron: "0 23 * * 0"
+  cron: "30 21 * * 0"
   class: DynamicParamsUpdateJob
   queue: low
 
 relationship_decay:
-  cron: "0 15 * * 0"
+  cron: "0 15 * * 6"
   class: RelationshipDecayJob
   queue: low
 
@@ -54,6 +54,6 @@ owner_score_update:
   queue: low
 
 expired_memory_cleanup:
-  cron: "0 * * * *"
+  cron: "0 19 * * *"
   class: ExpiredMemoryCleanupJob
   queue: low
