@@ -52,7 +52,7 @@ Rails.application.configure do
   config.cache_store = :solid_cache_store
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
-  config.active_job.queue_adapter = :sidekiq
+  config.active_job.queue_adapter = :solid_queue
 
   # Action Cable (WebSocket) configuration
   config.action_cable.url = "wss://#{ENV['APP_DOMAIN']}/cable"
