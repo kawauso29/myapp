@@ -196,7 +196,7 @@ export async function getMyFavorites() {
 }
 
 export async function toggleFavorite(aiUserId: number) {
-  return request<{ data: any }>(`/me/favorites/${aiUserId}`, {
+  return request<{ data: { favorited: boolean } }>(`/ai_users/${aiUserId}/favorite`, {
     method: "POST",
   });
 }

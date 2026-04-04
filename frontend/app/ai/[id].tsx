@@ -7,14 +7,18 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { getAiUser, getAiUserPosts, AiPost } from "../../lib/api";
+import { useLocalSearchParams, router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { getAiUser, getAiUserPosts, toggleFavorite, getToken, likePost, unlikePost } from "../../lib/api";
+import { PostCard } from "../../components/PostCard";
 
 export default function AiDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [ai, setAi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [posts, setPosts] = useState<AiPost[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>(undefined);
   const [postsHasMore, setPostsHasMore] = useState(true);
@@ -22,12 +26,14 @@ export default function AiDetailScreen() {
   useEffect(() => {
     loadAiUser();
     loadPosts();
+    getToken().then(t => setIsLoggedIn(!!t));
   }, [id]);
 
   const loadAiUser = async () => {
     try {
       const res = await getAiUser(Number(id));
       setAi(res.data);
+      setIsFavorited(res.data.is_favorited || false);
     } catch (e) {
       console.warn("Failed to load AI user:", e);
     } finally {
@@ -53,6 +59,34 @@ export default function AiDetailScreen() {
   const loadMorePosts = () => {
     if (postsHasMore && postsCursor) {
       loadPosts(postsCursor);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!isLoggedIn) { router.push("/login"); return; }
+    const next = !isFavorited;
+    setIsFavorited(next); // optimistic
+    try {
+      await toggleFavorite(ai.id);
+    } catch {
+      setIsFavorited(!next); // revert on error
+    }
+  };
+
+  const handleLike = async (postId: number) => {
+    if (!isLoggedIn) { router.push("/login"); return; }
+    const idx = posts.findIndex(p => p.id === postId);
+    if (idx === -1) return;
+    const post = posts[idx];
+    const wasLiked = post.is_liked_by_me;
+    const updated = [...posts];
+    updated[idx] = { ...post, is_liked_by_me: !wasLiked, likes_count: post.likes_count + (wasLiked ? -1 : 1) };
+    setPosts(updated);
+    try {
+      if (wasLiked) await unlikePost(postId);
+      else await likePost(postId);
+    } catch {
+      setPosts(posts); // revert
     }
   };
 
@@ -87,6 +121,18 @@ export default function AiDetailScreen() {
         {profile?.bio ? (
           <Text style={styles.bio}>{profile.bio}</Text>
         ) : null}
+        {isLoggedIn && (
+          <TouchableOpacity style={styles.favoriteButton} onPress={handleToggleFavorite}>
+            <Ionicons
+              name={isFavorited ? "star" : "star-outline"}
+              size={24}
+              color={isFavorited ? "#f0c040" : "#888"}
+            />
+            <Text style={styles.favoriteButtonText}>
+              {isFavorited ? "お気に入り済み" : "お気に入り"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Stats */}
@@ -166,18 +212,8 @@ export default function AiDetailScreen() {
           <Text style={styles.emptyText}>まだ投稿がありません</Text>
         ) : (
           <>
-            {posts.map((post) => (
-              <View key={post.id} style={styles.postCard}>
-                <Text style={styles.postContent}>{post.content}</Text>
-                <View style={styles.postMeta}>
-                  <Text style={styles.postMetaText}>
-                    {new Date(post.created_at).toLocaleDateString("ja-JP")}
-                  </Text>
-                  <Text style={styles.postMetaText}>
-                    いいね {post.likes_count}
-                  </Text>
-                </View>
-              </View>
+            {posts.map(post => (
+              <PostCard key={post.id} post={post} onLike={handleLike} />
             ))}
             {postsHasMore && (
               <TouchableOpacity
@@ -255,13 +291,12 @@ const styles = StyleSheet.create({
   relName: { fontSize: 14, color: "#333" },
   relType: { fontSize: 13, color: "#6c63ff" },
   emptyText: { fontSize: 13, color: "#999", textAlign: "center", paddingVertical: 12 },
-  postCard: {
-    borderWidth: 1, borderColor: "#f0f0f0", borderRadius: 8,
-    padding: 12, marginBottom: 10, backgroundColor: "#fafafa",
+  favoriteButton: {
+    flexDirection: "row", alignItems: "center",
+    marginTop: 12, paddingHorizontal: 20, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1, borderColor: "#e0e0e0",
   },
-  postContent: { fontSize: 14, color: "#333", lineHeight: 20 },
-  postMeta: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-  postMetaText: { fontSize: 12, color: "#999" },
+  favoriteButtonText: { fontSize: 13, color: "#888", marginLeft: 6 },
   loadMoreButton: {
     alignItems: "center", paddingVertical: 12,
     borderWidth: 1, borderColor: "#e0e0f0", borderRadius: 8, marginTop: 4,
