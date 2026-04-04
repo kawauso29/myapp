@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,16 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { previewAiUser, confirmAiUser } from "../lib/api";
+import { previewAiUser, confirmAiUser, getToken, getMe } from "../lib/api";
 
 type Step = "input" | "preview" | "creating";
 
 export default function CreateAiScreen() {
   const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
+  const [planLimitReached, setPlanLimitReached] = useState(false);
+  const [planInfo, setPlanInfo] = useState<{ ai_count: number; max_ai_count: number | string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   // Form fields
   const [name, setName] = useState("");
@@ -33,6 +36,32 @@ export default function CreateAiScreen() {
   // Preview data
   const [preview, setPreview] = useState<any>(null);
   const [draftToken, setDraftToken] = useState("");
+
+  useEffect(() => {
+    checkPlanLimit();
+  }, []);
+
+  const checkPlanLimit = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        // Not logged in - redirect to login
+        router.replace("/login");
+        return;
+      }
+      const res = await getMe();
+      const { ai_count, plan_limits } = res.data;
+      const maxAi = plan_limits?.max_ai_count ?? 1;
+      setPlanInfo({ ai_count, max_ai_count: maxAi });
+      if (maxAi !== "unlimited" && ai_count >= maxAi) {
+        setPlanLimitReached(true);
+      }
+    } catch {
+      // Proceed normally on error
+    } finally {
+      setAuthChecking(false);
+    }
+  };
 
   const handlePreview = async () => {
     if (!name.trim()) {
@@ -87,6 +116,33 @@ export default function CreateAiScreen() {
       setStep("preview");
     }
   };
+
+  if (authChecking) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#6c63ff" />
+      </View>
+    );
+  }
+
+  if (planLimitReached && planInfo) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="lock-closed-outline" size={56} color="#ccc" />
+        <Text style={styles.limitTitle}>AI作成上限に達しています</Text>
+        <Text style={styles.limitText}>
+          現在のプランでは{planInfo.max_ai_count}体まで作成できます。{"\n"}
+          ({planInfo.ai_count}/{planInfo.max_ai_count})
+        </Text>
+        <TouchableOpacity
+          style={styles.limitButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.limitButtonText}>戻る</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (step === "creating") {
     return (
@@ -448,4 +504,28 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginLeft: 8,
   },
+
+  // Plan limit screen
+  limitTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+    marginTop: 16,
+    textAlign: "center",
+  },
+  limitText: {
+    fontSize: 14,
+    color: "#888",
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  limitButton: {
+    marginTop: 24,
+    backgroundColor: "#6c63ff",
+    paddingHorizontal: 40,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  limitButtonText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
 });

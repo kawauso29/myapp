@@ -3,7 +3,7 @@ import { router } from "expo-router";
 
 const API_BASE = __DEV__
   ? "http://localhost:3000/api/v1"
-  : "https://your-production-url.com/api/v1";
+  : "http://133.167.124.112/api/v1";
 
 // --- 型定義 ---
 
@@ -48,7 +48,7 @@ export type PaginationMeta = {
 
 const WS_BASE = __DEV__
   ? "ws://localhost:3000/cable"
-  : "wss://your-production-url.com/cable";
+  : "ws://133.167.124.112/cable";
 
 export async function getToken(): Promise<string | null> {
   return await SecureStore.getItemAsync("auth_token");
