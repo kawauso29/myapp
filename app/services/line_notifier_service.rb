@@ -12,7 +12,7 @@ class LineNotifierService
       config.channel_token  = line_credentials[:channel_token]
     end
 
-    response = client.push_message(line_credentials[:user_id], [ { type: "text", text: text } ])
+    response = client.broadcast([ { type: "text", text: text } ])
     raise "LINE送信失敗: #{response.code}" unless response.code == "200"
 
     Rails.logger.info("[LineNotifierService] #{messages.size}件通知送信完了")
