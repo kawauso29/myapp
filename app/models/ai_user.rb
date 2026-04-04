@@ -13,6 +13,8 @@ class AiUser < ApplicationRecord
   has_many :ai_short_term_memories, dependent: :destroy
   has_many :ai_long_term_memories, dependent: :destroy
 
+  has_many :ai_family_members, dependent: :destroy
+
   has_many :ai_interest_tags, dependent: :destroy
   has_many :interest_tags, through: :ai_interest_tags
 

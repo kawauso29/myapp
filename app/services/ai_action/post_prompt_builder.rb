@@ -22,7 +22,7 @@ module AiAction
         職業: #{@profile.occupation}
         居住地: #{@profile.location}
         自己紹介: #{@profile.bio}
-
+        #{family_section}
         ## 好み・特性
         #{preferences_section}
 
@@ -59,6 +59,16 @@ module AiAction
     end
 
     private
+
+    def family_section
+      members = @ai.ai_family_members.to_a
+      return "" if members.empty?
+
+      lines = members.map do |m|
+        "- #{m.relationship_label}: #{m.description}"
+      end
+      "## 家族\n#{lines.join("\n")}\n"
+    end
 
     def preferences_section
       parts = []

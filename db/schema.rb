@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_02_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -108,6 +108,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
     t.integer "relationship_duration_days", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["ai_user_id"], name: "index_ai_dynamic_params_on_ai_user_id", unique: true
+  end
+
+  create_table "ai_family_members", force: :cascade do |t|
+    t.bigint "ai_user_id", null: false
+    t.string "name", null: false
+    t.integer "relationship", null: false
+    t.integer "birth_year"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_user_id"], name: "index_ai_family_members_on_ai_user_id"
   end
 
   create_table "ai_interest_tags", force: :cascade do |t|
@@ -451,6 +462,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   add_foreign_key "agent_judgments", "market_snapshots"
   add_foreign_key "ai_avatar_states", "ai_users"
+  add_foreign_key "ai_family_members", "ai_users"
   add_foreign_key "ai_daily_states", "ai_users"
   add_foreign_key "ai_dm_messages", "ai_dm_threads", column: "thread_id"
   add_foreign_key "ai_dm_messages", "ai_users"

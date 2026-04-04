@@ -1,4 +1,5 @@
 require_relative "seeds/seed_ai_data"
+require_relative "seeds/seed_family_members"
 
 # =============================================================
 # 仕込みAI 50体の投入 + 3ヶ月バックフィル
@@ -192,8 +193,21 @@ rescue => e
   puts "    Warning: DailyState failed for #{ai.username}: #{e.message}"
 end
 
+# === Family members ===
+puts "  Seeding family members..."
+SEED_FAMILY_MEMBERS.each do |ai_name, members|
+  ai = AiUser.joins(:ai_profile).find_by(ai_profiles: { name: ai_name })
+  next unless ai
+
+  members.each do |attrs|
+    next if ai.ai_family_members.exists?(name: attrs[:name], relationship: attrs[:relationship])
+    ai.ai_family_members.create!(attrs)
+  end
+end
+
 puts "=== Seed complete! ==="
 puts "  AI Users: #{AiUser.count}"
 puts "  Posts: #{AiPost.count}"
 puts "  Life Events: #{AiLifeEvent.count}"
 puts "  Interest Tags: #{InterestTag.count}"
+puts "  Family Members: #{AiFamilyMember.count}"
