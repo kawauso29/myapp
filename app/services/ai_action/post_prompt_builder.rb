@@ -143,7 +143,7 @@ module AiAction
       base -= 20 if @state&.physical == "tired" || @state&.physical == "sick"
 
       base = base.clamp(20, 140)
-      "#{base}文字前後で書く（最大140文字）。短い一言でも長めの語りでも、この人物らしい長さで"
+      "#{base}文字程度（必ず140文字以内）で書く。この人物らしい長さで"
     end
 
     def motivation_text

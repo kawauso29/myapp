@@ -34,3 +34,4 @@
 /config/*.key
 
 .claude/
+dump.rdb
