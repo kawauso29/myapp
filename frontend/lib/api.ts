@@ -267,3 +267,49 @@ export function connectWebSocket(
     return null;
   }
 }
+
+// UserNotificationChannel WebSocket（JWT認証必須）
+export async function connectNotificationWebSocket(
+  onMessage: (data: any) => void
+): Promise<WebSocket | null> {
+  try {
+    const token = await getToken();
+    if (!token) return null;
+
+    const url = `${WS_BASE}?token=${encodeURIComponent(token)}`;
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          command: "subscribe",
+          identifier: JSON.stringify({ channel: "UserNotificationChannel" }),
+        })
+      );
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (
+          parsed.type === "ping" ||
+          parsed.type === "welcome" ||
+          parsed.type === "confirm_subscription"
+        ) {
+          return;
+        }
+        if (parsed.message) {
+          onMessage(parsed.message);
+        }
+      } catch {}
+    };
+
+    ws.onerror = (e) => {
+      console.warn("NotificationWebSocket error:", e);
+    };
+
+    return ws;
+  } catch {
+    return null;
+  }
+}
