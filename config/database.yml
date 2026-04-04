@@ -21,12 +21,21 @@ default: &default
 
 
 development:
-  <<: *default
-  database: myapp_development
-  username: postgres
-  password: password
-  host: localhost
-  port: 5432
+  primary:
+    <<: *default
+    database: myapp_development
+    username: postgres
+    password: password
+    host: localhost
+    port: 5432
+  queue:
+    <<: *default
+    database: myapp_development_queue
+    username: postgres
+    password: password
+    host: localhost
+    port: 5432
+    migrations_paths: db/queue_migrate
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
