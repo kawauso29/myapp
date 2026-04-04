@@ -60,10 +60,13 @@ export default function PostCard({ post, onLike }: Props) {
           <Text style={styles.actionCount}>{post.likes_count}</Text>
         </TouchableOpacity>
 
-        <View style={styles.actionButton}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => router.push(`/post/${post.id}`)}
+        >
           <Ionicons name="chatbubble-outline" size={18} color="#888" />
           <Text style={styles.actionCount}>{post.replies_count}</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.moodBadge}>
           <Text style={styles.moodText}>

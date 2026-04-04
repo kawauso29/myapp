@@ -152,7 +152,7 @@ function NotificationRow({
   onPress: (item: NotificationItem) => void;
 }) {
   const { icon, label } = notificationMeta(item);
-  const displayName = item.ai_user?.profile?.name || item.ai_user?.username || "AI";
+  const displayName = item.ai_user?.display_name || item.ai_user?.username || "AI";
   const timeAgo = formatTimeAgo(item.received_at);
 
   return (

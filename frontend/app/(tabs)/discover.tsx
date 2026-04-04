@@ -55,10 +55,10 @@ export default function DiscoverScreen() {
     );
   }
 
-  const trendingAis = data.trending_ais || [];
+  const trendingAis = data.trending_ai_users || [];
   const todayEvents = data.today_events || [];
-  const featuredAis = data.featured_ais || [];
-  const todayMood = data.today_mood || {};
+  const growingAis = data.growing_ai_users || [];
+  const todayMood = data.today_mood_summary || {};
 
   return (
     <ScrollView
@@ -72,26 +72,38 @@ export default function DiscoverScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今日のムード</Text>
           <View style={styles.moodContainer}>
-            {Object.entries(todayMood).map(([mood, count]) => (
-              <View key={mood} style={styles.moodItem}>
-                <Text style={styles.moodEmoji}>{moodToEmoji(mood)}</Text>
-                <View style={styles.moodBarOuter}>
-                  <View
-                    style={[
-                      styles.moodBarInner,
-                      {
-                        width: `${Math.min(
-                          ((count as number) / Math.max(...Object.values(todayMood).map(Number))) * 100,
-                          100
-                        )}%`,
-                      },
-                    ]}
-                  />
+            {(() => {
+              const moodItems = [
+                { label: "ポジティブ", emoji: "😊", count: todayMood.positive_count || 0 },
+                { label: "ニュートラル", emoji: "😐", count: todayMood.neutral_count || 0 },
+                { label: "ネガティブ", emoji: "😔", count: todayMood.negative_count || 0 },
+                { label: "落ち込み", emoji: "😢", count: todayMood.very_negative_count || 0 },
+              ];
+              const maxCount = Math.max(...moodItems.map(m => m.count), 1);
+              return moodItems.map((item) => (
+                <View key={item.label} style={styles.moodItem}>
+                  <Text style={styles.moodEmoji}>{item.emoji}</Text>
+                  <View style={styles.moodBarOuter}>
+                    <View
+                      style={[
+                        styles.moodBarInner,
+                        {
+                          width: `${Math.min((item.count / maxCount) * 100, 100)}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.moodCount}>{item.count}</Text>
                 </View>
-                <Text style={styles.moodCount}>{String(count)}</Text>
-              </View>
-            ))}
+              ));
+            })()}
           </View>
+          {todayMood.weather && (
+            <Text style={styles.moodWeather}>今日の天気: {todayMood.weather}</Text>
+          )}
+          {todayMood.dominant_whim && (
+            <Text style={styles.moodWeather}>主なきまぐれ: {todayMood.dominant_whim}</Text>
+          )}
         </View>
       )}
 
@@ -104,27 +116,27 @@ export default function DiscoverScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
           >
-            {trendingAis.map((ai: any) => (
+            {trendingAis.map((item: any) => (
               <TouchableOpacity
-                key={ai.id}
+                key={item.ai_user.id}
                 style={styles.trendingCard}
-                onPress={() => router.push(`/ai/${ai.id}`)}
+                onPress={() => router.push(`/ai/${item.ai_user.id}`)}
               >
                 <View style={styles.trendingAvatar}>
                   <Text style={styles.trendingAvatarText}>
-                    {ai.display_name?.[0] || "?"}
+                    {item.ai_user.display_name?.[0] || "?"}
                   </Text>
                 </View>
                 <Text style={styles.trendingName} numberOfLines={1}>
-                  {ai.display_name}
+                  {item.ai_user.display_name}
                 </Text>
                 <Text style={styles.trendingOccupation} numberOfLines={1}>
-                  {ai.occupation || "AI"}
+                  {item.ai_user.occupation || "AI"}
                 </Text>
                 <View style={styles.trendingStats}>
                   <Ionicons name="heart" size={12} color="#e74c3c" />
                   <Text style={styles.trendingStatText}>
-                    {ai.likes_count ?? ai.total_likes ?? 0}
+                    {item.metric_value}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -164,29 +176,27 @@ export default function DiscoverScreen() {
         </View>
       )}
 
-      {/* Featured AIs */}
-      {featuredAis.length > 0 && (
+      {/* Growing AIs */}
+      {growingAis.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>注目のAI</Text>
-          {featuredAis.map((ai: any) => (
+          <Text style={styles.sectionTitle}>伸びているAI</Text>
+          {growingAis.map((item: any) => (
             <TouchableOpacity
-              key={ai.id}
+              key={item.ai_user.id}
               style={styles.featuredCard}
-              onPress={() => router.push(`/ai/${ai.id}`)}
+              onPress={() => router.push(`/ai/${item.ai_user.id}`)}
             >
               <View style={styles.featuredAvatar}>
                 <Text style={styles.featuredAvatarText}>
-                  {ai.display_name?.[0] || "?"}
+                  {item.ai_user.display_name?.[0] || "?"}
                 </Text>
               </View>
               <View style={styles.featuredInfo}>
-                <Text style={styles.featuredName}>{ai.display_name}</Text>
-                <Text style={styles.featuredUsername}>@{ai.username}</Text>
-                {ai.bio && (
-                  <Text style={styles.featuredBio} numberOfLines={2}>
-                    {ai.bio}
-                  </Text>
-                )}
+                <Text style={styles.featuredName}>{item.ai_user.display_name}</Text>
+                <Text style={styles.featuredUsername}>@{item.ai_user.username}</Text>
+                <Text style={styles.featuredBio}>
+                  成長率: {(item.growth_rate * 100).toFixed(0)}%
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </TouchableOpacity>
@@ -254,6 +264,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   moodCount: { fontSize: 13, color: "#888", width: 30, textAlign: "right" },
+  moodWeather: { fontSize: 13, color: "#666", paddingHorizontal: 16, marginTop: 6 },
 
   // Trending horizontal cards
   horizontalList: { paddingHorizontal: 12 },
