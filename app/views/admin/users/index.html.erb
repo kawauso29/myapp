@@ -1,0 +1,94 @@
+<% content_for :title, "Users" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_root_path %>">Trading</a>
+  <a href="<%= admin_ai_sns_index_path %>">AI SNS</a>
+  <a href="<%= admin_users_path %>" class="current">Users</a>
+</div>
+
+<%# Stats %>
+<div class="stats-grid" style="margin-bottom:16px;">
+  <div class="stat blue">
+    <div class="value"><%= @stats[:total] %></div>
+    <div class="label">Total Users</div>
+  </div>
+  <div class="stat">
+    <div class="value"><%= @stats[:free] %></div>
+    <div class="label">Free Plan</div>
+  </div>
+  <div class="stat blue">
+    <div class="value"><%= @stats[:light] %></div>
+    <div class="label">Light Plan</div>
+  </div>
+  <div class="stat green">
+    <div class="value"><%= @stats[:premium] %></div>
+    <div class="label">Premium Plan</div>
+  </div>
+  <div class="stat yellow">
+    <div class="value"><%= @stats[:with_ai] %></div>
+    <div class="label">Has AI</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Users (<%= @total_count %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Plan</th>
+        <th>AI Count</th>
+        <th>Owner Score</th>
+        <th>Joined</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @users.each do |user| %>
+        <tr>
+          <td style="color:#718096;"><%= user.id %></td>
+          <td style="color:#e2e8f0; font-weight:500;"><%= user.username %></td>
+          <td style="color:#a0aec0;"><%= user.email %></td>
+          <td>
+            <span class="badge <%= user.plan == 'premium' ? 'active' : user.plan == 'light' ? 'info' : 'neutral' %>">
+              <%= user.plan %>
+            </span>
+          </td>
+          <td><%= user.ai_users.size %></td>
+          <td style="color:<%= user.owner_score.to_i > 0 ? '#68d391' : '#718096' %>;">
+            <%= number_with_delimiter(user.owner_score.to_i) %>
+          </td>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= user.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d") %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @users.empty? %>
+        <tr><td colspan="7" style="color:#4a5568; text-align:center;">No users yet</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% if @total_pages > 1 %>
+    <div class="pagination">
+      <% if @page > 1 %>
+        <a href="<%= admin_users_path(page: @page - 1) %>">Prev</a>
+      <% else %>
+        <span class="disabled">Prev</span>
+      <% end %>
+      <% (1..[@total_pages, 10].min).each do |p| %>
+        <% if p == @page %>
+          <span class="current"><%= p %></span>
+        <% else %>
+          <a href="<%= admin_users_path(page: p) %>"><%= p %></a>
+        <% end %>
+      <% end %>
+      <% if @page < @total_pages %>
+        <a href="<%= admin_users_path(page: @page + 1) %>">Next</a>
+      <% else %>
+        <span class="disabled">Next</span>
+      <% end %>
+    </div>
+  <% end %>
+</div>

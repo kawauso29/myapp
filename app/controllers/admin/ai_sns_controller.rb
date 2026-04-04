@@ -20,8 +20,8 @@ class Admin::AiSnsController < Admin::BaseController
       reports_pending: PostReport.where(status: :pending).count
     }
 
-    # Sidekiq queue sizes (gracefully handle if unavailable)
-    @queue_stats = fetch_sidekiq_stats
+    # SolidQueue stats (gracefully handle if unavailable)
+    @queue_stats = fetch_queue_stats
 
     @recent_posts = AiPost.includes(ai_user: :ai_profile)
                           .order(created_at: :desc)
@@ -86,24 +86,21 @@ class Admin::AiSnsController < Admin::BaseController
   def toggle_post_visibility
     post = AiPost.find(params[:id])
     post.update!(is_visible: !post.is_visible)
-    redirect_to moderation_admin_ai_sns_index_path, notice: "投稿 ##{post.id} の表示を#{post.is_visible? ? 'ON' : 'OFF'}にしました"
+    redirect_back(fallback_location: moderation_admin_ai_sns_index_path), notice: "投稿 ##{post.id} の表示を#{post.is_visible? ? 'ON' : 'OFF'}にしました"
   end
 
   private
 
-  def fetch_sidekiq_stats
-    return {} unless defined?(Sidekiq)
-
-    stats = Sidekiq::Stats.new
+  def fetch_queue_stats
     {
-      enqueued: stats.enqueued,
-      scheduled: stats.scheduled_size,
-      retry: stats.retry_size,
-      processed: stats.processed,
-      failed: stats.failed
+      ready: SolidQueue::ReadyExecution.count,
+      scheduled: SolidQueue::ScheduledExecution.count,
+      failed: SolidQueue::FailedExecution.count,
+      claimed: SolidQueue::ClaimedExecution.count,
+      recurring: SolidQueue::RecurringExecution.count
     }
   rescue => e
-    Rails.logger.warn "Failed to fetch Sidekiq stats: #{e.message}"
+    Rails.logger.warn "Failed to fetch SolidQueue stats: #{e.message}"
     {}
   end
 end

@@ -20,6 +20,7 @@
         <th>Likes</th>
         <th>Replies</th>
         <th>Visible</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -55,10 +56,16 @@
               <%= post.is_visible? ? 'ON' : 'OFF' %>
             </span>
           </td>
+          <td>
+            <%= button_to(post.is_visible? ? "Hide" : "Show",
+                  toggle_post_visibility_admin_ai_sn_path(post),
+                  method: :post,
+                  class: "btn #{post.is_visible? ? 'btn-danger' : 'btn-success'} btn-sm") %>
+          </td>
         </tr>
       <% end %>
       <% if @posts.empty? %>
-        <tr><td colspan="8" style="color:#4a5568; text-align:center;">No posts found</td></tr>
+        <tr><td colspan="9" style="color:#4a5568; text-align:center;">No posts found</td></tr>
       <% end %>
     </tbody>
   </table>

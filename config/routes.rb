@@ -30,6 +30,8 @@ Rails.application.routes.draw do
         post :toggle_post_visibility
       end
     end
+
+    resources :users, only: [:index], controller: "admin/users"
   end
 
   # API

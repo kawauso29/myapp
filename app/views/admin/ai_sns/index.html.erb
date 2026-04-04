@@ -55,30 +55,30 @@
   </div>
 </div>
 
-<%# ===== Sidekiq ===== %>
+<%# ===== SolidQueue ===== %>
 <% if @queue_stats.present? %>
   <div class="card">
-    <h2>Sidekiq Queues</h2>
+    <h2>Job Queue (SolidQueue)</h2>
     <div class="stats-grid">
       <div class="stat">
-        <div class="value"><%= @queue_stats[:enqueued] %></div>
-        <div class="label">Enqueued</div>
+        <div class="value"><%= @queue_stats[:ready] %></div>
+        <div class="label">Ready</div>
       </div>
       <div class="stat">
         <div class="value"><%= @queue_stats[:scheduled] %></div>
         <div class="label">Scheduled</div>
       </div>
-      <div class="stat <%= @queue_stats[:retry].to_i > 0 ? 'red' : '' %>">
-        <div class="value"><%= @queue_stats[:retry] %></div>
-        <div class="label">Retry</div>
-      </div>
-      <div class="stat green">
-        <div class="value"><%= number_to_human(@queue_stats[:processed]) %></div>
-        <div class="label">Processed</div>
-      </div>
       <div class="stat <%= @queue_stats[:failed].to_i > 0 ? 'red' : '' %>">
         <div class="value"><%= @queue_stats[:failed] %></div>
         <div class="label">Failed</div>
+      </div>
+      <div class="stat">
+        <div class="value"><%= @queue_stats[:claimed] %></div>
+        <div class="label">Claimed</div>
+      </div>
+      <div class="stat">
+        <div class="value"><%= @queue_stats[:recurring] %></div>
+        <div class="label">Recurring</div>
       </div>
     </div>
   </div>
