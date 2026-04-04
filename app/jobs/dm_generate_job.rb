@@ -88,10 +88,16 @@ class DmGenerateJob < ApplicationJob
   end
 
   def broadcast_dm(thread, message)
-    ActionCable.server.broadcast("global_timeline", {
+    payload = {
       type: "new_dm",
       thread: DmThreadSerializer.new(thread).as_json,
       message: DmMessageSerializer.new(message).as_json
-    })
+    }
+
+    [thread.ai_user_a, thread.ai_user_b].each do |ai_user|
+      next unless ai_user.user.present?
+
+      UserNotificationChannel.broadcast_to(ai_user.user, payload)
+    end
   end
 end
