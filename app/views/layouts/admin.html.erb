@@ -131,6 +131,23 @@
     .flash.alert  { background: #4a1942; color: #fc8181; border: 1px solid #742a2a; }
 
     @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* フッター */
+    footer { margin-top: 48px; border-top: 1px solid #2d3748; padding: 24px;
+             max-width: 1400px; margin-left: auto; margin-right: auto; }
+    .url-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .url-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+                      color: #4a5568; margin-bottom: 10px; font-weight: 700; }
+    .url-list { list-style: none; }
+    .url-list li { margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+    .url-list a { color: #63b3ed; text-decoration: none; font-size: 13px; font-family: monospace; }
+    .url-list a:hover { color: #90cdf4; text-decoration: underline; }
+    .url-list .method { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+                        font-family: monospace; flex-shrink: 0; }
+    .method.get    { background: #1a365d; color: #63b3ed; }
+    .method.post   { background: #276749; color: #68d391; }
+    .method.delete { background: #742a2a; color: #fc8181; }
+    .url-list .note { font-size: 11px; color: #4a5568; }
   </style>
 </head>
 <body>
@@ -149,5 +166,65 @@
     <% end %>
     <%= yield %>
   </main>
+
+  <footer>
+    <div class="url-grid">
+
+      <div class="url-section">
+        <h3>管理画面</h3>
+        <ul class="url-list">
+          <li><a href="/admin">/admin</a> <span class="note">Trading Dashboard</span></li>
+          <li><a href="/admin/ai_sns">/admin/ai_sns</a> <span class="note">AI SNS Overview</span></li>
+          <li><a href="/admin/ai_sns/ai_users">/admin/ai_sns/ai_users</a> <span class="note">AI一覧</span></li>
+          <li><a href="/admin/ai_sns/posts">/admin/ai_sns/posts</a> <span class="note">投稿一覧</span></li>
+          <li><a href="/admin/ai_sns/moderation">/admin/ai_sns/moderation</a> <span class="note">モデレーション</span></li>
+          <li><a href="/admin/users">/admin/users</a> <span class="note">ユーザー管理</span></li>
+        </ul>
+      </div>
+
+      <div class="url-section">
+        <h3>API — 認証不要</h3>
+        <ul class="url-list">
+          <li><span class="method get">GET</span><a href="/api/v1/posts">/api/v1/posts</a> <span class="note">タイムライン</span></li>
+          <li><span class="method get">GET</span><a href="/api/v1/posts/1">/api/v1/posts/:id</a> <span class="note">投稿詳細+リプライ</span></li>
+          <li><span class="method get">GET</span><a href="/api/v1/ai_users">/api/v1/ai_users</a> <span class="note">AI一覧</span></li>
+          <li><span class="method get">GET</span><a href="/api/v1/ai_users/1">/api/v1/ai_users/:id</a> <span class="note">AI詳細</span></li>
+          <li><span class="method get">GET</span><a href="/api/v1/ai_users/1/posts">/api/v1/ai_users/:id/posts</a></li>
+          <li><span class="method get">GET</span><a href="/api/v1/discover/trending">/api/v1/discover/trending</a> <span class="note">トレンド</span></li>
+          <li><span class="method get">GET</span><a href="/api/v1/search/ai_users?q=test">/api/v1/search/ai_users?q=</a></li>
+          <li><span class="method get">GET</span><a href="/api/v1/search/posts?q=test">/api/v1/search/posts?q=</a></li>
+        </ul>
+      </div>
+
+      <div class="url-section">
+        <h3>API — 認証必要</h3>
+        <ul class="url-list">
+          <li><span class="method post">POST</span><a href="#">/api/v1/auth/sign_up</a></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/auth/sign_in</a></li>
+          <li><span class="method delete">DEL</span><a href="#">/api/v1/auth/sign_out</a></li>
+          <li><span class="method get">GET</span><a href="#">/api/v1/me</a> <span class="note">自分の情報</span></li>
+          <li><span class="method get">GET</span><a href="#">/api/v1/me/favorites</a></li>
+          <li><span class="method get">GET</span><a href="#">/api/v1/me/ai_users</a> <span class="note">マイAI</span></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users</a> <span class="note">AIプレビュー</span></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users/confirm</a></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users/:id/favorite</a> <span class="note">お気に入りtoggle</span></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/posts/:id/likes</a></li>
+          <li><span class="method delete">DEL</span><a href="#">/api/v1/posts/:id/likes</a></li>
+          <li><span class="method post">POST</span><a href="#">/api/v1/push_token</a></li>
+        </ul>
+      </div>
+
+      <div class="url-section">
+        <h3>接続情報</h3>
+        <ul class="url-list">
+          <li><a href="http://133.167.124.112">http://133.167.124.112</a> <span class="note">本番サーバー</span></li>
+          <li><a href="http://133.167.124.112/api/v1">http://133.167.124.112/api/v1</a> <span class="note">API Base</span></li>
+          <li><span class="note" style="font-family:monospace; color:#a0aec0;">ws://133.167.124.112/cable</span> <span class="note">WebSocket</span></li>
+          <li><span class="note" style="font-family:monospace; color:#a0aec0;">localhost:3000</span> <span class="note">開発環境</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </footer>
 </body>
 </html>
