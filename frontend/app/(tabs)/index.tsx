@@ -16,6 +16,7 @@ import PostCard from "../../components/PostCard";
 export default function TimelineScreen() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -45,8 +46,9 @@ export default function TimelineScreen() {
         setPosts(res.data);
       }
       setHasMore(res.meta.has_more);
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Failed to load posts:", e);
+      if (!before) setError(e?.message || "読み込みに失敗しました");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -120,6 +122,17 @@ export default function TimelineScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#6c63ff" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={{ marginTop: 12 }} onPress={() => { setError(null); setLoading(true); loadPosts(); }}>
+          <Text style={{ color: "#6c63ff" }}>再試行</Text>
+        </TouchableOpacity>
       </View>
     );
   }

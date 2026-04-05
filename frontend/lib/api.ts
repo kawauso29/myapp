@@ -82,16 +82,11 @@ async function request<T>(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
 
   const json = await res.json();
 
