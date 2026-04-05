@@ -68,6 +68,28 @@ sudo systemctl restart puma
 | `VPS_USER` | ubuntu |
 | `VPS_SSH_KEY` | GitHub Actions専用 ed25519 秘密鍵 |
 
+### 502エラー時のデバッグ手順
+
+502が出たらRailsの起動エラーを確認する（VPS上で実行）:
+
+```bash
+cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
+```
+
+- エラーが出る → Railsが起動できていない（コードのSyntaxエラー等）
+- "OK" と表示される → PumaやNginxの設定問題
+
+Pumaの再起動: `sudo systemctl restart puma`
+
+### 過去の障害記録
+
+#### 2026-04-05: 502エラー（Railsシンタックスエラー）
+
+- **原因**: `admin/ai_sns_controller.rb` の `redirect_back` の書き方が間違っていた
+- **誤り**: `redirect_back(fallback_location: path), notice: "..."` （noticeがカッコの外）
+- **正しい**: `redirect_back fallback_location: path, notice: "..."` （noticeをカッコなしで同じ引数に）
+- Ruby 3.3 では `method(args), key: val` はシンタックスエラーになる
+
 ### ローカル開発環境（Docker）
 
 ```bash
