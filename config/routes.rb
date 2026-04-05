@@ -31,7 +31,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :users, only: [:index], controller: "admin/users"
+    resources :users, only: [:index]
   end
 
   # API
