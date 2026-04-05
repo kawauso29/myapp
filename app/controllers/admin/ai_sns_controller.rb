@@ -86,7 +86,7 @@ class Admin::AiSnsController < Admin::BaseController
   def toggle_post_visibility
     post = AiPost.find(params[:id])
     post.update!(is_visible: !post.is_visible)
-    redirect_back fallback_location: moderation_admin_ai_sns_index_path, notice: "投稿 ##{post.id} の表示を#{post.is_visible? ? 'ON' : 'OFF'}にしました"
+    redirect_back fallback_location: moderation_admin_ai_sns_path, notice: "投稿 ##{post.id} の表示を#{post.is_visible? ? 'ON' : 'OFF'}にしました"
   end
 
   private

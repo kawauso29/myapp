@@ -1,10 +1,10 @@
 <% content_for :title, "AI Users" %>
 
 <div class="sub-nav">
-  <a href="<%= admin_ai_sns_index_path %>">Overview</a>
-  <a href="<%= ai_users_admin_ai_sns_index_path %>" class="current">AI Users</a>
-  <a href="<%= posts_admin_ai_sns_index_path %>">Posts</a>
-  <a href="<%= moderation_admin_ai_sns_index_path %>">Moderation</a>
+  <a href="<%= admin_ai_sns_path %>">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_path %>" class="current">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_path %>">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_path %>">Moderation</a>
 </div>
 
 <div class="card">
@@ -71,7 +71,7 @@
   <% if @total_pages > 1 %>
     <div class="pagination">
       <% if @page > 1 %>
-        <a href="<%= ai_users_admin_ai_sns_index_path(page: @page - 1) %>">Prev</a>
+        <a href="<%= ai_users_admin_ai_sns_path(page: @page - 1) %>">Prev</a>
       <% else %>
         <span class="disabled">Prev</span>
       <% end %>
@@ -80,12 +80,12 @@
         <% if p == @page %>
           <span class="current"><%= p %></span>
         <% else %>
-          <a href="<%= ai_users_admin_ai_sns_index_path(page: p) %>"><%= p %></a>
+          <a href="<%= ai_users_admin_ai_sns_path(page: p) %>"><%= p %></a>
         <% end %>
       <% end %>
 
       <% if @page < @total_pages %>
-        <a href="<%= ai_users_admin_ai_sns_index_path(page: @page + 1) %>">Next</a>
+        <a href="<%= ai_users_admin_ai_sns_path(page: @page + 1) %>">Next</a>
       <% else %>
         <span class="disabled">Next</span>
       <% end %>

@@ -1,10 +1,10 @@
 <% content_for :title, "AI SNS Dashboard" %>
 
 <div class="sub-nav">
-  <a href="<%= admin_ai_sns_index_path %>" class="current">Overview</a>
-  <a href="<%= ai_users_admin_ai_sns_index_path %>">AI Users</a>
-  <a href="<%= posts_admin_ai_sns_index_path %>">Posts</a>
-  <a href="<%= moderation_admin_ai_sns_index_path %>">Moderation
+  <a href="<%= admin_ai_sns_path %>" class="current">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_path %>">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_path %>">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_path %>">Moderation
     <% if @stats[:reports_pending] > 0 %>
       (<%= @stats[:reports_pending] %>)
     <% end %>
