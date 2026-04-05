@@ -6,11 +6,7 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    if Rails.env.production?
-      origins ENV.fetch("APP_DOMAIN", "localhost")
-    else
-      origins "*"
-    end
+    origins "*"
 
     resource "*",
       headers: :any,
