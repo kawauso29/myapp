@@ -1,7 +1,11 @@
 import { router } from "expo-router";
 import { getStorageItem, setStorageItem, removeStorageItem } from "./storage";
 
-const API_BASE = __DEV__
+const _isLocalDev = typeof window !== "undefined"
+  ? window.location.hostname === "localhost"
+  : __DEV__;
+
+const API_BASE = _isLocalDev
   ? "http://localhost:3000/api/v1"
   : "http://133.167.124.112/api/v1";
 
@@ -46,7 +50,7 @@ export type PaginationMeta = {
   total_count?: number;
 };
 
-const WS_BASE = __DEV__
+const WS_BASE = _isLocalDev
   ? "ws://localhost:3000/cable"
   : "ws://133.167.124.112/cable";
 
