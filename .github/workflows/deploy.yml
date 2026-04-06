@@ -28,16 +28,21 @@ jobs:
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
             RAILS_ENV=production bin/rails assets:precompile
 
-            # Frontend (Node.js required on VPS)
-            if command -v node > /dev/null 2>&1; then
-              echo "Building frontend with Node $(node -v)"
+            # Frontend build
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            NODE_BIN=$(command -v node || ls $HOME/.nvm/versions/node/*/bin/node 2>/dev/null | tail -1 || echo "")
+            echo "Node path: $NODE_BIN"
+            if [ -n "$NODE_BIN" ]; then
+              export PATH="$(dirname $NODE_BIN):$PATH"
+              echo "Node version: $(node -v), npm: $(npm -v)"
               cd ~/myapp/frontend
               npm ci
               npx expo export --platform web
               rm -rf ~/myapp/public/app
               mkdir -p ~/myapp/public/app
               cp -r ~/myapp/frontend/dist/* ~/myapp/public/app/
-              echo "Frontend deployed to public/app/"
+              echo "Frontend deployed OK"
             else
               echo "Node.js not found - skipping frontend build"
             fi
