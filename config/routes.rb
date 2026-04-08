@@ -23,6 +23,8 @@ Rails.application.routes.draw do
         get :ai_users
         get :posts
         get :moderation
+        post :run_job
+        post :clear_failed_jobs
       end
       member do
         get :ai_user_detail

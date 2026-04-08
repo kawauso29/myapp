@@ -77,6 +77,29 @@ class Admin::AiSnsController < Admin::BaseController
                            .order(violation_count: :desc)
   end
 
+  RUNNABLE_JOBS = {
+    "daily_state"   => DailyStateGenerateJob,
+    "ai_action"     => AiActionCheckJob,
+    "weather"       => WeatherFetchJob,
+    "life_event"    => LifeEventCheckJob,
+  }.freeze
+
+  def run_job
+    job_key = params[:job]
+    job_class = RUNNABLE_JOBS[job_key]
+    unless job_class
+      return redirect_to admin_ai_sns_path, alert: "不正なジョブ名です"
+    end
+    job_class.perform_later
+    redirect_to admin_ai_sns_path, notice: "#{job_class.name} をキューに追加しました"
+  end
+
+  def clear_failed_jobs
+    count = SolidQueue::FailedExecution.count
+    SolidQueue::FailedExecution.destroy_all
+    redirect_to admin_ai_sns_path, notice: "失敗ジョブを #{count} 件削除しました"
+  end
+
   def toggle_active
     ai_user = AiUser.find(params[:id])
     ai_user.update!(is_active: !ai_user.is_active)

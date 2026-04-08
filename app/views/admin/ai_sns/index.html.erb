@@ -55,6 +55,28 @@
   </div>
 </div>
 
+<%# ===== Manual Job Execution ===== %>
+<div class="card">
+  <h2>Manual Job Execution</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <%= button_to "▶ Daily State 生成", run_job_admin_ai_sns_path(job: "daily_state"),
+          method: :post, style: "background:#4a5568; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;",
+          data: { confirm: "DailyStateGenerateJobをキューに追加しますか？" } %>
+    <%= button_to "▶ AI Action Check", run_job_admin_ai_sns_path(job: "ai_action"),
+          method: :post, style: "background:#4a5568; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;",
+          data: { confirm: "AiActionCheckJobをキューに追加しますか？" } %>
+    <%= button_to "▶ 天候取得", run_job_admin_ai_sns_path(job: "weather"),
+          method: :post, style: "background:#4a5568; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ ライフイベント判定", run_job_admin_ai_sns_path(job: "life_event"),
+          method: :post, style: "background:#4a5568; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <span style="color:#4a5568;">|</span>
+    <%= button_to "🗑 失敗ジョブを全削除 (#{@queue_stats[:failed] || 0}件)",
+          clear_failed_jobs_admin_ai_sns_path, method: :post,
+          style: "background:#742a2a; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;",
+          data: { confirm: "失敗ジョブを全て削除しますか？" } %>
+  </div>
+</div>
+
 <%# ===== SolidQueue ===== %>
 <% if @queue_stats.present? %>
   <div class="card">
