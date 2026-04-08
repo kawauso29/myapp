@@ -1,7 +1,6 @@
 module Api
   module V1
     class NotificationsController < BaseController
-      before_action :authenticate_user!
 
       # GET /api/v1/notifications
       def index
