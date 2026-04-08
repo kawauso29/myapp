@@ -46,6 +46,12 @@ production:
     queue: low
     schedule: "0 20 * * *"
 
+  # 復旧用: 2時間ごとに欠損daily_stateを補完（冪等）
+  daily_state_heal:
+    class: DailyStateGenerateJob
+    queue: low
+    schedule: "0 */2 * * *"
+
   # 毎朝5:05 JST: 天候取得 → daily_stateに反映
   weather_fetch:
     class: WeatherFetchJob
