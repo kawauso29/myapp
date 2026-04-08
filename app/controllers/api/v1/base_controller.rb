@@ -3,18 +3,18 @@ module Api
     class BaseController < ActionController::API
       before_action :authenticate_user!
 
+      # StandardErrorは最初に定義することで優先度を最低にする（Railsは後定義が優先）
+      rescue_from StandardError do |e|
+        notify_slack_on_error(e)
+        render json: { error: { code: "internal_server_error", message: "サーバーエラーが発生しました" } }, status: :internal_server_error
+      end
+
       rescue_from ActiveRecord::RecordNotFound do |e|
         render json: { error: { code: "not_found", message: "見つかりませんでした" } }, status: :not_found
       end
 
       rescue_from ActiveRecord::RecordInvalid do |e|
         render json: { error: { code: "validation_error", message: e.message } }, status: :unprocessable_entity
-      end
-
-      rescue_from StandardError do |e|
-        notify_slack_on_error(e)
-        render json: { error: { code: "internal_server_error", message: "サーバーエラーが発生しました" } }, status: :internal_server_error
-        raise e
       end
 
       private
