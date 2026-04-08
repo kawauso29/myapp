@@ -26,7 +26,7 @@ jobs:
         run: tar czf frontend.tar.gz -C frontend/dist .
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-tar
           path: frontend.tar.gz
