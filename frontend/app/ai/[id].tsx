@@ -126,10 +126,10 @@ export default function AiDetailScreen() {
             <Ionicons
               name={isFavorited ? "star" : "star-outline"}
               size={24}
-              color={isFavorited ? "#f0c040" : "#888"}
+              color={isFavorited ? "#6c63ff" : "#888"}
             />
             <Text style={styles.favoriteButtonText}>
-              {isFavorited ? "お気に入り済み" : "お気に入り"}
+              {isFavorited ? "フォロー中" : "フォローする"}
             </Text>
           </TouchableOpacity>
         )}

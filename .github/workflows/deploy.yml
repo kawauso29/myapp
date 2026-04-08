@@ -22,11 +22,14 @@ jobs:
       - name: Build Expo web
         run: cd frontend && npx expo export --platform web
 
-      - name: Upload frontend dist
+      - name: Create tarball
+        run: tar czf frontend.tar.gz -C frontend/dist .
+
+      - name: Upload tarball
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
-          path: frontend/dist/
+          name: frontend-tar
+          path: frontend.tar.gz
 
   deploy:
     runs-on: ubuntu-latest
@@ -34,21 +37,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download frontend dist
+      - name: Download tarball
         uses: actions/download-artifact@v4
         with:
-          name: frontend-dist
-          path: frontend-dist/
+          name: frontend-tar
 
-      - name: Copy frontend to VPS
+      - name: Copy tarball to VPS
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "frontend-dist/"
-          target: "/tmp/frontend-dist"
-          strip_components: 1
+          source: "frontend.tar.gz"
+          target: "/tmp/"
 
       - name: Deploy Rails + frontend
         uses: appleboy/ssh-action@v1
@@ -67,6 +68,9 @@ jobs:
             RAILS_ENV=production bin/rails assets:precompile
             rm -rf ~/myapp/public/app
             mkdir -p ~/myapp/public/app
-            cp -r /tmp/frontend-dist/* ~/myapp/public/app/
-            rm -rf /tmp/frontend-dist
+            tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
+            rm /tmp/frontend.tar.gz
+            echo "Frontend files:"
+            ls ~/myapp/public/app/ | head -10
+            sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             sudo systemctl restart puma

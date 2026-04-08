@@ -78,7 +78,20 @@ Rails.application.routes.draw do
 
       # Posts (timeline)
       resources :posts, only: [:index, :show] do
+        collection do
+          get :following
+        end
         resource :likes, only: [:create, :destroy]
+      end
+
+      # Notifications
+      resources :notifications, only: [:index] do
+        collection do
+          post :read_all
+        end
+        member do
+          patch :read
+        end
       end
 
       # Search

@@ -10,10 +10,10 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getToken, connectNotificationWebSocket } from "../../lib/api";
+import { getToken, connectNotificationWebSocket, getNotifications, markAllNotificationsRead, markNotificationRead } from "../../lib/api";
 
 export type NotificationItem = {
-  id: string; // クライアント生成のユニークID
+  id: string; // クライアント生成のユニークID or APIのID
   type: "new_post" | "life_event" | "milestone";
   ai_user: any;
   post?: any;
@@ -23,6 +23,7 @@ export type NotificationItem = {
   message?: string;
   received_at: string;
   is_read: boolean;
+  api_id?: number; // サーバー側のID（既読APIに使う）
 };
 
 // グローバルな未読数更新コールバック（タブバッジ用）
@@ -35,6 +36,7 @@ export function setBadgeCallback(cb: BadgeCallback | null) {
 export default function NotificationsScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -49,9 +51,43 @@ export default function NotificationsScreen() {
     const token = await getToken();
     if (token) {
       setIsLoggedIn(true);
+      await loadNotificationsFromApi();
       setupWebSocket();
     }
     setLoading(false);
+  };
+
+  const loadNotificationsFromApi = async () => {
+    try {
+      const res = await getNotifications();
+      const apiItems: NotificationItem[] = res.data.map((n: any) => ({
+        id: `api-${n.id}`,
+        api_id: n.id,
+        type: n.notification_type ?? n.type ?? "new_post",
+        ai_user: n.ai_user ?? null,
+        post: n.post ?? null,
+        event_type: n.event_type ?? null,
+        milestone: n.milestone ?? null,
+        value: n.value ?? null,
+        message: n.message ?? null,
+        received_at: n.created_at ?? new Date().toISOString(),
+        is_read: n.is_read ?? false,
+      }));
+      setNotifications((prev) => {
+        // Merge: deduplicate by api_id vs existing api_id items, keep WS-only items
+        const wsOnly = prev.filter((p) => !p.api_id);
+        const merged = [...wsOnly, ...apiItems].sort(
+          (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
+        );
+        const unread = merged.filter((n) => !n.is_read).length;
+        badgeCallback?.(unread);
+        return merged;
+      });
+    } catch (e) {
+      console.warn("Failed to load notifications from API:", e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const setupWebSocket = async () => {
@@ -68,9 +104,14 @@ export default function NotificationsScreen() {
     wsRef.current = ws;
   };
 
-  const markAllRead = useCallback(() => {
+  const markAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     badgeCallback?.(0);
+    try {
+      await markAllNotificationsRead();
+    } catch (e) {
+      console.warn("Failed to mark all notifications read:", e);
+    }
   }, []);
 
   const handlePress = useCallback((item: NotificationItem) => {
@@ -83,11 +124,20 @@ export default function NotificationsScreen() {
       return prev;
     });
 
+    if (item.api_id) {
+      markNotificationRead(item.api_id).catch(() => {});
+    }
+
     if (item.type === "new_post" && item.post?.id) {
       router.push(`/post/${item.post.id}`);
     } else if (item.ai_user?.id) {
       router.push(`/ai/${item.ai_user.id}`);
     }
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadNotificationsFromApi();
   }, []);
 
   if (loading) {
@@ -132,12 +182,12 @@ export default function NotificationsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="notifications-outline" size={48} color="#ccc" />
             <Text style={styles.emptyText}>
-              通知はまだありません{"\n"}お気に入りのAIを登録しましょう
+              通知はまだありません{"\n"}フォロー中のAIを登録しましょう
             </Text>
           </View>
         }
         refreshControl={
-          <RefreshControl refreshing={false} onRefresh={() => {}} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
     </View>
@@ -209,7 +259,7 @@ function buildNotificationItem(msg: any): NotificationItem | null {
 
   notifCounter += 1;
   return {
-    id: `${Date.now()}-${notifCounter}`,
+    id: `ws-${Date.now()}-${notifCounter}`,
     type: msg.type,
     ai_user: msg.ai_user ?? null,
     post: msg.post ?? null,

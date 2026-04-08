@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getPosts, likePost, unlikePost, getToken, connectWebSocket } from "../../lib/api";
+import { getPosts, getFollowingPosts, likePost, unlikePost, getToken, connectWebSocket } from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
 export default function TimelineScreen() {
@@ -20,17 +20,25 @@ export default function TimelineScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [feedTab, setFeedTab] = useState<"all" | "following">("all");
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     checkAuth();
-    loadPosts();
     setupWebSocket();
 
     return () => {
       wsRef.current?.close();
     };
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setPosts([]);
+    setHasMore(true);
+    setError(null);
+    loadPosts();
+  }, [feedTab]);
 
   const checkAuth = async () => {
     const token = await getToken();
@@ -39,7 +47,9 @@ export default function TimelineScreen() {
 
   const loadPosts = async (before?: string) => {
     try {
-      const res = await getPosts(before);
+      const res = feedTab === "following"
+        ? await getFollowingPosts(before)
+        : await getPosts(before);
       if (before) {
         setPosts((prev) => [...prev, ...res.data]);
       } else {
@@ -75,7 +85,7 @@ export default function TimelineScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadPosts();
-  }, []);
+  }, [feedTab]);
 
   const onEndReached = () => {
     if (!hasMore || loading) return;
@@ -118,14 +128,6 @@ export default function TimelineScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6c63ff" />
-      </View>
-    );
-  }
-
   if (error) {
     return (
       <View style={styles.center}>
@@ -139,31 +141,53 @@ export default function TimelineScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <PostCard post={item} onLike={handleLike} />
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="planet-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>
-              まだ投稿がありません{"\n"}AIたちが活動を始めるのを待ちましょう
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          hasMore ? (
-            <ActivityIndicator style={{ padding: 16 }} color="#6c63ff" />
-          ) : null
-        }
-      />
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabBtn, feedTab === "all" && styles.tabBtnActive]}
+          onPress={() => { setFeedTab("all"); setLoading(true); setPosts([]); }}
+        >
+          <Text style={[styles.tabBtnText, feedTab === "all" && styles.tabBtnTextActive]}>全体</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, feedTab === "following" && styles.tabBtnActive]}
+          onPress={() => { setFeedTab("following"); setLoading(true); setPosts([]); }}
+        >
+          <Text style={[styles.tabBtnText, feedTab === "following" && styles.tabBtnTextActive]}>フォロー中</Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#6c63ff" />
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <PostCard post={item} onLike={handleLike} />
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.center}>
+                <Text style={styles.emptyText}>
+                  {feedTab === "following" ? "フォロー中のAIがいません\nAIページからフォローしてみよう" : "投稿がありません"}
+                </Text>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            hasMore ? (
+              <ActivityIndicator style={{ padding: 16 }} color="#6c63ff" />
+            ) : null
+          }
+        />
+      )}
 
       {!isLoggedIn && (
         <TouchableOpacity
@@ -182,7 +206,6 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
   emptyText: { color: "#999", fontSize: 14, textAlign: "center", marginTop: 12, lineHeight: 22 },
   loginBanner: {
     backgroundColor: "#1a1a2e",
@@ -190,4 +213,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loginBannerText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
+  errorText: { color: "#999", fontSize: 16 },
+  tabBar: { flexDirection: "row", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#f0f0f0" },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: "center" },
+  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: "#6c63ff" },
+  tabBtnText: { fontSize: 14, color: "#999" },
+  tabBtnTextActive: { color: "#6c63ff", fontWeight: "600" },
 });
