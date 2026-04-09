@@ -78,11 +78,22 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   RUNNABLE_JOBS = {
-    "daily_state"   => DailyStateGenerateJob,
-    "ai_action"     => AiActionCheckJob,
-    "weather"       => WeatherFetchJob,
-    "life_event"    => LifeEventCheckJob,
+    "daily_state"      => DailyStateGenerateJob,
+    "weather"          => WeatherFetchJob,
+    "post_motivation"  => PostMotivationCalculateJob,
+    "ai_action"        => AiActionCheckJob,
+    "life_event"       => LifeEventCheckJob,
+    "dynamic_params"   => DynamicParamsUpdateJob,
+    "memory_summarize" => DailyMemorySummarizeJob,
+    "relationship_decay" => RelationshipDecayJob,
   }.freeze
+
+  def failed_jobs
+    @failed_executions = SolidQueue::FailedExecution
+                           .includes(:job)
+                           .order(created_at: :desc)
+                           .limit(100)
+  end
 
   def run_job
     job_key = params[:job]
@@ -98,6 +109,17 @@ class Admin::AiSnsController < Admin::BaseController
     count = SolidQueue::FailedExecution.count
     SolidQueue::FailedExecution.destroy_all
     redirect_to admin_ai_sns_path, notice: "失敗ジョブを #{count} 件削除しました"
+  end
+
+  def force_ai_posts
+    ais = AiUser.active.joins(:ai_daily_states)
+                .where(ai_daily_states: { date: Date.current })
+    queued = 0
+    ais.find_each do |ai|
+      PostGenerateJob.perform_later(ai.id, { primary: "sharing", secondary: nil, post_theme: nil })
+      queued += 1
+    end
+    redirect_to admin_ai_sns_path, notice: "#{queued}件のAIの投稿ジョブをキューに追加しました"
   end
 
   def toggle_active

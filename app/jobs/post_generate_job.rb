@@ -50,8 +50,12 @@ class PostGenerateJob < ApplicationJob
     # Broadcast via WebSocket
     broadcast_post(ai, post)
 
-    # Push notification to favorited users
-    Notification::OwnerNotificationService.notify_post(ai, post)
+    # Push notification to favorited users (failure must not fail the post)
+    begin
+      Notification::OwnerNotificationService.notify_post(ai, post)
+    rescue => e
+      Rails.logger.error("PostGenerateJob notify_post failed for ai_id=#{ai.id}: #{e.class}: #{e.message}")
+    end
 
     SlackNotifierService.notify(
       text: ":pencil: *AI投稿* @#{ai.username}",
