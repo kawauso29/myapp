@@ -12,8 +12,20 @@ class LineNotifierService
       config.channel_token  = line_credentials[:channel_token]
     end
 
+    # broadcast: LINE bot を友達追加しているユーザー全員へ
     response = client.broadcast([ { type: "text", text: text } ])
-    raise "LINE送信失敗: #{response.code}" unless response.code == "200"
+    raise "LINE broadcast失敗: #{response.code}" unless response.code == "200"
+
+    # multicast: LINEログインしたアプリユーザー全員へ（bot未追加でも届く）
+    line_uids = User.where(provider: "line").pluck(:uid).compact
+    if line_uids.any?
+      response2 = client.multicast(line_uids, [ { type: "text", text: text } ])
+      if response2.code == "200"
+        Rails.logger.info("[LineNotifierService] multicast #{line_uids.size}人へ送信完了")
+      else
+        Rails.logger.warn("[LineNotifierService] multicast失敗: #{response2.code}")
+      end
+    end
 
     Rails.logger.info("[LineNotifierService] #{messages.size}件通知送信完了")
   end

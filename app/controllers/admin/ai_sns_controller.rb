@@ -88,6 +88,10 @@ class Admin::AiSnsController < Admin::BaseController
     "relationship_decay" => RelationshipDecayJob,
   }.freeze
 
+  def picro_messages
+    @messages = PicroMessage.order(received_at: :desc).limit(100)
+  end
+
   def failed_jobs
     @failed_executions = SolidQueue::FailedExecution
                            .includes(:job)

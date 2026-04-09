@@ -24,6 +24,7 @@ Rails.application.routes.draw do
         get :posts
         get :moderation
         get :failed_jobs
+        get :picro_messages
         post :run_job
         post :clear_failed_jobs
         post :force_ai_posts

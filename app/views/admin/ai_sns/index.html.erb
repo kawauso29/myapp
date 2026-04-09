@@ -9,6 +9,7 @@
       (<%= @stats[:reports_pending] %>)
     <% end %>
   </a>
+  <a href="<%= picro_messages_admin_ai_sns_path %>">Picro履歴</a>
   <a href="<%= failed_jobs_admin_ai_sns_path %>" style="<%= @queue_stats[:failed].to_i > 0 ? 'color:#fc8181;' : '' %>">
     Failed Jobs<% if @queue_stats[:failed].to_i > 0 %> (<%= @queue_stats[:failed] %>)<% end %>
   </a>
