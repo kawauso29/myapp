@@ -10,7 +10,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { getAiUser, getAiUserPosts, toggleFavorite, getToken, likePost, unlikePost } from "../../lib/api";
-import { PostCard } from "../../components/PostCard";
+import PostCard from "../../components/PostCard";
 
 export default function AiDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

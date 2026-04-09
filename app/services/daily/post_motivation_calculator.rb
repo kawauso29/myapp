@@ -25,16 +25,18 @@ module Daily
     def calculate
       score = 50
 
-      score += POST_FREQ_BONUS[@personality.post_frequency.to_sym] || 0
-      score += 10 if @personality.primary_purpose == "approval_seeker"
-      score -= 10 if @personality.primary_purpose == "observer"
+      if @personality
+        score += POST_FREQ_BONUS[@personality.post_frequency&.to_sym] || 0
+        score += 10 if @personality.primary_purpose == "approval_seeker"
+        score -= 10 if @personality.primary_purpose == "observer"
+      end
 
-      score += MOOD_BONUS[@state.mood.to_sym] || 0
-      score += PHYSICAL_BONUS[@state.physical.to_sym] || 0
-      score += BUSYNESS_BONUS[@state.busyness.to_sym] || 0
+      score += MOOD_BONUS[@state.mood&.to_sym] || 0
+      score += PHYSICAL_BONUS[@state.physical&.to_sym] || 0
+      score += BUSYNESS_BONUS[@state.busyness&.to_sym] || 0
       score += drinking_bonus
       score += WEEKDAY_MOOD[Date.current.wday] || 0
-      score += DAILY_WHIM_POST_BONUS[@state.daily_whim.to_sym] || 0
+      score += DAILY_WHIM_POST_BONUS[@state.daily_whim&.to_sym] || 0
 
       score.clamp(0, 100)
     end

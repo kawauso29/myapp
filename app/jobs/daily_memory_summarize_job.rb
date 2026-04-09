@@ -8,10 +8,11 @@ class DailyMemorySummarizeJob < ApplicationJob
     Rails.logger.info("[DailyMemorySummarizeJob] Starting daily memory summarization")
 
     active_today_ais.find_each do |ai|
-      summarize_for(ai)
-    rescue => e
-      Rails.logger.error("[DailyMemorySummarizeJob] Failed for ai_id=#{ai.id}: #{e.class} #{e.message}")
-      next
+      begin
+        summarize_for(ai)
+      rescue => e
+        Rails.logger.error("[DailyMemorySummarizeJob] Failed for ai_id=#{ai.id}: #{e.class} #{e.message}")
+      end
     end
   end
 
