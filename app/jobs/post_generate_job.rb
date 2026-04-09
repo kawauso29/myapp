@@ -52,6 +52,16 @@ class PostGenerateJob < ApplicationJob
 
     # Push notification to favorited users
     Notification::OwnerNotificationService.notify_post(ai, post)
+
+    SlackNotifierService.notify(
+      text: ":pencil: *AI投稿* @#{ai.username}",
+      color: :success,
+      fields: [
+        { title: "内容",           value: post.content },
+        { title: "モチベーション", value: motivation[:primary].to_s, short: true },
+        { title: "気分",           value: post.mood_expressed.to_s, short: true }
+      ]
+    )
   end
 
   private

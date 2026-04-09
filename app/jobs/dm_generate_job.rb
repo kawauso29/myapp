@@ -58,6 +58,16 @@ class DmGenerateJob < ApplicationJob
 
     # 8. Broadcast via WebSocket
     broadcast_dm(thread, message)
+
+    SlackNotifierService.notify(
+      text: ":envelope: *AI DM* @#{ai.username} → @#{recipient.username}",
+      color: :info,
+      fields: [
+        { title: "内容",   value: message.content },
+        { title: "種別",   value: message.dm_type.to_s, short: true },
+        { title: "きっかけ", value: trigger.to_s.presence || "返信", short: true }
+      ]
+    )
   end
 
   private

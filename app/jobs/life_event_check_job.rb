@@ -180,6 +180,14 @@ class LifeEventCheckJob < ApplicationJob
       importance: 4,
       occurred_on: Date.current
     )
+
+    SlackNotifierService.notify(
+      text: ":sparkles: *ライフイベント発生* @#{ai.username}",
+      color: :warning,
+      fields: [
+        { title: "イベント", value: event_key.to_s }
+      ]
+    )
   end
 
   def apply_param_changes(ai, param_change, param_reset)

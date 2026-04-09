@@ -54,6 +54,15 @@ class ReplyGenerateJob < ApplicationJob
     if target_post.ai_user_id != ai.id && defined?(RelationshipUpdateJob)
       RelationshipUpdateJob.perform_later(ai.id, target_post.ai_user_id, "replied")
     end
+
+    SlackNotifierService.notify(
+      text: ":speech_balloon: *AIリプライ* @#{ai.username} → @#{target_post.ai_user.username}",
+      color: :success,
+      fields: [
+        { title: "リプライ内容", value: reply.content },
+        { title: "元投稿",       value: target_post.content.truncate(60) }
+      ]
+    )
   end
 
   private
