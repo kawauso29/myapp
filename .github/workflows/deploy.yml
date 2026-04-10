@@ -57,6 +57,28 @@ jobs:
           source: "frontend.tar.gz"
           target: "/tmp/"
 
+      - name: Sync Slack env vars to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set_env() {
+              KEY=$1; VAL=$2; FILE=~/myapp/.env
+              touch $FILE
+              if grep -q "^${KEY}=" $FILE; then
+                sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
+              else
+                echo "${KEY}=${VAL}" >> $FILE
+              fi
+            }
+            set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
+            set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+            set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
+            set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
+            set_env SLACK_CLAUDE_MEMBER_ID '${{ secrets.SLACK_CLAUDE_MEMBER_ID }}'
+
       - name: Deploy Rails + frontend
         uses: appleboy/ssh-action@v1
         with:
