@@ -91,14 +91,17 @@ class SlackEventsController < ApplicationController
     return false if ignored.include?(event["subtype"])
     # エラー監視チャネルのメッセージのみ対象
     return false unless event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
-    # デプロイ通知（footer: "GitHub Actions"）は除外
-    return false if github_actions_message?(event)
+    # デプロイ通知は除外（footerのGitHub Actionsチェックは信頼性が低いためテキストで判定）
+    return false if deploy_notification?(event)
     # attachments内も含めてキーワード検索（Incoming Webhookはtextが空でattachmentsに内容が入る）
     ERROR_KEYWORDS.any? { |kw| extract_full_text(event).include?(kw) }
   end
 
-  def github_actions_message?(event)
-    Array(event["attachments"]).any? { |att| att["footer"].to_s.include?("GitHub Actions") }
+  DEPLOY_MARKERS = %w[デプロイ開始 デプロイ成功 デプロイ失敗].freeze
+
+  def deploy_notification?(event)
+    text = extract_full_text(event)
+    DEPLOY_MARKERS.any? { |marker| text.include?(marker) }
   end
 
   # event["text"]はIncoming Webhook経由のbotメッセージでは空になるため
