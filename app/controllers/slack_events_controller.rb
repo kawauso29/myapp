@@ -58,11 +58,11 @@ class SlackEventsController < ApplicationController
   def forwardable_message?(event)
     return false if event.nil?
     return false unless event["type"] == "message"
-    # botのメッセージは無視（デプロイ通知・転送ループ防止）
-    return false if event["bot_id"].present? || event["subtype"].present?
+    # message_changedなどのサブタイプは無視（編集・削除イベント等）
+    return false if event["subtype"].present?
     # エラー監視チャネルのメッセージのみ対象
     return false unless event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
-    # エラーキーワードを含むメッセージのみ転送
+    # エラーキーワードを含むメッセージのみ転送（botメッセージはキーワードで判定）
     text = event["text"].to_s
     ERROR_KEYWORDS.any? { |kw| text.include?(kw) }
   end
