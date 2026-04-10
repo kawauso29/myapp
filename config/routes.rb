@@ -122,4 +122,7 @@ Rails.application.routes.draw do
       post "webhooks/stripe", to: "webhooks#stripe"
     end
   end
+
+  # Slack Events API
+  post "slack/events", to: "slack_events#events"
 end
