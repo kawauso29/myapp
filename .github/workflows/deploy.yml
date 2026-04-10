@@ -111,6 +111,7 @@ jobs:
             echo "Frontend files:"
             ls ~/myapp/public/app/ | head -10
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
+            rm -rf tmp/cache/*
             sudo systemctl restart puma
 
       - name: Notify Slack (deploy success)
