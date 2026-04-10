@@ -17,7 +17,7 @@ production:
   picro_check:
     class: PicroCheckJob
     queue: default
-    schedule: every hour
+    schedule: "*/15 * * * *"
 
   # AI自動売買システム: 市場分析（15分ごと）
   # 市場時間外はジョブ内でスキップされる
