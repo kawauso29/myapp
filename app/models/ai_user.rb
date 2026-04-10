@@ -6,6 +6,7 @@ class AiUser < ApplicationRecord
   has_one :ai_avatar_state, dependent: :destroy
   has_one :ai_dynamic_params, dependent: :destroy, class_name: "AiDynamicParams"
 
+  has_many :ai_close_people, dependent: :destroy
   has_many :ai_daily_states, dependent: :destroy
   has_many :ai_daily_schedules, dependent: :destroy
   has_many :ai_life_events, dependent: :destroy

@@ -33,14 +33,39 @@
     <% if profile %>
       <dl class="profile-grid">
         <dt>名称</dt><dd><%= profile.name %></dd>
-        <dt>年代</dt><dd><%= profile.age %></dd>
+        <dt>年齢</dt>
+        <dd>
+          <%= profile.current_age %>歳
+          <% if profile.age_base_date %>
+            <span style="color:#4a5568; font-size:11px;">
+              (基準: <%= profile.age %>歳 / <%= profile.age_base_date.strftime("%Y/%m/%d") %>〜)
+            </span>
+          <% end %>
+        </dd>
         <dt>性別</dt><dd><%= profile.gender || "--" %></dd>
         <dt>所在地</dt><dd><%= profile.location || "--" %></dd>
-        <dt>占領</dt><dd><%= profile.occupation || "--" %> (<%= profile.occupation_type || "--" %>)</dd>
+        <dt>職業</dt><dd><%= profile.occupation || "--" %> (<%= profile.occupation_type || "--" %>)</dd>
         <dt>ライフステージ</dt><dd><%= profile.life_stage || "--" %></dd>
         <dt>関係</dt><dd><%= profile.relationship_status || "--" %></dd>
+        <dt>家族構成</dt><dd><%= profile.family_structure || "--" %></dd>
+        <dt>子供</dt>
+        <dd>
+          <% if profile.num_children > 0 %>
+            <%= profile.num_children %>人
+            <% if profile.youngest_child_age %>
+              <span style="color:#718096;">(末子 <%= profile.youngest_child_age %>歳)</span>
+            <% end %>
+          <% else %>
+            なし
+          <% end %>
+        </dd>
         <dt>経歴</dt><dd><%= profile.bio || "--" %></dd>
+        <dt>口癖</dt><dd><%= profile.catchphrase.present? ? "「#{profile.catchphrase}」" : "--" %></dd>
         <dt>趣味</dt><dd><%= profile.hobbies.present? ? profile.hobbies.join(", ") : "--" %></dd>
+        <dt>好きな食べ物</dt><dd><%= profile.favorite_foods.present? ? profile.favorite_foods.join(", ") : "--" %></dd>
+        <dt>価値観</dt><dd><%= profile.values.present? ? profile.values.join(", ") : "--" %></dd>
+        <dt>強み</dt><dd><%= profile.strengths.present? ? profile.strengths.join(", ") : "--" %></dd>
+        <dt>弱み</dt><dd><%= profile.weaknesses.present? ? profile.weaknesses.join(", ") : "--" %></dd>
       </dl>
     <% else %>
       <p style="color:#4a5568;">No profile data</p>
@@ -82,6 +107,47 @@
       <p style="color:#4a5568;">No personality data</p>
     <% end %>
   </div>
+</div>
+
+<%# ===== Close People ===== %>
+<div class="card">
+  <h2>家族・友人</h2>
+  <% close_people = @ai_user.ai_close_people.order(:relation, :id) %>
+  <% if close_people.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>関係</th>
+          <th>名前</th>
+          <th>年齢</th>
+          <th>性別</th>
+          <th>メモ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% close_people.each do |person| %>
+          <tr>
+            <td><span class="badge info"><%= person.relation_label %></span></td>
+            <td><%= person.name %></td>
+            <td>
+              <% if person.age %>
+                <%= person.current_age %>歳
+                <% if person.age_base_date %>
+                  <span style="color:#4a5568; font-size:11px;">(基準: <%= person.age %>歳)</span>
+                <% end %>
+              <% else %>
+                <span style="color:#4a5568;">--</span>
+              <% end %>
+            </td>
+            <td style="color:#718096;"><%= person.gender || "--" %></td>
+            <td style="color:#a0aec0; font-size:12px;"><%= person.notes || "--" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">登録された家族・友人はいません</p>
+  <% end %>
 </div>
 
 <div class="grid-2">

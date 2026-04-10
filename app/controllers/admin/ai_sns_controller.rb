@@ -43,7 +43,7 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def ai_user_detail
-    @ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params, :user)
+    @ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params, :ai_close_people, :user)
                       .find(params[:id])
     @today_state    = @ai_user.today_state
     @today_schedule = @ai_user.ai_daily_schedules.find_by(scheduled_date: Date.current)
