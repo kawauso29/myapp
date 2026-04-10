@@ -14,18 +14,10 @@ class AiProfile < ApplicationRecord
     single: 0, in_relationship: 1, married: 2, divorced: 3
   }, prefix: true
 
+  include AgeProgression
+
   validates :name, presence: true, length: { maximum: 50 }
   validates :age, presence: true, numericality: { in: 10..100 }
   validates :bio, length: { maximum: 100 }, allow_nil: true
   validates :num_children, numericality: { greater_than_or_equal_to: 0 }
-
-  # 1ヶ月で1歳進む時間加速設定
-  # age_base_date が設定されていれば、そこからの経過月数を年齢に加算する
-  def current_age
-    return age unless age_base_date
-
-    months_elapsed = (Date.current.year * 12 + Date.current.month) -
-                     (age_base_date.year * 12 + age_base_date.month)
-    age + months_elapsed
-  end
 end
