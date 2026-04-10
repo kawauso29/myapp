@@ -31,7 +31,8 @@ class MonitorFailedJobsJob < ApplicationJob
 
   def notify_slack(execution)
     job = execution.job
-    error_summary = "#{execution.exception_class}: #{execution.message}".truncate(300)
+    error_data = execution.error || {}
+    error_summary = "#{error_data['exception_class']}: #{error_data['message']}".truncate(300)
 
     SlackNotifierService.notify(
       text: ":skull: *バックグラウンドジョブ失敗*",

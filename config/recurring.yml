@@ -99,3 +99,9 @@ production:
     class: RelationshipDecayJob
     queue: low
     schedule: "0 15 * * 6"
+
+  # 5分ごと: SolidQueueの失敗ジョブをSlackに通知
+  monitor_failed_jobs:
+    class: MonitorFailedJobsJob
+    queue: default
+    schedule: "*/5 * * * *"
