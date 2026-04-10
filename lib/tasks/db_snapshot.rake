@@ -19,7 +19,7 @@ namespace :db do
       cols = model.column_names - (sensitive + skip).map(&:to_s)
       model.select(cols).order(created_at: :desc).limit(limit).map(&:attributes)
     rescue StandardError => e
-      [{ "error" => e.message }]
+      [ { "error" => e.message } ]
     end
 
     snapshot = {
