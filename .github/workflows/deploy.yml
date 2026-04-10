@@ -85,6 +85,7 @@ jobs:
             set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
             set_env SLACK_CLAUDE_MEMBER_ID '${{ secrets.SLACK_CLAUDE_MEMBER_ID }}'
             set_env GITHUB_DEPLOY_TOKEN '${{ secrets.GITHUB_DEPLOY_TOKEN }}'
+            set_env SOLID_QUEUE_IN_PUMA '1'
 
       - name: Deploy Rails + frontend
         uses: appleboy/ssh-action@v1
