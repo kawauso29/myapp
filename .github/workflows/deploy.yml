@@ -102,6 +102,7 @@ jobs:
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
+            rm -rf tmp/cache/*
             RAILS_ENV=production bin/rails assets:precompile
             rm -rf ~/myapp/public/app
             mkdir -p ~/myapp/public/app

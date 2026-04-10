@@ -46,6 +46,7 @@ eval "$(rbenv init -)"
 bundle install
 RAILS_ENV=production bin/rails db:migrate
 RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
+rm -rf tmp/cache/*
 RAILS_ENV=production bin/rails assets:precompile
 sudo systemctl restart puma
 ```
@@ -89,6 +90,13 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **誤り**: `redirect_back(fallback_location: path), notice: "..."` （noticeがカッコの外）
 - **正しい**: `redirect_back fallback_location: path, notice: "..."` （noticeをカッコなしで同じ引数に）
 - Ruby 3.3 では `method(args), key: val` はシンタックスエラーになる
+
+#### 2026-04-10: ActiveJob::UnknownJobClassError（複数ジョブクラス）
+
+- **原因**: Bootsnapのキャッシュが古く、ジョブクラスがオートロードされない
+- **エラー**: RelationshipDecayJob, SlackForwardToClaudeJob, MonitorFailedJobsJob など複数のジョブで発生
+- **解決**: デプロイ時に `rm -rf tmp/cache/*` を実行してキャッシュをクリアする
+- **重要**: Rails 8 + Bootsnap 環境では、デプロイ時に必ず `tmp/cache` をクリアすること
 
 ## Slack自動転送システム（SlackEventsController）
 
