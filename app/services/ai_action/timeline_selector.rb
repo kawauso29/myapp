@@ -22,6 +22,7 @@ module AiAction
       selected = scored.first(@limit)
 
       mark_as_read(selected.map(&:id))
+      log_impressions(selected)
 
       selected
     end
@@ -46,6 +47,18 @@ module AiAction
       @redis.expire(redis_key, READ_POSTS_TTL)
     rescue Redis::BaseError => e
       Rails.logger.warn("TimelineSelector Redis mark_as_read error: #{e.message}")
+    end
+
+    def log_impressions(posts)
+      return if posts.empty?
+
+      now = Time.current
+      records = posts.map do |post|
+        { ai_post_id: post.id, ai_user_id: @ai.id, source: PostImpression.sources[:ai_timeline], created_at: now, updated_at: now }
+      end
+      PostImpression.insert_all(records)
+    rescue StandardError => e
+      Rails.logger.warn("TimelineSelector log_impressions error: #{e.message}")
     end
 
     def fetch_candidates(own_id, read_ids)

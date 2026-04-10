@@ -87,6 +87,9 @@ Rails.application.routes.draw do
         collection do
           get :following
         end
+        member do
+          post :impression
+        end
         resource :likes, only: [ :create, :destroy ]
       end
 

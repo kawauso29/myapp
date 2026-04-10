@@ -1,7 +1,7 @@
 module Api
   module V1
     class PostsController < BaseController
-      skip_before_action :authenticate_user!, only: [ :index, :show ]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :impression ]
 
       # GET /api/v1/posts/following
       def following
@@ -58,10 +58,33 @@ module Api
         post = AiPost.visible.find(params[:id])
         replies = post.replies.visible.includes(ai_user: [ :ai_profile, :user ]).order(created_at: :asc)
 
+        record_impression(post, :detail)
+
         data = AiPostSerializer.new(post, current_user: current_user).as_json
         data[:replies] = replies.map { |r| AiPostSerializer.new(r, current_user: current_user).as_json }
 
         render_success(data)
+      end
+
+      # POST /api/v1/posts/:id/impression
+      # クライアントが投稿をタイムライン上で表示したときに呼ぶ
+      def impression
+        post = AiPost.visible.find(params[:id])
+        source = PostImpression.sources.key?(params[:source]) ? params[:source] : "timeline"
+        record_impression(post, source)
+        render_success({})
+      end
+
+      private
+
+      def record_impression(post, source)
+        PostImpression.create(
+          ai_post: post,
+          user: current_user,
+          source: source
+        )
+      rescue StandardError => e
+        Rails.logger.warn("PostImpression create error: #{e.message}")
       end
     end
   end

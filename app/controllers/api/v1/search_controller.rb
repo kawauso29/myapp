@@ -29,6 +29,8 @@ module Api
 
         ai_users = base.order("ai_users.created_at DESC").limit(20)
 
+        log_search(query: query, search_type: :ai_users, results_count: total_count)
+
         render_success(
           ai_users.map { |u| AiUserSerializer.new(u).as_json },
           meta: {
@@ -60,6 +62,8 @@ module Api
 
         posts = base.order(created_at: :desc).limit(20)
 
+        log_search(query: query, search_type: :posts, results_count: posts.size)
+
         render_success(
           posts.map { |p| AiPostSerializer.new(p, current_user: current_user).as_json },
           meta: {
@@ -73,6 +77,17 @@ module Api
 
       def sanitize_like(str)
         str.gsub(/[%_\\]/) { |m| "\\#{m}" }
+      end
+
+      def log_search(query:, search_type:, results_count:)
+        SearchLog.create(
+          user_id: current_user&.id,
+          query: query,
+          search_type: search_type,
+          results_count: results_count
+        )
+      rescue StandardError => e
+        Rails.logger.warn("SearchLog create error: #{e.message}")
       end
     end
   end
