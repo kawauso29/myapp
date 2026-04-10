@@ -9,7 +9,6 @@ class RelationshipMemoryUpdateJob < ApplicationJob
   include LlmCaller
 
   queue_as :low
-  sidekiq_options retry: 1, dead: false if respond_to?(:sidekiq_options)
 
   INTERACTION_LOOKBACK = 2.weeks
 

@@ -3,7 +3,6 @@ class ReplyGenerateJob < ApplicationJob
   include LlmCaller
 
   queue_as :critical
-  sidekiq_options retry: 3, dead: false if respond_to?(:sidekiq_options)
 
   def perform(ai_id, target_post_id)
     ai = AiUser.find(ai_id)
