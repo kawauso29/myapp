@@ -57,7 +57,8 @@ class SlackEventsController < ApplicationController
   ERROR_KEYWORDS = %w[
     error Error ERROR exception Exception
     500 NoMethodError RuntimeError TypeError
-    FATAL fatal crashed failed
+    FATAL fatal crashed failed failure
+    CI\ failed
   ].freeze
 
   private
@@ -99,14 +100,33 @@ class SlackEventsController < ApplicationController
   end
 
   # event["text"]はIncoming Webhook経由のbotメッセージでは空になるため
-  # attachments内のテキストも結合して返す
+  # attachments内とblocks内のテキストも結合して返す
   def extract_full_text(event)
     parts = [ event["text"].to_s ]
+
+    # attachmentsからテキストを抽出
     Array(event["attachments"]).each do |att|
       parts << att["pretext"].to_s
       parts << att["text"].to_s
       Array(att["fields"]).each { |f| parts << f["value"].to_s }
     end
+
+    # blocks（Blocks API）からテキストを抽出
+    Array(event["blocks"]).each do |block|
+      # section, header, context などのブロックからテキストを抽出
+      if block["text"].is_a?(Hash)
+        parts << block["text"]["text"].to_s
+      end
+      # fields からも抽出
+      Array(block["fields"]).each do |field|
+        parts << field["text"].to_s if field.is_a?(Hash)
+      end
+      # elements（context blockなど）からも抽出
+      Array(block["elements"]).each do |elem|
+        parts << elem["text"].to_s if elem.is_a?(Hash) && elem["text"].present?
+      end
+    end
+
     parts.join(" ")
   end
 end
