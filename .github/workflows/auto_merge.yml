@@ -3,6 +3,7 @@ name: Enable Auto Merge
 on:
   pull_request_target:
     types:
+      - opened
       - labeled
       - synchronize
       - reopened
@@ -13,6 +14,22 @@ permissions:
   pull-requests: write
 
 jobs:
+  add_automerge_label:
+    if: ${{ github.event.action == 'opened' && !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add automerge label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ["automerge"],
+            })
+            core.info(`Added 'automerge' label to PR #${context.payload.pull_request.number}`)
+
   enable_auto_merge:
     if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'automerge') && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
