@@ -147,9 +147,18 @@ docker compose up
 **必ずこの順序で実行する:**
 
 1. 作業はフィーチャーブランチ（`claude/...`）で行う
-2. mainにマージ・pushする前にCIが通ることを確認する
-3. マージ方法: `git checkout main && git merge <branch> && git push origin main`
-4. mainへのpushで自動デプロイが走る
+2. **作業開始前に、他ブランチで同じ作業が進んでいないか必ず確認する（`git branch -a` で確認）**
+3. mainにマージ・pushする前にCIが通ることを確認する
+4. マージ方法: `git checkout main && git merge <branch> && git push origin main`
+5. mainへのpushで自動デプロイが走る
+6. **マージ後は必ずブランチを削除する: `git branch -d <branch> && git push origin --delete <branch>`**
+
+### Slackからの自動修正時のルール
+
+- **作業開始前に必ず他ブランチで同じ修正が進んでいないか確認する**
+  - `git branch -a` でリモートブランチも含めて確認
+  - 同名・類似の修正ブランチがあれば重複作業を避ける
+- **マージ完了後は必ずフィーチャーブランチを削除する（ローカル・リモート両方）**
 
 ### CIエラーの原因になったこと（記録）
 
