@@ -90,6 +90,44 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **正しい**: `redirect_back fallback_location: path, notice: "..."` （noticeをカッコなしで同じ引数に）
 - Ruby 3.3 では `method(args), key: val` はシンタックスエラーになる
 
+## Slack自動転送システム（SlackEventsController）
+
+### 概要
+
+エラー通知チャネルのメッセージを検知し、Claudeチャネルに `@claude` メンション付きで自動転送する。
+
+- エンドポイント: `POST /slack/events`
+- 転送ジョブ: `SlackForwardToClaudeJob`
+
+### 必要なGitHub Secrets（デプロイ時にVPSの.envに自動書き込み）
+
+| Secret名 | 内容 |
+|----------|------|
+| `SLACK_SIGNING_SECRET` | Slack App → Basic Information → Signing Secret |
+| `SLACK_BOT_TOKEN` | Slack App → OAuth & Permissions → Bot User OAuth Token（xoxb-...）|
+| `SLACK_ERROR_CHANNEL_ID` | 監視対象チャネルのID（Cxxxxx）|
+| `SLACK_CLAUDE_CHANNEL_ID` | 転送先ClaudeチャネルのID |
+| `SLACK_CLAUDE_MEMBER_ID` | Claude Code for SlackのメンバーID（Uxxxxx）|
+
+### Slack App設定
+
+- Bot Token Scopes: `channels:history`, `chat:write`
+- Event Subscriptions → Request URL: `https://133.167.124.112/slack/events`
+- Subscribe to bot events: `message.channels`
+- BotをエラーチャネルとClaudeチャネル両方に `/invite` すること
+
+### 重要な注意点・ハマりポイント
+
+**エラー通知はBotメッセージ**
+- `myapp-notify` はIncoming Webhook経由のBotとして投稿する
+- `bot_id` チェックで除外するとエラー通知が転送されない（ハマった）
+- **正しい実装**: `bot_id` チェックは行わず、キーワードフィルタで判定する
+- `subtype` チェック（編集・削除イベント除外）は残す
+
+**ループ防止**
+- 転送先はClaudeチャネル（`SLACK_CLAUDE_CHANNEL_ID`）のみに投稿
+- エラーチャネル（`SLACK_ERROR_CHANNEL_ID`）には絶対に書き込まない
+
 ### ローカル開発環境（Docker）
 
 ```bash
