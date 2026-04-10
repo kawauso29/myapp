@@ -13,6 +13,18 @@ post_motivation_calculate:
   class: PostMotivationCalculateJob
   queue: low
 
+# 翌日のスケジュールを21:30に生成（daily_state生成後）
+daily_schedule_generate:
+  cron: "30 21 * * *"
+  class: DailyScheduleGenerateJob
+  queue: low
+
+# 毎時間、スケジュールに合わせて状態を更新（6〜25時）
+hourly_state_update:
+  cron: "0 6-25 * * *"
+  class: HourlyStateUpdateJob
+  queue: default
+
 ai_action_check:
   cron: "*/15 * * * *"
   class: AiActionCheckJob
