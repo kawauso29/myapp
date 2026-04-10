@@ -136,6 +136,10 @@ GitHub Actions（`.github/workflows/ci.yml`）で以下のジョブが `push` / 
 | `test` | RSpec（PostgreSQL 16 + Redis 7 サービスコンテナ付き） |
 | `system-test` | Rails システムテスト（Capybara/Selenium） |
 
+PRを自動で `main` にマージしてデプロイしたい場合は、PRに `automerge` ラベルを付与する。  
+`.github/workflows/auto_merge.yml` が GitHub の Auto-merge（squash）を有効化し、必須チェック通過後に `main` へマージされる。  
+`main` への push をトリガーに `.github/workflows/deploy.yml` が実行され、VPSへ自動デプロイされる。
+
 ## ディレクトリ構成
 
 ```
