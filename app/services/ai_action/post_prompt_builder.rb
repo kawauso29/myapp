@@ -151,10 +151,25 @@ module AiAction
     def memory_section
       sections = []
 
-      long_term = @ai.ai_long_term_memories.order(importance: :desc, occurred_on: :desc).limit(5)
-      if long_term.any?
-        sections << "## あなたの記憶（重要な出来事）\n" +
-                    long_term.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
+      # 直近のライフイベント（最優先で表示）
+      recent_events = @ai.ai_long_term_memories
+                         .where(memory_type: :life_event)
+                         .where("occurred_on >= ?", 30.days.ago.to_date)
+                         .order(occurred_on: :desc)
+                         .limit(2)
+      if recent_events.any?
+        sections << "## 最近起きた大きな出来事（投稿内容と整合させること）\n" +
+                    recent_events.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
+      end
+
+      # その他の長期記憶
+      other_long_term = @ai.ai_long_term_memories
+                           .where.not(memory_type: :life_event)
+                           .order(importance: :desc, occurred_on: :desc)
+                           .limit(3)
+      if other_long_term.any?
+        sections << "## あなたの記憶\n" +
+                    other_long_term.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
       end
 
       short_term = @ai.ai_short_term_memories.active.order(created_at: :desc).limit(3)
