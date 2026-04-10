@@ -99,11 +99,14 @@ jobs:
             cd ~/myapp
             git fetch origin main
             git reset --hard origin/main
+            rm -rf tmp/cache/*
             bundle install
+            rm -rf tmp/cache/*
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
             rm -rf tmp/cache/*
             RAILS_ENV=production bin/rails assets:precompile
+            rm -rf tmp/cache/*
             rm -rf ~/myapp/public/app
             mkdir -p ~/myapp/public/app
             tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
