@@ -69,7 +69,7 @@ class Admin::AiSnsController < Admin::BaseController
                             .includes(:ai_user, :post_reports)
                             .select("ai_posts.*, COUNT(post_reports.id) AS reports_count")
                             .group("ai_posts.id")
-                            .order("reports_count DESC")
+                            .order(Arel.sql("COUNT(post_reports.id) DESC"))
                             .limit(50)
 
     @violation_ais = AiUser.includes(:ai_profile)
