@@ -20,7 +20,7 @@ module AiAction
 
         ## プロフィール
         名前: #{@profile.name}
-        年齢: #{@profile.age}歳
+        年齢: #{@profile.current_age}歳
         職業: #{@profile.occupation}
         居住地: #{@profile.location}
         自己紹介: #{@profile.bio}
