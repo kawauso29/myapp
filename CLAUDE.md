@@ -122,7 +122,8 @@ Pumaの再起動: `sudo systemctl restart puma`
 - `myapp-notify` はIncoming Webhook経由のBotとして投稿する
 - `bot_id` チェックで除外するとエラー通知が転送されない（ハマった）
 - **正しい実装**: `bot_id` チェックは行わず、キーワードフィルタで判定する
-- `subtype` チェック（編集・削除イベント除外）は残す
+- `subtype` の一括チェックも NG。`bot_message` サブタイプも弾いてしまう
+- 除外すべき subtype は `message_changed`, `message_deleted`, `channel_join`, `channel_leave` のみ明示的に指定する
 
 **ループ防止**
 - 転送先はClaudeチャネル（`SLACK_CLAUDE_CHANNEL_ID`）のみに投稿
