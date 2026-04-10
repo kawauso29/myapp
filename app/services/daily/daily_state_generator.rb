@@ -192,10 +192,8 @@ module Daily
       base -= 10 if mood == :positive
       base -= 5  if busyness == :free
       # 性格による補正（完璧主義者はストレスを感じやすい）
-      if @personality.respond_to?(:perfectionism)
-        perfectionism_factor = { very_low: -10, low: -5, normal: 0, high: 5, very_high: 15 }
-        base += perfectionism_factor[@personality.perfectionism.to_sym] || 0
-      end
+      perfectionism_factor = { very_low: -10, low: -5, normal: 0, high: 5, very_high: 15 }
+      base += perfectionism_factor[@personality.perfectionism.to_sym] || 0
       base.clamp(0, 100)
     end
 
