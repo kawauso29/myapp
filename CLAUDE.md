@@ -18,6 +18,14 @@ Claude Code向けのプロジェクトメモ。
 - **重要な情報が出てきたら必ずこの CLAUDE.md に追記する**
 - **間違いを指摘されたら、その内容と正しい情報を CLAUDE.md に記録する**
 
+### mainへのマージの強制ルール
+
+**作業完了後は必ずmainにマージ・pushする。**
+
+- フィーチャーブランチで作業したら、必ず `git checkout main && git merge <branch> && git push origin main` を実行する
+- ユーザーが「mainにあげておいて」と言った場合は、マージとpushまで自動で行う
+- ローカルmainがorigin/mainと乖離している場合は `git fetch origin main && git reset --hard origin/main` で同期してからマージする
+
 ## デプロイ仕様
 
 ### 自動デプロイのトリガー
