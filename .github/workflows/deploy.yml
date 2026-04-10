@@ -3,6 +3,12 @@ name: Deploy to Sakura VPS
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual dispatch'
+        required: false
+        default: 'Manual sync from admin panel'
 
 jobs:
   build_frontend:
@@ -78,6 +84,7 @@ jobs:
             set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
             set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
             set_env SLACK_CLAUDE_MEMBER_ID '${{ secrets.SLACK_CLAUDE_MEMBER_ID }}'
+            set_env GITHUB_DEPLOY_TOKEN '${{ secrets.GITHUB_DEPLOY_TOKEN }}'
 
       - name: Deploy Rails + frontend
         uses: appleboy/ssh-action@v1
