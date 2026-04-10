@@ -4,43 +4,47 @@ class MonitorFailedJobsJob < ApplicationJob
   def perform
     return unless Rails.env.production?
 
-    # 前回チェック時刻をキャッシュから取得（初回は1時間前）
     last_check = Rails.cache.read("monitor_failed_jobs:last_check") || 1.hour.ago
     now = Time.current
 
     failed_executions = SolidQueue::FailedExecution
       .where(created_at: last_check..)
       .order(created_at: :desc)
-      .limit(20)
+      .limit(100)
 
-    failed_executions.each do |execution|
-      notify_slack(execution)
+    return if failed_executions.empty?
+
+    # 同じジョブクラス＋エラー種別でグループ化してまとめて1通知
+    grouped = failed_executions.group_by do |ex|
+      error_data = ex.error || {}
+      "#{ex.job.class_name}::#{error_data['exception_class']}"
     end
 
-    Rails.cache.write("monitor_failed_jobs:last_check", now, expires_in: 1.hour)
+    grouped.each do |_key, executions|
+      notify_slack_grouped(executions)
+    end
+
+    Rails.cache.write("monitor_failed_jobs:last_check", now, expires_in: 2.hours)
   rescue => e
     Rails.logger.error("[MonitorFailedJobsJob] Error: #{e.message}")
-    SlackNotifierService.notify(
-      text: ":skull: *MonitorFailedJobsJob エラー*",
-      color: :danger,
-      fields: [ { title: "エラー", value: e.message.truncate(300) } ]
-    )
   end
 
   private
 
-  def notify_slack(execution)
-    job = execution.job
-    error_data = execution.error || {}
+  def notify_slack_grouped(executions)
+    first = executions.first
+    job = first.job
+    error_data = first.error || {}
     error_summary = "#{error_data['exception_class']}: #{error_data['message']}".truncate(300)
+    count = executions.size
 
     SlackNotifierService.notify(
-      text: ":skull: *バックグラウンドジョブ失敗*",
+      text: ":skull: *バックグラウンドジョブ失敗*#{count > 1 ? "（#{count}件まとめ）" : ""}",
       color: :danger,
       fields: [
         { title: "ジョブクラス", value: job.class_name },
         { title: "エラー",       value: error_summary },
-        { title: "ジョブID",     value: job.active_job_id.to_s }
+        { title: "件数",         value: count.to_s }
       ]
     )
   end
