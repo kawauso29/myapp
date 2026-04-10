@@ -24,6 +24,27 @@ jobs:
             const pullRequestId = context.payload.pull_request.node_id
 
             try {
+              const current = await github.graphql(
+                `
+                  query($pullRequestId: ID!) {
+                    node(id: $pullRequestId) {
+                      ... on PullRequest {
+                        number
+                        autoMergeRequest {
+                          enabledAt
+                        }
+                      }
+                    }
+                  }
+                `,
+                { pullRequestId }
+              )
+
+              if (current?.node?.autoMergeRequest) {
+                core.info(`Auto-merge is already enabled for PR #${context.payload.pull_request.number}`)
+                return
+              }
+
               await github.graphql(
                 `
                   mutation($pullRequestId: ID!) {
@@ -39,10 +60,6 @@ jobs:
               core.info(`Auto-merge enabled for PR #${context.payload.pull_request.number}`)
             } catch (error) {
               const message = String(error?.message || "")
-              if (message.includes("Pull request is in clean status")) {
-                core.info("Auto-merge is already enabled.")
-                return
-              }
               core.error(`Failed to enable auto-merge for PR #${context.payload.pull_request.number}: ${message}`)
               throw error
             }
