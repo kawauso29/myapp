@@ -42,13 +42,19 @@ class SlackEventsController < ApplicationController
     end
 
     event = payload["event"]
+    Rails.logger.info("[SlackEvents] received type=#{event&.dig('type')} subtype=#{event&.dig('subtype').inspect} channel=#{event&.dig('channel')} error_channel=#{ENV['SLACK_ERROR_CHANNEL_ID']}")
+
     if forwardable_message?(event)
+      Rails.logger.info("[SlackEvents] forwarding message ts=#{event['ts']}")
       SlackForwardToClaudeJob.perform_later(
         text: extract_full_text(event),
         channel: event["channel"],
         user: event["user"],
         ts: event["ts"]
       )
+    else
+      full_text = extract_full_text(event)
+      Rails.logger.info("[SlackEvents] skipped: type_ok=#{event&.dig('type') == 'message'} channel_ok=#{event&.dig('channel') == ENV['SLACK_ERROR_CHANNEL_ID']} deploy=#{full_text.include?('デプロイ')} keyword=#{ERROR_KEYWORDS.any? { |kw| full_text.include?(kw) }}")
     end
 
     head :ok

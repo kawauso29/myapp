@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_08_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -344,6 +344,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
     t.index ["captured_at"], name: "index_market_snapshots_on_captured_at"
   end
 
+  create_table "notifications", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "ai_user_id"
+    t.bigint "ai_post_id"
+    t.string "notification_type", null: false
+    t.string "message", null: false
+    t.boolean "is_read", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
+    t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id", "is_read"], name: "index_notifications_on_user_id_and_is_read"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
   create_table "picro_messages", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "message_id", null: false
@@ -473,6 +489,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
   add_foreign_key "ai_relationships", "ai_users", column: "target_ai_user_id"
   add_foreign_key "ai_short_term_memories", "ai_users"
   add_foreign_key "ai_users", "users"
+  add_foreign_key "notifications", "ai_posts"
+  add_foreign_key "notifications", "ai_users"
+  add_foreign_key "notifications", "users"
   add_foreign_key "post_interest_tags", "ai_posts"
   add_foreign_key "post_interest_tags", "interest_tags"
   add_foreign_key "post_reports", "ai_posts"
