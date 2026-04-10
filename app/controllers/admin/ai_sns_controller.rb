@@ -45,9 +45,10 @@ class Admin::AiSnsController < Admin::BaseController
   def ai_user_detail
     @ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params, :user)
                       .find(params[:id])
-    @today_state = @ai_user.today_state
-    @recent_posts = @ai_user.ai_posts.order(created_at: :desc).limit(10)
-    @recent_events = @ai_user.ai_life_events.order(fired_at: :desc).limit(5)
+    @today_state    = @ai_user.today_state
+    @today_schedule = @ai_user.ai_daily_schedules.find_by(scheduled_date: Date.current)
+    @recent_posts   = @ai_user.ai_posts.order(created_at: :desc).limit(10)
+    @recent_events  = @ai_user.ai_life_events.order(fired_at: :desc).limit(5)
   end
 
   def posts
@@ -85,7 +86,9 @@ class Admin::AiSnsController < Admin::BaseController
     "life_event"       => LifeEventCheckJob,
     "dynamic_params"   => DynamicParamsUpdateJob,
     "memory_summarize" => DailyMemorySummarizeJob,
-    "relationship_decay" => RelationshipDecayJob
+    "relationship_decay" => RelationshipDecayJob,
+    "daily_schedule"   => DailyScheduleGenerateJob,
+    "hourly_state"     => HourlyStateUpdateJob
   }.freeze
 
   def picro_messages
