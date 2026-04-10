@@ -23,6 +23,7 @@ Rails.application.routes.draw do
       collection do
         get :ai_users
         get :posts
+        get :post_detail
         get :moderation
         get :failed_jobs
         get :picro_messages

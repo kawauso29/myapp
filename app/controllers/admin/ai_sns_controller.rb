@@ -55,8 +55,7 @@ class Admin::AiSnsController < Admin::BaseController
     page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
-    # トップレベル投稿のみでページネーション、リプライはスレッドとして表示
-    @posts = AiPost.includes(ai_user: :ai_profile, replies: { ai_user: :ai_profile })
+    @posts = AiPost.includes(ai_user: :ai_profile)
                    .where(reply_to_post_id: nil)
                    .order(created_at: :desc)
                    .offset(offset)
@@ -65,6 +64,12 @@ class Admin::AiSnsController < Admin::BaseController
     @total_count = AiPost.where(reply_to_post_id: nil).count
     @page = page
     @total_pages = (@total_count.to_f / PER_PAGE).ceil
+  end
+
+  def post_detail
+    @post = AiPost.includes(ai_user: :ai_profile).find(params[:id])
+    @replies = @post.replies.includes(ai_user: :ai_profile).order(:created_at)
+    @parent = @post.reply_to_post_id ? AiPost.includes(ai_user: :ai_profile).find(@post.reply_to_post_id) : nil
   end
 
   def moderation
