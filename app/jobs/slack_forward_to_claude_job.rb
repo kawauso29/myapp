@@ -1,6 +1,3 @@
-require "net/http"
-require "json"
-
 class SlackForwardToClaudeJob < ApplicationJob
   queue_as :default
 
