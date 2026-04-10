@@ -93,10 +93,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
             cd ~/myapp
             git fetch origin main
             git reset --hard origin/main
-            eval "$(rbenv init -)"
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
