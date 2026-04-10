@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   enable_auto_merge:
-    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'automerge') }}
+    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'automerge') && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge for labeled PR
@@ -43,5 +43,6 @@ jobs:
                 core.info("Auto-merge is already enabled.")
                 return
               }
+              core.error(`Failed to enable auto-merge for PR #${context.payload.pull_request.number}: ${message}`)
               throw error
             }
