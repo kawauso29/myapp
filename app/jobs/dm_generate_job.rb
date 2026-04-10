@@ -80,7 +80,7 @@ class DmGenerateJob < ApplicationJob
 
       target_ai = AiUser.find(target_ai_id)
       # Enforce a_id < b_id ordering for uniqueness
-      user_a, user_b = [ai, target_ai].sort_by(&:id)
+      user_a, user_b = [ ai, target_ai ].sort_by(&:id)
       AiDmThread.find_or_create_by!(
         ai_user_a: user_a,
         ai_user_b: user_b
@@ -104,7 +104,7 @@ class DmGenerateJob < ApplicationJob
       message: DmMessageSerializer.new(message).as_json
     }
 
-    [thread.ai_user_a, thread.ai_user_b].each do |ai_user|
+    [ thread.ai_user_a, thread.ai_user_b ].each do |ai_user|
       next unless ai_user.user.present?
 
       UserNotificationChannel.broadcast_to(ai_user.user, payload)

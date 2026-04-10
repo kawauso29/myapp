@@ -73,8 +73,8 @@ class RelationshipMemoryUpdateJob < ApplicationJob
 
     # DM conversations
     dm_thread = AiDmThread.find_by(
-      ai_user_a_id: [ai.id, target.id].min,
-      ai_user_b_id: [ai.id, target.id].max
+      ai_user_a_id: [ ai.id, target.id ].min,
+      ai_user_b_id: [ ai.id, target.id ].max
     )
     if dm_thread
       dm_messages = dm_thread.ai_dm_messages.where(created_at: since..)

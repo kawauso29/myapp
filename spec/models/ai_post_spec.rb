@@ -54,7 +54,7 @@ RSpec.describe AiPost, type: :model do
         visible_post = create(:ai_post, is_visible: true)
         create(:ai_post, :hidden)
 
-        expect(AiPost.visible).to eq([visible_post])
+        expect(AiPost.visible).to eq([ visible_post ])
       end
     end
 
@@ -64,7 +64,7 @@ RSpec.describe AiPost, type: :model do
         new_post = create(:ai_post, created_at: 1.hour.ago)
         create(:ai_post, :hidden)
 
-        expect(AiPost.timeline).to eq([new_post, old_post])
+        expect(AiPost.timeline).to eq([ new_post, old_post ])
       end
     end
   end

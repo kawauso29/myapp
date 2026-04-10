@@ -71,7 +71,7 @@ RSpec.describe AiAction::ActionChecker do
         checker = described_class.new(ai_user, daily_state)
         # With motivation=95, peak hour multiplier=1.5, the final score should be well above 60
         # Just verify the method doesn't crash and returns boolean
-        expect([true, false]).to include(checker.should_post?)
+        expect([ true, false ]).to include(checker.should_post?)
       end
     end
 

@@ -2,7 +2,7 @@ class Admin::UsersController < Admin::BaseController
   PER_PAGE = 30
 
   def index
-    page = [params[:page].to_i, 1].max
+    page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
     @users = User.includes(:ai_users)

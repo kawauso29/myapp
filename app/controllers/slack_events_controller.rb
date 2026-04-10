@@ -2,7 +2,7 @@ require "openssl"
 
 class SlackEventsController < ApplicationController
   skip_before_action :verify_authenticity_token
-  before_action :verify_slack_signature, only: [:events]
+  before_action :verify_slack_signature, only: [ :events ]
 
   # デバッグ用: ブラウザで GET /slack/test を叩いて動作確認
   def test
@@ -79,7 +79,7 @@ class SlackEventsController < ApplicationController
     expected = "v0=#{OpenSSL::HMAC.hexdigest("SHA256", ENV["SLACK_SIGNING_SECRET"].to_s, sig_basestring)}"
 
     unless ActiveSupport::SecurityUtils.secure_compare(expected, signature.to_s)
-      return head :unauthorized
+      head :unauthorized
     end
   end
 

@@ -56,7 +56,7 @@ Rails.application.configure do
 
   # Action Cable (WebSocket) configuration
   config.action_cable.url = "wss://#{ENV['APP_DOMAIN']}/cable"
-  config.action_cable.allowed_request_origins = [/https?:\/\/#{Regexp.escape(ENV.fetch('APP_DOMAIN', 'localhost'))}/]
+  config.action_cable.allowed_request_origins = [ /https?:\/\/#{Regexp.escape(ENV.fetch('APP_DOMAIN', 'localhost'))}/ ]
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.

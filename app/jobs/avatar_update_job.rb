@@ -89,7 +89,7 @@ class AvatarUpdateJob < ApplicationJob
     return if stages_grown <= 0
 
     current_index = HAIR_LENGTHS.index(avatar.hair_length) || 0
-    new_index     = [current_index + stages_grown, HAIR_LENGTHS.length - 1].min
+    new_index     = [ current_index + stages_grown, HAIR_LENGTHS.length - 1 ].min
     avatar.update!(hair_length: HAIR_LENGTHS[new_index])
   end
 
@@ -103,13 +103,13 @@ class AvatarUpdateJob < ApplicationJob
     personality = ai.ai_personality
     if personality
       modifier = case personality.self_expression
-                 when "very_high" then 1.5
-                 when "high"      then 1.2
-                 when "normal"    then 1.0
-                 when "low"       then 0.8
-                 when "very_low"  then 0.6
-                 else 1.0
-                 end
+      when "very_high" then 1.5
+      when "high"      then 1.2
+      when "normal"    then 1.0
+      when "low"       then 0.8
+      when "very_low"  then 0.6
+      else 1.0
+      end
       base_chance *= modifier
     end
 
@@ -159,11 +159,11 @@ class AvatarUpdateJob < ApplicationJob
 
     direction = if activity_level > 50
                   -1  # trending slimmer (more active)
-                elsif activity_level < 10
+    elsif activity_level < 10
                   1   # trending chubbier (less active)
-                else
-                  [-1, 0, 0, 1].sample  # mostly stable with small random drift
-                end
+    else
+                  [ -1, 0, 0, 1 ].sample  # mostly stable with small random drift
+    end
 
     new_index = (current_index + direction).clamp(0, BODY_TYPES.length - 1)
     avatar.update!(body_type: BODY_TYPES[new_index], last_body_update_at: Date.current)

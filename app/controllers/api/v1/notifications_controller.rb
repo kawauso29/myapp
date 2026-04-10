@@ -1,7 +1,6 @@
 module Api
   module V1
     class NotificationsController < BaseController
-
       # GET /api/v1/notifications
       def index
         notifications = current_user.user_notifications

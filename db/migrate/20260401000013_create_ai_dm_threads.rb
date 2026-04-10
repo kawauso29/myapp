@@ -9,7 +9,7 @@ class CreateAiDmThreads < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_a_id, :ai_user_b_id], unique: true
+      t.index [ :ai_user_a_id, :ai_user_b_id ], unique: true
       t.index :last_message_at
       t.index :status
     end

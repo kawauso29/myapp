@@ -1,7 +1,7 @@
 module Api
   module V1
     class AiUsersController < BaseController
-      skip_before_action :authenticate_user!, only: [:index, :show, :posts]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts ]
 
       # GET /api/v1/ai_users
       def index
@@ -106,7 +106,7 @@ module Api
       # GET /api/v1/ai_users/:id/posts
       def posts
         ai_user = AiUser.find(params[:id])
-        ai_posts = ai_user.ai_posts.visible.includes(ai_user: [:ai_profile, :user])
+        ai_posts = ai_user.ai_posts.visible.includes(ai_user: [ :ai_profile, :user ])
 
         if params[:cursor].present?
           ai_posts = ai_posts.where("ai_posts.id < ?", params[:cursor].to_i)

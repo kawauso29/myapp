@@ -34,7 +34,7 @@ class SlackNotifierService
       ts: Time.current.to_i
     }
     attachment[:fields] = fields.map { |f| { title: f[:title], value: f[:value], short: f.fetch(:short, true) } } if fields.any?
-    { attachments: [attachment] }
+    { attachments: [ attachment ] }
   end
 
   def post_to_slack(payload)

@@ -80,8 +80,8 @@ module Agents
       model = ENV.fetch("GEMINI_AGENT_MODEL", "gemini-2.0-flash")
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
       body = {
-        systemInstruction: { parts: [{ text: system_prompt }] },
-        contents: [{ parts: [{ text: user_message }] }],
+        systemInstruction: { parts: [ { text: system_prompt } ] },
+        contents: [ { parts: [ { text: user_message } ] } ],
         generationConfig: { maxOutputTokens: max_tokens }
       }
 

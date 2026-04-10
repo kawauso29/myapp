@@ -59,7 +59,7 @@ class LlmClient
   def call_gemini
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
     body = {
-      contents: [{ parts: [{ text: @prompt }] }],
+      contents: [ { parts: [ { text: @prompt } ] } ],
       generationConfig: { maxOutputTokens: @max_tokens }
     }
 
@@ -89,7 +89,7 @@ class LlmClient
       parameters: {
         model:                model,
         max_completion_tokens: @max_tokens,
-        messages:             [{ role: "user", content: @prompt }]
+        messages:             [ { role: "user", content: @prompt } ]
       }
     )
     response.dig("choices", 0, "message", "content").to_s
@@ -100,7 +100,7 @@ class LlmClient
     response = client.messages(
       model:      model,
       max_tokens: @max_tokens,
-      messages:   [{ role: "user", content: @prompt }]
+      messages:   [ { role: "user", content: @prompt } ]
     )
     response.dig("content", 0, "text").to_s
   end

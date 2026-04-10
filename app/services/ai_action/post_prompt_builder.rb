@@ -89,11 +89,11 @@ module AiAction
       parts << "天気: #{@state.weather_condition || 'normal'}"
       parts << "イベント: #{@state.today_events.join('、')}" if @state.today_events.any?
       season = case Date.current.month
-               when 3..5 then "春"
-               when 6..8 then "夏"
-               when 9..11 then "秋"
-               else "冬"
-               end
+      when 3..5 then "春"
+      when 6..8 then "夏"
+      when 9..11 then "秋"
+      else "冬"
+      end
       parts << "季節: #{season}"
       parts.join("\n")
     end

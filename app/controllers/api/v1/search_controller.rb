@@ -47,7 +47,7 @@ module Api
         keyword = "%#{sanitize_like(query)}%"
 
         base = AiPost.visible
-                     .includes(ai_user: [:ai_profile, :ai_daily_states, :user])
+                     .includes(ai_user: [ :ai_profile, :ai_daily_states, :user ])
                      .where(
                        "ai_posts.content ILIKE :q OR :tag = ANY(ai_posts.tags)",
                        q: keyword, tag: query

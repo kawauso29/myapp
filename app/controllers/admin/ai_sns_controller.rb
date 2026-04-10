@@ -29,7 +29,7 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def ai_users
-    page = [params[:page].to_i, 1].max
+    page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
     @ai_users = AiUser.includes(:ai_profile, :user)
@@ -51,7 +51,7 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def posts
-    page = [params[:page].to_i, 1].max
+    page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
     @posts = AiPost.includes(ai_user: :ai_profile)
@@ -85,7 +85,7 @@ class Admin::AiSnsController < Admin::BaseController
     "life_event"       => LifeEventCheckJob,
     "dynamic_params"   => DynamicParamsUpdateJob,
     "memory_summarize" => DailyMemorySummarizeJob,
-    "relationship_decay" => RelationshipDecayJob,
+    "relationship_decay" => RelationshipDecayJob
   }.freeze
 
   def picro_messages

@@ -55,7 +55,7 @@ create_table :users do |t|
   t.index :email,                unique: true
   t.index :username,             unique: true
   t.index :reset_password_token, unique: true
-  t.index [:provider, :uid],     unique: true, where: "provider IS NOT NULL"
+  t.index [ :provider, :uid ],     unique: true, where: "provider IS NOT NULL"
 end
 
 
@@ -276,7 +276,7 @@ create_table :ai_daily_states do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :date], unique: true
+  t.index [ :ai_user_id, :date ], unique: true
   t.index :date  # 日付での一括取得用
 end
 
@@ -301,7 +301,7 @@ create_table :ai_life_events do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :event_type]
+  t.index [ :ai_user_id, :event_type ]
   t.index :fired_at
 end
 
@@ -330,7 +330,7 @@ create_table :ai_posts do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :created_at]  # AI個別の投稿一覧用
+  t.index [ :ai_user_id, :created_at ]  # AI個別の投稿一覧用
   t.index :created_at                 # グローバルタイムライン用
   t.index :likes_count                # バズ検出用
   t.index :is_visible
@@ -344,7 +344,7 @@ create_table :ai_post_likes do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :ai_post_id], unique: true
+  t.index [ :ai_user_id, :ai_post_id ], unique: true
 end
 
 
@@ -355,7 +355,7 @@ create_table :user_ai_likes do |t|
 
   t.timestamps
 
-  t.index [:user_id, :ai_post_id], unique: true
+  t.index [ :user_id, :ai_post_id ], unique: true
 end
 
 
@@ -386,7 +386,7 @@ create_table :ai_relationships do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :target_ai_user_id], unique: true
+  t.index [ :ai_user_id, :target_ai_user_id ], unique: true
   t.index :is_following  # フォロー一覧取得用
   t.index :relationship_type
 end
@@ -406,7 +406,7 @@ create_table :ai_dm_threads do |t|
 
   t.timestamps
 
-  t.index [:ai_user_a_id, :ai_user_b_id], unique: true
+  t.index [ :ai_user_a_id, :ai_user_b_id ], unique: true
   t.index :last_message_at  # 最近のDM一覧用
   t.index :status
 end
@@ -424,7 +424,7 @@ create_table :ai_dm_messages do |t|
 
   t.timestamps
 
-  t.index [:thread_id, :created_at]  # スレッド内のメッセージ時系列取得用
+  t.index [ :thread_id, :created_at ]  # スレッド内のメッセージ時系列取得用
 end
 
 
@@ -452,7 +452,7 @@ create_table :ai_interest_tags do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :interest_tag_id], unique: true
+  t.index [ :ai_user_id, :interest_tag_id ], unique: true
 end
 
 
@@ -463,7 +463,7 @@ create_table :post_interest_tags do |t|
 
   t.timestamps
 
-  t.index [:ai_post_id, :interest_tag_id], unique: true
+  t.index [ :ai_post_id, :interest_tag_id ], unique: true
   t.index :interest_tag_id  # タグ別投稿取得用
 end
 
@@ -482,7 +482,7 @@ create_table :ai_short_term_memories do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :expires_at]  # 有効なメモリの取得用
+  t.index [ :ai_user_id, :expires_at ]  # 有効なメモリの取得用
   t.index :expires_at  # TTL削除バッチ用
 end
 
@@ -500,7 +500,7 @@ create_table :ai_long_term_memories do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :importance, :occurred_on]  # TOP5取得用
+  t.index [ :ai_user_id, :importance, :occurred_on ]  # TOP5取得用
 end
 
 
@@ -517,7 +517,7 @@ create_table :ai_relationship_memories do |t|
 
   t.timestamps
 
-  t.index [:ai_user_id, :target_ai_user_id], unique: true
+  t.index [ :ai_user_id, :target_ai_user_id ], unique: true
 end
 
 
@@ -528,7 +528,7 @@ create_table :user_favorite_ais do |t|
 
   t.timestamps
 
-  t.index [:user_id, :ai_user_id], unique: true
+  t.index [ :user_id, :ai_user_id ], unique: true
 end
 
 
@@ -546,7 +546,7 @@ create_table :post_reports do |t|
 
   t.timestamps
 
-  t.index [:ai_post_id, :status]
+  t.index [ :ai_post_id, :status ]
   t.index :status
 end
 

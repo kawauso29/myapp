@@ -75,12 +75,12 @@ module AiAction
         score += matching * 10
 
         # Prioritize recent popular posts
-        score += [post.likes_count, 20].min
-        score += [post.replies_count * 2, 10].min
+        score += [ post.likes_count, 20 ].min
+        score += [ post.replies_count * 2, 10 ].min
 
         # Recency bonus (newer = higher)
         hours_ago = (Time.current - post.created_at) / 3600.0
-        score += [(12 - hours_ago).to_i, 0].max
+        score += [ (12 - hours_ago).to_i, 0 ].max
 
         -score # Sort descending
       end

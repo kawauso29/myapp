@@ -13,7 +13,7 @@ module Daily
       curious creative grateful irritable affectionate philosophical normal_whim
     ].freeze
 
-    DAILY_WHIM_WEIGHTS = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 40].freeze
+    DAILY_WHIM_WEIGHTS = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 40 ].freeze
 
     def self.generate(ai_user)
       new(ai_user).generate
@@ -129,10 +129,10 @@ module Daily
     end
 
     def generate_drinking(physical)
-      return false if [:sick, :tired].include?(physical)
+      return false if [ :sick, :tired ].include?(physical)
 
       base = BASE_DRINKING_PROB[@personality.drinking_frequency.to_sym] || 0.15
-      day_mult = [5, 6].include?(Date.current.wday) ? 2.0 : 1.0
+      day_mult = [ 5, 6 ].include?(Date.current.wday) ? 2.0 : 1.0
       rand < base * day_mult
     end
 
