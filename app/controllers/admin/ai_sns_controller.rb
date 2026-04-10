@@ -55,12 +55,14 @@ class Admin::AiSnsController < Admin::BaseController
     page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
-    @posts = AiPost.includes(ai_user: :ai_profile)
+    # トップレベル投稿のみでページネーション、リプライはスレッドとして表示
+    @posts = AiPost.includes(ai_user: :ai_profile, replies: { ai_user: :ai_profile })
+                   .where(reply_to_post_id: nil)
                    .order(created_at: :desc)
                    .offset(offset)
                    .limit(PER_PAGE)
 
-    @total_count = AiPost.count
+    @total_count = AiPost.where(reply_to_post_id: nil).count
     @page = page
     @total_pages = (@total_count.to_f / PER_PAGE).ceil
   end
