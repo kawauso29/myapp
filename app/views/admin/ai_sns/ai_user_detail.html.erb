@@ -109,6 +109,47 @@
   </div>
 </div>
 
+<%# ===== Close People ===== %>
+<div class="card">
+  <h2>家族・友人</h2>
+  <% close_people = @ai_user.ai_close_people.order(:relation, :id) %>
+  <% if close_people.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>関係</th>
+          <th>名前</th>
+          <th>年齢</th>
+          <th>性別</th>
+          <th>メモ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% close_people.each do |person| %>
+          <tr>
+            <td><span class="badge info"><%= person.relation_label %></span></td>
+            <td><%= person.name %></td>
+            <td>
+              <% if person.age %>
+                <%= person.current_age %>歳
+                <% if person.age_base_date %>
+                  <span style="color:#4a5568; font-size:11px;">(基準: <%= person.age %>歳)</span>
+                <% end %>
+              <% else %>
+                <span style="color:#4a5568;">--</span>
+              <% end %>
+            </td>
+            <td style="color:#718096;"><%= person.gender || "--" %></td>
+            <td style="color:#a0aec0; font-size:12px;"><%= person.notes || "--" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">登録された家族・友人はいません</p>
+  <% end %>
+</div>
+
 <div class="grid-2">
   <%# ===== Today's State ===== %>
   <div class="card">
