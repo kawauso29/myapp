@@ -125,5 +125,6 @@ Rails.application.routes.draw do
 
   # Slack Events API
   post "slack/events", to: "slack_events#events"
-  get  "slack/test",   to: "slack_events#test"
+  # テストエンドポイント（開発環境のみ）
+  get  "slack/test",   to: "slack_events#test" if Rails.env.development?
 end

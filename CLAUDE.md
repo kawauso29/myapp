@@ -90,6 +90,14 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **正しい**: `redirect_back fallback_location: path, notice: "..."` （noticeをカッコなしで同じ引数に）
 - Ruby 3.3 では `method(args), key: val` はシンタックスエラーになる
 
+#### 2026-04-10: Slackテストエンドポイントの誤送信
+
+- **原因**: `/slack/test` エンドポイントが本番環境でもアクセス可能で、テストメッセージが実際にClaudeチャネルに送信されていた
+- **問題点**: テストメッセージが「エラーを修正してください」というメンション付きで転送され、実際のエラーと混同される
+- **修正**: 
+  - `/slack/test` エンドポイントを開発環境のみに制限（routes.rb）
+  - テストメッセージをドライラン化し、実際には送信しないように変更
+
 ## Slack自動転送システム（SlackEventsController）
 
 ### 概要

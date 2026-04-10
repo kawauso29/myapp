@@ -17,14 +17,14 @@ class SlackEventsController < ApplicationController
     }
 
     if ENV["SLACK_BOT_TOKEN"].present? && ENV["SLACK_CLAUDE_CHANNEL_ID"].present?
-      job = SlackForwardToClaudeJob.new
-      job.perform(
-        text: "🔧 テスト送信: Slack転送システムの動作確認",
-        channel: ENV["SLACK_ERROR_CHANNEL_ID"] || "test",
-        user: "test",
-        ts: Time.current.to_f.to_s
-      )
-      results[:test_message] = "Claudeチャネルへの送信を試みました"
+      # ドライラン: 実際には送信せず、メッセージ内容のみ返す
+      test_text = "🔧 [テスト] Slack転送システムの動作確認 - これは開発環境のテストメッセージです"
+      results[:test_message] = "送信テスト完了（開発環境のみ、実際の送信は行いません）"
+      results[:would_send] = {
+        channel: ENV["SLACK_CLAUDE_CHANNEL_ID"],
+        text: test_text,
+        note: "本番環境ではこのエンドポイントは無効化されています"
+      }
     else
       results[:test_message] = "環境変数が不足しているため送信できません"
     end
