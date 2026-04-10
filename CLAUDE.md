@@ -152,12 +152,17 @@ docker compose up
 
 ### mainへのマージ・pushの手順
 
-**必ずこの順序で実行する:**
+**`claude/` ブランチは CI通過後に自動でmainへマージされる（手動操作不要）:**
 
-1. 作業はフィーチャーブランチ（`claude/...`）で行う
-2. mainにマージ・pushする前にCIが通ることを確認する
-3. マージ方法: `git checkout main && git merge <branch> && git push origin main`
-4. mainへのpushで自動デプロイが走る
+1. 作業は `claude/...` ブランチで行い、コミット・プッシュする
+2. GitHub Actions の CI（`claude/**` ブランチも対象）が自動で走る
+3. scan_ruby / scan_js / lint / test / system-test が全て成功 → `auto-merge` ジョブが `main` へマージ
+4. `main` へのマージで自動デプロイが走る
+
+**CIが失敗した場合は自動マージされない。** エラーを修正して再プッシュすること。
+
+**手動マージが必要な場合（`claude/` 以外のブランチ）:**
+`git checkout main && git merge <branch> && git push origin main`
 
 ### CIエラーの原因になったこと（記録）
 
