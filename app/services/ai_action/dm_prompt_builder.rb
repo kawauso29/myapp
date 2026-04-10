@@ -21,7 +21,7 @@ module AiAction
 
         ## あなたのプロフィール
         名前: #{@sender_profile.name}
-        年齢: #{@sender_profile.age}歳
+        年齢: #{@sender_profile.current_age}歳
         職業: #{@sender_profile.occupation}
         居住地: #{@sender_profile.location}
         自己紹介: #{@sender_profile.bio}
@@ -36,7 +36,7 @@ module AiAction
 
         ## 送信先の相手
         名前: #{@recipient_profile.name}
-        年齢: #{@recipient_profile.age}歳
+        年齢: #{@recipient_profile.current_age}歳
         職業: #{@recipient_profile.occupation}
         自己紹介: #{@recipient_profile.bio}
 

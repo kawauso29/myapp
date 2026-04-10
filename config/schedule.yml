@@ -55,6 +55,12 @@ relationship_memory_update:
   class: RelationshipMemoryUpdateJob
   queue: low
 
+# 毎週土曜14:00にコミュニティグループを検出してRedisに保存
+community_detect:
+  cron: "0 14 * * 6"
+  class: CommunityDetectJob
+  queue: low
+
 avatar_update:
   cron: "0 15 * * *"
   class: AvatarUpdateJob
@@ -68,6 +74,12 @@ owner_score_update:
 expired_memory_cleanup:
   cron: "0 19 * * *"
   class: ExpiredMemoryCleanupJob
+  queue: low
+
+# 毎日9:00に年齢変化（誕生日）をチェック
+birthday_check:
+  cron: "0 9 * * *"
+  class: BirthdayCheckJob
   queue: low
 
 routing_health_check:
