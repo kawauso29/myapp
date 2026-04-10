@@ -139,3 +139,22 @@ docker compose up
 - DB: PostgreSQL 16（`postgres:password@localhost:5432`）
 - Redis: localhost:6379
 - 設定: `docker-compose.yml` + `Dockerfile.dev`
+
+## CI・デプロイのルール
+
+### mainへのマージ・pushの手順
+
+**必ずこの順序で実行する:**
+
+1. 作業はフィーチャーブランチ（`claude/...`）で行う
+2. mainにマージ・pushする前にCIが通ることを確認する
+3. マージ方法: `git checkout main && git merge <branch> && git push origin main`
+4. mainへのpushで自動デプロイが走る
+
+### CIエラーの原因になったこと（記録）
+
+- `actions/checkout@v6` は存在しない → `@v4` を使う
+- `head :unauthorized and return` は RuboCop違反 → `return head :unauthorized` を使う
+- privateブロック内に定数を定義するとRuboCop警告 → privateより前に定義する
+- `"str" + method()` の文字列結合 → `"str#{method()}"` 補間を使う
+- `Time.now` はRails/TimeZone違反 → `Time.current` を使う

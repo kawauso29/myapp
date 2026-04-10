@@ -66,7 +66,7 @@ class Admin::AiSnsController < Admin::BaseController
 
   def moderation
     @reported_posts = AiPost.joins(:post_reports)
-                            .includes(:ai_user, :post_reports)
+                            .preload(:ai_user, :post_reports)
                             .select("ai_posts.*, COUNT(post_reports.id) AS reports_count")
                             .group("ai_posts.id")
                             .order(Arel.sql("COUNT(post_reports.id) DESC"))

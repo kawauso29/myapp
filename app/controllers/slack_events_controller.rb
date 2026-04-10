@@ -22,7 +22,7 @@ class SlackEventsController < ApplicationController
         text: "🔧 テスト送信: Slack転送システムの動作確認",
         channel: ENV["SLACK_ERROR_CHANNEL_ID"] || "test",
         user: "test",
-        ts: Time.now.to_f.to_s
+        ts: Time.current.to_f.to_s
       )
       results[:test_message] = "Claudeチャネルへの送信を試みました"
     else
@@ -44,7 +44,7 @@ class SlackEventsController < ApplicationController
     event = payload["event"]
     if forwardable_message?(event)
       SlackForwardToClaudeJob.perform_later(
-        text: event["text"],
+        text: extract_full_text(event),
         channel: event["channel"],
         user: event["user"],
         ts: event["ts"]
@@ -54,6 +54,12 @@ class SlackEventsController < ApplicationController
     head :ok
   end
 
+  ERROR_KEYWORDS = %w[
+    error Error ERROR exception Exception
+    500 NoMethodError RuntimeError TypeError
+    FATAL fatal crashed failed
+  ].freeze
+
   private
 
   def verify_slack_signature
@@ -61,27 +67,21 @@ class SlackEventsController < ApplicationController
     signature = request.headers["X-Slack-Signature"]
 
     unless timestamp.present? && signature.present?
-      head :unauthorized and return
+      return head :unauthorized
     end
 
     # リプレイ攻撃防止（5分以上古いリクエストを拒否）
-    if (Time.now.to_i - timestamp.to_i).abs > 300
-      head :unauthorized and return
+    if (Time.current.to_i - timestamp.to_i).abs > 300
+      return head :unauthorized
     end
 
     sig_basestring = "v0:#{timestamp}:#{request.raw_post}"
-    expected = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", ENV["SLACK_SIGNING_SECRET"].to_s, sig_basestring)
+    expected = "v0=#{OpenSSL::HMAC.hexdigest("SHA256", ENV["SLACK_SIGNING_SECRET"].to_s, sig_basestring)}"
 
     unless ActiveSupport::SecurityUtils.secure_compare(expected, signature.to_s)
-      head :unauthorized and return
+      return head :unauthorized
     end
   end
-
-  ERROR_KEYWORDS = %w[
-    error Error ERROR exception Exception
-    500 NoMethodError RuntimeError TypeError
-    FATAL fatal crashed failed
-  ].freeze
 
   def forwardable_message?(event)
     return false if event.nil?
@@ -91,8 +91,19 @@ class SlackEventsController < ApplicationController
     return false if ignored.include?(event["subtype"])
     # エラー監視チャネルのメッセージのみ対象
     return false unless event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
-    # エラーキーワードを含むメッセージのみ転送（botメッセージはキーワードで判定）
-    text = event["text"].to_s
-    ERROR_KEYWORDS.any? { |kw| text.include?(kw) }
+    # attachments内も含めてキーワード検索（Incoming Webhookはtextが空でattachmentsに内容が入る）
+    ERROR_KEYWORDS.any? { |kw| extract_full_text(event).include?(kw) }
+  end
+
+  # event["text"]はIncoming Webhook経由のbotメッセージでは空になるため
+  # attachments内のテキストも結合して返す
+  def extract_full_text(event)
+    parts = [ event["text"].to_s ]
+    Array(event["attachments"]).each do |att|
+      parts << att["pretext"].to_s
+      parts << att["text"].to_s
+      Array(att["fields"]).each { |f| parts << f["value"].to_s }
+    end
+    parts.join(" ")
   end
 end

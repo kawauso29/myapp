@@ -57,3 +57,7 @@ expired_memory_cleanup:
   cron: "0 19 * * *"
   class: ExpiredMemoryCleanupJob
   queue: low
+
+routing_health_check:
+  cron: "*/10 * * * *"
+  class: "RoutingHealthCheckJob"
