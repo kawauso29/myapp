@@ -83,7 +83,6 @@ jobs:
             set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
             set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
             set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
-            set_env SLACK_CLAUDE_MEMBER_ID '${{ secrets.SLACK_CLAUDE_MEMBER_ID }}'
             set_env GITHUB_DEPLOY_TOKEN '${{ secrets.GITHUB_DEPLOY_TOKEN }}'
             set_env SOLID_QUEUE_IN_PUMA '1'
 

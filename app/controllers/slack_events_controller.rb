@@ -11,8 +11,7 @@ class SlackEventsController < ApplicationController
         SLACK_BOT_TOKEN: ENV["SLACK_BOT_TOKEN"].present? ? "set (#{ENV['SLACK_BOT_TOKEN'].to_s[0..10]}...)" : "NOT SET",
         SLACK_SIGNING_SECRET: ENV["SLACK_SIGNING_SECRET"].present? ? "set" : "NOT SET",
         SLACK_ERROR_CHANNEL_ID: ENV["SLACK_ERROR_CHANNEL_ID"].presence || "NOT SET",
-        SLACK_CLAUDE_CHANNEL_ID: ENV["SLACK_CLAUDE_CHANNEL_ID"].presence || "NOT SET",
-        SLACK_CLAUDE_MEMBER_ID: ENV["SLACK_CLAUDE_MEMBER_ID"].presence || "NOT SET"
+        SLACK_CLAUDE_CHANNEL_ID: ENV["SLACK_CLAUDE_CHANNEL_ID"].presence || "NOT SET"
       }
     }
 
