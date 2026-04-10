@@ -125,4 +125,5 @@ Rails.application.routes.draw do
 
   # Slack Events API
   post "slack/events", to: "slack_events#events"
+  get  "slack/test",   to: "slack_events#test"
 end

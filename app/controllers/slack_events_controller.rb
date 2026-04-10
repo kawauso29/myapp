@@ -2,7 +2,35 @@ require "openssl"
 
 class SlackEventsController < ApplicationController
   skip_before_action :verify_authenticity_token
-  before_action :verify_slack_signature
+  before_action :verify_slack_signature, only: [:events]
+
+  # デバッグ用: ブラウザで GET /slack/test を叩いて動作確認
+  def test
+    results = {
+      env: {
+        SLACK_BOT_TOKEN: ENV["SLACK_BOT_TOKEN"].present? ? "set (#{ENV['SLACK_BOT_TOKEN'].to_s[0..10]}...)" : "NOT SET",
+        SLACK_SIGNING_SECRET: ENV["SLACK_SIGNING_SECRET"].present? ? "set" : "NOT SET",
+        SLACK_ERROR_CHANNEL_ID: ENV["SLACK_ERROR_CHANNEL_ID"].presence || "NOT SET",
+        SLACK_CLAUDE_CHANNEL_ID: ENV["SLACK_CLAUDE_CHANNEL_ID"].presence || "NOT SET",
+        SLACK_CLAUDE_MEMBER_ID: ENV["SLACK_CLAUDE_MEMBER_ID"].presence || "NOT SET"
+      }
+    }
+
+    if ENV["SLACK_BOT_TOKEN"].present? && ENV["SLACK_CLAUDE_CHANNEL_ID"].present?
+      job = SlackForwardToClaudeJob.new
+      job.perform(
+        text: "🔧 テスト送信: Slack転送システムの動作確認",
+        channel: ENV["SLACK_ERROR_CHANNEL_ID"] || "test",
+        user: "test",
+        ts: Time.now.to_f.to_s
+      )
+      results[:test_message] = "Claudeチャネルへの送信を試みました"
+    else
+      results[:test_message] = "環境変数が不足しているため送信できません"
+    end
+
+    render json: results
+  end
 
   def events
     payload = JSON.parse(request.raw_post)
