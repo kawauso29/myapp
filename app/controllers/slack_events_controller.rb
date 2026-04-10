@@ -49,12 +49,21 @@ class SlackEventsController < ApplicationController
     end
   end
 
+  ERROR_KEYWORDS = %w[
+    error Error ERROR exception Exception
+    500 NoMethodError RuntimeError TypeError
+    FATAL fatal crashed failed
+  ].freeze
+
   def forwardable_message?(event)
     return false if event.nil?
     return false unless event["type"] == "message"
-    # botのメッセージは無視（転送ループ防止）
+    # botのメッセージは無視（デプロイ通知・転送ループ防止）
     return false if event["bot_id"].present? || event["subtype"].present?
     # エラー監視チャネルのメッセージのみ対象
-    event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
+    return false unless event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
+    # エラーキーワードを含むメッセージのみ転送
+    text = event["text"].to_s
+    ERROR_KEYWORDS.any? { |kw| text.include?(kw) }
   end
 end
