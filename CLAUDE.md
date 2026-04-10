@@ -103,8 +103,10 @@ Pumaの再起動: `sudo systemctl restart puma`
 
 - **原因**: Bootsnapのキャッシュが古く、ジョブクラスがオートロードされない
 - **エラー**: RelationshipDecayJob, SlackForwardToClaudeJob, MonitorFailedJobsJob など複数のジョブで発生
-- **解決**: デプロイ時に `rm -rf tmp/cache/*` を実行してキャッシュをクリアする
-- **重要**: Rails 8 + Bootsnap 環境では、デプロイ時に必ず `tmp/cache` をクリアすること
+- **解決**: デプロイワークフロー内で各ステップ後にキャッシュをクリアするよう修正
+  - git reset後、bundle install後、db:migrate後、assets:precompile後、Puma再起動直前の計5回
+  - `rm -rf tmp/cache/*` を複数回実行することで、各ステップでBootsnapが作成するキャッシュを確実にクリア
+- **重要**: Rails 8 + Bootsnap 環境では、デプロイの各ステップ後に `tmp/cache` をクリアすること
 
 ## Slack自動転送システム（SlackEventsController）
 
