@@ -17,6 +17,7 @@ class SlackForwardToClaudeJob < ApplicationJob
       ```
       #{text}
       ```
+      修正後は必ず main にマージして push し、デプロイが完了するまで確認してください。デプロイ完了をもって作業終了です。
     TEXT
 
     post_message(channel: claude_channel, text: message.strip)
