@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
@@ -160,14 +163,26 @@ jobs:
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         run: |
+          PAYLOAD=$(jq -n \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg msg "${{ github.event.head_commit.message }}" \
+            --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{attachments:[{color:"#2eb886",text:":white_check_mark: *CI passed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"#2eb886\",\"text\":\":white_check_mark: *CI passed* \`${{ github.ref_name }}\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"リンク\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+            -d "${PAYLOAD}"
 
       - name: Notify Slack (failure)
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          FAILED=$(echo '${{ toJson(needs) }}' | grep -o '"result":"failure"' | wc -l | tr -d ' ')
+          PAYLOAD=$(jq -n \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg msg "${{ github.event.head_commit.message }}" \
+            --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
+            --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"#e01e5a\",\"text\":\":x: *CI failed* \`${{ github.ref_name }}\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"結果\",\"value\":\"scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}\",\"short\":false},{\"title\":\"リンク\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+            -d "${PAYLOAD}"
