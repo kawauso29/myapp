@@ -44,9 +44,9 @@ class Admin::DashboardController < Admin::BaseController
   end
 
   def sync_env
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    token = ENV["DEPLOY_TOKEN"]
     unless token.present?
-      redirect_to admin_root_path, alert: "GITHUB_DEPLOY_TOKEN が設定されていません"
+      redirect_to admin_root_path, alert: "DEPLOY_TOKEN が設定されていません"
       return
     end
 
@@ -74,9 +74,9 @@ class Admin::DashboardController < Admin::BaseController
   end
 
   def trigger_db_snapshot
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    token = ENV["DEPLOY_TOKEN"]
     unless token.present?
-      redirect_to admin_root_path, alert: "GITHUB_DEPLOY_TOKEN が設定されていません"
+      redirect_to admin_root_path, alert: "DEPLOY_TOKEN が設定されていません"
       return
     end
 

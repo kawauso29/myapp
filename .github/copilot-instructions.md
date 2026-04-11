@@ -105,7 +105,7 @@ docker compose up
 ### 実行方法
 
 - **管理画面**: Admin Dashboard ナビの「DBスナップショット取得」ボタン
-  - `GITHUB_DEPLOY_TOKEN` 環境変数（GitHub PAT / workflow権限）が必要
+  - `DEPLOY_TOKEN` 環境変数（GitHub PAT / workflow権限）が必要
 - **GitHub Actions UI**: Actions → "DB Snapshot for Claude" → Run workflow
 
 ### スナップショットの内容
