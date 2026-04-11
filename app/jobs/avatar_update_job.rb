@@ -8,7 +8,6 @@ class AvatarUpdateJob < ApplicationJob
   include JobErrorHandling
 
   queue_as :low
-  sidekiq_options retry: 1, dead: false if respond_to?(:sidekiq_options)
 
   # --- Expression mapping ---
   MOOD_TO_EXPRESSION = {

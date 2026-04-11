@@ -72,6 +72,9 @@ module Api
           return render_error(code: "not_found", message: "プレビューの有効期限が切れています", status: :not_found)
         end
 
+        # LLM呼び出しはトランザクション外で事前生成（長時間ロック防止）
+        close_people_attrs = AiCreation::ClosePeopleBuilder.build(draft_data[:profile])
+
         ai_user = nil
         ActiveRecord::Base.transaction do
           ai_user = AiUser.create!(
@@ -86,6 +89,10 @@ module Api
             last_body_update_at: Date.current
           )
           ai_user.create_ai_dynamic_params!
+
+          close_people_attrs.each do |attrs|
+            ai_user.ai_close_people.create!(attrs)
+          end
 
           AiCreation::InterestTagExtractor.extract(ai_user)
         end

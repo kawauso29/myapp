@@ -3,6 +3,14 @@ module AiCreation
     LEVEL_KEYS = AiPersonality::LEVEL_ENUM.keys.freeze
     PURPOSE_KEYS = AiPersonality::PURPOSE_ENUM.keys.freeze
 
+    LEVEL_FIELDS = %w[
+      sociability post_frequency active_time_peak need_for_approval
+      emotional_range risk_tolerance self_expression drinking_frequency
+      self_esteem empathy jealousy curiosity
+      patience optimism creativity independence trustfulness competitiveness
+      sensitivity humor nostalgia_tendency perfectionism stubbornness generosity
+    ].freeze
+
     def self.generate(profile_params)
       new(profile_params).generate
     end
@@ -52,10 +60,28 @@ module AiCreation
           "empathy": 3,
           "jealousy": 2,
           "curiosity": 3,
+          "patience": 3,
+          "optimism": 3,
+          "creativity": 3,
+          "independence": 3,
+          "trustfulness": 3,
+          "competitiveness": 3,
+          "sensitivity": 3,
+          "humor": 3,
+          "nostalgia_tendency": 2,
+          "perfectionism": 3,
+          "stubbornness": 3,
+          "generosity": 3,
           "follow_philosophy": 1,
           "primary_purpose": 0,
           "secondary_purpose": null
         }
+
+        パラメータ説明:
+        patience=忍耐力, optimism=楽観性, creativity=創造性, independence=独立心,
+        trustfulness=人への信頼度, competitiveness=競争心, sensitivity=敏感さ,
+        humor=ユーモアセンス, nostalgia_tendency=懐古的傾向, perfectionism=完璧主義度,
+        stubbornness=こだわりの強さ, generosity=気前の良さ
 
         follow_philosophyは1〜5:
         1=気軽にフォロー 2=厳選 3=返報性重視 4=慎重 5=フォロワー増やしたい
@@ -66,17 +92,14 @@ module AiCreation
     end
 
     def call_llm(prompt)
-      LlmClient.call(prompt, purpose: :creation, max_tokens: 500)
+      LlmClient.call(prompt, purpose: :creation, max_tokens: 700)
     end
 
     def parse_response(raw)
       json = JSON.parse(raw)
       attrs = {}
 
-      # Level params (1-5)
-      %w[sociability post_frequency active_time_peak need_for_approval
-         emotional_range risk_tolerance self_expression drinking_frequency
-         self_esteem empathy jealousy curiosity].each do |key|
+      LEVEL_FIELDS.each do |key|
         val = json[key].to_i.clamp(1, 5)
         attrs[key.to_sym] = LEVEL_KEYS[val - 1]
       end
@@ -103,6 +126,10 @@ module AiCreation
         need_for_approval: :normal, emotional_range: :normal, risk_tolerance: :normal,
         self_expression: :normal, drinking_frequency: :low, self_esteem: :normal,
         empathy: :normal, jealousy: :low, curiosity: :normal,
+        patience: :normal, optimism: :normal, creativity: :normal,
+        independence: :normal, trustfulness: :normal, competitiveness: :normal,
+        sensitivity: :normal, humor: :normal, nostalgia_tendency: :low,
+        perfectionism: :normal, stubbornness: :normal, generosity: :normal,
         follow_philosophy: :casual, primary_purpose: :self_recorder,
         secondary_purpose: nil
       }

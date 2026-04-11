@@ -3,7 +3,6 @@ class DmGenerateJob < ApplicationJob
   include LlmCaller
 
   queue_as :critical
-  sidekiq_options retry: 3, dead: false if respond_to?(:sidekiq_options)
 
   # @param ai_id       [Integer]      Sender AI user ID
   # @param thread_id   [Integer, nil] Existing thread ID (nil for new DM)

@@ -17,11 +17,13 @@ Rails.application.routes.draw do
   # 管理画面
   namespace :admin do
     root to: "dashboard#index"
+    post "sync_env", to: "dashboard#sync_env"
 
     resources :ai_sns, only: [ :index ] do
       collection do
         get :ai_users
         get :posts
+        get :post_detail
         get :moderation
         get :failed_jobs
         get :picro_messages

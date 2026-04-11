@@ -32,6 +32,7 @@ module AiCreation
         :disliked_personality_types, :catchphrase
       )
       attrs[:personality_note] = @personality_note
+      attrs[:age_base_date] = Date.current
       attrs
     end
 
@@ -99,7 +100,8 @@ module AiCreation
         hobbies: Array(json["hobbies"]).first(5),
         values: Array(json["values"]).first(5),
         catchphrase: json["catchphrase"],
-        personality_note: @personality_note
+        personality_note: @personality_note,
+        age_base_date: Date.current
       }
     end
 
@@ -115,7 +117,8 @@ module AiCreation
         life_stage: :single,
         family_structure: :alone,
         relationship_status: :single,
-        personality_note: @personality_note
+        personality_note: @personality_note,
+        age_base_date: Date.current
       }
     end
   end
