@@ -23,6 +23,10 @@ module Myapp
     #
     config.time_zone = "Tokyo"
 
+    # Explicitly add job concerns to autoload paths
+    config.autoload_paths += %W[#{config.root}/app/jobs/concerns]
+    config.eager_load_paths += %W[#{config.root}/app/jobs/concerns]
+
     # Active Job adapter
     config.active_job.queue_adapter = :solid_queue
     config.solid_queue.connects_to = { database: { writing: :queue } }

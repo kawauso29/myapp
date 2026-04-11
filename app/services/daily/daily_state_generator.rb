@@ -38,6 +38,12 @@ module Daily
       daily_whim = pick_daily_whim
       timeline_urge = generate_timeline_urge(mood)
       today_events = load_today_events
+      stress_level = generate_stress_level(physical, busyness, mood)
+      social_battery = generate_social_battery(energy, mood)
+      concentration = generate_concentration(physical, sleep_quality: hangover ? :bad : :normal)
+      appetite = generate_appetite(physical, hangover)
+      morning_mood = generate_morning_mood(fatigue, hangover)
+      going_out = generate_going_out(busyness, energy)
 
       @ai.ai_daily_states.create!(
         date: Date.current,
@@ -52,7 +58,14 @@ module Daily
         hangover: hangover || false,
         fatigue_carried: fatigue,
         daily_whim: daily_whim,
-        today_events: today_events
+        today_events: today_events,
+        stress_level: stress_level,
+        social_battery: social_battery,
+        concentration: concentration,
+        appetite: appetite,
+        morning_mood: morning_mood,
+        going_out: going_out,
+        hourly_states: []
       )
     end
 
@@ -169,6 +182,75 @@ module Daily
       when 9..11 then :autumn
       else :winter
       end
+    end
+
+    def generate_stress_level(physical, busyness, mood)
+      base = 20
+      base += 20 if busyness == :busy
+      base += 10 if physical == :tired || physical == :sick
+      base += 15 if mood == :negative || mood == :very_negative
+      base -= 10 if mood == :positive
+      base -= 5  if busyness == :free
+      # 性格による補正（完璧主義者はストレスを感じやすい）
+      perfectionism_factor = { very_low: -10, low: -5, normal: 0, high: 5, very_high: 15 }
+      base += perfectionism_factor[@personality.perfectionism.to_sym] || 0
+      base.clamp(0, 100)
+    end
+
+    def generate_social_battery(energy, mood)
+      base = 70
+      base = 40  if energy == :low
+      base = 85  if energy == :high
+      base -= 15 if mood == :negative || mood == :very_negative
+      base += 10 if mood == :positive
+      # 社交性による補正
+      sociability_factor = { very_low: -20, low: -10, normal: 0, high: 10, very_high: 20 }
+      base += sociability_factor[@personality.sociability.to_sym] || 0
+      base.clamp(0, 100)
+    end
+
+    def generate_concentration(physical, sleep_quality:)
+      if physical == :sick || sleep_quality == :bad
+        :low_concentration
+      elsif physical == :good
+        :high_concentration
+      else
+        :normal_concentration
+      end
+    end
+
+    def generate_appetite(physical, hangover)
+      if physical == :sick || hangover
+        :no_appetite
+      elsif physical == :tired
+        :small_appetite
+      elsif [ 5, 6 ].include?(Date.current.wday)
+        :big_appetite
+      else
+        :normal_appetite
+      end
+    end
+
+    def generate_morning_mood(fatigue, hangover)
+      if hangover
+        :terrible_morning
+      elsif fatigue > 60
+        :bad_morning
+      elsif fatigue > 30
+        :ok_morning
+      elsif WEEKDAY_MOOD[Date.current.wday] > 0
+        :good_morning
+      else
+        :ok_morning
+      end
+    end
+
+    def generate_going_out(busyness, energy)
+      return false if energy == :low
+      return true  if busyness == :busy
+
+      r = rand
+      busyness == :normal_busyness ? r < 0.5 : r < 0.3
     end
 
     def load_today_events

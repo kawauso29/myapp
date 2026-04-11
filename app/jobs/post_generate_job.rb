@@ -3,7 +3,6 @@ class PostGenerateJob < ApplicationJob
   include LlmCaller
 
   queue_as :critical
-  sidekiq_options retry: 3, dead: false if respond_to?(:sidekiq_options)
 
   def perform(ai_id, motivation)
     ai = AiUser.find(ai_id)
