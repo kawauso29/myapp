@@ -57,10 +57,9 @@ class SlackEventsController < ApplicationController
   # Slack App の Slash Commands → Request URL に登録する
   # 例: /github-fix → このエンドポイントに転送
   def commands
-    text    = params[:text].to_s.strip
-    user    = params[:user_id].to_s
-    channel = params[:channel_id].to_s
-    ts      = Time.current.to_f.to_s
+    text         = params[:text].to_s.strip
+    user         = params[:user_id].to_s
+    channel      = params[:channel_id].to_s
 
     # テキストが空の場合はヘルプを返す
     if text.blank?
@@ -71,11 +70,11 @@ class SlackEventsController < ApplicationController
       return
     end
 
+    # スラッシュコマンド経由では元メッセージが存在しないため ts は渡さない
     SlackForwardToClaudeJob.perform_later(
       text: text,
       channel: channel,
-      user: user,
-      ts: ts
+      user: user
     )
 
     render json: {
