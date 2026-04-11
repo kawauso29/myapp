@@ -16,15 +16,16 @@ namespace :solid_queue do
     unknown_ids = []
 
     wrapper_jobs.find_each do |job|
-      payload = job.arguments&.first
-      job_class = payload.is_a?(Hash) ? payload["job_class"] : nil
+      payload = job.arguments
+      payload = payload.first if payload.is_a?(Array)
+      job_class = payload.is_a?(Hash) ? (payload["job_class"] || payload[:job_class]) : nil
       next if job_class.blank?
       next if job_class.safe_constantize
 
       unknown_ids << job.id
     end
 
-    deleted_count = unknown_ids.empty? ? 0 : SolidQueue::Job.where(id: unknown_ids).delete_all
+    deleted_count = SolidQueue::Job.where(id: unknown_ids).delete_all
     puts "Deleted #{deleted_count} jobs referencing missing ActiveJob classes"
   end
 end
