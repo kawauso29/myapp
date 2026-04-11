@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 jobs:
   auto_fix_lint:
@@ -19,18 +20,46 @@ jobs:
       RUBOCOP_CACHE_ROOT: tmp/rubocop
 
     steps:
+      - name: Check whether lint job failed
+        id: lint_check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const runId = context.payload.workflow_run.id
+            const response = await github.rest.actions.listJobsForWorkflowRun({
+              owner,
+              repo,
+              run_id: runId,
+              per_page: 100,
+            })
+
+            const lintJob = response.data.jobs.find((job) => job.name === "lint")
+            if (!lintJob) {
+              core.warning(`lint job not found in workflow run ${runId}`)
+              core.setOutput("lint_failed", "false")
+              return
+            }
+
+            const lintFailed = lintJob.conclusion === "failure"
+            core.info(`lint job conclusion: ${lintJob.conclusion}`)
+            core.setOutput("lint_failed", lintFailed ? "true" : "false")
+
       - name: Checkout failing commit
+        if: steps.lint_check.outputs.lint_failed == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Ruby
+        if: steps.lint_check.outputs.lint_failed == 'true'
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
 
       - name: Run RuboCop autocorrect
+        if: steps.lint_check.outputs.lint_failed == 'true'
         id: rubocop
         run: |
           bin/rubocop --autocorrect || true
@@ -44,7 +73,7 @@ jobs:
           fi
 
       - name: Create auto-fix PR
-        if: steps.rubocop.outputs.changed == 'true'
+        if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -76,7 +105,7 @@ jobs:
             --head "$BRANCH"
 
       - name: Notify Slack (auto-fix PR created)
-        if: steps.rubocop.outputs.changed == 'true'
+        if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
         run: |
           PAYLOAD=$(jq -n \
             --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
@@ -87,7 +116,7 @@ jobs:
             -d "${PAYLOAD}"
 
       - name: Notify Slack (lint failure, no auto-fix available)
-        if: steps.rubocop.outputs.changed == 'false'
+        if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'false'
         run: |
           PAYLOAD=$(jq -n \
             --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
@@ -96,3 +125,7 @@ jobs:
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
+
+      - name: Skip auto-fix for non-lint failures
+        if: steps.lint_check.outputs.lint_failed != 'true'
+        run: echo "Skipping auto-fix because lint job did not fail."

@@ -234,3 +234,5 @@ main への push
 - テスト環境で `Rack::Attack` のレート制限がリクエストspecに干渉する → `config/initializers/rack_attack.rb` で `Rails.env.test?` の場合は `Rack::Attack.enabled = false` にする
 - jobのspec: `AiUser.find(id)` はDBから新規インスタンスを返すため、インスタンスレベルのstubが効かない → `allow(AiUser).to receive(:find).with(id).and_return(instance)` でstubする
 - jobのspec: `AiUser.where.find_each` で取得した別AIがdaily_stateを持たないとprocess_aiが早期returnしてしまいselectが期待回数呼ばれない → テスト対象の全AIにdaily_stateを作成する
+- CIのSlack通知JSONを文字列直書きするとコミットメッセージの記号/改行で通知ジョブが落ちる → `jq -n --arg ...` で常にJSONを生成する
+- `auto_fix.yml` をCI失敗全体で起動するとlint無関係の失敗でも自動修正フローが走り運用ノイズになる → workflow_runのjob一覧から `lint` 失敗時だけ実行する
