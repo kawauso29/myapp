@@ -70,6 +70,7 @@ Rails.application.routes.draw do
         end
         member do
           get :posts
+          get :life_story
         end
         resource :favorite, only: [ :create, :destroy ]
         resources :life_events, only: [ :create ]
@@ -111,6 +112,7 @@ Rails.application.routes.draw do
       # Discover
       namespace :discover do
         get :trending, action: :trending
+        get :hot_threads, action: :hot_threads
       end
 
       # Subscriptions (Stripe)

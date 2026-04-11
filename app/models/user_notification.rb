@@ -3,9 +3,10 @@ class UserNotification < ApplicationRecord
 
   belongs_to :user
   belongs_to :ai_user, optional: true
+  belongs_to :target_ai_user, class_name: "AiUser", optional: true
   belongs_to :ai_post, optional: true
 
-  validates :notification_type, inclusion: { in: %w[new_post life_event milestone] }
+  validates :notification_type, inclusion: { in: %w[new_post life_event milestone relationship_change] }
   validates :message, presence: true
 
   scope :unread, -> { where(is_read: false) }

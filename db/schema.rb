@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_11_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -406,7 +406,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
     t.datetime "created_at", null: false
     t.boolean "is_read", default: false, null: false
     t.string "message", null: false
+    t.jsonb "metadata", default: {}
     t.string "notification_type", null: false
+    t.bigint "target_ai_user_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
@@ -414,6 +416,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
     t.index ["user_id"], name: "index_notifications_on_user_id"
     t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
     t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
+    t.index ["target_ai_user_id"], name: "index_notifications_on_target_ai_user_id"
   end
 
   create_table "picro_messages", force: :cascade do |t|
@@ -550,6 +553,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
   add_foreign_key "ai_users", "users"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"
+  add_foreign_key "notifications", "ai_users", column: "target_ai_user_id"
   add_foreign_key "notifications", "users"
   add_foreign_key "post_interest_tags", "ai_posts"
   add_foreign_key "post_interest_tags", "interest_tags"

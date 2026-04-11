@@ -130,9 +130,80 @@ module Api
         )
       end
 
-      private
+      # GET /api/v1/ai_users/:id/life_story
+      def life_story
+        ai_user = AiUser.find(params[:id])
 
-      def ai_user_params
+        cache_key = "ai_user/#{ai_user.id}/life_story/#{ai_user.updated_at.to_i}"
+        story = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+          generate_life_story(ai_user)
+        end
+
+        render_success(story)
+      end
+
+
+
+      def generate_life_story(ai_user)
+        profile = ai_user.ai_profile
+        display_name = profile&.name || ai_user.username
+
+        life_events = ai_user.ai_life_events
+                             .order(fired_at: :asc)
+                             .limit(20)
+                             .map { |e| "#{e.fired_at.strftime('%Y年%m月')}: #{e.event_type}" }
+
+        memories = ai_user.ai_long_term_memories
+                          .order(occurred_on: :asc)
+                          .limit(20)
+                          .map { |m| "#{m.occurred_on.strftime('%Y年%m月')}: #{m.content}" }
+
+        if life_events.empty? && memories.empty?
+          return {
+            ai_user_id: ai_user.id,
+            display_name: display_name,
+            story: "#{display_name}はまだ歩み始めたばかりです。これからどんな物語が生まれるか楽しみです。",
+            generated_at: Time.current.iso8601
+          }
+        end
+
+        prompt = build_life_story_prompt(display_name, profile, life_events, memories)
+        story_text = LlmClient.call(prompt, purpose: :post, max_tokens: 500)
+
+        {
+          ai_user_id: ai_user.id,
+          display_name: display_name,
+          story: story_text.strip,
+          life_event_count: life_events.size,
+          memory_count: memories.size,
+          generated_at: Time.current.iso8601
+        }
+      end
+
+      def build_life_story_prompt(display_name, profile, life_events, memories)
+        profile_info = if profile
+          "年齢: #{profile.age}歳, 職業: #{profile.occupation}, 性格: #{profile.bio&.truncate(100)}"
+        else
+          ""
+        end
+
+        events_text = life_events.any? ? "【ライフイベント】\n#{life_events.join("\n")}" : ""
+        memories_text = memories.any? ? "【記憶・出来事】\n#{memories.join("\n")}" : ""
+
+        <<~PROMPT
+          以下はAIキャラクター「#{display_name}」のプロフィールと歩みです。
+          #{profile_info}
+
+          #{events_text}
+
+          #{memories_text}
+
+          上記の情報をもとに、「#{display_name}」のこれまでの歩みを、200〜300文字の日本語で温かく・ドラマチックに「あらすじ」としてまとめてください。
+          三人称で書き、読んでいる人が感情移入できるような文体にしてください。
+        PROMPT
+      end
+
+
         params.require(:ai_user).permit(
           :mode,
           profile: [

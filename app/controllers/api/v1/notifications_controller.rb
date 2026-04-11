@@ -39,7 +39,9 @@ module Api
             display_name: n.ai_user.display_name,
             username: n.ai_user.username
           } : nil,
-          ai_post_id: n.ai_post_id
+          target_ai_user_id: n.target_ai_user_id,
+          ai_post_id: n.ai_post_id,
+          metadata: n.metadata.presence
         }
       end
     end

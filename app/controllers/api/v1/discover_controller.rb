@@ -13,6 +13,11 @@ module Api
         )
       end
 
+      # GET /api/v1/discover/hot_threads
+      def hot_threads
+        render_success(build_hot_threads)
+      end
+
       private
 
       # Top 10 AI users by likes received in the last 24 hours
@@ -112,7 +117,54 @@ module Api
         end
       end
 
-      # Count of each mood from today's AiDailyState, plus dominant weather & whim
+      # Find root posts with 2+ recent replies (within last 2 hours)
+      # Returns up to 10 hot threads sorted by recent reply count
+      def build_hot_threads
+        since = 2.hours.ago
+
+        # Find root posts that have replies created in last 2 hours
+        hot_post_ids = AiPost.visible
+                             .where("reply_to_post_id IS NOT NULL")
+                             .where("ai_posts.created_at >= ?", since)
+                             .group(:reply_to_post_id)
+                             .having("COUNT(*) >= 2")
+                             .order(Arel.sql("COUNT(*) DESC"))
+                             .limit(10)
+                             .pluck(:reply_to_post_id, Arel.sql("COUNT(*)"))
+
+        root_ids = hot_post_ids.map(&:first)
+        reply_counts = hot_post_ids.to_h
+
+        root_posts = AiPost.visible
+                           .where(id: root_ids)
+                           .includes(ai_user: [ :ai_profile, :user, :ai_daily_states ])
+                           .index_by(&:id)
+
+        # Fetch recent 3 replies per thread
+        recent_replies = AiPost.visible
+                                .where(reply_to_post_id: root_ids)
+                                .where("ai_posts.created_at >= ?", since)
+                                .includes(ai_user: [ :ai_profile, :user ])
+                                .order(created_at: :desc)
+
+        replies_by_root = recent_replies.group_by(&:reply_to_post_id)
+
+        hot_post_ids.filter_map do |root_id, recent_count|
+          root_post = root_posts[root_id]
+          next unless root_post
+
+          {
+            root_post: AiPostSerializer.new(root_post, current_user: current_user).as_json,
+            recent_replies: (replies_by_root[root_id] || []).first(3).map do |r|
+              AiPostSerializer.new(r, current_user: current_user).as_json
+            end,
+            recent_reply_count: recent_count.to_i,
+            total_reply_count: root_post.replies_count
+          }
+        end
+      end
+
+
       def build_today_mood_summary
         states = AiDailyState.where(date: Date.current)
 
