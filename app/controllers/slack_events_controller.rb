@@ -2,7 +2,7 @@ require "openssl"
 
 class SlackEventsController < ApplicationController
   skip_before_action :verify_authenticity_token
-  before_action :verify_slack_signature, only: [ :events ]
+  before_action :verify_slack_signature, only: [ :events, :commands ]
 
   # デバッグ用: ブラウザで GET /slack/test を叩いて動作確認
   def test
@@ -51,6 +51,37 @@ class SlackEventsController < ApplicationController
     end
 
     head :ok
+  end
+
+  # Slack スラッシュコマンド受信 (POST /slack/commands)
+  # Slack App の Slash Commands → Request URL に登録する
+  # 例: /github-fix → このエンドポイントに転送
+  def commands
+    text    = params[:text].to_s.strip
+    user    = params[:user_id].to_s
+    channel = params[:channel_id].to_s
+    ts      = Time.current.to_f.to_s
+
+    # テキストが空の場合はヘルプを返す
+    if text.blank?
+      render json: {
+        response_type: "ephemeral",
+        text: "使い方: /github-fix <エラーメッセージ または 説明>"
+      }
+      return
+    end
+
+    SlackForwardToClaudeJob.perform_later(
+      text: text,
+      channel: channel,
+      user: user,
+      ts: ts
+    )
+
+    render json: {
+      response_type: "ephemeral",
+      text: "✅ Claudeチャネルに転送しました"
+    }
   end
 
   ERROR_KEYWORDS = %w[

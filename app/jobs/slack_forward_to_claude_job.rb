@@ -20,7 +20,9 @@ class SlackForwardToClaudeJob < ApplicationJob
       ```
     TEXT
 
-    post_message(channel: claude_channel, text: message.strip)
+    # SLACK_THREAD_TS が設定されている場合はそのスレッドに返信する（通常投稿との比較検証用）
+    thread_ts = ENV["SLACK_THREAD_TS"].presence
+    post_message(channel: claude_channel, text: message.strip, thread_ts: thread_ts)
   end
 
   private
@@ -31,7 +33,7 @@ class SlackForwardToClaudeJob < ApplicationJob
     "https://slack.com/archives/#{channel}/p#{ts_escaped}"
   end
 
-  def post_message(channel:, text:)
+  def post_message(channel:, text:, thread_ts: nil)
     token = ENV["SLACK_BOT_TOKEN"]
     return unless token.present?
 
@@ -44,7 +46,9 @@ class SlackForwardToClaudeJob < ApplicationJob
     request = Net::HTTP::Post.new(uri.request_uri)
     request["Content-Type"] = "application/json"
     request["Authorization"] = "Bearer #{token}"
-    request.body = { channel: channel, text: text, link_names: true }.to_json
+    payload = { channel: channel, text: text, link_names: true }
+    payload[:thread_ts] = thread_ts if thread_ts.present?
+    request.body = payload.to_json
 
     response = http.request(request)
     body = JSON.parse(response.body)
