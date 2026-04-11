@@ -68,6 +68,26 @@ jobs:
                 body: `✅ Deployed to production.\n\n- Deploy run: ${deployRunUrl}\n- Commit: \`${run.head_sha}\``,
               })
 
+              // PRに紐づいているci-failureのIssueがあれば自動クローズ
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner,
+                repo,
+                labels: 'ci-failure',
+                state: 'open',
+                per_page: 50,
+              })
+              const shortSha = run.head_sha.substring(0, 7)
+              for (const issue of issues) {
+                if (issue.title.includes(shortSha)) {
+                  await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'closed' })
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: issue.number,
+                    body: `✅ デプロイ成功により自動クローズしました。\n\n関連PR: #${pr.number}\nデプロイ: ${deployRunUrl}`,
+                  })
+                  core.info(`Auto-closed ci-failure issue #${issue.number}`)
+                }
+              }
+
               const headRepo = pr.head.repo?.full_name
               const headRef = pr.head.ref
               if (headRepo !== `${owner}/${repo}`) {
@@ -95,3 +115,76 @@ jobs:
                 throw error
               }
             }
+
+  # デプロイ失敗時に原因種別ラベル付きIssueを自動起票する
+  create_deploy_failure_issue:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deploy failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const run = context.payload.workflow_run
+            const shortSha = run.head_sha.substring(0, 7)
+            const runUrl = run.html_url
+
+            // 重複防止：同じコミットで既に起票済みか確認
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, labels: 'deploy-failure', state: 'open', per_page: 20
+            })
+            if (existing.data.some(i => i.title.includes(shortSha))) {
+              core.info('Deploy failure issue already filed for this commit')
+              return
+            }
+
+            // deploy-failure ラベルを作成（存在しない場合）
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: 'deploy-failure' })
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner, repo, name: 'deploy-failure', color: 'b60205',
+                  description: 'Auto-created on deploy failure'
+                })
+              }
+            }
+
+            const commitMsg = run.head_commit?.message?.split('\n')[0] ?? '(不明)'
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `🚨 デプロイ失敗 [${shortSha}]`,
+              body: [
+                `## デプロイ失敗レポート`,
+                ``,
+                `**コミット**: [\`${shortSha}\`](${context.serverUrl}/${owner}/${repo}/commit/${run.head_sha})`,
+                `**ブランチ**: \`${run.head_branch}\``,
+                `**コミットメッセージ**: ${commitMsg}`,
+                `**デプロイログ**: [実行ログを確認](${runUrl})`,
+                ``,
+                `## 対応手順`,
+                ``,
+                `1. [デプロイログ](${runUrl}) でエラー原因を確認する`,
+                `2. VPS上で直接確認する場合: \`cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5\``,
+                `3. 修正PRを作成して再デプロイする（自動ロールバックが実行済みの場合は本番は前のバージョンに戻っています）`,
+                `4. 修正完了後に \`CLAUDE.md\` の「過去の障害記録」に追記する`,
+                ``,
+                `---`,
+                `*このIssueはデプロイ失敗時に自動生成されました*`,
+              ].join('\n'),
+              labels: ['deploy-failure'],
+            })
+            core.info(`Created deploy failure issue for commit ${shortSha}`)
+
+      - name: Notify Slack (deploy failure issue created)
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg sha "${{ github.event.workflow_run.head_sha }}" \
+            --arg log_url "${{ github.event.workflow_run.html_url }}" \
+            --arg issues_url "${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Adeploy-failure" \
+            '{attachments:[{color:"#b60205",text:":fire: *デプロイ失敗 — Issueが自動起票されました*",fields:[{title:"SHA",value:$sha,short:true},{title:"デプロイログ",value:$log_url,short:false},{title:"Issue一覧",value:$issues_url,short:false}],footer:"GitHub Actions Post Deploy",ts:now|floor}]}')
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
