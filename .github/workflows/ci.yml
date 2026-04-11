@@ -238,6 +238,18 @@ jobs:
     needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
     if: always()
     steps:
+      - name: Build notification label
+        id: notify_context
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
+          if [ -n "${PR_NUMBER}" ]; then
+            NOTIFY_LABEL="PR #${PR_NUMBER} (${BRANCH})"
+          else
+            NOTIFY_LABEL="${BRANCH}"
+          fi
+          echo "notify_label=${NOTIFY_LABEL}" >> "$GITHUB_OUTPUT"
+
       # カテゴリ①: CI進捗/成功通知
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
@@ -252,11 +264,11 @@ jobs:
             exit 0
           fi
           PAYLOAD=$(jq -n \
-            --arg ref "${{ github.ref_name }}" \
+            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
             --arg actor "${{ github.actor }}" \
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{attachments:[{color:"#2eb886",text:":white_check_mark: *CI passed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
+            '{attachments:[{color:"#2eb886",text:":white_check_mark: *CI passed* \($notify_label) by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack success notification failed; continuing"
@@ -275,12 +287,12 @@ jobs:
             exit 0
           fi
           PAYLOAD=$(jq -n \
-            --arg ref "${{ github.ref_name }}" \
+            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
             --arg actor "${{ github.actor }}" \
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | job-check: ${{ needs.job-check.result }} | route-check: ${{ needs.route-check.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
+            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* \($notify_label) by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack failure notification failed; continuing"

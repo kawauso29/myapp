@@ -17,6 +17,7 @@ Claude Code向けのプロジェクトメモ。
 
 - **重要な情報が出てきたら必ずこの CLAUDE.md に追記する**
 - **間違いを指摘されたら、その内容と正しい情報を CLAUDE.md に記録する**
+- **`.github/copilot-instructions.md` と CLAUDE.md は連動管理し、ルール更新時は必ず両方を更新する**
 
 ### mainへのマージの強制ルール
 
