@@ -2,7 +2,8 @@ require "net/http"
 require "json"
 
 class SlackNotifierService
-  WEBHOOK_URL = ENV["SLACK_WEBHOOK_URL"]
+  # カテゴリ②: アプリエラー通知専用 Webhook（未設定時は SLACK_WEBHOOK_URL にフォールバック）
+  WEBHOOK_URL = ENV["SLACK_WEBHOOK_URL_ERROR"] || ENV["SLACK_WEBHOOK_URL"]
 
   COLORS = {
     success: "#2eb886",
