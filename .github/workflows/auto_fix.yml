@@ -1,0 +1,90 @@
+name: Auto Fix CI Lint Failure
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto_fix_lint:
+    # lint ジョブを含む CI が失敗した場合のみ実行
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    env:
+      RUBOCOP_CACHE_ROOT: tmp/rubocop
+
+    steps:
+      - name: Checkout failing commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Run RuboCop autocorrect
+        id: rubocop
+        run: |
+          bin/rubocop --autocorrect || true
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No auto-fixable RuboCop violations found"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "RuboCop auto-corrections found:"
+            git diff --stat
+          fi
+
+      - name: Create auto-fix PR
+        if: steps.rubocop.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto-fix/rubocop-$(date +%Y%m%d-%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "auto-fix: RuboCop autocorrect
+
+          Automatically fixed RuboCop violations after CI lint failure.
+          Triggered by commit: ${{ github.event.workflow_run.head_sha }}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "🤖 auto-fix: RuboCop lint errors ($(date +%Y-%m-%d))" \
+            --body "## 自動修正PR
+
+          CIの **lint** ジョブが失敗したため、\`rubocop --autocorrect\` で自動修正しました。
+
+          **トリガーコミット**: \`${{ github.event.workflow_run.head_sha }}\`
+          **コミットメッセージ**: ${{ github.event.workflow_run.head_commit.message }}
+          **CIログ**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+
+          ### レビュー時の確認事項
+          - [ ] 自動修正の内容を確認済み（意図しない変更がないか）
+          - [ ] 今回のCI失敗原因を \`CLAUDE.md\` の「CIエラーの原因になったこと」に追記した
+          - [ ] 同じ問題が再発しないようにコーディングルールを更新した（必要な場合）" \
+            --base main \
+            --head "$BRANCH"
+
+      - name: Notify Slack (auto-fix PR created)
+        if: steps.rubocop.outputs.changed == 'true'
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#f0a500\",\"text\":\":wrench: *CI lint 失敗 → 自動修正PR作成* \`main\`\",\"fields\":[{\"title\":\"トリガーコミット\",\"value\":\"${{ github.event.workflow_run.head_commit.message }}\",\"short\":false},{\"title\":\"次のアクション\",\"value\":\"自動修正PRを確認・マージしてください: ${{ github.server_url }}/${{ github.repository }}/pulls\",\"short\":false}],\"footer\":\"GitHub Actions Auto Fix\",\"ts\":$(date +%s)}]}"
+
+      - name: Notify Slack (lint failure, no auto-fix available)
+        if: steps.rubocop.outputs.changed == 'false'
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#e01e5a\",\"text\":\":x: *CI失敗（自動修正不可）* \`main\`\",\"fields\":[{\"title\":\"トリガーコミット\",\"value\":\"${{ github.event.workflow_run.head_commit.message }}\",\"short\":false},{\"title\":\"次のアクション\",\"value\":\"手動で修正が必要です: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}\",\"short\":false}],\"footer\":\"GitHub Actions Auto Fix\",\"ts\":$(date +%s)}]}"

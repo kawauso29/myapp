@@ -161,6 +161,48 @@ docker compose up
 - Redis: localhost:6379
 - 設定: `docker-compose.yml` + `Dockerfile.dev`
 
+## CI自動リカバリーシステム
+
+### 仕組みの概要
+
+```
+main への push
+    ↓
+[CI ワークフロー] （scan_ruby / scan_js / lint / test / system-test）
+    ↓ 成功                        ↓ 失敗
+[Deploy ワークフロー]          [Auto Fix ワークフロー]
+  ↓ ヘルスチェック               ↓ rubocop --autocorrect
+  ↓ 失敗                         ↓ 自動修正PRを作成 + Slack通知
+  ↓ ロールバック実行
+  ↓ Slack通知（原因・次アクション付き）
+```
+
+### デプロイゲート（deploy.yml）
+
+- `main` push だけでデプロイが走らない。**CI が全ジョブ成功した後にのみ** deploy.yml が起動する
+- トリガー: `workflow_run: workflows: ["CI"], types: [completed]`
+- `workflow_dispatch` で手動デプロイは引き続き可能
+
+### ヘルスチェック + ロールバック（deploy.yml）
+
+- デプロイ後に `curl http://localhost/` で 3 回リトライしてヘルスチェック
+- 失敗した場合、デプロイ前の SHA（`/tmp/pre_deploy_sha`）に自動ロールバック
+- Slack 通知に「原因」「次のアクション」を含める
+
+### RuboCop 自動修正（auto_fix.yml）
+
+- CI が失敗したとき `rubocop --autocorrect` を自動実行
+- 自動修正可能な違反があれば自動的に PR を作成し、Slack 通知
+- 自動修正できない場合は「手動修正が必要」と Slack 通知
+- PR テンプレートに「再発防止ルールを CLAUDE.md に追記したか」のチェックがある
+
+### CI失敗後の標準フロー
+
+1. Slack で失敗通知を受け取る
+2. 自動修正PRが来ていれば内容確認してマージ
+3. 手動修正が必要な場合はフィーチャーブランチで修正→PR作成
+4. **必ずPRの「再発防止ルール」欄を埋めて CLAUDE.md に追記する**
+
 ## CI・デプロイのルール
 
 ### mainへのマージ・pushの手順
