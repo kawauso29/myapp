@@ -117,7 +117,7 @@ Pumaの再起動: `sudo systemctl restart puma`
 
 ### 概要
 
-エラー通知チャネルのメッセージを検知し、Claudeチャネルに `@GitHub` メンション付きで自動転送する。
+エラー通知チャネルのメッセージを検知し、GitHub Copilot Slack アプリに DM で自動転送する。
 
 - エンドポイント: `POST /slack/events`
 - 転送ジョブ: `SlackForwardToClaudeJob`
@@ -129,15 +129,14 @@ Pumaの再起動: `sudo systemctl restart puma`
 | `SLACK_SIGNING_SECRET` | Slack App → Basic Information → Signing Secret |
 | `SLACK_BOT_TOKEN` | Slack App → OAuth & Permissions → Bot User OAuth Token（xoxb-...）|
 | `SLACK_ERROR_CHANNEL_ID` | 監視対象チャネルのID（Cxxxxx）|
-| `SLACK_CLAUDE_CHANNEL_ID` | 転送先ClaudeチャネルのID |
-| `SLACK_GITHUB_MEMBER_ID` | GitHub Slack AppのメンバーID（`@GitHub` を実際のメンションにするために必要。Slackで `/who @GitHub` などでIDを確認するか、Slack APIで `users.list` を叩いて取得）|
+| `SLACK_GITHUB_MEMBER_ID` | GitHub Copilot Slack AppのメンバーID（転送先DM相手。Slack APIの `users.list` 等で取得）|
 
 ### Slack App設定
 
 - Bot Token Scopes: `channels:history`, `chat:write`
 - Event Subscriptions → Request URL: `https://133.167.124.112/slack/events`
 - Subscribe to bot events: `message.channels`
-- BotをエラーチャネルとClaudeチャネル両方に `/invite` すること
+- BotをエラーチャネルとGitHub Copilotチャネル両方に `/invite` すること
 
 ### 重要な注意点・ハマりポイント
 
@@ -148,14 +147,13 @@ Pumaの再起動: `sudo systemctl restart puma`
 - `subtype` の一括チェックも NG。`bot_message` サブタイプも弾いてしまう
 - 除外すべき subtype は `message_changed`, `message_deleted`, `channel_join`, `channel_leave` のみ明示的に指定する
 
-**`@GitHub` メンションが文字列になる問題**
-- Slack APIで `@GitHub` をテキストに含めても、それは単なる文字列になる（2026-04-12確認）
-- 正しい方法: GitHub Slack AppのメンバーIDを取得して `<@MEMBER_ID>` 形式で送信する
-- 実装: `SLACK_GITHUB_MEMBER_ID` env var を設定すると `<@id>` 形式に、未設定なら `@GitHub` + `link_names: true` フォールバック
-- メンバーIDの取得方法: Slack ワークスペースの管理画面 or `https://api.slack.com/methods/users.lookupByEmail` や `users.list` APIで確認
+**GitHub Copilot への転送方式**
+- `SLACK_GITHUB_MEMBER_ID`（GitHub Copilot Slack AppのメンバーID）をチャネルとして `chat.postMessage` に渡すことでDM転送
+- `@GitHub` メンションのテキスト挿入は不要（DM先がGitHubアプリ本体のため）
+- 旧方式（`SLACK_CLAUDE_CHANNEL_ID`）はClaudeチャネルへの転送で、2026-04-12に廃止
 
 **ループ防止**
-- 転送先はClaudeチャネル（`SLACK_CLAUDE_CHANNEL_ID`）のみに投稿
+- 転送先は GitHub Copilot app DM（`SLACK_GITHUB_MEMBER_ID`）のみに投稿
 - エラーチャネル（`SLACK_ERROR_CHANNEL_ID`）には絶対に書き込まない
 
 ### ローカル開発環境（Docker）

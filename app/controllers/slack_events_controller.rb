@@ -11,11 +11,11 @@ class SlackEventsController < ApplicationController
         SLACK_BOT_TOKEN: ENV["SLACK_BOT_TOKEN"].present? ? "set (#{ENV['SLACK_BOT_TOKEN'].to_s[0..10]}...)" : "NOT SET",
         SLACK_SIGNING_SECRET: ENV["SLACK_SIGNING_SECRET"].present? ? "set" : "NOT SET",
         SLACK_ERROR_CHANNEL_ID: ENV["SLACK_ERROR_CHANNEL_ID"].presence || "NOT SET",
-        SLACK_CLAUDE_CHANNEL_ID: ENV["SLACK_CLAUDE_CHANNEL_ID"].presence || "NOT SET"
+        SLACK_GITHUB_MEMBER_ID: ENV["SLACK_GITHUB_MEMBER_ID"].presence || "NOT SET"
       }
     }
 
-    if ENV["SLACK_BOT_TOKEN"].present? && ENV["SLACK_CLAUDE_CHANNEL_ID"].present?
+    if ENV["SLACK_BOT_TOKEN"].present? && ENV["SLACK_GITHUB_MEMBER_ID"].present?
       job = SlackForwardToClaudeJob.new
       job.perform(
         text: "🔧 テスト送信: Slack転送システムの動作確認",
@@ -23,7 +23,7 @@ class SlackEventsController < ApplicationController
         user: "test",
         ts: Time.current.to_f.to_s
       )
-      results[:test_message] = "Claudeチャネルへの送信を試みました"
+      results[:test_message] = "GitHubアプリへの送信を試みました"
     else
       results[:test_message] = "環境変数が不足しているため送信できません"
     end
@@ -79,7 +79,7 @@ class SlackEventsController < ApplicationController
 
     render json: {
       response_type: "ephemeral",
-      text: "✅ Claudeチャネルに転送しました"
+      text: "✅ GitHubアプリに転送しました"
     }
   end
 
