@@ -49,7 +49,7 @@ class CommunityDetectJob < ApplicationJob
   end
 
   def store_communities(edges)
-    redis = Redis.current
+    redis = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
 
     edges.each do |ai_id, peers|
       # スコア降順で上位 MAX_PEERS 人を保存

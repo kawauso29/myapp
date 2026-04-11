@@ -45,7 +45,7 @@ class LlmBudgetTracker
   end
 
   def self.redis
-    Redis.current
+    Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
   end
   private_class_method :redis_key, :redis
 end
