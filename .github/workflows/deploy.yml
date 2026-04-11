@@ -116,6 +116,9 @@ jobs:
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache/*
             sudo systemctl restart puma
+            sleep 3
+            rm -rf tmp/cache/*
+            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 
       - name: Notify Slack (deploy success)
         if: success()
