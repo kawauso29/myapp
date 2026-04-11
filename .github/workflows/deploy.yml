@@ -113,9 +113,17 @@ jobs:
             set -e
             export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
             cd ~/myapp
+            stop_puma_for_code_switch() {
+              sudo systemctl stop puma || true
+              for _ in 1 2 3 4 5; do
+                sudo systemctl is-active --quiet puma || return 0
+                sleep 2
+              done
+              echo "Puma did not stop in time"
+              exit 1
+            }
             # 古いコードでジョブを処理しないよう、先にPumaを停止
-            sudo systemctl stop puma || true
-            sleep 2
+            stop_puma_for_code_switch
             # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
             git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
             git fetch origin main
@@ -181,9 +189,17 @@ jobs:
             set -e
             export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
             cd ~/myapp
+            stop_puma_for_code_switch() {
+              sudo systemctl stop puma || true
+              for _ in 1 2 3 4 5; do
+                sudo systemctl is-active --quiet puma || return 0
+                sleep 2
+              done
+              echo "Puma did not stop in time during rollback"
+              exit 1
+            }
             # ロールバック時も古いコードでジョブを処理しないよう先に停止
-            sudo systemctl stop puma || true
-            sleep 2
+            stop_puma_for_code_switch
             PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
             if [ -z "$PRE_SHA" ]; then
               echo "No pre-deploy SHA found, skipping rollback"
