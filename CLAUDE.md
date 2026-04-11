@@ -54,9 +54,11 @@ eval "$(rbenv init -)"
 bundle install
 RAILS_ENV=production bin/rails db:migrate
 RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
-rm -rf tmp/cache/*
 RAILS_ENV=production bin/rails assets:precompile
+rm -rf tmp/cache/*
 sudo systemctl restart puma
+sleep 5
+RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 ```
 
 ### サーバー構成
@@ -103,10 +105,12 @@ Pumaの再起動: `sudo systemctl restart puma`
 
 - **原因**: Bootsnapのキャッシュが古く、ジョブクラスがオートロードされない
 - **エラー**: RelationshipDecayJob, SlackForwardToClaudeJob, MonitorFailedJobsJob など複数のジョブで発生
-- **解決**: デプロイワークフロー内で各ステップ後にキャッシュをクリアするよう修正
-  - git reset後、bundle install後、db:migrate後、assets:precompile後、Puma再起動直前の計5回
-  - `rm -rf tmp/cache/*` を複数回実行することで、各ステップでBootsnapが作成するキャッシュを確実にクリア
-- **重要**: Rails 8 + Bootsnap 環境では、デプロイの各ステップ後に `tmp/cache` をクリアすること
+- **誤った解決策（2026-04-10）**: 各ステップ後に複数回キャッシュクリア → Puma再起動後のキャッシュクリアは無意味
+- **正しい解決策（2026-04-11）**: 
+  - Puma再起動**直前**に1回だけ `rm -rf tmp/cache/*` を実行
+  - Puma再起動後、`RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"` で全クラスをロード
+  - これにより、Pumaが起動時に正しいキャッシュを生成・使用できる
+- **重要**: 中間でのキャッシュクリアは不要。Puma再起動直前のクリアと、再起動後のeager_loadが重要
 
 ## Slack自動転送システム（SlackEventsController）
 

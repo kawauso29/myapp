@@ -99,14 +99,10 @@ jobs:
             cd ~/myapp
             git fetch origin main
             git reset --hard origin/main
-            rm -rf tmp/cache/*
             bundle install
-            rm -rf tmp/cache/*
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
-            rm -rf tmp/cache/*
             RAILS_ENV=production bin/rails assets:precompile
-            rm -rf tmp/cache/*
             rm -rf ~/myapp/public/app
             mkdir -p ~/myapp/public/app
             tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
@@ -116,8 +112,7 @@ jobs:
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache/*
             sudo systemctl restart puma
-            sleep 3
-            rm -rf tmp/cache/*
+            sleep 5
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 
       - name: Notify Slack (deploy success)
