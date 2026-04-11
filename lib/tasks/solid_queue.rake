@@ -26,6 +26,7 @@ namespace :solid_queue do
 
     wrapper_jobs.find_each do |job|
       begin
+        # ActiveJob wrapper payload is stored as arguments: [{ "job_class" => "SomeJob", ... }]
         payload = job.arguments
         payload = payload.first if payload.is_a?(Array)
         job_class = payload.is_a?(Hash) ? (payload["job_class"] || payload[:job_class]) : nil
@@ -34,7 +35,7 @@ namespace :solid_queue do
 
         unknown_ids << job.id
       rescue StandardError => e
-        Rails.logger.warn("solid_queue:cleanup_unknown_job_classes skipped job_id=#{job.id}: #{e.class}: #{e.message}")
+        Rails.logger.warn("solid_queue:cleanup_unknown_job_classes failed to process job_id=#{job.id}: #{e.class}: #{e.message}")
       end
     end
 
