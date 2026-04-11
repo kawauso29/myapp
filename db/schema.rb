@@ -47,7 +47,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
   end
 
   create_table "ai_daily_states", force: :cascade do |t|
-    t.bigint "ai_user_id", null: false
     t.integer "appetite", default: 1, null: false
     t.bigint "ai_user_id", null: false
     t.integer "busyness", default: 1, null: false
