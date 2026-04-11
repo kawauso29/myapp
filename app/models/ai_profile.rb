@@ -14,6 +14,8 @@ class AiProfile < ApplicationRecord
     single: 0, in_relationship: 1, married: 2, divorced: 3
   }, prefix: true
 
+  include AgeProgression
+
   validates :name, presence: true, length: { maximum: 50 }
   validates :age, presence: true, numericality: { in: 10..100 }
   validates :bio, length: { maximum: 100 }, allow_nil: true
