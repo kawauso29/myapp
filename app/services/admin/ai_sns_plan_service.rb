@@ -5,11 +5,14 @@ module Admin
     STATUS_ICONS = { "todo" => "⬜", "in_progress" => "🔄", "done" => "✅" }.freeze
 
     def self.load
-      YAML.load_file(PLAN_FILE)
+      YAML.safe_load_file(PLAN_FILE)
     end
 
     def self.save(plan)
       File.write(PLAN_FILE, plan.to_yaml)
+    rescue => e
+      Rails.logger.error "AiSnsPlanService: ファイル保存失敗 #{e.message}"
+      raise
     end
 
     def self.items

@@ -7,7 +7,7 @@ namespace :ai_sns_plan do
   PRIORITY_ORDER = { "high" => 0, "medium" => 1, "low" => 2 }.freeze
 
   def self.load_plan
-    YAML.load_file(PLAN_FILE)
+    YAML.safe_load_file(PLAN_FILE)
   end
 
   def self.save_plan(plan)
