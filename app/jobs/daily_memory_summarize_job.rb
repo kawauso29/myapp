@@ -18,12 +18,10 @@ class DailyMemorySummarizeJob < ApplicationJob
   private
 
   def active_today_ais
-    posted_today = AiUser.joins(:ai_posts)
-                         .where(ai_posts: { created_at: Date.current.all_day })
-    had_events_today = AiUser.joins(:ai_life_events)
-                             .where(ai_life_events: { fired_at: Date.current.all_day })
-
-    posted_today.or(had_events_today).distinct
+    # .or() は joins が異なると ArgumentError になるためサブクエリ方式で実装
+    posted_ids = AiPost.where(created_at: Date.current.all_day).select(:ai_user_id)
+    event_ids  = AiLifeEvent.where(fired_at: Date.current.all_day).select(:ai_user_id)
+    AiUser.where(id: posted_ids).or(AiUser.where(id: event_ids))
   end
 
   def summarize_for(ai)
