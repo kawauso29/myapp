@@ -1,0 +1,86 @@
+name: Enable Auto Merge
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - labeled
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  add_automerge_label:
+    if: ${{ github.event.action == 'opened' && !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add automerge label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ["automerge"],
+            })
+            core.info(`Added 'automerge' label to PR #${context.payload.pull_request.number}`)
+
+  enable_auto_merge:
+    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'automerge') && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for labeled PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (!context.payload.pull_request) {
+              throw new Error("Pull request context is missing")
+            }
+
+            const pullRequestId = context.payload.pull_request.node_id
+
+            try {
+              const current = await github.graphql(
+                `
+                  query($pullRequestId: ID!) {
+                    node(id: $pullRequestId) {
+                      ... on PullRequest {
+                        number
+                        autoMergeRequest {
+                          enabledAt
+                        }
+                      }
+                    }
+                  }
+                `,
+                { pullRequestId }
+              )
+
+              if (current?.node?.autoMergeRequest) {
+                core.info(`Auto-merge is already enabled for PR #${context.payload.pull_request.number}`)
+                return
+              }
+
+              await github.graphql(
+                `
+                  mutation($pullRequestId: ID!) {
+                    enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+                      pullRequest {
+                        number
+                      }
+                    }
+                  }
+                `,
+                { pullRequestId }
+              )
+              core.info(`Auto-merge enabled for PR #${context.payload.pull_request.number}`)
+            } catch (error) {
+              const message = String(error?.message || "Unknown error occurred")
+              core.error(`Failed to enable auto-merge for PR #${context.payload.pull_request.number}: ${message}`)
+              throw error
+            }

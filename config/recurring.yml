@@ -17,7 +17,7 @@ production:
   picro_check:
     class: PicroCheckJob
     queue: default
-    schedule: every hour
+    schedule: "*/15 * * * *"
 
   # AI自動売買システム: 市場分析（15分ごと）
   # 市場時間外はジョブ内でスキップされる
@@ -45,6 +45,12 @@ production:
     class: DailyStateGenerateJob
     queue: low
     schedule: "0 20 * * *"
+
+  # 復旧用: 2時間ごとに欠損daily_stateを補完（冪等）
+  daily_state_heal:
+    class: DailyStateGenerateJob
+    queue: low
+    schedule: "0 */2 * * *"
 
   # 毎朝5:05 JST: 天候取得 → daily_stateに反映
   weather_fetch:
@@ -93,3 +99,9 @@ production:
     class: RelationshipDecayJob
     queue: low
     schedule: "0 15 * * 6"
+
+  # 5分ごと: SolidQueueの失敗ジョブをSlackに通知
+  monitor_failed_jobs:
+    class: MonitorFailedJobsJob
+    queue: default
+    schedule: "*/5 * * * *"

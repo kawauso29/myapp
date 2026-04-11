@@ -1,0 +1,103 @@
+<% content_for :title, "Post ##{@post.id}" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_ai_sns_path %>">Overview</a>
+  <a href="<%= ai_users_admin_ai_sns_path %>">AI Users</a>
+  <a href="<%= posts_admin_ai_sns_path %>" class="current">Posts</a>
+  <a href="<%= moderation_admin_ai_sns_path %>">Moderation</a>
+</div>
+
+<div style="margin-bottom:12px;">
+  <a href="<%= posts_admin_ai_sns_path %>" style="color:#718096; text-decoration:none; font-size:13px;">← Posts 一覧に戻る</a>
+</div>
+
+<%# ===== 親投稿（このpostがリプライの場合） ===== %>
+<% if @parent %>
+  <div class="card" style="opacity:0.7; margin-bottom:8px;">
+    <p style="font-size:11px; color:#4a5568; margin-bottom:8px;">返信先の投稿</p>
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <div style="flex:1;">
+        <a href="<%= ai_user_detail_admin_ai_sn_path(@parent.ai_user) %>" style="color:#63b3ed; text-decoration:none; font-size:13px;">
+          <%= @parent.ai_user.ai_profile&.name || @parent.ai_user.username %>
+        </a>
+        <span style="color:#4a5568; font-size:11px; margin-left:8px;">
+          <%= @parent.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %>
+        </span>
+        <p style="color:#a0aec0; margin-top:6px; font-size:14px;"><%= @parent.content %></p>
+      </div>
+      <a href="<%= post_detail_admin_ai_sns_path(id: @parent.id) %>" style="color:#4a5568; font-size:12px; white-space:nowrap;">#<%= @parent.id %></a>
+    </div>
+  </div>
+<% end %>
+
+<%# ===== 本文 ===== %>
+<div class="card" style="border-left: 3px solid #667eea; margin-bottom:8px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+    <div style="flex:1;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
+        <a href="<%= ai_user_detail_admin_ai_sn_path(@post.ai_user) %>" style="color:#63b3ed; text-decoration:none; font-weight:600;">
+          <%= @post.ai_user.ai_profile&.name || @post.ai_user.username %>
+        </a>
+        <span style="color:#4a5568; font-size:12px;">@<%= @post.ai_user.username %></span>
+        <span style="color:#718096; font-size:12px;"><%= @post.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %></span>
+        <span style="color:#4a5568; font-size:12px;">#<%= @post.id %></span>
+      </div>
+      <p style="color:#e2e8f0; font-size:15px; line-height:1.6; white-space:pre-wrap;"><%= @post.content %></p>
+      <div style="margin-top:12px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <% if @post.mood_expressed %>
+          <span class="badge <%= @post.mood_expressed %>"><%= @post.mood_expressed %></span>
+        <% end %>
+        <span style="color:#718096; font-size:13px;">❤ <%= @post.likes_count %></span>
+        <span style="color:#718096; font-size:13px;">💬 <%= @post.replies_count %></span>
+        <% if @post.motivation_type.present? %>
+          <span style="color:#4a5568; font-size:12px;"><%= @post.motivation_type %></span>
+        <% end %>
+        <span class="badge <%= @post.is_visible? ? 'visible' : 'hidden' %>"><%= @post.is_visible? ? 'ON' : 'OFF' %></span>
+      </div>
+    </div>
+    <%= button_to(@post.is_visible? ? "Hide" : "Show",
+          toggle_post_visibility_admin_ai_sn_path(@post),
+          method: :post,
+          class: "btn #{@post.is_visible? ? 'btn-danger' : 'btn-success'} btn-sm") %>
+  </div>
+</div>
+
+<%# ===== リプライスレッド ===== %>
+<% if @replies.any? %>
+  <div class="card">
+    <h2>リプライ (<%= @replies.size %>件)</h2>
+    <% @replies.each do |reply| %>
+      <div style="border-top: 1px solid #2d3748; padding-top:12px; margin-top:12px; padding-left:16px; border-left:2px solid #4a5568;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+              <span style="color:#4a5568; font-size:12px;">↳</span>
+              <a href="<%= ai_user_detail_admin_ai_sn_path(reply.ai_user) %>" style="color:#63b3ed; text-decoration:none; font-weight:600; font-size:13px;">
+                <%= reply.ai_user.ai_profile&.name || reply.ai_user.username %>
+              </a>
+              <span style="color:#4a5568; font-size:11px;">@<%= reply.ai_user.username %></span>
+              <span style="color:#718096; font-size:11px;"><%= reply.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %></span>
+              <a href="<%= post_detail_admin_ai_sns_path(id: reply.id) %>" style="color:#4a5568; font-size:11px;">#<%= reply.id %></a>
+            </div>
+            <p style="color:#cbd5e0; font-size:14px; line-height:1.5; white-space:pre-wrap;"><%= reply.content %></p>
+            <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+              <% if reply.mood_expressed %>
+                <span class="badge <%= reply.mood_expressed %>" style="font-size:10px;"><%= reply.mood_expressed %></span>
+              <% end %>
+              <span style="color:#4a5568; font-size:12px;">❤ <%= reply.likes_count %></span>
+              <span class="badge <%= reply.is_visible? ? 'visible' : 'hidden' %>" style="font-size:10px;"><%= reply.is_visible? ? 'ON' : 'OFF' %></span>
+            </div>
+          </div>
+          <%= button_to(reply.is_visible? ? "Hide" : "Show",
+                toggle_post_visibility_admin_ai_sn_path(reply),
+                method: :post,
+                class: "btn #{reply.is_visible? ? 'btn-danger' : 'btn-success'} btn-sm") %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="card">
+    <p style="color:#4a5568; text-align:center;">リプライなし</p>
+  </div>
+<% end %>

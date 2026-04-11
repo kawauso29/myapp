@@ -3,6 +3,12 @@ module Api
     class BaseController < ActionController::API
       before_action :authenticate_user!
 
+      # StandardErrorは最初に定義することで優先度を最低にする（Railsは後定義が優先）
+      rescue_from StandardError do |e|
+        notify_slack_on_error(e)
+        render json: { error: { code: "internal_server_error", message: "サーバーエラーが発生しました" } }, status: :internal_server_error
+      end
+
       rescue_from ActiveRecord::RecordNotFound do |e|
         render json: { error: { code: "not_found", message: "見つかりませんでした" } }, status: :not_found
       end
@@ -35,6 +41,20 @@ module Api
 
       def render_error(code:, message:, status: :bad_request)
         render json: { error: { code: code, message: message } }, status: status
+      end
+
+      def notify_slack_on_error(exception)
+        return unless Rails.env.production?
+        SlackNotifierService.notify(
+          text: ":rotating_light: *APIエラー*",
+          color: :danger,
+          fields: [
+            { title: "エラー",      value: "#{exception.class}: #{exception.message}" },
+            { title: "コントローラ", value: "#{controller_name}##{action_name}" },
+            { title: "パス",        value: request.fullpath },
+            { title: "IPアドレス",  value: request.remote_ip }
+          ]
+        )
       end
     end
   end

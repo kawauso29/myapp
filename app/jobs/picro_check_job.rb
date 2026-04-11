@@ -42,6 +42,16 @@ class PicroCheckJob < ApplicationJob
     # 5. 通知済みフラグを更新
     PicroMessage.where(message_id: new_ids).update_all(notified: true)
 
+    # 6. Slack通知（送信履歴）
+    slack_fields = new_messages.first(5).map do |msg|
+      { title: msg[:sender_name].presence || "(不明)", value: msg[:title].presence || "(件名なし)" }
+    end
+    SlackNotifierService.notify(
+      text: "Picro新着#{new_messages.size}件 → LINE通知送信済み",
+      color: :info,
+      fields: slack_fields
+    )
+
     Rails.logger.info("[PicroCheckJob] 完了: #{new_messages.size}件の新着を通知")
   end
 end

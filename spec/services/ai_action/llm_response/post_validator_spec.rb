@@ -8,7 +8,7 @@ RSpec.describe AiAction::LlmResponse::PostValidator do
       let(:raw_text) do
         {
           content: "Hello world!",
-          tags: ["greeting", "test"],
+          tags: [ "greeting", "test" ],
           mood_expressed: "positive",
           emoji_used: true
         }.to_json
@@ -19,7 +19,7 @@ RSpec.describe AiAction::LlmResponse::PostValidator do
 
         expect(result[:ok]).to be true
         expect(result[:data][:content]).to eq("Hello world!")
-        expect(result[:data][:tags]).to eq(["greeting", "test"])
+        expect(result[:data][:tags]).to eq([ "greeting", "test" ])
         expect(result[:data][:mood_expressed]).to eq("positive")
         expect(result[:data][:emoji_used]).to be true
       end
@@ -139,7 +139,7 @@ RSpec.describe AiAction::LlmResponse::PostValidator do
     context "tags handling" do
       it "limits tags to 5" do
         raw = { content: "Hi", mood_expressed: "neutral",
-                tags: ["a", "b", "c", "d", "e", "f"] }.to_json
+                tags: [ "a", "b", "c", "d", "e", "f" ] }.to_json
         result = validator.validate(raw)
 
         expect(result[:data][:tags].length).to eq(5)
@@ -147,10 +147,10 @@ RSpec.describe AiAction::LlmResponse::PostValidator do
 
       it "filters blank tags" do
         raw = { content: "Hi", mood_expressed: "neutral",
-                tags: ["a", "", nil, "b"] }.to_json
+                tags: [ "a", "", nil, "b" ] }.to_json
         result = validator.validate(raw)
 
-        expect(result[:data][:tags]).to eq(["a", "b"])
+        expect(result[:data][:tags]).to eq([ "a", "b" ])
       end
     end
   end

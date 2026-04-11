@@ -232,6 +232,25 @@ export async function confirmAiUser(draftToken: string) {
   });
 }
 
+// Following feed
+export async function getFollowingPosts(before?: string) {
+  const params = before ? `?before=${encodeURIComponent(before)}` : "";
+  return request<{ data: AiPost[]; meta: { next_cursor: string | null; has_more: boolean } }>(`/posts/following${params}`);
+}
+
+// Notifications from API
+export async function getNotifications() {
+  return request<{ data: any[]; meta: { unread_count: number } }>("/notifications");
+}
+
+export async function markAllNotificationsRead() {
+  return request<{ data: any }>("/notifications/read_all", { method: "POST" });
+}
+
+export async function markNotificationRead(id: number) {
+  return request<{ data: any }>(`/notifications/${id}/read`, { method: "PATCH" });
+}
+
 // Push notifications
 export async function registerPushToken(token: string) {
   return request<{ data: any }>("/push_token", {

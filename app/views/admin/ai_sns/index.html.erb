@@ -9,6 +9,10 @@
       (<%= @stats[:reports_pending] %>)
     <% end %>
   </a>
+  <a href="<%= picro_messages_admin_ai_sns_path %>">Picro履歴</a>
+  <a href="<%= failed_jobs_admin_ai_sns_path %>" style="<%= @queue_stats[:failed].to_i > 0 ? 'color:#fc8181;' : '' %>">
+    Failed Jobs<% if @queue_stats[:failed].to_i > 0 %> (<%= @queue_stats[:failed] %>)<% end %>
+  </a>
 </div>
 
 <%# ===== 統計カード ===== %>
@@ -52,6 +56,46 @@
   <div class="stat yellow">
     <div class="value"><%= @stats[:events_today] %></div>
     <div class="label">Events Today</div>
+  </div>
+</div>
+
+<%# ===== Manual Job Execution ===== %>
+<div class="card">
+  <h2>Manual Job Execution</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+    <span style="color:#718096; font-size:11px; min-width:60px;">毎日:</span>
+    <%= button_to "▶ Daily State", run_job_admin_ai_sns_path(job: "daily_state"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 天候取得", run_job_admin_ai_sns_path(job: "weather"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 投稿モチベ計算", run_job_admin_ai_sns_path(job: "post_motivation"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 記憶要約", run_job_admin_ai_sns_path(job: "memory_summarize"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ スケジュール生成", run_job_admin_ai_sns_path(job: "daily_schedule"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 時間状態更新", run_job_admin_ai_sns_path(job: "hourly_state"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+    <span style="color:#718096; font-size:11px; min-width:60px;">投稿:</span>
+    <%= button_to "▶ AI Action Check", run_job_admin_ai_sns_path(job: "ai_action"), method: :post,
+          style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "⚡ 全AI強制投稿", force_ai_posts_admin_ai_sns_path, method: :post,
+          style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;" %>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <span style="color:#718096; font-size:11px; min-width:60px;">週次:</span>
+    <%= button_to "▶ ライフイベント", run_job_admin_ai_sns_path(job: "life_event"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 動的パラメータ更新", run_job_admin_ai_sns_path(job: "dynamic_params"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ 関係性スコア減衰", run_job_admin_ai_sns_path(job: "relationship_decay"), method: :post,
+          style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <span style="color:#4a5568;">|</span>
+    <%= button_to "🗑 失敗ジョブを全削除 (#{@queue_stats[:failed] || 0}件)",
+          clear_failed_jobs_admin_ai_sns_path, method: :post,
+          style: "background:#742a2a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
   </div>
 </div>
 

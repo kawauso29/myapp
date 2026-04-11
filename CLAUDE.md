@@ -18,6 +18,14 @@ Claude Code向けのプロジェクトメモ。
 - **重要な情報が出てきたら必ずこの CLAUDE.md に追記する**
 - **間違いを指摘されたら、その内容と正しい情報を CLAUDE.md に記録する**
 
+### mainへのマージの強制ルール
+
+**作業完了後は必ずmainにマージ・pushする。**
+
+- フィーチャーブランチで作業したら、必ず `git checkout main && git merge <branch> && git push origin main` を実行する
+- ユーザーが「mainにあげておいて」と言った場合は、マージとpushまで自動で行う
+- ローカルmainがorigin/mainと乖離している場合は `git fetch origin main && git reset --hard origin/main` で同期してからマージする
+
 ## デプロイ仕様
 
 ### 自動デプロイのトリガー
@@ -47,7 +55,10 @@ bundle install
 RAILS_ENV=production bin/rails db:migrate
 RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
 RAILS_ENV=production bin/rails assets:precompile
+rm -rf tmp/cache/*
 sudo systemctl restart puma
+sleep 5
+RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 ```
 
 ### サーバー構成
@@ -90,6 +101,55 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **正しい**: `redirect_back fallback_location: path, notice: "..."` （noticeをカッコなしで同じ引数に）
 - Ruby 3.3 では `method(args), key: val` はシンタックスエラーになる
 
+#### 2026-04-10: ActiveJob::UnknownJobClassError（複数ジョブクラス）
+
+- **原因**: Bootsnapのキャッシュが古く、ジョブクラスがオートロードされない
+- **エラー**: RelationshipDecayJob, SlackForwardToClaudeJob, MonitorFailedJobsJob など複数のジョブで発生
+- **誤った解決策（2026-04-10）**: 各ステップ後に複数回キャッシュクリア → Puma再起動後のキャッシュクリアは無意味
+- **正しい解決策（2026-04-11）**: 
+  - Puma再起動**直前**に1回だけ `rm -rf tmp/cache/*` を実行
+  - Puma再起動後、`RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"` で全クラスをロード
+  - これにより、Pumaが起動時に正しいキャッシュを生成・使用できる
+- **重要**: 中間でのキャッシュクリアは不要。Puma再起動直前のクリアと、再起動後のeager_loadが重要
+
+## Slack自動転送システム（SlackEventsController）
+
+### 概要
+
+エラー通知チャネルのメッセージを検知し、Claudeチャネルに `@GitHub` メンション付きで自動転送する。
+
+- エンドポイント: `POST /slack/events`
+- 転送ジョブ: `SlackForwardToClaudeJob`
+
+### 必要なGitHub Secrets（デプロイ時にVPSの.envに自動書き込み）
+
+| Secret名 | 内容 |
+|----------|------|
+| `SLACK_SIGNING_SECRET` | Slack App → Basic Information → Signing Secret |
+| `SLACK_BOT_TOKEN` | Slack App → OAuth & Permissions → Bot User OAuth Token（xoxb-...）|
+| `SLACK_ERROR_CHANNEL_ID` | 監視対象チャネルのID（Cxxxxx）|
+| `SLACK_CLAUDE_CHANNEL_ID` | 転送先ClaudeチャネルのID |
+
+### Slack App設定
+
+- Bot Token Scopes: `channels:history`, `chat:write`
+- Event Subscriptions → Request URL: `https://133.167.124.112/slack/events`
+- Subscribe to bot events: `message.channels`
+- BotをエラーチャネルとClaudeチャネル両方に `/invite` すること
+
+### 重要な注意点・ハマりポイント
+
+**エラー通知はBotメッセージ**
+- `myapp-notify` はIncoming Webhook経由のBotとして投稿する
+- `bot_id` チェックで除外するとエラー通知が転送されない（ハマった）
+- **正しい実装**: `bot_id` チェックは行わず、キーワードフィルタで判定する
+- `subtype` の一括チェックも NG。`bot_message` サブタイプも弾いてしまう
+- 除外すべき subtype は `message_changed`, `message_deleted`, `channel_join`, `channel_leave` のみ明示的に指定する
+
+**ループ防止**
+- 転送先はClaudeチャネル（`SLACK_CLAUDE_CHANNEL_ID`）のみに投稿
+- エラーチャネル（`SLACK_ERROR_CHANNEL_ID`）には絶対に書き込まない
+
 ### ローカル開発環境（Docker）
 
 ```bash
@@ -100,3 +160,31 @@ docker compose up
 - DB: PostgreSQL 16（`postgres:password@localhost:5432`）
 - Redis: localhost:6379
 - 設定: `docker-compose.yml` + `Dockerfile.dev`
+
+## CI・デプロイのルール
+
+### mainへのマージ・pushの手順
+
+**必ずこの順序で実行する:**
+
+1. 作業はフィーチャーブランチ（`claude/...`）で行う
+2. **作業開始前に、他ブランチで同じ作業が進んでいないか必ず確認する（`git branch -a` で確認）**
+3. mainにマージ・pushする前にCIが通ることを確認する
+4. マージ方法: `git checkout main && git merge <branch> && git push origin main`
+5. mainへのpushで自動デプロイが走る
+6. **マージ後は必ずブランチを削除する: `git branch -d <branch> && git push origin --delete <branch>`**
+
+### Slackからの自動修正時のルール
+
+- **作業開始前に必ず他ブランチで同じ修正が進んでいないか確認する**
+  - `git branch -a` でリモートブランチも含めて確認
+  - 同名・類似の修正ブランチがあれば重複作業を避ける
+- **マージ完了後は必ずフィーチャーブランチを削除する（ローカル・リモート両方）**
+
+### CIエラーの原因になったこと（記録）
+
+- `actions/checkout@v6` は存在しない → `@v4` を使う
+- `head :unauthorized and return` は RuboCop違反 → `return head :unauthorized` を使う
+- privateブロック内に定数を定義するとRuboCop警告 → privateより前に定義する
+- `"str" + method()` の文字列結合 → `"str#{method()}"` 補間を使う
+- `Time.now` はRails/TimeZone違反 → `Time.current` を使う

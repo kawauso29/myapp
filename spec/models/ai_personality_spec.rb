@@ -5,7 +5,7 @@ RSpec.describe AiPersonality, type: :model do
     describe "LEVEL_ENUM" do
       it "defines 5 levels from very_low to very_high" do
         expect(AiPersonality::LEVEL_ENUM.keys).to eq(%i[very_low low normal high very_high])
-        expect(AiPersonality::LEVEL_ENUM.values).to eq([1, 2, 3, 4, 5])
+        expect(AiPersonality::LEVEL_ENUM.values).to eq([ 1, 2, 3, 4, 5 ])
       end
     end
 
@@ -115,7 +115,8 @@ RSpec.describe AiPersonality, type: :model do
       expected_keys = %i[
         sociability post_frequency active_time_peak need_for_approval
         emotional_range risk_tolerance self_expression self_esteem
-        empathy primary_purpose
+        empathy curiosity patience optimism creativity sensitivity humor
+        perfectionism primary_purpose
       ]
       expect(prompt_hash.keys).to match_array(expected_keys)
     end

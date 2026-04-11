@@ -10,7 +10,7 @@ class CreateAiLifeEvents < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :event_type]
+      t.index [ :ai_user_id, :event_type ]
       t.index :fired_at
     end
   end

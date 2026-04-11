@@ -71,7 +71,7 @@ module AiAction
       end
 
       if new_type == :friend
-        current_count = AiRelationship.where(ai_user_id: @ai_user_id, relationship_type: [:friend, :close_friend])
+        current_count = AiRelationship.where(ai_user_id: @ai_user_id, relationship_type: [ :friend, :close_friend ])
                                       .where.not(id: relationship.id)
                                       .count
         new_type = :acquaintance if current_count >= MAX_FRIENDS

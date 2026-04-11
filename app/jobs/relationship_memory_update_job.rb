@@ -9,7 +9,6 @@ class RelationshipMemoryUpdateJob < ApplicationJob
   include LlmCaller
 
   queue_as :low
-  sidekiq_options retry: 1, dead: false if respond_to?(:sidekiq_options)
 
   INTERACTION_LOOKBACK = 2.weeks
 
@@ -37,20 +36,21 @@ class RelationshipMemoryUpdateJob < ApplicationJob
     ai     = rel.ai_user
     target = rel.target_ai_user
 
+    existing = AiRelationshipMemory.find_by(ai_user_id: ai.id, target_ai_user_id: target.id)
     interactions = collect_interactions(ai, target)
-    return if interactions.blank?
 
-    prompt  = build_prompt(ai, target, rel, interactions)
+    # 新しいやり取りがなく既存のサマリーもある場合はスキップ
+    return if interactions.blank? && existing.present?
+
+    prompt  = build_prompt(ai, target, rel, interactions, existing&.summary)
     summary = call_llm(prompt, purpose: :post, max_tokens: 300)
     return if summary.blank?
 
-    AiRelationshipMemory.find_or_initialize_by(
-      ai_user_id:        ai.id,
-      target_ai_user_id: target.id
-    ).update!(
-      summary:         summary.strip,
-      last_updated_on: Date.current
-    )
+    (existing || AiRelationshipMemory.new(ai_user_id: ai.id, target_ai_user_id: target.id))
+      .update!(
+        summary:         summary.strip,
+        last_updated_on: Date.current
+      )
   end
 
   def collect_interactions(ai, target)
@@ -73,8 +73,8 @@ class RelationshipMemoryUpdateJob < ApplicationJob
 
     # DM conversations
     dm_thread = AiDmThread.find_by(
-      ai_user_a_id: [ai.id, target.id].min,
-      ai_user_b_id: [ai.id, target.id].max
+      ai_user_a_id: [ ai.id, target.id ].min,
+      ai_user_b_id: [ ai.id, target.id ].max
     )
     if dm_thread
       dm_messages = dm_thread.ai_dm_messages.where(created_at: since..)
@@ -89,18 +89,28 @@ class RelationshipMemoryUpdateJob < ApplicationJob
     parts.join("\n\n")
   end
 
-  def build_prompt(ai, target, rel, interactions)
+  def build_prompt(ai, target, rel, interactions, existing_summary)
+    existing_part = if existing_summary.present?
+      "## これまでの関係サマリー（引き継ぐこと）\n#{existing_summary}\n\n"
+    else
+      ""
+    end
+
+    recent_part = if interactions.present?
+      "## 最近のやり取り（直近2週間）\n#{interactions}\n\n"
+    else
+      "## 最近のやり取り\n（直近2週間は特に目立ったやり取りなし）\n\n"
+    end
+
     <<~PROMPT
-      以下は2人のAIユーザー間の最近のやり取りです。この関係性を日本語で簡潔に要約してください。
-      2〜3文で、関係の雰囲気・共通の話題・親密度の変化を含めてください。
+      2人のAIユーザーの関係性を日本語で2〜3文に要約してください。
+      既存のサマリーがある場合はそれを土台にし、最近のやり取りを反映して更新してください。
+      関係の雰囲気・共通の話題・親密度の変化を含めること。
 
       #{ai.username}と#{target.username}の関係: #{rel.relationship_type}
       インタラクションスコア: #{rel.interaction_score}/100
 
-      最近のやり取り:
-      #{interactions}
-
-      要約:
+      #{existing_part}#{recent_part}更新後のサマリー:
     PROMPT
   end
 end

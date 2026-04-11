@@ -29,7 +29,7 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def ai_users
-    page = [params[:page].to_i, 1].max
+    page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
     @ai_users = AiUser.includes(:ai_profile, :user)
@@ -43,38 +43,97 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def ai_user_detail
-    @ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params, :user)
+    @ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params, :ai_close_people, :user)
                       .find(params[:id])
-    @today_state = @ai_user.today_state
-    @recent_posts = @ai_user.ai_posts.order(created_at: :desc).limit(10)
-    @recent_events = @ai_user.ai_life_events.order(fired_at: :desc).limit(5)
+    @today_state    = @ai_user.today_state
+    @today_schedule = @ai_user.ai_daily_schedules.find_by(scheduled_date: Date.current)
+    @recent_posts   = @ai_user.ai_posts.order(created_at: :desc).limit(10)
+    @recent_events  = @ai_user.ai_life_events.order(fired_at: :desc).limit(5)
   end
 
   def posts
-    page = [params[:page].to_i, 1].max
+    page = [ params[:page].to_i, 1 ].max
     offset = (page - 1) * PER_PAGE
 
     @posts = AiPost.includes(ai_user: :ai_profile)
+                   .where(reply_to_post_id: nil)
                    .order(created_at: :desc)
                    .offset(offset)
                    .limit(PER_PAGE)
 
-    @total_count = AiPost.count
+    @total_count = AiPost.where(reply_to_post_id: nil).count
     @page = page
     @total_pages = (@total_count.to_f / PER_PAGE).ceil
   end
 
+  def post_detail
+    @post = AiPost.includes(ai_user: :ai_profile).find(params[:id])
+    @replies = @post.replies.includes(ai_user: :ai_profile).order(:created_at)
+    @parent = @post.reply_to_post_id ? AiPost.includes(ai_user: :ai_profile).find(@post.reply_to_post_id) : nil
+  end
+
   def moderation
     @reported_posts = AiPost.joins(:post_reports)
-                            .includes(:ai_user, :post_reports)
+                            .preload(:ai_user, :post_reports)
                             .select("ai_posts.*, COUNT(post_reports.id) AS reports_count")
                             .group("ai_posts.id")
-                            .order("reports_count DESC")
+                            .order(Arel.sql("COUNT(post_reports.id) DESC"))
                             .limit(50)
 
     @violation_ais = AiUser.includes(:ai_profile)
                            .where("violation_count > 0")
                            .order(violation_count: :desc)
+  end
+
+  RUNNABLE_JOBS = {
+    "daily_state"      => DailyStateGenerateJob,
+    "weather"          => WeatherFetchJob,
+    "post_motivation"  => PostMotivationCalculateJob,
+    "ai_action"        => AiActionCheckJob,
+    "life_event"       => LifeEventCheckJob,
+    "dynamic_params"   => DynamicParamsUpdateJob,
+    "memory_summarize" => DailyMemorySummarizeJob,
+    "relationship_decay" => RelationshipDecayJob,
+    "daily_schedule"   => DailyScheduleGenerateJob,
+    "hourly_state"     => HourlyStateUpdateJob
+  }.freeze
+
+  def picro_messages
+    @messages = PicroMessage.order(received_at: :desc).limit(100)
+  end
+
+  def failed_jobs
+    @failed_executions = SolidQueue::FailedExecution
+                           .includes(:job)
+                           .order(created_at: :desc)
+                           .limit(100)
+  end
+
+  def run_job
+    job_key = params[:job]
+    job_class = RUNNABLE_JOBS[job_key]
+    unless job_class
+      return redirect_to admin_ai_sns_path, alert: "不正なジョブ名です"
+    end
+    job_class.perform_later
+    redirect_to admin_ai_sns_path, notice: "#{job_class.name} をキューに追加しました"
+  end
+
+  def clear_failed_jobs
+    count = SolidQueue::FailedExecution.count
+    SolidQueue::FailedExecution.destroy_all
+    redirect_to admin_ai_sns_path, notice: "失敗ジョブを #{count} 件削除しました"
+  end
+
+  def force_ai_posts
+    ais = AiUser.active.joins(:ai_daily_states)
+                .where(ai_daily_states: { date: Date.current })
+    queued = 0
+    ais.find_each do |ai|
+      PostGenerateJob.perform_later(ai.id, { primary: "sharing", secondary: nil, post_theme: nil })
+      queued += 1
+    end
+    redirect_to admin_ai_sns_path, notice: "#{queued}件のAIの投稿ジョブをキューに追加しました"
   end
 
   def toggle_active

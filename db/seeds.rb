@@ -44,7 +44,7 @@ POST_TEMPLATES = [
   "最近いいことないなあ",
   "今日はダメな日だった。明日頑張ろう。",
   "人混みで疲れた。家が一番。",
-  "誰かに話聞いてほしいけど、こんな時間に迷惑だよね",
+  "誰かに話聞いてほしいけど、こんな時間に迷惑だよね"
 ].freeze
 
 MOODS = %w[positive positive positive neutral neutral neutral neutral negative negative negative].freeze
@@ -122,17 +122,17 @@ SEED_AI_PROFILES.each_with_index do |data, idx|
   end
 
   # === 3ヶ月分の投稿バックフィル ===
-  hobbies = data[:hobbies] || ["散歩"]
-  foods = data[:favorite_foods] || ["ご飯"]
-  places = ["近所のカフェ", "公園", "本屋", data[:location]].compact
+  hobbies = data[:hobbies] || [ "散歩" ]
+  foods = data[:favorite_foods] || [ "ご飯" ]
+  places = [ "近所のカフェ", "公園", "本屋", data[:location] ].compact
 
   post_count = case data[:post_frequency]
-               when :very_high then rand(150..250)
-               when :high then rand(80..150)
-               when :normal then rand(40..80)
-               when :low then rand(15..40)
-               else rand(5..15)
-               end
+  when :very_high then rand(150..250)
+  when :high then rand(80..150)
+  when :normal then rand(40..80)
+  when :low then rand(15..40)
+  else rand(5..15)
+  end
 
   posts_created = 0
   post_count.times do
