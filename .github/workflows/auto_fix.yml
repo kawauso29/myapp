@@ -107,6 +107,7 @@ jobs:
             --base main \
             --head "$BRANCH"
 
+      # カテゴリ③: 自動修正ジョブ結果通知
       - name: Notify Slack (auto-fix PR created)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
         run: |
@@ -114,10 +115,11 @@ jobs:
             --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
             --arg pr_url "${{ github.server_url }}/${{ github.repository }}/pulls" \
             '{attachments:[{color:"#f0a500",text:":wrench: *CI lint 失敗 → 自動修正PR作成* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"自動修正PRを確認・マージしてください: \($pr_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
+      # カテゴリ③: 手動修正が必要な場合の通知
       - name: Notify Slack (lint failure, no auto-fix available)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'false'
         run: |
@@ -125,7 +127,7 @@ jobs:
             --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
             --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
             '{attachments:[{color:"#e01e5a",text:":x: *CI失敗（自動修正不可）* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"手動で修正が必要です: \($log_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -247,6 +249,7 @@ jobs:
             })
             core.info(`Created triage issue for failed jobs: ${failedJobs.map(j => j.name).join(', ')}`)
 
+      # カテゴリ③: test/check系 CI失敗通知
       - name: Notify Slack (non-lint CI failure)
         run: |
           PAYLOAD=$(jq -n \
@@ -256,6 +259,6 @@ jobs:
             --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
             --arg issues_url "${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure" \
             '{attachments:[{color:"#e01e5a",text:(":x: *CI失敗（test/check系）* `" + $branch + "` — Issueを確認してください"),fields:[{title:"コミット",value:$msg,short:false},{title:"SHA",value:$sha,short:true},{title:"CIログ",value:$log_url,short:false},{title:"Issue一覧",value:$issues_url,short:false}],footer:"GitHub Actions Auto Triage",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

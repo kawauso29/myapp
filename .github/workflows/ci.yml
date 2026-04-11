@@ -238,6 +238,7 @@ jobs:
     needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
     if: always()
     steps:
+      # カテゴリ①: CI進捗/成功通知
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         run: |
@@ -247,10 +248,11 @@ jobs:
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{attachments:[{color:"#2eb886",text:":white_check_mark: *CI passed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
+      # カテゴリ②: CIエラー通知
       - name: Notify Slack (failure)
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
@@ -261,6 +263,6 @@ jobs:
             --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | job-check: ${{ needs.job-check.result }} | route-check: ${{ needs.route-check.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{attachments:[{color:"#e01e5a",text:":x: *CI failed* `\($ref)` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

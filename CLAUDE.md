@@ -167,6 +167,47 @@ docker compose up
 - Redis: localhost:6379
 - 設定: `docker-compose.yml` + `Dockerfile.dev`
 
+## Slack通知 3カテゴリ設計
+
+### カテゴリ定義と送信先
+
+| カテゴリ | 内容 | GitHub Secret | VPS .env |
+|---|---|---|---|
+| ① CI/Deploy進捗 | CI成功, デプロイ開始/成功, PR通知 | `SLACK_WEBHOOK_URL_CI` | 不要（GitHub Actionsのみ） |
+| ② エラー | CI失敗, デプロイ失敗, アプリ障害, レート制限 | `SLACK_WEBHOOK_URL_ERROR` | `SLACK_WEBHOOK_URL_ERROR` |
+| ③ ジョブ/アクション結果 | auto-fix PR作成, auto-merge結果, triage issue通知 | `SLACK_WEBHOOK_URL_JOBS` | 不要（GitHub Actionsのみ） |
+
+### フォールバック仕様
+
+各シークレットが未設定の場合、既存の `SLACK_WEBHOOK_URL` にフォールバックする（後方互換）。
+新しいシークレットを追加することでチャンネルを分離できる。
+
+### ワークフロー別マッピング
+
+| ワークフロー | 通知 | カテゴリ |
+|---|---|---|
+| `ci.yml` notify success | CI passed | ① |
+| `ci.yml` notify failure | CI failed | ② |
+| `deploy.yml` start/success | デプロイ開始/成功 | ① |
+| `deploy.yml` failure | デプロイ失敗 | ② |
+| `auto_fix.yml` | auto-fix PR作成/lint失敗 | ③ |
+| `auto_fix.yml` triage_ci_failures | test/check系CI失敗Issue | ③ |
+| `pr_ci_fix.yml` | PR CI自動修正結果 | ③ |
+| `post_deploy_cleanup.yml` create_deploy_failure_issue | デプロイ失敗Issue起票 | ② |
+| `auto_merge.yml` | auto-merge失敗 | ③ |
+
+### アプリ側（SlackNotifierService）
+
+`SlackNotifierService` はカテゴリ② 専用。VPS `.env` に `SLACK_WEBHOOK_URL_ERROR` を設定する。
+`deploy.yml` の env sync ステップで `SLACK_WEBHOOK_URL_ERROR` を自動的にVPSへ書き込む。
+
+### Slackからの自動修正ルートについて
+
+Slack→Copilot自動修正（`SlackEventsController` → `SlackForwardToClaudeJob`）は
+**カテゴリ② のエラーメッセージ専用**に限定する。
+CI進捗通知などはここに流さない（`forwardable_message?` のフィルタで制御）。
+自動起動は補助機能扱いで、主経路はIssue/PRコメント起票とする。
+
 ## CI自動リカバリーシステム
 
 ### 仕組みの概要
@@ -268,7 +309,7 @@ main への push
 - jobのspec: `AiUser.where.find_each` で取得した別AIがdaily_stateを持たないとprocess_aiが早期returnしてしまいselectが期待回数呼ばれない → テスト対象の全AIにdaily_stateを作成する
 - CIのSlack通知JSONを文字列直書きするとコミットメッセージの記号/改行で通知ジョブが落ちる → `jq -n --arg ...` で常にJSONを生成する
 - `auto_fix.yml` をCI失敗全体で起動するとlint無関係の失敗でも自動修正フローが走り運用ノイズになる → workflow_runのjob一覧から `lint` 失敗時だけ実行する
-- 本番で `MonitorFailedJobsJob` のSlack通知が来ない場合、VPS `.env` に `SLACK_WEBHOOK_URL` が同期されているか確認する（GitHub Actionsの通知だけ動いていてアプリ通知が無効になる）
+- 本番で `MonitorFailedJobsJob` のSlack通知が来ない場合、VPS `.env` に `SLACK_WEBHOOK_URL_ERROR` が同期されているか確認する（旧 `SLACK_WEBHOOK_URL`。`deploy.yml` が自動同期するが未設定の場合は手動で `SLACK_WEBHOOK_URL_ERROR=<webhook>` を追記）
 - `ActiveJob::UnknownJobClassError` が継続する場合、**誤り**: systemdのsolid_queueサービスを再起動 → **正しい**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内で動作しているため別途再起動不要。Pumaの再起動後に十分な待機時間（10秒）を確保し、その後 `eager_load!` を実行する
 - `ActiveJob::UnknownJobClassError` 再発時、legacyジョブ停止のPID抽出が `$2/$3 == bin/jobs` だけだと `bundle exec bin/jobs` を取りこぼす。`ps -eo pid,args | awk` でコマンド全体を正規表現マッチして停止対象を拾う
 - legacy `bin/jobs` 停止処理で `ps ... args` の全文一致だけを使うと、`ssh-action` 実行中の `bash -c`（スクリプト本文に `bin/jobs` を含む）まで誤検知して自己終了(143)することがある → `ps -eo pid,comm,args` で `bash/sh` を除外し、さらに `$$` と `$PPID` を kill 対象から除外する
