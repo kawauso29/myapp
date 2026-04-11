@@ -1,7 +1,9 @@
 name: Deploy to Sakura VPS
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -12,6 +14,10 @@ on:
 
 jobs:
   build_frontend:
+    # workflow_run の場合は CI が成功した場合のみデプロイ。手動実行は常に実行。
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +46,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build_frontend
+    permissions:
+      contents: read
+    env:
+      COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.inputs.reason || 'Manual deploy' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,9 +60,13 @@ jobs:
 
       - name: Notify Slack (deploy start)
         run: |
+          PAYLOAD=$(jq -n \
+            --arg msg "${COMMIT_MSG}" \
+            --arg actor "${{ github.actor }}" \
+            '{attachments:[{color:"#36c5f0",text:":rocket: *デプロイ開始* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"#36c5f0\",\"text\":\":rocket: *デプロイ開始* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+            -d "${PAYLOAD}"
 
       - name: Copy tarball to VPS
         uses: appleboy/scp-action@v1
@@ -87,6 +101,7 @@ jobs:
             set_env SOLID_QUEUE_IN_PUMA '1'
 
       - name: Deploy Rails + frontend
+        id: deploy_rails
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -96,6 +111,8 @@ jobs:
             set -e
             export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
             cd ~/myapp
+            # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
+            git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
             git fetch origin main
             git reset --hard origin/main
             bundle install
@@ -114,16 +131,77 @@ jobs:
             sleep 5
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 
+      - name: Health check after deploy
+        id: health_check
+        if: steps.deploy_rails.outcome == 'success'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            for i in 1 2 3; do
+              if curl -f -s --max-time 10 http://localhost/ > /dev/null 2>&1; then
+                echo "Health check passed (attempt $i)"
+                exit 0
+              fi
+              echo "Health check failed (attempt $i), retrying in 5s..."
+              sleep 5
+            done
+            echo "Health check failed after 3 attempts"
+            exit 1
+
+      - name: Rollback on failure
+        if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+            cd ~/myapp
+            PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
+            if [ -z "$PRE_SHA" ]; then
+              echo "No pre-deploy SHA found, skipping rollback"
+              exit 1
+            fi
+            echo "Rolling back to $PRE_SHA ..."
+            git reset --hard "$PRE_SHA"
+            bundle install
+            RAILS_ENV=production bin/rails db:migrate
+            rm -rf tmp/cache/*
+            sudo systemctl restart puma
+            sleep 5
+            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+            echo "Rollback to $PRE_SHA complete"
+
       - name: Notify Slack (deploy success)
         if: success()
         run: |
+          PAYLOAD=$(jq -n \
+            --arg msg "${COMMIT_MSG}" \
+            --arg actor "${{ github.actor }}" \
+            '{attachments:[{color:"#2eb886",text:":white_check_mark: *デプロイ成功* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"サーバー",value:"133.167.124.112",short:true}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"#2eb886\",\"text\":\":white_check_mark: *デプロイ成功* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"サーバー\",\"value\":\"133.167.124.112\",\"short\":true}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+            -d "${PAYLOAD}"
 
       - name: Notify Slack (deploy failure)
         if: failure()
         run: |
+          if [ "${{ steps.deploy_rails.outcome }}" = "failure" ]; then
+            ROLLBACK_STATUS="デプロイ中に失敗"
+          else
+            ROLLBACK_STATUS="ヘルスチェック失敗（ロールバック実行）"
+          fi
+          PAYLOAD=$(jq -n \
+            --arg msg "${COMMIT_MSG}" \
+            --arg status "${ROLLBACK_STATUS}" \
+            --arg actor "${{ github.actor }}" \
+            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{attachments:[{color:"#e01e5a",text:":x: *デプロイ失敗* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"原因",value:$status,short:false},{title:"次のアクション",value:"ログを確認してください: \($log_url)",short:false}],footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"#e01e5a\",\"text\":\":x: *デプロイ失敗* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"ログ\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+            -d "${PAYLOAD}"

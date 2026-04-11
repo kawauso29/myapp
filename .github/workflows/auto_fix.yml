@@ -1,0 +1,98 @@
+name: Auto Fix CI Lint Failure
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto_fix_lint:
+    # lint ジョブを含む CI が失敗した場合のみ実行
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    env:
+      RUBOCOP_CACHE_ROOT: tmp/rubocop
+
+    steps:
+      - name: Checkout failing commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Run RuboCop autocorrect
+        id: rubocop
+        run: |
+          bin/rubocop --autocorrect || true
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No auto-fixable RuboCop violations found"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "RuboCop auto-corrections found:"
+            git diff --stat
+          fi
+
+      - name: Create auto-fix PR
+        if: steps.rubocop.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          BRANCH="auto-fix/rubocop-$(date +%Y%m%d-%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "auto-fix: RuboCop autocorrect
+
+          Automatically fixed RuboCop violations after CI lint failure.
+          Triggered by commit: ${HEAD_SHA}"
+          git push origin "$BRANCH"
+          # PR本文をファイルに書き出して特殊文字を安全に扱う
+          PR_BODY=$(jq -n \
+            --arg sha "${HEAD_SHA}" \
+            --arg msg "${HEAD_MSG}" \
+            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${CI_RUN_ID}" \
+            '"## 自動修正PR\n\nCIの **lint** ジョブが失敗したため、`rubocop --autocorrect` で自動修正しました。\n\n**トリガーコミット**: `\($sha)`\n**コミットメッセージ**: `\($msg)`\n**CIログ**: \($log_url)\n\n### レビュー時の確認事項\n- [ ] 自動修正の内容を確認済み（意図しない変更がないか）\n- [ ] 今回のCI失敗原因を `CLAUDE.md` の「CIエラーの原因になったこと」に追記した\n- [ ] 同じ問題が再発しないようにコーディングルールを更新した（必要な場合）"' \
+            -r)
+          echo "$PR_BODY" > /tmp/pr_body.md
+          gh pr create \
+            --title "🤖 auto-fix: RuboCop lint errors ($(date +%Y-%m-%d))" \
+            --body-file /tmp/pr_body.md \
+            --base main \
+            --head "$BRANCH"
+
+      - name: Notify Slack (auto-fix PR created)
+        if: steps.rubocop.outputs.changed == 'true'
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
+            --arg pr_url "${{ github.server_url }}/${{ github.repository }}/pulls" \
+            '{attachments:[{color:"#f0a500",text:":wrench: *CI lint 失敗 → 自動修正PR作成* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"自動修正PRを確認・マージしてください: \($pr_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
+
+      - name: Notify Slack (lint failure, no auto-fix available)
+        if: steps.rubocop.outputs.changed == 'false'
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
+            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
+            '{attachments:[{color:"#e01e5a",text:":x: *CI失敗（自動修正不可）* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"手動で修正が必要です: \($log_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
