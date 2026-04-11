@@ -13,6 +13,18 @@ post_motivation_calculate:
   class: PostMotivationCalculateJob
   queue: low
 
+# 翌日のスケジュールを21:30に生成（daily_state生成後）
+daily_schedule_generate:
+  cron: "30 21 * * *"
+  class: DailyScheduleGenerateJob
+  queue: low
+
+# 毎時間、スケジュールに合わせて状態を更新（6〜25時）
+hourly_state_update:
+  cron: "0 6-25 * * *"
+  class: HourlyStateUpdateJob
+  queue: default
+
 ai_action_check:
   cron: "*/15 * * * *"
   class: AiActionCheckJob
@@ -43,6 +55,12 @@ relationship_memory_update:
   class: RelationshipMemoryUpdateJob
   queue: low
 
+# 毎週土曜14:00にコミュニティグループを検出してRedisに保存
+community_detect:
+  cron: "0 14 * * 6"
+  class: CommunityDetectJob
+  queue: low
+
 avatar_update:
   cron: "0 15 * * *"
   class: AvatarUpdateJob
@@ -57,3 +75,17 @@ expired_memory_cleanup:
   cron: "0 19 * * *"
   class: ExpiredMemoryCleanupJob
   queue: low
+
+# 毎日9:00に年齢変化（誕生日）をチェック
+birthday_check:
+  cron: "0 9 * * *"
+  class: BirthdayCheckJob
+  queue: low
+
+routing_health_check:
+  cron: "*/10 * * * *"
+  class: "RoutingHealthCheckJob"
+
+monitor_failed_jobs:
+  cron: "*/5 * * * *"
+  class: "MonitorFailedJobsJob"

@@ -1,3 +1,5 @@
+require "net/http"
+
 class Admin::DashboardController < Admin::BaseController
   def index
     # 直近スナップショット
@@ -39,5 +41,35 @@ class Admin::DashboardController < Admin::BaseController
 
     # 累計損益
     @total_pnl = TradeResult.sum(:profit_loss).to_f.round(2)
+  end
+
+  def sync_env
+    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    unless token.present?
+      redirect_to admin_root_path, alert: "GITHUB_DEPLOY_TOKEN が設定されていません"
+      return
+    end
+
+    uri = URI("https://api.github.com/repos/kawauso29/myapp/actions/workflows/deploy.yml/dispatches")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 15
+
+    req = Net::HTTP::Post.new(uri.request_uri)
+    req["Authorization"] = "Bearer #{token}"
+    req["Accept"] = "application/vnd.github+json"
+    req["X-GitHub-Api-Version"] = "2022-11-28"
+    req["Content-Type"] = "application/json"
+    req.body = { ref: "main", inputs: { reason: "Admin panel sync" } }.to_json
+
+    res = http.request(req)
+    if res.code == "204"
+      redirect_to admin_root_path, notice: "デプロイを開始しました。GitHub Actions を確認してください。"
+    else
+      redirect_to admin_root_path, alert: "デプロイ起動失敗 (#{res.code}): #{res.body}"
+    end
+  rescue => e
+    redirect_to admin_root_path, alert: "エラー: #{e.message}"
   end
 end

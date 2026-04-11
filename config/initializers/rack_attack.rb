@@ -18,6 +18,6 @@ class Rack::Attack
 
   # ブロック時のレスポンス
   self.throttled_responder = lambda do |req|
-    [429, { "Content-Type" => "application/json" }, [{ error: "Too many requests. Please try again later." }.to_json]]
+    [ 429, { "Content-Type" => "application/json" }, [ { error: "Too many requests. Please try again later." }.to_json ] ]
   end
 end

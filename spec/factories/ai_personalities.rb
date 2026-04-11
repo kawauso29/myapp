@@ -13,6 +13,18 @@ FactoryBot.define do
     empathy { :normal }
     jealousy { :low }
     curiosity { :normal }
+    patience { :normal }
+    optimism { :normal }
+    creativity { :normal }
+    independence { :normal }
+    trustfulness { :normal }
+    competitiveness { :normal }
+    sensitivity { :normal }
+    humor { :normal }
+    nostalgia_tendency { :normal }
+    perfectionism { :normal }
+    stubbornness { :normal }
+    generosity { :normal }
     primary_purpose { :information_seeker }
     follow_philosophy { :casual }
   end

@@ -20,7 +20,7 @@ class CreateAiPosts < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :created_at]
+      t.index [ :ai_user_id, :created_at ]
       t.index :created_at
       t.index :likes_count
       t.index :is_visible

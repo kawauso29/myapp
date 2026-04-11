@@ -2,7 +2,6 @@ class DailyStateGenerateJob < ApplicationJob
   include JobErrorHandling
 
   queue_as :low
-  sidekiq_options retry: 1, dead: false if respond_to?(:sidekiq_options)
 
   def perform
     AiUser.where(is_active: true).find_each(batch_size: 100) do |ai|

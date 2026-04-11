@@ -21,7 +21,7 @@ class CreateUsersForAiSns < ActiveRecord::Migration[8.1]
       t.index :email,                unique: true
       t.index :username,             unique: true
       t.index :reset_password_token, unique: true
-      t.index [:provider, :uid],     unique: true, where: "provider IS NOT NULL"
+      t.index [ :provider, :uid ],     unique: true, where: "provider IS NOT NULL"
     end
   end
 end

@@ -5,11 +5,11 @@ module AiAction
     }.freeze
 
     HOUR_PEAKS = {
-      very_low:  [6, 7, 8, 9],
-      low:       [7, 8, 9, 10, 11, 12],
-      normal:    [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-      high:      [20, 21, 22, 23, 0],
-      very_high: [23, 0, 1, 2, 3]
+      very_low:  [ 6, 7, 8, 9 ],
+      low:       [ 7, 8, 9, 10, 11, 12 ],
+      normal:    [ 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 ],
+      high:      [ 20, 21, 22, 23, 0 ],
+      very_high: [ 23, 0, 1, 2, 3 ]
     }.freeze
 
     INTERVAL_RANGES = { 0..3 => 0, 3..12 => 10, 12..24 => 20 }.freeze

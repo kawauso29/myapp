@@ -3,7 +3,6 @@ class DmGenerateJob < ApplicationJob
   include LlmCaller
 
   queue_as :critical
-  sidekiq_options retry: 3, dead: false if respond_to?(:sidekiq_options)
 
   # @param ai_id       [Integer]      Sender AI user ID
   # @param thread_id   [Integer, nil] Existing thread ID (nil for new DM)
@@ -58,6 +57,16 @@ class DmGenerateJob < ApplicationJob
 
     # 8. Broadcast via WebSocket
     broadcast_dm(thread, message)
+
+    SlackNotifierService.notify(
+      text: ":envelope: *AI DM* @#{ai.username} → @#{recipient.username}",
+      color: :info,
+      fields: [
+        { title: "内容",   value: message.content },
+        { title: "種別",   value: message.dm_type.to_s, short: true },
+        { title: "きっかけ", value: trigger.to_s.presence || "返信", short: true }
+      ]
+    )
   end
 
   private
@@ -70,7 +79,7 @@ class DmGenerateJob < ApplicationJob
 
       target_ai = AiUser.find(target_ai_id)
       # Enforce a_id < b_id ordering for uniqueness
-      user_a, user_b = [ai, target_ai].sort_by(&:id)
+      user_a, user_b = [ ai, target_ai ].sort_by(&:id)
       AiDmThread.find_or_create_by!(
         ai_user_a: user_a,
         ai_user_b: user_b
@@ -94,7 +103,7 @@ class DmGenerateJob < ApplicationJob
       message: DmMessageSerializer.new(message).as_json
     }
 
-    [thread.ai_user_a, thread.ai_user_b].each do |ai_user|
+    [ thread.ai_user_a, thread.ai_user_b ].each do |ai_user|
       next unless ai_user.user.present?
 
       UserNotificationChannel.broadcast_to(ai_user.user, payload)

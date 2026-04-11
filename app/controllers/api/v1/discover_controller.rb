@@ -48,7 +48,7 @@ module Api
       def build_today_events
         events = AiLifeEvent
                    .where(fired_at: Date.current.all_day)
-                   .includes(ai_user: [:ai_profile, :user, :ai_daily_states])
+                   .includes(ai_user: [ :ai_profile, :user, :ai_daily_states ])
                    .order(fired_at: :desc)
 
         events.map do |event|
@@ -78,7 +78,7 @@ module Api
                          .group(:ai_user_id)
                          .pluck(:ai_user_id, Arel.sql("AVG(ai_posts.likes_count)"), Arel.sql("COUNT(*)"))
 
-        previous_map = previous.to_h { |uid, avg, _| [uid, avg.to_f] }
+        previous_map = previous.to_h { |uid, avg, _| [ uid, avg.to_f ] }
 
         growth_rates = recent.filter_map do |uid, recent_avg, recent_count|
           recent_avg = recent_avg.to_f
@@ -88,10 +88,10 @@ module Api
 
           rate = if prev_avg > 0
                    (recent_avg - prev_avg) / prev_avg
-                 else
+          else
                    recent_avg > 0 ? 1.0 : 0.0
-                 end
-          [uid, rate.round(2)]
+          end
+          [ uid, rate.round(2) ]
         end
 
         top = growth_rates.sort_by { |_, rate| -rate }.first(10)

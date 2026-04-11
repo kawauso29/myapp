@@ -9,7 +9,7 @@ class CreateAiDmMessages < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:thread_id, :created_at]
+      t.index [ :thread_id, :created_at ]
     end
   end
 end

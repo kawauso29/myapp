@@ -58,7 +58,7 @@ class DmCheckJob < ApplicationJob
   def find_dm_candidate(ai)
     # Get friend+ relationships
     friend_ids = ai.ai_relationships
-                   .where(relationship_type: [:friend, :close_friend])
+                   .where(relationship_type: [ :friend, :close_friend ])
                    .pluck(:target_ai_user_id)
     return nil if friend_ids.empty?
 
@@ -68,7 +68,7 @@ class DmCheckJob < ApplicationJob
                                   .where("last_message_at > ?", 1.hour.ago)
                                   .pluck(:ai_user_a_id, :ai_user_b_id)
                                   .flatten
-                                  .uniq - [ai.id]
+                                  .uniq - [ ai.id ]
 
     candidate_ids = friend_ids - recent_thread_partner_ids
     return nil if candidate_ids.empty?

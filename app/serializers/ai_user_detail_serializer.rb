@@ -82,7 +82,7 @@ class AiUserDetailSerializer
              .where("relationship_type >= ?", 2)
              .order(interaction_score: :desc)
              .limit(5)
-             .includes(target_ai_user: [:ai_profile, :ai_daily_states])
+             .includes(target_ai_user: [ :ai_profile, :ai_daily_states ])
              .map do |rel|
       {
         ai_user: AiUserSerializer.new(rel.target_ai_user).as_json,

@@ -7,8 +7,16 @@
 # .env:
 #   AI_PROVIDER=gemini|openai|claude
 #   GEMINI_API_KEY=xxx
+#   LLM_DAILY_CALL_LIMIT=500   … 日次呼び出しハードリミット（超過時は軽量モデルにフォールバック）
 class LlmClient
   MAX_RETRIES = 2
+
+  # 予算超過時のフォールバックモデル（最軽量）
+  FALLBACK_MODELS = {
+    "gemini" => "gemini-2.5-flash-lite",
+    "openai" => "gpt-5.4-nano",
+    "claude" => "claude-haiku-4-5-20251001"
+  }.freeze
 
   def self.call(prompt, purpose: :post, max_tokens: 1000)
     new(prompt, purpose: purpose, max_tokens: max_tokens).call
@@ -21,12 +29,13 @@ class LlmClient
   end
 
   def call
+    budget_status = LlmBudgetTracker.increment!(provider)
     retries = 0
     begin
       case provider
-      when "gemini"  then call_gemini
-      when "openai"  then call_openai
-      else                call_claude
+      when "gemini"  then call_gemini(over_limit: budget_status == :over_limit)
+      when "openai"  then call_openai(over_limit: budget_status == :over_limit)
+      else                call_claude(over_limit: budget_status == :over_limit)
       end
     rescue => e
       if retries < MAX_RETRIES
@@ -45,7 +54,9 @@ class LlmClient
     ENV.fetch("AI_PROVIDER", "gemini")
   end
 
-  def model
+  def model(over_limit: false)
+    return FALLBACK_MODELS[provider] if over_limit
+
     case provider
     when "gemini"
       @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gemini-2.5-flash") : ENV.fetch("AI_SNS_POST_MODEL", "gemini-2.5-flash-lite")
@@ -56,10 +67,10 @@ class LlmClient
     end
   end
 
-  def call_gemini
-    uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
+  def call_gemini(over_limit: false)
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model(over_limit: over_limit)}:generateContent?key=#{ENV.fetch('GEMINI_API_KEY')}")
     body = {
-      contents: [{ parts: [{ text: @prompt }] }],
+      contents: [ { parts: [ { text: @prompt } ] } ],
       generationConfig: { maxOutputTokens: @max_tokens }
     }
 
@@ -82,25 +93,25 @@ class LlmClient
     parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s
   end
 
-  def call_openai
+  def call_openai(over_limit: false)
     require "openai"
     client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
     response = client.chat(
       parameters: {
-        model:                model,
+        model:                model(over_limit: over_limit),
         max_completion_tokens: @max_tokens,
-        messages:             [{ role: "user", content: @prompt }]
+        messages:             [ { role: "user", content: @prompt } ]
       }
     )
     response.dig("choices", 0, "message", "content").to_s
   end
 
-  def call_claude
+  def call_claude(over_limit: false)
     client = Anthropic::Client.new(api_key: ENV.fetch("ANTHROPIC_API_KEY"))
     response = client.messages(
-      model:      model,
+      model:      model(over_limit: over_limit),
       max_tokens: @max_tokens,
-      messages:   [{ role: "user", content: @prompt }]
+      messages:   [ { role: "user", content: @prompt } ]
     )
     response.dig("content", 0, "text").to_s
   end

@@ -3,7 +3,6 @@ class PostGenerateJob < ApplicationJob
   include LlmCaller
 
   queue_as :critical
-  sidekiq_options retry: 3, dead: false if respond_to?(:sidekiq_options)
 
   def perform(ai_id, motivation)
     ai = AiUser.find(ai_id)
@@ -50,8 +49,22 @@ class PostGenerateJob < ApplicationJob
     # Broadcast via WebSocket
     broadcast_post(ai, post)
 
-    # Push notification to favorited users
-    Notification::OwnerNotificationService.notify_post(ai, post)
+    # Push notification to favorited users (failure must not fail the post)
+    begin
+      Notification::OwnerNotificationService.notify_post(ai, post)
+    rescue => e
+      Rails.logger.error("PostGenerateJob notify_post failed for ai_id=#{ai.id}: #{e.class}: #{e.message}")
+    end
+
+    SlackNotifierService.notify(
+      text: ":pencil: *AI投稿* @#{ai.username}",
+      color: :success,
+      fields: [
+        { title: "内容",           value: post.content },
+        { title: "モチベーション", value: motivation[:primary].to_s, short: true },
+        { title: "気分",           value: post.mood_expressed.to_s, short: true }
+      ]
+    )
   end
 
   private

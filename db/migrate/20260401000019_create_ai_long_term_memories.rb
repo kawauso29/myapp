@@ -10,7 +10,7 @@ class CreateAiLongTermMemories < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :importance, :occurred_on]
+      t.index [ :ai_user_id, :importance, :occurred_on ]
     end
   end
 end

@@ -10,6 +10,8 @@ module AiAction
       @personality = ai_user.ai_personality
       @state = daily_state
       @motivation = motivation
+      @current_hour = Time.current.in_time_zone("Tokyo").hour
+      @schedule = ai_user.ai_daily_schedules.find_by(scheduled_date: Date.current)
     end
 
     def build
@@ -18,7 +20,7 @@ module AiAction
 
         ## プロフィール
         名前: #{@profile.name}
-        年齢: #{@profile.age}歳
+        年齢: #{@profile.current_age}歳
         職業: #{@profile.occupation}
         居住地: #{@profile.location}
         自己紹介: #{@profile.bio}
@@ -35,6 +37,9 @@ module AiAction
         ## 今日の外部状況
         #{external_context_section}
 
+        ## 今日のスケジュールと現在の状況
+        #{schedule_section}
+
         #{memory_section}
 
         ## 今回の投稿動機
@@ -47,6 +52,7 @@ module AiAction
         - AIであること、AIが書いたことを示唆する表現は絶対に使わない
         - 「投稿します」などのメタ発言はしない
         - 敬語・タメ口は年齢と性格に合わせる
+        - 今日の出来事・予定・気分と整合する内容にする
 
         ## 出力形式（JSON、他の文字は一切出力しない）
         {
@@ -77,7 +83,14 @@ module AiAction
       parts = []
       parts << "体調: #{@state.physical}"
       parts << "気分: #{@state.mood}"
+      parts << "朝の目覚め: #{@state.morning_mood}"
       parts << "忙しさ: #{@state.busyness}"
+      parts << "エネルギー: #{@state.energy}"
+      parts << "集中力: #{@state.concentration}"
+      parts << "食欲: #{@state.appetite}"
+      parts << "ストレスレベル: #{@state.stress_level}/100"
+      parts << "社交エネルギー: #{@state.social_battery}/100"
+      parts << "外出予定: #{@state.going_out? ? 'あり' : 'なし'}"
       parts << "飲酒中（レベル#{@state.drinking_level}/3）" if @state.is_drinking
       parts << "今日の気まぐれ: #{@state.daily_whim}"
       parts.join("\n")
@@ -85,26 +98,78 @@ module AiAction
 
     def external_context_section
       parts = []
+      parts << "現在時刻: #{@current_hour}時"
       parts << "曜日: #{%w[日 月 火 水 木 金 土][Date.current.wday]}曜日"
       parts << "天気: #{@state.weather_condition || 'normal'}"
       parts << "イベント: #{@state.today_events.join('、')}" if @state.today_events.any?
       season = case Date.current.month
-               when 3..5 then "春"
-               when 6..8 then "夏"
-               when 9..11 then "秋"
-               else "冬"
-               end
+      when 3..5 then "春"
+      when 6..8 then "夏"
+      when 9..11 then "秋"
+      else "冬"
+      end
       parts << "季節: #{season}"
       parts.join("\n")
+    end
+
+    def schedule_section
+      return "（本日のスケジュールなし）" unless @schedule
+
+      parts = []
+
+      # 今やっていること
+      current = @schedule.current_activity(@current_hour)
+      parts << "今していること: #{current['activity']}（#{current['location']}）" if current
+
+      # 直近の予定
+      upcoming = @schedule.upcoming_activities(@current_hour, limit: 3)
+      if upcoming.any?
+        upcoming_text = upcoming.map { |u| "#{u['hour']}時: #{u['activity']}" }.join("、")
+        parts << "これからの予定: #{upcoming_text}"
+      end
+
+      # 今日終わったこと
+      past = @schedule.past_activities(@current_hour)
+      if past.any?
+        done_text = past.last(3).map { |p| p["activity"] }.join("、")
+        parts << "今日やったこと: #{done_text}"
+      end
+
+      # 週の文脈
+      parts << "今週の状況: #{@schedule.week_context}" if @schedule.week_context.present?
+
+      # hourly_states から直近の状態変化
+      recent_hourly = @state.hourly_states.last(2)
+      if recent_hourly.any?
+        mood_delta = recent_hourly.sum { |s| s["mood_delta"].to_i }
+        parts << "直近の気分変化: #{mood_delta > 0 ? '+' : ''}#{mood_delta}" if mood_delta != 0
+      end
+
+      parts.any? ? parts.join("\n") : "（特定のスケジュールなし）"
     end
 
     def memory_section
       sections = []
 
-      long_term = @ai.ai_long_term_memories.order(importance: :desc, occurred_on: :desc).limit(5)
-      if long_term.any?
-        sections << "## あなたの記憶（重要な出来事）\n" +
-                    long_term.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
+      # 直近のライフイベント（最優先で表示）
+      recent_events = @ai.ai_long_term_memories
+                         .where(memory_type: :life_event)
+                         .where("occurred_on >= ?", 30.days.ago.to_date)
+                         .order(occurred_on: :desc)
+                         .limit(2)
+      if recent_events.any?
+        sections << "## 最近起きた大きな出来事（投稿内容と整合させること）\n" +
+                    recent_events.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
+      end
+
+      # その他の長期記憶
+      other_long_term = @ai.ai_long_term_memories
+                           .where.not(memory_type: :life_event)
+                           .order(importance: :desc, occurred_on: :desc)
+                           .limit(3)
+      if other_long_term.any?
+        sections << "## あなたの記憶\n" +
+                    other_long_term.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
       end
 
       short_term = @ai.ai_short_term_memories.active.order(created_at: :desc).limit(3)
@@ -116,9 +181,8 @@ module AiAction
     end
 
     def length_guide
-      base = 70 # デフォルト文字数目安
+      base = 70
 
-      # 性格による加減
       if @personality&.self_expression_high? || @personality&.self_expression_very_high?
         base += 40
       elsif @personality&.self_expression_low? || @personality&.self_expression_very_low?
@@ -131,15 +195,13 @@ module AiAction
         base -= 20
       end
 
-      # 今日の気分による加減
       case @state&.daily_whim
-      when "chatty" then base += 30
-      when "quiet" then base -= 30
+      when "chatty"        then base += 30
+      when "quiet"         then base -= 30
       when "philosophical" then base += 40
-      when "creative" then base += 20
+      when "creative"      then base += 20
       end
 
-      # 体調による加減
       base -= 20 if @state&.physical == "tired" || @state&.physical == "sick"
 
       base = base.clamp(20, 140)
@@ -148,14 +210,14 @@ module AiAction
 
     def motivation_text
       labels = {
-        venting: "気持ちを吐き出したい",
+        venting:          "気持ちを吐き出したい",
         approval_seeking: "共感してほしい・いいねがほしい",
-        connecting: "誰かとつながりたい",
-        sharing: "面白い体験を共有したい",
-        reacting: "何かに反応したい",
-        killing_time: "暇つぶし",
-        self_expressing: "自分を表現したい",
-        recording: "今日の記録を残したい"
+        connecting:       "誰かとつながりたい",
+        sharing:          "面白い体験を共有したい",
+        reacting:         "何かに反応したい",
+        killing_time:     "暇つぶし",
+        self_expressing:  "自分を表現したい",
+        recording:        "今日の記録を残したい"
       }
       labels[@motivation[:primary]] || "暇つぶし"
     end

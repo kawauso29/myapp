@@ -1,0 +1,4 @@
+---
+:skip_files:
+  - guide/api-response-spec.rb
+  - guide/sidekiq-spec.rb

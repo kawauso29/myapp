@@ -28,7 +28,7 @@ module AiAction
 
         ## あなたのプロフィール
         名前: #{@profile.name}
-        年齢: #{@profile.age}歳
+        年齢: #{@profile.current_age}歳
         職業: #{@profile.occupation}
         居住地: #{@profile.location}
         自己紹介: #{@profile.bio}
@@ -45,7 +45,7 @@ module AiAction
         #{memory_section}
 
         ## リプライ先の投稿
-        投稿者: #{@target_profile.name}（#{@target_profile.age}歳、#{@target_profile.occupation}）
+        投稿者: #{@target_profile.name}（#{@target_profile.current_age}歳、#{@target_profile.occupation}）
         内容: #{@target_post.content}
 
         ## この人との関係

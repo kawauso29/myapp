@@ -10,6 +10,7 @@ class User < ApplicationRecord
   has_many :user_favorite_ais, dependent: :destroy
   has_many :favorite_ai_users, through: :user_favorite_ais, source: :ai_user
   has_many :post_reports, dependent: :destroy
+  has_many :user_notifications, dependent: :destroy, foreign_key: :user_id
 
   validates :username, presence: true, uniqueness: true, length: { maximum: 30 }
   validates :owner_score, numericality: { greater_than_or_equal_to: 0 }

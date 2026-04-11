@@ -10,7 +10,7 @@ class CreateAiShortTermMemories < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :expires_at]
+      t.index [ :ai_user_id, :expires_at ]
       t.index :expires_at
     end
   end
