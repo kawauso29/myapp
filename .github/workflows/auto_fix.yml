@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUBOCOP_CACHE_ROOT: tmp/rubocop
+      LINT_JOB_NAME: lint
 
     steps:
       - name: Check whether lint job failed
@@ -34,15 +35,16 @@ jobs:
               per_page: 100,
             })
 
-            const lintJob = response.data.jobs.find((job) => job.name === "lint")
+            const lintJobName = process.env.LINT_JOB_NAME || "lint"
+            const lintJob = response.data.jobs.find((job) => job.name === lintJobName)
             if (!lintJob) {
-              core.warning(`lint job not found in workflow run ${runId}`)
+              core.warning(`${lintJobName} job not found in workflow run ${runId}`)
               core.setOutput("lint_failed", "false")
               return
             }
 
             const lintFailed = lintJob.conclusion === "failure"
-            core.info(`lint job conclusion: ${lintJob.conclusion}`)
+            core.info(`${lintJobName} job conclusion: ${lintJob.conclusion}`)
             core.setOutput("lint_failed", lintFailed ? "true" : "false")
 
       - name: Checkout failing commit
