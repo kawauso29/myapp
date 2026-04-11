@@ -9,7 +9,7 @@ class CreateAiDailySchedules < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :ai_daily_schedules, [:ai_user_id, :scheduled_date], unique: true
+    add_index :ai_daily_schedules, [ :ai_user_id, :scheduled_date ], unique: true
     add_index :ai_daily_schedules, :scheduled_date
   end
 end

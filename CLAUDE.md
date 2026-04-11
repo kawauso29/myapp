@@ -116,7 +116,7 @@ Pumaの再起動: `sudo systemctl restart puma`
 
 ### 概要
 
-エラー通知チャネルのメッセージを検知し、Claudeチャネルに `@claude` メンション付きで自動転送する。
+エラー通知チャネルのメッセージを検知し、Claudeチャネルに `@GitHub` メンション付きで自動転送する。
 
 - エンドポイント: `POST /slack/events`
 - 転送ジョブ: `SlackForwardToClaudeJob`
@@ -129,7 +129,6 @@ Pumaの再起動: `sudo systemctl restart puma`
 | `SLACK_BOT_TOKEN` | Slack App → OAuth & Permissions → Bot User OAuth Token（xoxb-...）|
 | `SLACK_ERROR_CHANNEL_ID` | 監視対象チャネルのID（Cxxxxx）|
 | `SLACK_CLAUDE_CHANNEL_ID` | 転送先ClaudeチャネルのID |
-| `SLACK_CLAUDE_MEMBER_ID` | Claude Code for SlackのメンバーID（Uxxxxx）|
 
 ### Slack App設定
 
