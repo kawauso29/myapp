@@ -230,3 +230,7 @@ main への push
 - privateブロック内に定数を定義するとRuboCop警告 → privateより前に定義する
 - `"str" + method()` の文字列結合 → `"str#{method()}"` 補間を使う
 - `Time.now` はRails/TimeZone違反 → `Time.current` を使う
+- `Redis.current` は Redis 5.x で廃止 → `$redis`（`config/initializers/redis.rb` で定義）を使う
+- テスト環境で `Rack::Attack` のレート制限がリクエストspecに干渉する → `config/initializers/rack_attack.rb` で `Rails.env.test?` の場合は `Rack::Attack.enabled = false` にする
+- jobのspec: `AiUser.find(id)` はDBから新規インスタンスを返すため、インスタンスレベルのstubが効かない → `allow(AiUser).to receive(:find).with(id).and_return(instance)` でstubする
+- jobのspec: `AiUser.where.find_each` で取得した別AIがdaily_stateを持たないとprocess_aiが早期returnしてしまいselectが期待回数呼ばれない → テスト対象の全AIにdaily_stateを作成する
