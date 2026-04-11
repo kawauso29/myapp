@@ -89,13 +89,17 @@ jobs:
                 pr = data;
               }
             } else {
+              if (!detectedHeadOwner) {
+                core.info('Unable to determine PR head owner from workflow_run payload, skipping');
+                return;
+              }
               const { data: prs } = await github.rest.pulls.list({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'open',
                 head: `${headOwner}:${headBranch}`
               });
-              pr = prs.find(p => p.head.ref === headBranch);
+              pr = prs.find(p => p.head.sha === headSha);
             }
 
             if (!pr) {
@@ -116,9 +120,13 @@ jobs:
             const hasLabel = pr.labels.some(l => l.name === 'automerge');
             if (!hasLabel) {
               const prHeadRepoFullName = pr.head.repo?.full_name;
+              if (!prHeadRepoFullName) {
+                core.info(`PR #${pr.number}: head repository is unavailable, skipping`);
+                return;
+              }
               const isSameRepoPr = prHeadRepoFullName === `${context.repo.owner}/${context.repo.repo}`;
               if (!isSameRepoPr) {
-                core.info(`PR #${pr.number}: automerge label not found on non-repo branch, skipping`);
+                core.info(`PR #${pr.number}: automerge label not found on cross-repository PR, skipping`);
                 return;
               }
               core.info(`PR #${pr.number}: automerge label not found, adding automatically`);
