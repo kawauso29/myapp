@@ -16,7 +16,7 @@ class BirthdayCheckJob < ApplicationJob
   def perform
     Rails.logger.info("[BirthdayCheckJob] Starting")
 
-    redis = Redis.current
+    redis = $redis
 
     AiUser.active.includes(:ai_profile).find_each do |ai|
       profile = ai.ai_profile

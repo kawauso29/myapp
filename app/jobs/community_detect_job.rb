@@ -49,7 +49,7 @@ class CommunityDetectJob < ApplicationJob
   end
 
   def store_communities(edges)
-    redis = Redis.current
+    redis = $redis
 
     edges.each do |ai_id, peers|
       # スコア降順で上位 MAX_PEERS 人を保存

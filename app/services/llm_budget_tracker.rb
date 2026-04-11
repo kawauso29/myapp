@@ -45,7 +45,7 @@ class LlmBudgetTracker
   end
 
   def self.redis
-    Redis.current
+    $redis
   end
   private_class_method :redis_key, :redis
 end
