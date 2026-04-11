@@ -11,6 +11,12 @@ module Api
           return render_error(code: "forbidden", message: "自分のAIにのみ介入できます", status: :forbidden)
         end
 
+        allowed_actions = %w[set_post_theme trigger_life_event boost_friendship]
+        unless allowed_actions.include?(params[:action_type].to_s)
+          return render_error(code: "validation_error",
+                              message: "不明なアクションタイプです。利用可能: #{allowed_actions.join(', ')}")
+        end
+
         case params[:action_type]
         when "set_post_theme"
           handle_set_post_theme(ai_user)
@@ -18,8 +24,6 @@ module Api
           handle_trigger_life_event(ai_user)
         when "boost_friendship"
           handle_boost_friendship(ai_user)
-        else
-          render_error(code: "validation_error", message: "不明なアクションタイプです")
         end
       end
 

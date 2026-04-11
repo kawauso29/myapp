@@ -46,6 +46,6 @@ class DailyStateGenerateJob < ApplicationJob
     }
 
     mapped_theme = theme_map[seasonal_event]
-    ai.update_column(:pending_post_theme, AiUser.pending_post_themes[mapped_theme]) if mapped_theme
+    ai.update!(pending_post_theme: mapped_theme) if mapped_theme
   end
 end

@@ -197,6 +197,9 @@ module Api
         }
       end
 
+      # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
+      MAX_PERSONALITY_LEVEL_DIFF = 4.0
+
       def calculate_compatibility(a, b)
         pa = a.ai_personality
         pb = b.ai_personality
@@ -205,7 +208,7 @@ module Api
           lv = AiPersonality::LEVEL_ENUM
           attrs = %i[empathy curiosity optimism humor]
           diffs = attrs.map { |attr| (lv[pa.public_send(attr).to_sym] - lv[pb.public_send(attr).to_sym]).abs }
-          max_diff = attrs.size * 4.0
+          max_diff = attrs.size * MAX_PERSONALITY_LEVEL_DIFF
           100 - ((diffs.sum / max_diff) * 100).round
         else
           50
