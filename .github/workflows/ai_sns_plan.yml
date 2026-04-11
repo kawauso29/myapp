@@ -1,0 +1,168 @@
+name: AI SNS 計画 自動進行
+
+on:
+  workflow_dispatch:
+    inputs:
+      item_id:
+        description: "実装する項目ID（空の場合は次の高優先度項目を自動選択）"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 1 * * 1"  # 毎週月曜 10:00 JST
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  advance_plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 次の実装項目を選択
+        id: select
+        run: |
+          INPUT_ID="${{ github.event.inputs.item_id }}"
+
+          select_todo() {
+            local priority="$1"
+            yq ".items | to_entries | map(select(.value.status == \"todo\" and .value.priority == \"${priority}\")) | .[0].key // \"\"" \
+              docs/ai_sns_plan_status.yml
+          }
+
+          if [ -n "$INPUT_ID" ] && [ "$INPUT_ID" != "" ]; then
+            ITEM_ID="$INPUT_ID"
+          else
+            # 高→中→低の優先度順で次の todo を探す
+            ITEM_ID=$(select_todo "high")
+            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+              ITEM_ID=$(select_todo "medium")
+            fi
+            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+              ITEM_ID=$(select_todo "low")
+            fi
+          fi
+
+          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "全項目が完了済みです。スキップします。"
+            exit 0
+          fi
+
+          STATUS=$(yq ".items.${ITEM_ID}.status" docs/ai_sns_plan_status.yml)
+          if [ "$STATUS" = "done" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "[${ITEM_ID}] は実装済みです。スキップします。"
+            exit 0
+          fi
+
+          TITLE=$(yq ".items.${ITEM_ID}.title" docs/ai_sns_plan_status.yml)
+          CATEGORY=$(yq ".items.${ITEM_ID}.category" docs/ai_sns_plan_status.yml)
+          PRIORITY=$(yq ".items.${ITEM_ID}.priority" docs/ai_sns_plan_status.yml)
+          NOTES=$(yq ".items.${ITEM_ID}.notes" docs/ai_sns_plan_status.yml)
+
+          echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
+          echo "item_title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "item_category=${CATEGORY}" >> "$GITHUB_OUTPUT"
+          echo "item_priority=${PRIORITY}" >> "$GITHUB_OUTPUT"
+          echo "item_notes=${NOTES}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+          echo "選択された項目: [${ITEM_ID}] ${TITLE}"
+
+      - name: ステータスを in_progress に更新してコミット
+        if: steps.select.outputs.skip == 'false'
+        run: |
+          ITEM_ID="${{ steps.select.outputs.item_id }}"
+          yq -i ".items.${ITEM_ID}.status = \"in_progress\"" docs/ai_sns_plan_status.yml
+          yq -i "del(.items.${ITEM_ID}.completed_at)" docs/ai_sns_plan_status.yml
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add docs/ai_sns_plan_status.yml
+          git diff --staged --quiet || git commit -m "plan: [${ITEM_ID}] ステータスを in_progress に更新"
+          git push origin HEAD
+
+      - name: 実装依頼 Issue を起票
+        if: steps.select.outputs.skip == 'false'
+        id: create_issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const itemId = '${{ steps.select.outputs.item_id }}'
+            const title = '${{ steps.select.outputs.item_title }}'
+            const category = '${{ steps.select.outputs.item_category }}'
+            const priority = '${{ steps.select.outputs.item_priority }}'
+            const notes = '${{ steps.select.outputs.item_notes }}'
+
+            const priorityLabel = { high: '★★★ 高', medium: '★★☆ 中', low: '★☆☆ 低' }[priority] || priority
+
+            const body = `## AI SNS 改良計画 実装依頼 [${itemId}]
+
+**項目**: ${title}
+**優先度**: ${priorityLabel}
+**カテゴリ**: ${category}
+
+### 概要
+${notes}
+
+### 参考ドキュメント
+- \`docs/ai_sns_improvement_plan.md\` — 全体計画書
+- \`docs/ai_sns_plan_status.yml\` — 進捗管理ファイル
+
+### 実装完了後の手順
+実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新して PR に含めてください。
+
+---
+
+@github-copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[AI SNS計画] [${itemId}] ${title}`,
+              body,
+              labels: ['ai-sns', 'copilot']
+            })
+
+            console.log(`Issue created: #${issue.data.number} ${issue.data.html_url}`)
+            core.setOutput('issue_number', issue.data.number)
+            core.setOutput('issue_url', issue.data.html_url)
+
+      - name: Slack 通知
+        if: steps.select.outputs.skip == 'false'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL が未設定のためスキップ"
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg item_id "${{ steps.select.outputs.item_id }}" \
+            --arg title "${{ steps.select.outputs.item_title }}" \
+            --arg issue_url "${{ steps.create_issue.outputs.issue_url }}" \
+            --arg issue_num "${{ steps.create_issue.outputs.issue_number }}" \
+            '{
+              text: ("🤖 AI SNS計画 次の実装を Copilot に依頼しました\n" +
+                     "*[" + $item_id + "]* " + $title + "\n" +
+                     "Issue #" + $issue_num + ": " + $issue_url)
+            }')
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
+
+      - name: 全項目完了通知
+        if: steps.select.outputs.skip == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          echo "🎉 AI SNS 改良計画の全項目が完了済みです"
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            PAYLOAD=$(jq -n '{ text: "🎉 AI SNS 改良計画の全項目が完了しました！" }')
+            curl -s -X POST -H 'Content-type: application/json' \
+              --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
+          fi
