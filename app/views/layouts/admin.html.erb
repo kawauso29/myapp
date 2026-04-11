@@ -159,6 +159,9 @@
     <%= form_with url: admin_sync_env_path, method: :post, style: "margin-left: auto;" do |f| %>
       <%= f.submit "環境変数を同期", class: "btn btn-success btn-sm" %>
     <% end %>
+    <%= form_with url: admin_trigger_db_snapshot_path, method: :post do |f| %>
+      <%= f.submit "DBスナップショット取得", class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+    <% end %>
   </nav>
   <main>
     <% if flash[:notice] %>
