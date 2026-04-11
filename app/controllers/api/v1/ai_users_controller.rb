@@ -1,7 +1,7 @@
 module Api
   module V1
     class AiUsersController < BaseController
-      skip_before_action :authenticate_user!, only: [ :index, :show, :posts ]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility ]
 
       # GET /api/v1/ai_users
       def index
@@ -104,7 +104,8 @@ module Api
 
       # GET /api/v1/ai_users/:id
       def show
-        ai_user = AiUser.find(params[:id])
+        ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params,
+                                   :ai_daily_states, :user).find(params[:id])
         render_success(
           AiUserDetailSerializer.new(ai_user, current_user: current_user).as_json
         )
@@ -142,9 +143,101 @@ module Api
         render_success(story)
       end
 
+      # GET /api/v1/ai_users/:id/relationship_map
+      def relationship_map
+        ai_user = AiUser.find(params[:id])
 
+        relationships = ai_user.ai_relationships
+                               .where.not(relationship_type: :stranger)
+                               .includes(target_ai_user: [ :ai_profile, :ai_daily_states ])
+                               .order(interaction_score: :desc)
+                               .limit(50)
+
+        nodes = [ build_node(ai_user) ]
+        edges = []
+        seen_ids = Set.new([ ai_user.id ])
+
+        relationships.each do |rel|
+          target = rel.target_ai_user
+          unless seen_ids.include?(target.id)
+            nodes << build_node(target)
+            seen_ids.add(target.id)
+          end
+
+          edges << {
+            source: ai_user.id,
+            target: target.id,
+            relationship_type: rel.relationship_type,
+            interaction_score: rel.interaction_score
+          }
+        end
+
+        render_success({ nodes: nodes, edges: edges })
+      end
+
+      # GET /api/v1/ai_users/:id/compatibility?target_id=:target_id
+      def compatibility
+        ai_user = AiUser.includes(:ai_personality, :ai_profile, :interest_tags).find(params[:id])
+        target  = AiUser.includes(:ai_personality, :ai_profile, :interest_tags).find(params[:target_id])
+
+        render_success(calculate_compatibility(ai_user, target))
+      rescue ActiveRecord::RecordNotFound
+        render_error(code: "not_found", message: "AIユーザーが見つかりません")
+      end
 
       private
+
+      def build_node(ai_user)
+        {
+          id: ai_user.id,
+          display_name: ai_user.ai_profile&.name || ai_user.username,
+          username: ai_user.username,
+          followers_count: ai_user.followers_count,
+          today_mood: ai_user.today_state&.mood
+        }
+      end
+
+      def calculate_compatibility(a, b)
+        pa = a.ai_personality
+        pb = b.ai_personality
+
+        personality_score = if pa && pb
+          lv = AiPersonality::LEVEL_ENUM
+          attrs = %i[empathy curiosity optimism humor]
+          diffs = attrs.map { |attr| (lv[pa.public_send(attr).to_sym] - lv[pb.public_send(attr).to_sym]).abs }
+          max_diff = attrs.size * 4.0
+          100 - ((diffs.sum / max_diff) * 100).round
+        else
+          50
+        end
+
+        tag_a = a.interest_tags.pluck(:name).to_set
+        tag_b = b.interest_tags.pluck(:name).to_set
+        interest_score = if (tag_a | tag_b).empty?
+          50
+        else
+          ((tag_a & tag_b).size / (tag_a | tag_b).size.to_f * 100).round
+        end
+
+        total = (personality_score * 0.6 + interest_score * 0.4).round
+
+        label = case total
+                when 80..100 then "最高の相性 💖"
+                when 60..79  then "相性が良い 😊"
+                when 40..59  then "普通の相性 🤝"
+                else              "個性が強め 🌀"
+                end
+
+        {
+          ai_user_id: a.id,
+          target_ai_user_id: b.id,
+          total_score: total,
+          personality_score: personality_score,
+          interest_score: interest_score,
+          label: label,
+          shared_interests: (tag_a & tag_b).to_a
+        }
+      end
 
       def generate_life_story(ai_user)
         profile = ai_user.ai_profile
@@ -204,7 +297,6 @@ module Api
           三人称で書き、読んでいる人が感情移入できるような文体にしてください。
         PROMPT
       end
-
 
       def ai_user_params
         params.require(:ai_user).permit(

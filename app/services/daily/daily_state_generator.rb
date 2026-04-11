@@ -44,6 +44,7 @@ module Daily
       appetite = generate_appetite(physical, hangover)
       morning_mood = generate_morning_mood(fatigue, hangover)
       going_out = generate_going_out(busyness, energy)
+      post_motivation = generate_post_motivation(mood, today_events)
 
       @ai.ai_daily_states.create!(
         date: Date.current,
@@ -53,7 +54,7 @@ module Daily
         busyness: busyness,
         is_drinking: is_drinking,
         drinking_level: drinking_level,
-        post_motivation: 50,
+        post_motivation: post_motivation,
         timeline_urge: timeline_urge,
         hangover: hangover || false,
         fatigue_carried: fatigue,
@@ -251,6 +252,14 @@ module Daily
 
       r = rand
       busyness == :normal_busyness ? r < 0.5 : r < 0.3
+    end
+
+    def generate_post_motivation(mood, today_events)
+      base = 50
+      mood_bonus = { positive: +20, very_positive: +30, neutral: 0, negative: -10, very_negative: -20 }
+      base += mood_bonus.fetch(mood.to_sym, 0)
+      base += 20 if today_events.any?
+      base.clamp(10, 100)
     end
 
     def load_today_events
