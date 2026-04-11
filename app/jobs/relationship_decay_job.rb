@@ -7,7 +7,6 @@ class RelationshipDecayJob < ApplicationJob
   include JobErrorHandling
 
   queue_as :low
-  sidekiq_options retry: 1, dead: false if respond_to?(:sidekiq_options)
 
   # Relationship type thresholds (composite score)
   TYPE_THRESHOLDS = {

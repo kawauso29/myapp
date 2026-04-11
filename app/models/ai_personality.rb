@@ -28,6 +28,7 @@ class AiPersonality < ApplicationRecord
     influencer:         7
   }.freeze
 
+  # ── 既存パラメータ ──────────────────────────
   enum :sociability,        LEVEL_ENUM, prefix: true
   enum :post_frequency,     LEVEL_ENUM, prefix: true
   enum :active_time_peak,   LEVEL_ENUM, prefix: true
@@ -40,8 +41,24 @@ class AiPersonality < ApplicationRecord
   enum :empathy,            LEVEL_ENUM, prefix: true
   enum :jealousy,           LEVEL_ENUM, prefix: true
   enum :curiosity,          LEVEL_ENUM, prefix: true
-  enum :primary_purpose,    PURPOSE_ENUM, prefix: true
-  enum :secondary_purpose,  PURPOSE_ENUM, prefix: true
+
+  # ── 追加パラメータ ──────────────────────────
+  enum :patience,           LEVEL_ENUM, prefix: true  # 忍耐力
+  enum :optimism,           LEVEL_ENUM, prefix: true  # 楽観性
+  enum :creativity,         LEVEL_ENUM, prefix: true  # 創造性
+  enum :independence,       LEVEL_ENUM, prefix: true  # 独立心
+  enum :trustfulness,       LEVEL_ENUM, prefix: true  # 人への信頼度
+  enum :competitiveness,    LEVEL_ENUM, prefix: true  # 競争心
+  enum :sensitivity,        LEVEL_ENUM, prefix: true  # 敏感さ
+  enum :humor,              LEVEL_ENUM, prefix: true  # ユーモアセンス
+  enum :nostalgia_tendency, LEVEL_ENUM, prefix: true  # 懐古的傾向
+  enum :perfectionism,      LEVEL_ENUM, prefix: true  # 完璧主義度
+  enum :stubbornness,       LEVEL_ENUM, prefix: true  # こだわりの強さ
+  enum :generosity,         LEVEL_ENUM, prefix: true  # 気前の良さ
+
+  # ── 目的・哲学 ──────────────────────────────
+  enum :primary_purpose,   PURPOSE_ENUM, prefix: true
+  enum :secondary_purpose, PURPOSE_ENUM, prefix: true
 
   enum :follow_philosophy, {
     casual:     1,
@@ -55,21 +72,31 @@ class AiPersonality < ApplicationRecord
             :need_for_approval, :emotional_range, :risk_tolerance,
             :self_expression, :drinking_frequency, :self_esteem,
             :empathy, :jealousy, :curiosity,
+            :patience, :optimism, :creativity, :independence,
+            :trustfulness, :competitiveness, :sensitivity, :humor,
+            :nostalgia_tendency, :perfectionism, :stubbornness, :generosity,
             presence: true
   validates :primary_purpose, :follow_philosophy, presence: true
 
   def to_prompt_hash
     {
-      sociability:       LEVEL_LABELS[sociability.to_sym],
-      post_frequency:    LEVEL_LABELS[post_frequency.to_sym],
-      active_time_peak:  active_time_label,
-      need_for_approval: LEVEL_LABELS[need_for_approval.to_sym],
-      emotional_range:   LEVEL_LABELS[emotional_range.to_sym],
-      risk_tolerance:    LEVEL_LABELS[risk_tolerance.to_sym],
-      self_expression:   LEVEL_LABELS[self_expression.to_sym],
-      self_esteem:       LEVEL_LABELS[self_esteem.to_sym],
-      empathy:           LEVEL_LABELS[empathy.to_sym],
-      primary_purpose:   purpose_label(primary_purpose)
+      sociability:        LEVEL_LABELS[sociability.to_sym],
+      post_frequency:     LEVEL_LABELS[post_frequency.to_sym],
+      active_time_peak:   active_time_label,
+      need_for_approval:  LEVEL_LABELS[need_for_approval.to_sym],
+      emotional_range:    LEVEL_LABELS[emotional_range.to_sym],
+      risk_tolerance:     LEVEL_LABELS[risk_tolerance.to_sym],
+      self_expression:    LEVEL_LABELS[self_expression.to_sym],
+      self_esteem:        LEVEL_LABELS[self_esteem.to_sym],
+      empathy:            LEVEL_LABELS[empathy.to_sym],
+      curiosity:          LEVEL_LABELS[curiosity.to_sym],
+      patience:           LEVEL_LABELS[patience.to_sym],
+      optimism:           LEVEL_LABELS[optimism.to_sym],
+      creativity:         LEVEL_LABELS[creativity.to_sym],
+      sensitivity:        LEVEL_LABELS[sensitivity.to_sym],
+      humor:              LEVEL_LABELS[humor.to_sym],
+      perfectionism:      LEVEL_LABELS[perfectionism.to_sym],
+      primary_purpose:    purpose_label(primary_purpose)
     }
   end
 

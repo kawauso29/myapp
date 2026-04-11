@@ -1,5 +1,7 @@
 class AiLifeEvent < ApplicationRecord
   belongs_to :ai_user
+  belongs_to :parent_event, class_name: "AiLifeEvent", optional: true
+  has_many :chain_events, class_name: "AiLifeEvent", foreign_key: :parent_event_id, dependent: :nullify
 
   enum :event_type, {
     job_change: 0, relocation: 1, promotion: 2, new_relationship: 3,
@@ -9,4 +11,6 @@ class AiLifeEvent < ApplicationRecord
 
   validates :event_type, presence: true
   validates :fired_at, presence: true
+
+  def chained? = parent_event_id.present?
 end
