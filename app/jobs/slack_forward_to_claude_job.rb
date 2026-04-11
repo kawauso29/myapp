@@ -10,8 +10,10 @@ class SlackForwardToClaudeJob < ApplicationJob
     # 元メッセージへのリンクを生成
     original_link = build_message_link(error_channel, ts)
 
+    github_mention = ENV["SLACK_GITHUB_MEMBER_ID"].present? ? "<@#{ENV["SLACK_GITHUB_MEMBER_ID"]}>" : "@GitHub"
+
     message = <<~TEXT
-      @GitHub 以下のエラーを修正してください:
+      #{github_mention} 以下のエラーを修正してください:
       #{original_link}
       ```
       #{text}
@@ -42,7 +44,7 @@ class SlackForwardToClaudeJob < ApplicationJob
     request = Net::HTTP::Post.new(uri.request_uri)
     request["Content-Type"] = "application/json"
     request["Authorization"] = "Bearer #{token}"
-    request.body = { channel: channel, text: text }.to_json
+    request.body = { channel: channel, text: text, link_names: true }.to_json
 
     response = http.request(request)
     body = JSON.parse(response.body)

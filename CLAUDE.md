@@ -129,6 +129,7 @@ Pumaの再起動: `sudo systemctl restart puma`
 | `SLACK_BOT_TOKEN` | Slack App → OAuth & Permissions → Bot User OAuth Token（xoxb-...）|
 | `SLACK_ERROR_CHANNEL_ID` | 監視対象チャネルのID（Cxxxxx）|
 | `SLACK_CLAUDE_CHANNEL_ID` | 転送先ClaudeチャネルのID |
+| `SLACK_GITHUB_MEMBER_ID` | GitHub Slack AppのメンバーID（`@GitHub` を実際のメンションにするために必要。Slackで `/who @GitHub` などでIDを確認するか、Slack APIで `users.list` を叩いて取得）|
 
 ### Slack App設定
 
@@ -145,6 +146,12 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **正しい実装**: `bot_id` チェックは行わず、キーワードフィルタで判定する
 - `subtype` の一括チェックも NG。`bot_message` サブタイプも弾いてしまう
 - 除外すべき subtype は `message_changed`, `message_deleted`, `channel_join`, `channel_leave` のみ明示的に指定する
+
+**`@GitHub` メンションが文字列になる問題**
+- Slack APIで `@GitHub` をテキストに含めても、それは単なる文字列になる（2026-04-12確認）
+- 正しい方法: GitHub Slack AppのメンバーIDを取得して `<@MEMBER_ID>` 形式で送信する
+- 実装: `SLACK_GITHUB_MEMBER_ID` env var を設定すると `<@id>` 形式に、未設定なら `@GitHub` + `link_names: true` フォールバック
+- メンバーIDの取得方法: Slack ワークスペースの管理画面 or `https://api.slack.com/methods/users.lookupByEmail` や `users.list` APIで確認
 
 **ループ防止**
 - 転送先はClaudeチャネル（`SLACK_CLAUDE_CHANNEL_ID`）のみに投稿
