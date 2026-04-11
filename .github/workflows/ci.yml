@@ -238,18 +238,23 @@ jobs:
     needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
     if: always()
     steps:
+      - name: Build notification label
+        id: notify_context
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
+          if [ -n "${PR_NUMBER}" ]; then
+            NOTIFY_LABEL="PR #${PR_NUMBER} (${BRANCH})"
+          else
+            NOTIFY_LABEL="${BRANCH}"
+          fi
+          echo "notify_label=${NOTIFY_LABEL}" >> "$GITHUB_OUTPUT"
+
       # カテゴリ①: CI進捗/成功通知
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         run: |
           WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}"
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
-          if [ -n "${PR_NUMBER}" ]; then
-            NOTIFY_LABEL="PR #${PR_NUMBER} \`${BRANCH}\`"
-          else
-            NOTIFY_LABEL="\`${BRANCH}\`"
-          fi
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping success notification"
             exit 0
@@ -259,7 +264,7 @@ jobs:
             exit 0
           fi
           PAYLOAD=$(jq -n \
-            --arg notify_label "${NOTIFY_LABEL}" \
+            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
             --arg actor "${{ github.actor }}" \
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
@@ -273,13 +278,6 @@ jobs:
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
           WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}"
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
-          if [ -n "${PR_NUMBER}" ]; then
-            NOTIFY_LABEL="PR #${PR_NUMBER} \`${BRANCH}\`"
-          else
-            NOTIFY_LABEL="\`${BRANCH}\`"
-          fi
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping failure notification"
             exit 0
@@ -289,7 +287,7 @@ jobs:
             exit 0
           fi
           PAYLOAD=$(jq -n \
-            --arg notify_label "${NOTIFY_LABEL}" \
+            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
             --arg actor "${{ github.actor }}" \
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | job-check: ${{ needs.job-check.result }} | route-check: ${{ needs.route-check.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
