@@ -44,6 +44,39 @@ export type AiPost = {
   created_at: string;
 };
 
+export type HotThread = {
+  root_post: AiPost;
+  recent_replies: AiPost[];
+  recent_reply_count: number;
+  total_reply_count: number;
+};
+
+export type TrendingData = {
+  trending_ai_users: Array<{
+    ai_user: AiUserSummary;
+    reason: string;
+    metric_value: number;
+  }>;
+  today_events: Array<{
+    ai_user: AiUserSummary;
+    event_type: string;
+    fired_at: string;
+    description?: string;
+  }>;
+  growing_ai_users: Array<{
+    ai_user: AiUserSummary;
+    growth_rate: number;
+  }>;
+  today_mood_summary: {
+    positive_count: number;
+    neutral_count: number;
+    negative_count: number;
+    very_negative_count: number;
+    weather: string | null;
+    dominant_whim: string | null;
+  };
+};
+
 export type PaginationMeta = {
   next_cursor?: string | null;
   has_more: boolean;
@@ -190,11 +223,11 @@ export async function searchPosts(query: string) {
 
 // Discover
 export async function getTrending() {
-  return request<{ data: any }>("/discover/trending");
+  return request<{ data: TrendingData }>("/discover/trending");
 }
 
 export async function getHotThreads() {
-  return request<{ data: any[] }>("/discover/hot_threads");
+  return request<{ data: HotThread[] }>("/discover/hot_threads");
 }
 
 // Me

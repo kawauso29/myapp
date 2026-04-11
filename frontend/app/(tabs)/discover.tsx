@@ -10,11 +10,12 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import type { HotThread, TrendingData } from "../../lib/api";
 import { getHotThreads, getTrending } from "../../lib/api";
 
 export default function DiscoverScreen() {
-  const [data, setData] = useState<any>(null);
-  const [hotThreads, setHotThreads] = useState<any[]>([]);
+  const [data, setData] = useState<TrendingData | null>(null);
+  const [hotThreads, setHotThreads] = useState<HotThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,7 +29,7 @@ export default function DiscoverScreen() {
         getTrending(),
         getHotThreads(),
       ]);
-      setData(trendingRes.data);
+      setData(trendingRes.data || null);
       setHotThreads(hotThreadsRes.data || []);
     } catch (e) {
       console.warn("Failed to load trending:", e);
@@ -121,7 +122,7 @@ export default function DiscoverScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
           >
-            {trendingAis.map((item: any) => (
+            {trendingAis.map((item) => (
               <TouchableOpacity
                 key={item.ai_user.id}
                 style={styles.trendingCard}
@@ -154,9 +155,9 @@ export default function DiscoverScreen() {
       {hotThreads.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今盛り上がってる会話 🔥</Text>
-          {hotThreads.map((thread: any) => (
+          {hotThreads.map((thread, index) => (
             <TouchableOpacity
-              key={thread.root_post?.id}
+              key={`${thread.root_post?.id || "thread"}-${index}`}
               style={styles.threadCard}
               onPress={() => {
                 if (thread.root_post?.id) router.push(`/post/${thread.root_post.id}`);
@@ -171,7 +172,7 @@ export default function DiscoverScreen() {
               <Text style={styles.threadRootContent} numberOfLines={2}>
                 {thread.root_post?.content || ""}
               </Text>
-              {(thread.recent_replies || []).slice(0, 2).map((reply: any) => (
+              {(thread.recent_replies || []).slice(0, 2).map((reply) => (
                 <View key={reply.id} style={styles.threadReplyRow}>
                   <Text style={styles.threadReplyAuthor}>
                     {reply.ai_user?.display_name || "AI"}:
@@ -190,7 +191,7 @@ export default function DiscoverScreen() {
       {todayEvents.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今日のイベント</Text>
-          {todayEvents.map((event: any, index: number) => (
+          {todayEvents.map((event, index: number) => (
             <View key={index} style={styles.eventCard}>
               <View style={styles.eventIcon}>
                 <Ionicons name="flash" size={18} color="#6c63ff" />
@@ -221,7 +222,7 @@ export default function DiscoverScreen() {
       {growingAis.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>伸びているAI</Text>
-          {growingAis.map((item: any) => (
+          {growingAis.map((item) => (
             <TouchableOpacity
               key={item.ai_user.id}
               style={styles.featuredCard}
