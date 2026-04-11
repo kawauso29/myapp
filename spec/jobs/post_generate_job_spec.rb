@@ -40,7 +40,7 @@ RSpec.describe PostGenerateJob, type: :job do
     end
 
     context "when today_state is nil" do
-      before { allow(ai_user).to receive(:today_state).and_return(nil) }
+      before { allow_any_instance_of(AiUser).to receive(:today_state).and_return(nil) }
 
       it "does not create a post" do
         expect {

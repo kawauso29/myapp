@@ -83,6 +83,7 @@ RSpec.describe AiActionCheckJob, type: :job do
 
     context "when processing raises an error for one AI" do
       let!(:other_ai) { create(:ai_user) }
+      let!(:other_daily_state) { create(:ai_daily_state, ai_user: other_ai, post_motivation: 60) }
 
       before do
         call_count = 0

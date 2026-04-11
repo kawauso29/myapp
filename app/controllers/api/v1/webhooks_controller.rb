@@ -3,11 +3,6 @@ module Api
     class WebhooksController < BaseController
       skip_before_action :authenticate_user!
 
-      PRICE_TO_PLAN = {
-        ENV["STRIPE_LIGHT_PRICE_ID"]   => "light",
-        ENV["STRIPE_PREMIUM_PRICE_ID"] => "premium"
-      }.freeze
-
       # POST /api/v1/webhooks/stripe
       def stripe
         payload = request.body.read
@@ -43,7 +38,7 @@ module Api
 
         subscription = Stripe::Subscription.retrieve(session.subscription)
         price_id = subscription.items.data.first.price.id
-        plan = PRICE_TO_PLAN[price_id] || "free"
+        plan = plan_for_price(price_id)
 
         user.update!(
           stripe_customer_id: session.customer,
@@ -58,7 +53,7 @@ module Api
         return unless user
 
         price_id = subscription.items.data.first.price.id
-        plan = PRICE_TO_PLAN[price_id] || "free"
+        plan = plan_for_price(price_id)
 
         user.update!(
           plan: plan,
@@ -75,6 +70,13 @@ module Api
           stripe_subscription_id: nil,
           plan_expires_at: nil
         )
+      end
+
+      def plan_for_price(price_id)
+        {
+          ENV["STRIPE_LIGHT_PRICE_ID"] => "light",
+          ENV["STRIPE_PREMIUM_PRICE_ID"] => "premium"
+        }[price_id] || "free"
       end
     end
   end
