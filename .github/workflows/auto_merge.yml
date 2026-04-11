@@ -145,8 +145,41 @@ jobs:
             }
 
             if (pr.draft) {
-              core.info(`PR #${pr.number} is draft, skipping`);
-              return;
+              const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/'];
+              const repoFullName = context.payload.repository?.full_name || `${context.repo.owner}/${context.repo.repo}`;
+              const prHeadRepoFullName = pr.head.repo?.full_name;
+              const isSameRepoPr = !!prHeadRepoFullName && prHeadRepoFullName === repoFullName;
+              const isAllowedBranch = ALLOWED_PREFIXES.some(p => pr.head.ref.startsWith(p));
+
+              if (!isSameRepoPr || !isAllowedBranch) {
+                core.info(`PR #${pr.number} is draft and not auto-ready eligible, skipping`);
+                return;
+              }
+
+              try {
+                core.info(`PR #${pr.number} is draft, marking ready for review`);
+                await github.rest.pulls.readyForReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number
+                });
+                const { data: refreshedPr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number
+                });
+                pr = refreshedPr;
+              } catch (error) {
+                const status = error.status ?? error.response?.status ?? 'unknown';
+                const errorType = error.name ?? error.constructor?.name ?? typeof error;
+                core.info(`Failed to mark PR #${pr.number} ready for review (status: ${status}, type: ${errorType}), skipping: ${error.message}`);
+                return;
+              }
+
+              if (pr.draft) {
+                core.info(`PR #${pr.number} is still draft after ready_for_review call, skipping`);
+                return;
+              }
             }
 
             const hasLabel = pr.labels.some(l => l.name === 'automerge');
