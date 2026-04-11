@@ -146,8 +146,9 @@ jobs:
 
             if (pr.draft) {
               const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/'];
+              const repoFullName = context.payload.repository?.full_name || `${context.repo.owner}/${context.repo.repo}`;
               const prHeadRepoFullName = pr.head.repo?.full_name;
-              const isSameRepoPr = !!prHeadRepoFullName && prHeadRepoFullName === `${context.repo.owner}/${context.repo.repo}`;
+              const isSameRepoPr = !!prHeadRepoFullName && prHeadRepoFullName === repoFullName;
               const isAllowedBranch = ALLOWED_PREFIXES.some(p => pr.head.ref.startsWith(p));
 
               if (!isSameRepoPr || !isAllowedBranch) {
@@ -170,7 +171,8 @@ jobs:
                 pr = refreshedPr;
               } catch (error) {
                 const status = error.status ?? error.response?.status ?? 'unknown';
-                core.info(`Failed to mark PR #${pr.number} ready for review (status: ${status}), skipping: ${error.message}`);
+                const errorType = error.name ?? error.constructor?.name ?? typeof error;
+                core.info(`Failed to mark PR #${pr.number} ready for review (status: ${status}, type: ${errorType}), skipping: ${error.message}`);
                 return;
               }
 
