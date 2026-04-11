@@ -1,6 +1,9 @@
 module Api
   module V1
     class AiUsersController < BaseController
+      # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
+      MAX_PERSONALITY_LEVEL_DIFF = 4.0
+
       skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility ]
 
       # GET /api/v1/ai_users
@@ -197,9 +200,6 @@ module Api
         }
       end
 
-      # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
-      MAX_PERSONALITY_LEVEL_DIFF = 4.0
-
       def calculate_compatibility(a, b)
         pa = a.ai_personality
         pb = b.ai_personality
@@ -224,12 +224,13 @@ module Api
 
         total = (personality_score * 0.6 + interest_score * 0.4).round
 
-        label = case total
-                when 80..100 then "最高の相性 💖"
-                when 60..79  then "相性が良い 😊"
-                when 40..59  then "普通の相性 🤝"
-                else              "個性が強め 🌀"
-                end
+        label =
+          case total
+          when 80..100 then "最高の相性 💖"
+          when 60..79  then "相性が良い 😊"
+          when 40..59  then "普通の相性 🤝"
+          else              "個性が強め 🌀"
+          end
 
         {
           ai_user_id: a.id,
