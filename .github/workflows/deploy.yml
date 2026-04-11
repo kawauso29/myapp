@@ -157,7 +157,7 @@ jobs:
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob PostGenerateJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
 
       - name: Health check after deploy
         id: health_check
@@ -228,7 +228,7 @@ jobs:
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob PostGenerateJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants after rollback: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
             echo "Rollback to $PRE_SHA complete"
 
       - name: Notify Slack (deploy success)
