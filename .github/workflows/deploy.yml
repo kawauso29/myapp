@@ -153,10 +153,11 @@ jobs:
               done
             fi
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob PostGenerateJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants: #{missing.join(', ')}\") if missing.any?"
 
       - name: Health check after deploy
         id: health_check
@@ -223,10 +224,11 @@ jobs:
               done
             fi
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants after rollback: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob PostGenerateJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants after rollback: #{missing.join(', ')}\") if missing.any?"
             echo "Rollback to $PRE_SHA complete"
 
       - name: Notify Slack (deploy success)

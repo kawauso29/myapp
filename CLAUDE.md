@@ -112,6 +112,7 @@ Pumaの再起動: `sudo systemctl restart puma`
   - これにより、Pumaが起動時に正しいキャッシュを生成・使用できる
 - **重要**: 中間でのキャッシュクリアは不要。Puma再起動直前のクリアと、再起動後のeager_loadが重要
 - **2026-04-11追記**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内部で動作しているため、systemdのsolid_queueサービスは存在しない。Pumaの再起動だけでsolid_queueも再起動される。sleep時間を10秒に延長してPumaの完全起動を待つ。
+- **2026-04-12追記**: `ActiveJob::UnknownJobClassError` が特定ジョブ（例: `PostGenerateJob`）で継続する場合、デプロイ時に `bin/rails solid_queue:cleanup_unknown_job_classes` を実行して、存在しない `job_class` を参照する未完了 ActiveJob ラッパージョブを削除する。あわせてデプロイ時の `required` ジョブ定数チェックに対象ジョブを追加して検知する。
 
 ## Slack自動転送システム（SlackEventsController）
 
