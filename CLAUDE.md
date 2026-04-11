@@ -106,11 +106,12 @@ Pumaの再起動: `sudo systemctl restart puma`
 - **原因**: Bootsnapのキャッシュが古く、ジョブクラスがオートロードされない
 - **エラー**: RelationshipDecayJob, SlackForwardToClaudeJob, MonitorFailedJobsJob など複数のジョブで発生
 - **誤った解決策（2026-04-10）**: 各ステップ後に複数回キャッシュクリア → Puma再起動後のキャッシュクリアは無意味
-- **正しい解決策（2026-04-11）**: 
+- **正しい解決策（2026-04-11）**:
   - Puma再起動**直前**に1回だけ `rm -rf tmp/cache/*` を実行
   - Puma再起動後、`RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"` で全クラスをロード
   - これにより、Pumaが起動時に正しいキャッシュを生成・使用できる
 - **重要**: 中間でのキャッシュクリアは不要。Puma再起動直前のクリアと、再起動後のeager_loadが重要
+- **2026-04-11追記**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内部で動作しているため、systemdのsolid_queueサービスは存在しない。Pumaの再起動だけでsolid_queueも再起動される。sleep時間を10秒に延長してPumaの完全起動を待つ。
 
 ## Slack自動転送システム（SlackEventsController）
 
@@ -244,4 +245,4 @@ main への push
 - CIのSlack通知JSONを文字列直書きするとコミットメッセージの記号/改行で通知ジョブが落ちる → `jq -n --arg ...` で常にJSONを生成する
 - `auto_fix.yml` をCI失敗全体で起動するとlint無関係の失敗でも自動修正フローが走り運用ノイズになる → workflow_runのjob一覧から `lint` 失敗時だけ実行する
 - 本番で `MonitorFailedJobsJob` のSlack通知が来ない場合、VPS `.env` に `SLACK_WEBHOOK_URL` が同期されているか確認する（GitHub Actionsの通知だけ動いていてアプリ通知が無効になる）
-- `ActiveJob::UnknownJobClassError` が継続する場合、デプロイ時に `puma` だけでなく既存の `solid_queue` systemdサービスも再起動する（旧プロセスが残ると新規ジョブクラスを認識できない）
+- `ActiveJob::UnknownJobClassError` が継続する場合、**誤り**: systemdのsolid_queueサービスを再起動 → **正しい**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内で動作しているため別途再起動不要。Pumaの再起動後に十分な待機時間（10秒）を確保し、その後 `eager_load!` を実行する
