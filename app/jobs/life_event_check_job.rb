@@ -158,11 +158,20 @@ class LifeEventCheckJob < ApplicationJob
     end
   end
 
+  # Chains: parent event key → { chain_type, wait_days }
+  CHAIN_EVENTS = {
+    job_change:       { chain_type: "job_change_aftermath",  wait_days: 7  },
+    breakup:          { chain_type: "breakup_recovery",      wait_days: 14 },
+    illness:          { chain_type: "illness_recovery",      wait_days: 7  },
+    marriage:         { chain_type: "marriage_bliss",        wait_days: 7  },
+    relocation:       { chain_type: "relocation_settled",    wait_days: 14 }
+  }.freeze
+
   def fire_event!(ai, event_key, config)
     Rails.logger.info("[LifeEventCheckJob] Firing #{event_key} for ai_id=#{ai.id}")
 
     # Create life event record
-    ai.ai_life_events.create!(
+    life_event = ai.ai_life_events.create!(
       event_type: event_key,
       fired_at: Time.current
     )
@@ -173,13 +182,50 @@ class LifeEventCheckJob < ApplicationJob
     # Set pending post theme
     ai.update!(pending_post_theme: event_key)
 
-    # Save as long-term memory
+    # Save as long-term memory (Japanese, context-aware)
     ai.ai_long_term_memories.create!(
-      content: "#{event_key.to_s.humanize} occurred",
+      content: life_event_memory_text(event_key, ai),
       memory_type: :life_event,
       importance: 4,
       occurred_on: Date.current
     )
+
+    # Schedule chain event if defined
+    if (chain = CHAIN_EVENTS[event_key])
+      LifeEventChainJob
+        .set(wait: chain[:wait_days].days)
+        .perform_later(ai.id, chain[:chain_type], life_event.id)
+      Rails.logger.info(
+        "[LifeEventCheckJob] Scheduled chain=#{chain[:chain_type]} in #{chain[:wait_days]}d for ai_id=#{ai.id}"
+      )
+    end
+
+    SlackNotifierService.notify(
+      text: ":sparkles: *ライフイベント発生* @#{ai.username}",
+      color: :warning,
+      fields: [
+        { title: "イベント", value: event_key.to_s },
+        { title: "連鎖", value: CHAIN_EVENTS[event_key] ? "#{CHAIN_EVENTS[event_key][:wait_days]}日後に続きあり" : "なし" }
+      ]
+    )
+  end
+
+  LIFE_EVENT_MEMORY_TEXTS = {
+    job_change:       ->(ai) { "転職した。新しい職場での生活が始まった。" },
+    relocation:       ->(ai) { "引越しをした。新しい場所での生活がスタートした。" },
+    promotion:        ->(ai) { "昇進した。#{ai.ai_profile&.occupation}として認められた。" },
+    new_relationship: ->(ai) { "新しい恋人ができた。胸が高鳴る毎日が始まった。" },
+    breakup:          ->(ai) { "恋人と別れた。しばらくは気持ちの整理が必要そうだ。" },
+    marriage:         ->(ai) { "結婚した。人生の大きな節目を迎えた。" },
+    illness:          ->(ai) { "体調を崩して寝込んだ。無理のしすぎが原因かもしれない。" },
+    recovery:         ->(ai) { "体調がようやく回復した。健康のありがたさを実感した。" },
+    new_hobby:        ->(ai) { "新しい趣味を始めた。最近ずっと気になっていたことに挑戦した。" },
+    skill_up:         ->(ai) { "新しいスキルを身につけた。少し自信がついた気がする。" }
+  }.freeze
+
+  def life_event_memory_text(event_key, ai)
+    builder = LIFE_EVENT_MEMORY_TEXTS[event_key]
+    builder ? builder.call(ai) : "#{event_key}が起きた。"
   end
 
   def apply_param_changes(ai, param_change, param_reset)

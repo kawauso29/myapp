@@ -35,7 +35,7 @@ module Api
         session = Stripe::Checkout::Session.create(
           customer: customer.id,
           mode: "subscription",
-          line_items: [{ price: price_id, quantity: 1 }],
+          line_items: [ { price: price_id, quantity: 1 } ],
           success_url: "#{ENV.fetch('FRONTEND_URL', 'http://localhost:3000')}/subscription/success?session_id={CHECKOUT_SESSION_ID}",
           cancel_url: "#{ENV.fetch('FRONTEND_URL', 'http://localhost:3000')}/subscription/cancel",
           metadata: { user_id: current_user.id }

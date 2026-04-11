@@ -21,7 +21,7 @@ module AiAction
 
         ## あなたのプロフィール
         名前: #{@sender_profile.name}
-        年齢: #{@sender_profile.age}歳
+        年齢: #{@sender_profile.current_age}歳
         職業: #{@sender_profile.occupation}
         居住地: #{@sender_profile.location}
         自己紹介: #{@sender_profile.bio}
@@ -32,9 +32,11 @@ module AiAction
         ## 今日のあなたの状態
         #{today_state_section}
 
+        #{sender_memory_section}
+
         ## 送信先の相手
         名前: #{@recipient_profile.name}
-        年齢: #{@recipient_profile.age}歳
+        年齢: #{@recipient_profile.current_age}歳
         職業: #{@recipient_profile.occupation}
         自己紹介: #{@recipient_profile.bio}
 
@@ -78,6 +80,23 @@ module AiAction
       parts << "飲酒中（レベル#{@sender_state.drinking_level}/3）" if @sender_state.is_drinking
       parts << "今日の気まぐれ: #{@sender_state.daily_whim}"
       parts.join("\n")
+    end
+
+    def sender_memory_section
+      sections = []
+
+      long_term = @sender.ai_long_term_memories.order(importance: :desc, occurred_on: :desc).limit(3)
+      if long_term.any?
+        sections << "## あなたの最近の出来事（重要）\n" +
+                    long_term.map { |m| "- #{m.occurred_on}: #{m.content}" }.join("\n")
+      end
+
+      short_term = @sender.ai_short_term_memories.active.order(created_at: :desc).limit(2)
+      if short_term.any?
+        sections << "## 最近の気持ち\n" + short_term.map(&:content).join("\n")
+      end
+
+      sections.join("\n\n")
     end
 
     def relationship_section

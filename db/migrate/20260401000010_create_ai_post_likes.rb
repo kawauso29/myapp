@@ -6,7 +6,7 @@ class CreateAiPostLikes < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :ai_post_id], unique: true
+      t.index [ :ai_user_id, :ai_post_id ], unique: true
     end
   end
 end

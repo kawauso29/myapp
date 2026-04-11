@@ -3,6 +3,12 @@ name: Deploy to Sakura VPS
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual dispatch'
+        required: false
+        default: 'Manual sync from admin panel'
 
 jobs:
   build_frontend:
@@ -42,6 +48,12 @@ jobs:
         with:
           name: frontend-tar
 
+      - name: Notify Slack (deploy start)
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#36c5f0\",\"text\":\":rocket: *デプロイ開始* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+
       - name: Copy tarball to VPS
         uses: appleboy/scp-action@v1
         with:
@@ -51,6 +63,29 @@ jobs:
           source: "frontend.tar.gz"
           target: "/tmp/"
 
+      - name: Sync Slack env vars to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set_env() {
+              KEY=$1; VAL=$2; FILE=~/myapp/.env
+              touch $FILE
+              if grep -q "^${KEY}=" $FILE; then
+                sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
+              else
+                echo "${KEY}=${VAL}" >> $FILE
+              fi
+            }
+            set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
+            set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+            set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
+            set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
+            set_env GITHUB_DEPLOY_TOKEN '${{ secrets.GITHUB_DEPLOY_TOKEN }}'
+            set_env SOLID_QUEUE_IN_PUMA '1'
+
       - name: Deploy Rails + frontend
         uses: appleboy/ssh-action@v1
         with:
@@ -58,10 +93,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
             cd ~/myapp
             git fetch origin main
             git reset --hard origin/main
-            eval "$(rbenv init -)"
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
@@ -73,4 +109,21 @@ jobs:
             echo "Frontend files:"
             ls ~/myapp/public/app/ | head -10
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
+            rm -rf tmp/cache/*
             sudo systemctl restart puma
+            sleep 5
+            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+
+      - name: Notify Slack (deploy success)
+        if: success()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#2eb886\",\"text\":\":white_check_mark: *デプロイ成功* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"サーバー\",\"value\":\"133.167.124.112\",\"short\":true}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"
+
+      - name: Notify Slack (deploy failure)
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"#e01e5a\",\"text\":\":x: *デプロイ失敗* \`main\` by ${{ github.actor }}\",\"fields\":[{\"title\":\"コミット\",\"value\":\"${{ github.event.head_commit.message }}\",\"short\":false},{\"title\":\"ログ\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}],\"footer\":\"GitHub Actions\",\"ts\":$(date +%s)}]}"

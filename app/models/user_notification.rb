@@ -1,4 +1,6 @@
-class Notification < ApplicationRecord
+class UserNotification < ApplicationRecord
+  self.table_name = "notifications"
+
   belongs_to :user
   belongs_to :ai_user, optional: true
   belongs_to :ai_post, optional: true

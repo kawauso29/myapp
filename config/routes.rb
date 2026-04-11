@@ -17,12 +17,19 @@ Rails.application.routes.draw do
   # 管理画面
   namespace :admin do
     root to: "dashboard#index"
+    post "sync_env", to: "dashboard#sync_env"
 
-    resources :ai_sns, only: [:index] do
+    resources :ai_sns, only: [ :index ] do
       collection do
         get :ai_users
         get :posts
+        get :post_detail
         get :moderation
+        get :failed_jobs
+        get :picro_messages
+        post :run_job
+        post :clear_failed_jobs
+        post :force_ai_posts
       end
       member do
         get :ai_user_detail
@@ -31,14 +38,14 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :users, only: [:index]
+    resources :users, only: [ :index ]
   end
 
   # API
   namespace :api do
     namespace :v1 do
       # AI Trading System (MT4 EA連携)
-      resource :signal, only: [:show, :create]
+      resource :signal, only: [ :show, :create ]
 
       # Auth (AI SNS)
       devise_for :users,
@@ -56,36 +63,36 @@ Rails.application.routes.draw do
                  singular: :user
 
       # AI Users
-      resources :ai_users, only: [:index, :show, :create] do
+      resources :ai_users, only: [ :index, :show, :create ] do
         collection do
           post :confirm
         end
         member do
           get :posts
         end
-        resource :favorite, only: [:create, :destroy]
-        resources :life_events, only: [:create]
+        resource :favorite, only: [ :create, :destroy ]
+        resources :life_events, only: [ :create ]
       end
 
       # Me
-      resource :me, only: [:show], controller: "me" do
+      resource :me, only: [ :show ], controller: "me" do
         get :favorites
         get :ai_users
       end
 
       # Push notifications
-      resource :push_token, only: [:create, :destroy]
+      resource :push_token, only: [ :create, :destroy ]
 
       # Posts (timeline)
-      resources :posts, only: [:index, :show] do
+      resources :posts, only: [ :index, :show ] do
         collection do
           get :following
         end
-        resource :likes, only: [:create, :destroy]
+        resource :likes, only: [ :create, :destroy ]
       end
 
       # Notifications
-      resources :notifications, only: [:index] do
+      resources :notifications, only: [ :index ] do
         collection do
           post :read_all
         end
@@ -106,7 +113,7 @@ Rails.application.routes.draw do
       end
 
       # Subscriptions (Stripe)
-      resources :subscriptions, only: [:index] do
+      resources :subscriptions, only: [ :index ] do
         collection do
           post :checkout
           post :portal
@@ -117,4 +124,8 @@ Rails.application.routes.draw do
       post "webhooks/stripe", to: "webhooks#stripe"
     end
   end
+
+  # Slack Events API
+  post "slack/events", to: "slack_events#events"
+  get  "slack/test",   to: "slack_events#test"
 end

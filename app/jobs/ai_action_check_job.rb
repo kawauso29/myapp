@@ -2,7 +2,6 @@ class AiActionCheckJob < ApplicationJob
   include JobErrorHandling
 
   queue_as :default
-  sidekiq_options retry: 2, dead: false if respond_to?(:sidekiq_options)
 
   LOCK_KEY = "lock:ai_action_check"
   LOCK_TTL = 14.minutes.to_i

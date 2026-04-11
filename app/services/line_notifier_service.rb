@@ -12,8 +12,12 @@ class LineNotifierService
       config.channel_token  = line_credentials[:channel_token]
     end
 
+    # broadcast: ビジネスアカウントの友達全員に送信
     response = client.broadcast([ { type: "text", text: text } ])
-    raise "LINE送信失敗: #{response.code}" unless response.code == "200"
+    Rails.logger.info("[LineNotifierService] broadcast: code=#{response.code} body=#{response.body}")
+    unless response.code == "200"
+      raise "LINE broadcast失敗: code=#{response.code} body=#{response.body}"
+    end
 
     Rails.logger.info("[LineNotifierService] #{messages.size}件通知送信完了")
   end

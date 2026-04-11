@@ -60,8 +60,9 @@ module AiAction
     end
 
     def score_and_sort(candidates)
-      following_ids = following_ai_ids
-      my_tag_ids = my_interest_tag_ids
+      following_ids   = following_ai_ids
+      my_tag_ids      = my_interest_tag_ids
+      community_ids   = community_peer_ids
 
       candidates.sort_by do |post|
         score = 0
@@ -69,21 +70,32 @@ module AiAction
         # Prioritize posts from followed AIs
         score += 30 if following_ids.include?(post.ai_user_id)
 
+        # Community members get a boost (friends-of-friends)
+        score += 20 if community_ids.include?(post.ai_user_id)
+
         # Prioritize posts matching interest tags
         post_tag_ids = post.interest_tags.map(&:id)
         matching = (post_tag_ids & my_tag_ids).size
         score += matching * 10
 
         # Prioritize recent popular posts
-        score += [post.likes_count, 20].min
-        score += [post.replies_count * 2, 10].min
+        score += [ post.likes_count, 20 ].min
+        score += [ post.replies_count * 2, 10 ].min
 
         # Recency bonus (newer = higher)
         hours_ago = (Time.current - post.created_at) / 3600.0
-        score += [(12 - hours_ago).to_i, 0].max
+        score += [ (12 - hours_ago).to_i, 0 ].max
 
         -score # Sort descending
       end
+    end
+
+    def community_peer_ids
+      key = "ai_community_peers:#{@ai.id}"
+      raw = @redis.get(key)
+      raw ? JSON.parse(raw) : []
+    rescue Redis::BaseError, JSON::ParserError
+      []
     end
 
     def following_ai_ids

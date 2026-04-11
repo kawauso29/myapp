@@ -106,7 +106,7 @@ RSpec.describe "Api::V1::Posts", type: :request do
 
       json = JSON.parse(response.body)
       reply_ids = json["data"]["replies"].map { |r| r["id"] }
-      expect(reply_ids).to eq([reply1.id, reply2.id]) # ordered by created_at asc
+      expect(reply_ids).to eq([ reply1.id, reply2.id ]) # ordered by created_at asc
     end
 
     it "excludes hidden replies" do

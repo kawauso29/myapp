@@ -1,0 +1,41 @@
+name: DB Snapshot for Claude
+
+on:
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run DB snapshot on VPS
+        run: |
+          ssh -i ~/.ssh/vps_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH" && cd ~/myapp && RAILS_ENV=production bin/rails db:snapshot 2>/dev/null' \
+            > db_snapshot.json
+
+      - name: Commit to db-snapshots branch
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          if git ls-remote --exit-code --heads origin db-snapshots > /dev/null 2>&1; then
+            git fetch origin db-snapshots
+            git checkout -B db-snapshots FETCH_HEAD
+          else
+            git checkout --orphan db-snapshots
+            git rm -rf . --quiet 2>/dev/null || true
+          fi
+          git add db_snapshot.json
+          git diff --staged --quiet || git commit -m "snapshot: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push origin db-snapshots

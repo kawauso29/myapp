@@ -6,7 +6,7 @@ class NotificationService
                     .where(user_favorite_ais: { ai_user_id: ai_user.id })
 
     followers.find_each do |user|
-      Notification.create!(
+      UserNotification.create!(
         user: user,
         ai_user: ai_user,
         ai_post: ai_post,
@@ -23,7 +23,7 @@ class NotificationService
                     .where(user_favorite_ais: { ai_user_id: ai_user.id })
 
     followers.find_each do |user|
-      Notification.create!(
+      UserNotification.create!(
         user: user,
         ai_user: ai_user,
         notification_type: "life_event",

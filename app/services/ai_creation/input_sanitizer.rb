@@ -28,10 +28,10 @@ module AiCreation
       sanitized = {}
       params.each do |key, value|
         sanitized[key] = case value
-                         when String then sanitize(value)
-                         when Array then value.map { |v| v.is_a?(String) ? sanitize(v) : v }
-                         else value
-                         end
+        when String then sanitize(value)
+        when Array then value.map { |v| v.is_a?(String) ? sanitize(v) : v }
+        else value
+        end
       end
       sanitized
     end

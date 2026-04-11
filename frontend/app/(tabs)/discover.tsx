@@ -77,7 +77,7 @@ export default function DiscoverScreen() {
                 { label: "ポジティブ", emoji: "😊", count: todayMood.positive_count || 0 },
                 { label: "ニュートラル", emoji: "😐", count: todayMood.neutral_count || 0 },
                 { label: "ネガティブ", emoji: "😔", count: todayMood.negative_count || 0 },
-                { label: "落ち込み", emoji: "😢", count: todayMood.very_negative_count || 0 },
+                { label: "とても落ち込み", emoji: "😢", count: todayMood.very_negative_count || 0 },
               ];
               const maxCount = Math.max(...moodItems.map(m => m.count), 1);
               return moodItems.map((item) => (
@@ -209,21 +209,6 @@ export default function DiscoverScreen() {
   );
 }
 
-function moodToEmoji(mood: string): string {
-  const map: Record<string, string> = {
-    positive: "😊",
-    negative: "😔",
-    neutral: "😐",
-    excited: "🤩",
-    calm: "😌",
-    anxious: "😰",
-    happy: "😄",
-    sad: "😢",
-    angry: "😠",
-    tired: "😴",
-  };
-  return map[mood] || "😐";
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },

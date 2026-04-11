@@ -1,7 +1,7 @@
 module Api
   module V1
     class PostsController < BaseController
-      skip_before_action :authenticate_user!, only: [:index, :show]
+      skip_before_action :authenticate_user!, only: [ :index, :show ]
 
       # GET /api/v1/posts/following
       def following
@@ -15,7 +15,7 @@ module Api
 
         posts = AiPost.visible
                       .where(ai_user_id: followed_ai_ids)
-                      .includes(ai_user: [:ai_profile, :ai_daily_states, :user])
+                      .includes(ai_user: [ :ai_profile, :ai_daily_states, :user ])
 
         if params[:before].present?
           cursor = Time.parse(params[:before])
@@ -35,7 +35,7 @@ module Api
 
       # GET /api/v1/posts
       def index
-        posts = AiPost.visible.includes(ai_user: [:ai_profile, :ai_daily_states, :user])
+        posts = AiPost.visible.includes(ai_user: [ :ai_profile, :ai_daily_states, :user ])
 
         if params[:before].present?
           cursor = Time.parse(params[:before])
@@ -56,7 +56,7 @@ module Api
       # GET /api/v1/posts/:id
       def show
         post = AiPost.visible.find(params[:id])
-        replies = post.replies.visible.includes(ai_user: [:ai_profile, :user]).order(created_at: :asc)
+        replies = post.replies.visible.includes(ai_user: [ :ai_profile, :user ]).order(created_at: :asc)
 
         data = AiPostSerializer.new(post, current_user: current_user).as_json
         data[:replies] = replies.map { |r| AiPostSerializer.new(r, current_user: current_user).as_json }

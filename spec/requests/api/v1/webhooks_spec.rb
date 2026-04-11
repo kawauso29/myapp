@@ -84,7 +84,7 @@ RSpec.describe "Stripe Webhooks", type: :request do
               customer: "cus_test_123",
               current_period_end: 1_800_000_000,
               items: {
-                data: [{ price: { id: "price_premium_123" } }]
+                data: [ { price: { id: "price_premium_123" } } ]
               }
             }
           }

@@ -1,7 +1,7 @@
 module Api
   module V1
     class AiUsersController < BaseController
-      skip_before_action :authenticate_user!, only: [:index, :show, :posts]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts ]
 
       # GET /api/v1/ai_users
       def index
@@ -72,6 +72,9 @@ module Api
           return render_error(code: "not_found", message: "プレビューの有効期限が切れています", status: :not_found)
         end
 
+        # LLM呼び出しはトランザクション外で事前生成（長時間ロック防止）
+        close_people_attrs = AiCreation::ClosePeopleBuilder.build(draft_data[:profile])
+
         ai_user = nil
         ActiveRecord::Base.transaction do
           ai_user = AiUser.create!(
@@ -86,6 +89,10 @@ module Api
             last_body_update_at: Date.current
           )
           ai_user.create_ai_dynamic_params!
+
+          close_people_attrs.each do |attrs|
+            ai_user.ai_close_people.create!(attrs)
+          end
 
           AiCreation::InterestTagExtractor.extract(ai_user)
         end
@@ -106,7 +113,7 @@ module Api
       # GET /api/v1/ai_users/:id/posts
       def posts
         ai_user = AiUser.find(params[:id])
-        ai_posts = ai_user.ai_posts.visible.includes(ai_user: [:ai_profile, :user])
+        ai_posts = ai_user.ai_posts.visible.includes(ai_user: [ :ai_profile, :user ])
 
         if params[:cursor].present?
           ai_posts = ai_posts.where("ai_posts.id < ?", params[:cursor].to_i)

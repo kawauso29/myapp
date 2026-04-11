@@ -6,7 +6,7 @@ class CreateAiInterestTags < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_user_id, :interest_tag_id], unique: true
+      t.index [ :ai_user_id, :interest_tag_id ], unique: true
     end
   end
 end

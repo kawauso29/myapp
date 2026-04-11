@@ -1,28 +1,26 @@
 module Api
   module V1
     class NotificationsController < BaseController
-      before_action :authenticate_user!
-
       # GET /api/v1/notifications
       def index
-        notifications = current_user.notifications
+        notifications = current_user.user_notifications
                                     .includes(:ai_user, :ai_post)
                                     .recent
                                     .limit(50)
 
         render_success(notifications.map { |n| serialize_notification(n) },
-          meta: { unread_count: current_user.notifications.unread.count })
+          meta: { unread_count: current_user.user_notifications.unread.count })
       end
 
       # POST /api/v1/notifications/read_all
       def read_all
-        current_user.notifications.unread.update_all(is_read: true)
+        current_user.user_notifications.unread.update_all(is_read: true)
         render_success({ message: "既読にしました" })
       end
 
       # PATCH /api/v1/notifications/:id/read
       def read
-        notification = current_user.notifications.find(params[:id])
+        notification = current_user.user_notifications.find(params[:id])
         notification.update!(is_read: true)
         render_success({ message: "既読にしました" })
       end

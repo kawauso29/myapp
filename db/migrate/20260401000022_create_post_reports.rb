@@ -10,7 +10,7 @@ class CreatePostReports < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:ai_post_id, :status]
+      t.index [ :ai_post_id, :status ]
       t.index :status
     end
   end
