@@ -129,7 +129,7 @@ jobs:
             ls ~/myapp/public/app/ | head -10
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache/*
-            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$2 ~ /\/bin\/jobs$/ || $3 ~ /\/bin\/jobs$/ || $2 == "bin/jobs" || $3 == "bin/jobs" { print $1 }')
+            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
             if [ -n "$LEGACY_JOB_PIDS" ]; then
               echo "Stopping legacy bin/jobs processes: $LEGACY_JOB_PIDS"
               for pid in $LEGACY_JOB_PIDS; do
@@ -141,7 +141,7 @@ jobs:
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants: #{missing.join(', ')}\") if missing.any?"
 
       - name: Health check after deploy
         id: health_check
@@ -184,7 +184,7 @@ jobs:
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             rm -rf tmp/cache/*
-            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$2 ~ /\/bin\/jobs$/ || $3 ~ /\/bin\/jobs$/ || $2 == "bin/jobs" || $3 == "bin/jobs" { print $1 }')
+            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
             if [ -n "$LEGACY_JOB_PIDS" ]; then
               echo "Stopping legacy bin/jobs processes during rollback: $LEGACY_JOB_PIDS"
               for pid in $LEGACY_JOB_PIDS; do
@@ -196,7 +196,7 @@ jobs:
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants after rollback: #{missing.join(', ')}\") if missing.any?"
+            RAILS_ENV=production bin/rails runner "required = %w[AiActionCheckJob SlackForwardToClaudeJob RelationshipDecayJob MonitorFailedJobsJob MarketAnalysisJob]; missing = required.reject { |name| Object.const_defined?(name) }; abort(\"Missing job class constants after rollback: #{missing.join(', ')}\") if missing.any?"
             echo "Rollback to $PRE_SHA complete"
 
       - name: Notify Slack (deploy success)
