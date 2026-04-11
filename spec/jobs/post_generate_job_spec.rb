@@ -9,6 +9,7 @@ RSpec.describe PostGenerateJob, type: :job do
   end
 
   before do
+    allow(AiUser).to receive(:find).with(ai_user.id).and_return(ai_user)
     allow(ai_user).to receive(:today_state).and_return(daily_state)
     # LLM 呼び出しをモック
     allow_any_instance_of(described_class).to receive(:call_llm).and_return(llm_response)
