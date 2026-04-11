@@ -115,7 +115,8 @@ RSpec.describe AiPersonality, type: :model do
       expected_keys = %i[
         sociability post_frequency active_time_peak need_for_approval
         emotional_range risk_tolerance self_expression self_esteem
-        empathy primary_purpose
+        empathy curiosity patience optimism creativity sensitivity humor
+        perfectionism primary_purpose
       ]
       expect(prompt_hash.keys).to match_array(expected_keys)
     end

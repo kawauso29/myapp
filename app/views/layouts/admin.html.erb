@@ -156,6 +156,9 @@
     <a href="/admin" class="<%= 'active' if controller_path == 'admin/dashboard' %>">Trading</a>
     <a href="/admin/ai_sns" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
     <a href="/admin/users" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
+    <%= form_with url: admin_sync_env_path, method: :post, style: "margin-left: auto;" do |f| %>
+      <%= f.submit "環境変数を同期", class: "btn btn-success btn-sm" %>
+    <% end %>
   </nav>
   <main>
     <% if flash[:notice] %>

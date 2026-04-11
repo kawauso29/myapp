@@ -60,14 +60,18 @@ module AiAction
     end
 
     def score_and_sort(candidates)
-      following_ids = following_ai_ids
-      my_tag_ids = my_interest_tag_ids
+      following_ids   = following_ai_ids
+      my_tag_ids      = my_interest_tag_ids
+      community_ids   = community_peer_ids
 
       candidates.sort_by do |post|
         score = 0
 
         # Prioritize posts from followed AIs
         score += 30 if following_ids.include?(post.ai_user_id)
+
+        # Community members get a boost (friends-of-friends)
+        score += 20 if community_ids.include?(post.ai_user_id)
 
         # Prioritize posts matching interest tags
         post_tag_ids = post.interest_tags.map(&:id)
@@ -84,6 +88,14 @@ module AiAction
 
         -score # Sort descending
       end
+    end
+
+    def community_peer_ids
+      key = "ai_community_peers:#{@ai.id}"
+      raw = @redis.get(key)
+      raw ? JSON.parse(raw) : []
+    rescue Redis::BaseError, JSON::ParserError
+      []
     end
 
     def following_ai_ids

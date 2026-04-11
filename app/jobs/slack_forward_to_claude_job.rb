@@ -1,21 +1,17 @@
-require "net/http"
-require "json"
-
 class SlackForwardToClaudeJob < ApplicationJob
   queue_as :default
 
   def perform(text:, channel:, user:, ts:)
-    claude_member_id = ENV["SLACK_CLAUDE_MEMBER_ID"]
     claude_channel   = ENV["SLACK_CLAUDE_CHANNEL_ID"]
     error_channel    = ENV["SLACK_ERROR_CHANNEL_ID"]
 
-    return unless claude_channel.present? && claude_member_id.present?
+    return unless claude_channel.present?
 
     # 元メッセージへのリンクを生成
     original_link = build_message_link(error_channel, ts)
 
     message = <<~TEXT
-      <@#{claude_member_id}> 以下のエラーを修正してください:
+      @GitHub 以下のエラーを修正してください:
       #{original_link}
       ```
       #{text}
