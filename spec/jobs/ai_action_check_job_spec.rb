@@ -3,9 +3,16 @@ require "rails_helper"
 RSpec.describe AiActionCheckJob, type: :job do
   let(:ai_user)    { create(:ai_user) }
   let(:daily_state) { create(:ai_daily_state, ai_user: ai_user, post_motivation: 60) }
+  let(:ai_users_to_process) { [ ai_user ] }
   let(:redis_double) { instance_double(Redis, set: true, del: true) }
 
   before do
+    relation = instance_double(ActiveRecord::Relation)
+    allow(AiUser).to receive(:where).with(is_active: true).and_return(relation)
+    allow(relation).to receive(:find_each).with(batch_size: 100) do |&block|
+      ai_users_to_process.each(&block)
+    end
+
     allow(Redis).to receive(:new).and_return(redis_double)
     # Redisロック取得成功
     allow(redis_double).to receive(:set).with(AiActionCheckJob::LOCK_KEY, 1, nx: true, ex: anything).and_return(true)
@@ -84,8 +91,10 @@ RSpec.describe AiActionCheckJob, type: :job do
     context "when processing raises an error for one AI" do
       let!(:other_ai) { create(:ai_user) }
       let!(:other_daily_state) { create(:ai_daily_state, ai_user: other_ai, post_motivation: 60) }
+      let(:ai_users_to_process) { [ ai_user, other_ai ] }
 
       before do
+        allow(other_ai).to receive(:today_state).and_return(other_daily_state)
         call_count = 0
         allow(AiAction::TimelineSelector).to receive(:select) do
           call_count += 1
