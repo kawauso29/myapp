@@ -15,21 +15,22 @@ namespace :solid_queue do
     puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from default queue"
   end
 
-  desc "Delete unfinished ActiveJob wrapper jobs that reference missing job classes"
+  desc "Delete unfinished jobs that reference missing job classes"
   task cleanup_unknown_job_classes: :environment do
-    wrapper_jobs = SolidQueue::Job.where(
-      class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper",
-      finished_at: nil
-    )
-
     unknown_ids = []
 
-    wrapper_jobs.find_each do |job|
+    SolidQueue::Job.where(finished_at: nil).find_each do |job|
       begin
-        # ActiveJob wrapper payload is stored as arguments: [{ "job_class" => "SomeJob", ... }]
-        payload = job.arguments
-        payload = payload.first if payload.is_a?(Array)
-        job_class = payload.is_a?(Hash) ? (payload["job_class"] || payload[:job_class]) : nil
+        # solid_queue 1.x: class_name = 実際のジョブクラス名
+        # 旧パターン: class_name = "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"（argumentsにjob_classを持つ）
+        job_class = if job.class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
+          payload = job.arguments
+          payload = payload.first if payload.is_a?(Array)
+          payload.is_a?(Hash) ? (payload["job_class"] || payload[:job_class]) : nil
+        else
+          job.class_name
+        end
+
         next if job_class.blank?
         next if job_class.safe_constantize
 
@@ -40,7 +41,18 @@ namespace :solid_queue do
     end
 
     deleted_count = unknown_ids.empty? ? 0 : SolidQueue::Job.where(id: unknown_ids).delete_all
-    puts "Deleted #{deleted_count} jobs referencing missing ActiveJob classes"
+    puts "Deleted #{deleted_count} jobs referencing missing job classes"
+  end
+
+  desc "Discard FailedExecution records with ActiveJob::UnknownJobClassError (stale pre-deploy failures)"
+  task discard_unknown_class_failed_executions: :environment do
+    count = SolidQueue::FailedExecution.where("error LIKE ?", "%UnknownJobClassError%").count
+    SolidQueue::FailedExecution.where("error LIKE ?", "%UnknownJobClassError%").find_each do |ex|
+      ex.discard
+    rescue StandardError => e
+      Rails.logger.warn("solid_queue:discard_unknown_class_failed_executions failed for id=#{ex.id}: #{e.message}")
+    end
+    puts "Discarded #{count} FailedExecution records with UnknownJobClassError"
   end
 
   desc "Verify required job class constants are loaded"

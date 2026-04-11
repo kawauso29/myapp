@@ -12,10 +12,17 @@ class MonitorFailedJobsJob < ApplicationJob
       .order(created_at: :desc)
       .limit(100)
 
+    # 常にlast_checkを更新（通知失敗時も再通知しないよう）
+    Rails.cache.write("monitor_failed_jobs:last_check", now, expires_in: 2.hours)
+
     return if failed_executions.empty?
 
+    # jobがnilのレコード（job削除済み）はスキップ
+    valid_executions = failed_executions.select { |ex| ex.job.present? }
+    return if valid_executions.empty?
+
     # 同じジョブクラス＋エラー種別でグループ化してまとめて1通知
-    grouped = failed_executions.group_by do |ex|
+    grouped = valid_executions.group_by do |ex|
       error_data = ex.error || {}
       "#{ex.job.class_name}::#{error_data['exception_class']}"
     end
@@ -23,8 +30,6 @@ class MonitorFailedJobsJob < ApplicationJob
     grouped.each do |_key, executions|
       notify_slack_grouped(executions)
     end
-
-    Rails.cache.write("monitor_failed_jobs:last_check", now, expires_in: 2.hours)
   rescue => e
     Rails.logger.error("[MonitorFailedJobsJob] Error: #{e.message}")
   end

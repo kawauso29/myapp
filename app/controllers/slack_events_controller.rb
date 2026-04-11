@@ -124,6 +124,8 @@ class SlackEventsController < ApplicationController
     # デプロイ通知は除外（「デプロイ」テキストでフィルタ）
     full_text = extract_full_text(event)
     return false if full_text.include?("デプロイ")
+    # SlackForwardToClaudeJob自身のエラーは転送しない（無限ループ防止）
+    return false if full_text.include?("SlackForwardToClaudeJob")
     # attachments内も含めてキーワード検索（Incoming Webhookはtextが空でattachmentsに内容が入る）
     ERROR_KEYWORDS.any? { |kw| full_text.include?(kw) }
   end
