@@ -94,7 +94,7 @@ jobs:
           github.event.workflow_run.event == 'pull_request' }}
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Merge PR after CI pass
         uses: actions/github-script@v7

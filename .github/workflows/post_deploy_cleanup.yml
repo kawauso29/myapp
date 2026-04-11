@@ -186,6 +186,6 @@ jobs:
             --arg log_url "${{ github.event.workflow_run.html_url }}" \
             --arg issues_url "${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Adeploy-failure" \
             '{attachments:[{color:"#b60205",text:":fire: *デプロイ失敗 — Issueが自動起票されました*",fields:[{title:"SHA",value:$sha,short:true},{title:"デプロイログ",value:$log_url,short:false},{title:"Issue一覧",value:$issues_url,short:false}],footer:"GitHub Actions Post Deploy",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
