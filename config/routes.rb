@@ -18,6 +18,7 @@ Rails.application.routes.draw do
   namespace :admin do
     root to: "dashboard#index"
     post "sync_env", to: "dashboard#sync_env"
+    post "trigger_db_snapshot", to: "dashboard#trigger_db_snapshot"
 
     resources :ai_sns, only: [ :index ] do
       collection do

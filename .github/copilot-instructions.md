@@ -91,6 +91,35 @@ docker compose up
 - DB: PostgreSQL 16（`postgres:password@localhost:5432`）
 - Redis: localhost:6379
 
+## DBスナップショット（本番DB情報のJSON同期）
+
+本番DBのデータをJSON形式でエクスポートし、`db-snapshots` ブランチに保存する仕組みがあります。
+
+### 構成
+
+| ファイル | 役割 |
+|---|---|
+| `lib/tasks/db_snapshot.rake` | `bin/rails db:snapshot` タスク（JSONをstdoutへ出力） |
+| `.github/workflows/db_snapshot.yml` | VPS上でタスクを実行し `db-snapshots` ブランチへコミット |
+
+### 実行方法
+
+- **管理画面**: Admin Dashboard ナビの「DBスナップショット取得」ボタン
+  - `GITHUB_DEPLOY_TOKEN` 環境変数（GitHub PAT / workflow権限）が必要
+- **GitHub Actions UI**: Actions → "DB Snapshot for Claude" → Run workflow
+
+### スナップショットの内容
+
+- 全テーブルのレコード件数
+- センシティブカラムを除いた各モデルの直近データ（users, ai_users, ai_profiles, ai_posts 等）
+- 除外カラム: `encrypted_password`, `reset_password_token`, `stripe_customer_id`, `stripe_subscription_id`
+
+### 注意
+
+- 出力先ブランチは `db-snapshots`（orphanブランチ）
+- ファイル名は `db_snapshot.json`（毎回上書き）
+- 実行のたびに `snapshot: YYYY-MM-DD HH:MM UTC` でコミットされる
+
 ## PR作成時のチェックリスト
 
 1. `bin/rubocop` でエラーがないことを確認
