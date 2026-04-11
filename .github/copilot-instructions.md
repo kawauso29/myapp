@@ -1,0 +1,98 @@
+# GitHub Copilot Instructions
+
+このリポジトリは Ruby on Rails 8.1 + Expo (React Native Web) のフルスタックアプリです。
+以下のルールを必ず守ってコードを生成・修正してください。
+
+## プロジェクト概要
+
+- **バックエンド**: Ruby 3.3.7 / Rails 8.1.2
+- **フロントエンド**: Expo (React Native Web) / TypeScript
+- **DB**: PostgreSQL（本番: myapp_production）
+- **キャッシュ/キュー**: Redis + Solid Queue
+- **本番サーバー**: さくらVPS（Ubuntu 22.04 / Nginx + Puma）
+
+## コーディングルール（Ruby / Rails）
+
+### やってはいけないこと（CIで必ず引っかかる）
+
+- `Time.now` は使わない → **`Time.current`** を使う（Rails/TimeZone cop）
+- `"str" + method()` の文字列結合は使わない → **`"str#{method()}"`** 補間を使う
+- `head :unauthorized and return` は使わない → **`return head :unauthorized`** を使う
+- private ブロック内に定数を定義しない → **private より前に定義する**
+- `actions/checkout@v6` は存在しない → **`@v4`** を使う
+
+### メソッド・スタイル
+
+- `redirect_back` の引数はカッコなし: `redirect_back fallback_location: path, notice: "..."` （Ruby 3.3でカッコ＋カンマはSyntaxError）
+- Rails の規約に従い、controller は `before_action` でフィルタを定義する
+
+## デプロイ・CI のルール
+
+### ブランチ戦略
+
+1. 作業は必ずフィーチャーブランチ（`claude/...` または `copilot/...`）で行う
+2. 作業前に `git branch -a` で重複ブランチがないか確認する
+3. CI（scan_ruby / scan_js / lint / test / system-test）が全て通ってからマージする
+4. マージ後はブランチを削除する（ローカル・リモート両方）
+
+### CI/CD の仕組み
+
+```
+main への push（またはPRマージ）
+    ↓
+[CI ワークフロー] scan_ruby / scan_js / lint / test / system-test
+    ↓ 全成功                       ↓ 失敗
+[Deploy ワークフロー]           [Auto Fix ワークフロー]
+  ↓ ヘルスチェック（3回）          ↓ rubocop --autocorrect
+  ↓ 失敗 → 自動ロールバック        ↓ 自動修正PR作成 + Slack通知
+  ↓ Slack通知
+```
+
+- **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で CI 完了を待つ
+- **手動デプロイ**: `workflow_dispatch` でいつでも実行可能
+
+### デプロイ先
+
+| 項目 | 値 |
+|------|-----|
+| サーバー | さくらVPS |
+| IP | 133.167.124.112 |
+| アプリパス | `/home/ubuntu/myapp` |
+| Ruby | 3.3.7（rbenv） |
+
+### 502エラー時のデバッグ
+
+```bash
+cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
+```
+
+- エラー → Railsシンタックスエラー等（コードを確認）
+- "OK" → Puma/Nginx設定問題
+
+## GitHub Actions ワークフロー修正時のルール
+
+- `uses: actions/checkout` は必ず **`@v4`** を使う（v6は存在しない）
+- ジョブには `permissions: contents: read` を最小権限で明示する
+- Slack通知の JSON ペイロードは必ず **`jq`** で生成する（コミットメッセージの特殊文字でJSONが壊れるため）
+- ロールバック用の一時ファイルは `/tmp/pre_deploy_sha_<run_id>` のように run_id で一意にする
+
+## Slack 通知
+
+- Webhook URL: `${{ secrets.SLACK_WEBHOOK_URL }}`
+- JSON は必ず `jq -n --arg key value '...'` で生成する（インジェクション・改行対策）
+
+## ローカル開発
+
+```bash
+docker compose up
+```
+
+- Rails: http://localhost:3000
+- DB: PostgreSQL 16（`postgres:password@localhost:5432`）
+- Redis: localhost:6379
+
+## PR作成時のチェックリスト
+
+1. `bin/rubocop` でエラーがないことを確認
+2. `bundle exec rspec` でテストが通ることを確認
+3. CI失敗を修正した場合は `CLAUDE.md` の「CIエラーの原因になったこと」に追記する
