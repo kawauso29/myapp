@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   actions: read
 
 jobs:
@@ -131,3 +132,130 @@ jobs:
       - name: Skip auto-fix for non-lint failures
         if: steps.lint_check.outputs.lint_failed != 'true'
         run: echo "Skipping auto-fix because lint job did not fail."
+
+  # lint 以外のジョブ（test / job-check / route-check）が失敗した場合に Issue を起票する
+  triage_ci_failures:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect failed jobs and create triage issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const run = context.payload.workflow_run
+
+            // 全ジョブを取得
+            const response = await github.rest.actions.listJobsForWorkflowRun({
+              owner,
+              repo,
+              run_id: run.id,
+              per_page: 100,
+            })
+
+            // lint 以外の失敗ジョブを抽出
+            const NON_LINT_JOBS = ['test', 'job-check', 'route-check', 'scan_ruby', 'scan_js', 'system-test']
+            const failedJobs = response.data.jobs.filter(
+              j => NON_LINT_JOBS.includes(j.name) && j.conclusion === 'failure'
+            )
+            if (failedJobs.length === 0) {
+              core.info('No non-lint job failures found, skipping issue creation')
+              return
+            }
+
+            // 重複Issue防止：同じコミットで既に起票済みか確認
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              labels: 'ci-failure',
+              state: 'open',
+              per_page: 20,
+            })
+            const alreadyFiled = existing.data.some(i => i.title.includes(run.head_sha.substring(0, 7)))
+            if (alreadyFiled) {
+              core.info('Issue already filed for this commit, skipping')
+              return
+            }
+
+            // ジョブごとのラベルマッピング
+            const JOB_LABEL_MAP = {
+              'test':        'ci-failure:test',
+              'job-check':   'ci-failure:job-check',
+              'route-check': 'ci-failure:route-check',
+              'scan_ruby':   'ci-failure:security',
+              'scan_js':     'ci-failure:security',
+              'system-test': 'ci-failure:system-test',
+            }
+
+            const issueLabels = ['ci-failure']
+            const jobList = failedJobs.map(j => {
+              const label = JOB_LABEL_MAP[j.name]
+              if (label) issueLabels.push(label)
+              return `- **${j.name}**: [ログを確認](${j.html_url})`
+            }).join('\n')
+
+            // ラベルを事前作成（存在しなければ）
+            const LABEL_COLORS = {
+              'ci-failure':              'e4e669',
+              'ci-failure:test':         'd93f0b',
+              'ci-failure:job-check':    'e99695',
+              'ci-failure:route-check':  'f9d0c4',
+              'ci-failure:security':     'b60205',
+              'ci-failure:system-test':  'fbca04',
+            }
+            for (const [name, color] of Object.entries(LABEL_COLORS)) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name })
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description: 'Auto-created by CI triage' })
+                }
+              }
+            }
+
+            const uniqueLabels = [...new Set(issueLabels)]
+            const shortSha = run.head_sha.substring(0, 7)
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${run.id}`
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `🔴 CI失敗: ${failedJobs.map(j => j.name).join(', ')} [${shortSha}]`,
+              body: [
+                `## CI 失敗レポート`,
+                ``,
+                `**コミット**: [\`${shortSha}\`](${context.serverUrl}/${owner}/${repo}/commit/${run.head_sha})`,
+                `**ブランチ**: \`${run.head_branch}\``,
+                `**コミットメッセージ**: ${run.head_commit?.message?.split('\n')[0] ?? '(不明)'}`,
+                `**CIワークフロー**: [実行ログ](${runUrl})`,
+                ``,
+                `## 失敗ジョブ`,
+                ``,
+                jobList,
+                ``,
+                `## 対応手順`,
+                ``,
+                `1. 上記ログリンクから失敗原因を確認する`,
+                `2. フィーチャーブランチ（\`copilot/fix-...\` または \`claude/fix-...\`）で修正する`,
+                `3. PRを作成（CIが通れば自動マージされる）`,
+                `4. 修正完了後に \`CLAUDE.md\` の「CIエラーの原因」に追記する`,
+                ``,
+                `---`,
+                `*このIssueはCI失敗時に自動生成されました*`,
+              ].join('\n'),
+              labels: uniqueLabels,
+            })
+            core.info(`Created triage issue for failed jobs: ${failedJobs.map(j => j.name).join(', ')}`)
+
+      - name: Notify Slack (non-lint CI failure)
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
+            --arg sha "${{ github.event.workflow_run.head_sha }}" \
+            --arg branch "${{ github.event.workflow_run.head_branch }}" \
+            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
+            --arg issues_url "${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure" \
+            '{attachments:[{color:"#e01e5a",text:(":x: *CI失敗（test/check系）* `" + $branch + "` — Issueを確認してください"),fields:[{title:"コミット",value:$msg,short:false},{title:"SHA",value:$sha,short:true},{title:"CIログ",value:$log_url,short:false},{title:"Issue一覧",value:$issues_url,short:false}],footer:"GitHub Actions Auto Triage",ts:now|floor}]}')
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"

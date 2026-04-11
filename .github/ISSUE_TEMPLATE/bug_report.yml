@@ -1,0 +1,39 @@
+name: 🐛 バグ報告
+description: 本番環境やCIで発生したバグを報告する
+title: "[BUG] "
+labels: ["bug"]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: バグの内容
+      description: 何が起きているか説明してください
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. ...にアクセスする
+        2. ...をクリックする
+        3. エラーが発生する
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・エラーメッセージ
+      render: shell
+    validations:
+      required: false

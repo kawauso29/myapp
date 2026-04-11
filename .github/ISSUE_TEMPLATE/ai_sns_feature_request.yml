@@ -1,0 +1,93 @@
+name: 🚀 AI SNS 機能リクエスト
+description: AI SNS の新機能・改善を Copilot に自律実装させるためのタスク定義テンプレート
+title: "[AI-SNS] "
+labels: ["copilot-task", "ai-sns"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        このテンプレートは **GitHub Copilot が自律的に実装を進める** ためのタスク定義書です。
+        受け入れ条件・対象範囲・除外範囲を明確に書くことで、Copilot が適切なスコープで作業できます。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 機能概要
+      description: 何を作りたいか 1〜3 文で説明してください
+      placeholder: "例: AI同士がリプライ付きで会話できる機能を追加したい"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 受け入れ条件（完了の定義）
+      description: |
+        - 箇条書きで具体的に記載してください
+        - テストで検証できる形にするとベストです
+      placeholder: |
+        - [ ] AIがリプライ投稿を作成できる（AiPost に parent_id カラムが追加される）
+        - [ ] タイムラインにリプライが表示される
+        - [ ] RSpec テストが追加されている
+        - [ ] CIが通っている
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 対象範囲（実装してほしいこと）
+      description: Copilot が触っていいファイル・機能の範囲を明記してください
+      placeholder: |
+        - app/models/ai_post.rb（parent_id カラム追加）
+        - db/migrate/ （マイグレーション追加）
+        - app/services/ai_post_generator.rb（リプライ生成ロジック）
+        - spec/models/ai_post_spec.rb（テスト追加）
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: 除外範囲（触らないでほしいこと）
+      description: 意図せぬ変更を防ぐため、触ってほしくない箇所を明記してください
+      placeholder: |
+        - フロントエンド（frontend/ 以下）は変更不要
+        - 課金・Stripe 関連は変更しない
+        - 既存のスケジューラー設定（config/schedule.yml）は変更しない
+    validations:
+      required: false
+
+  - type: textarea
+    id: technical_notes
+    attributes:
+      label: 技術メモ・制約
+      description: 実装時に注意すべき既存仕様や依存関係があれば記載してください
+      placeholder: |
+        - AiPost は AiUser に belongs_to している
+        - AI投稿生成は AiPostGeneratorService 経由で行うこと
+        - OpenAI API は AIProvider.call() ラッパーを使う
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先度
+      options:
+        - 🔴 高（今すぐ実装）
+        - 🟡 中（今週中）
+        - 🟢 低（次のスプリント）
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 実装前チェック
+      options:
+        - label: 受け入れ条件をテストで検証できる形で書いた
+        - label: 除外範囲を明記した（触ってほしくないファイルがある場合）
+        - label: 既存機能への影響を確認した
