@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_10_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,18 +48,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   create_table "ai_daily_states", force: :cascade do |t|
     t.bigint "ai_user_id", null: false
+    t.integer "appetite", default: 1, null: false
+    t.bigint "ai_user_id", null: false
     t.integer "busyness", default: 1, null: false
+    t.integer "concentration", default: 1, null: false
     t.datetime "created_at", null: false
     t.integer "daily_whim", default: 13, null: false
     t.date "date", null: false
     t.integer "drinking_level", default: 0, null: false
     t.integer "energy", default: 1, null: false
     t.integer "fatigue_carried", default: 0, null: false
+    t.boolean "going_out", default: false, null: false
     t.boolean "hangover", default: false, null: false
+    t.jsonb "hourly_states", default: [], null: false
     t.boolean "is_drinking", default: false, null: false
     t.integer "mood", default: 1, null: false
+    t.integer "morning_mood", default: 2, null: false
     t.integer "physical", default: 1, null: false
     t.integer "post_motivation", default: 50, null: false
+    t.integer "social_battery", default: 80, null: false
+    t.integer "stress_level", default: 20, null: false
     t.integer "timeline_urge", default: 1, null: false
     t.string "today_events", default: [], array: true
     t.datetime "updated_at", null: false
@@ -68,6 +76,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
     t.index ["ai_user_id", "date"], name: "index_ai_daily_states_on_ai_user_id_and_date", unique: true
     t.index ["ai_user_id"], name: "index_ai_daily_states_on_ai_user_id"
     t.index ["date"], name: "index_ai_daily_states_on_date"
+  end
+
+  create_table "ai_close_people", force: :cascade do |t|
+    t.bigint "ai_user_id", null: false
+    t.date "age_base_date"
+    t.integer "age"
+    t.datetime "created_at", null: false
+    t.integer "gender"
+    t.string "name", null: false
+    t.text "notes"
+    t.integer "relation", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_user_id", "relation"], name: "index_ai_close_people_on_ai_user_id_and_relation"
+    t.index ["ai_user_id"], name: "index_ai_close_people_on_ai_user_id"
+  end
+
+  create_table "ai_daily_schedules", force: :cascade do |t|
+    t.bigint "ai_user_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "items", default: [], null: false
+    t.date "scheduled_date", null: false
+    t.text "tomorrow_note"
+    t.datetime "updated_at", null: false
+    t.text "week_context"
+    t.index ["ai_user_id", "scheduled_date"], name: "index_ai_daily_schedules_on_ai_user_id_and_scheduled_date", unique: true
+    t.index ["ai_user_id"], name: "index_ai_daily_schedules_on_ai_user_id"
+    t.index ["scheduled_date"], name: "index_ai_daily_schedules_on_scheduled_date"
   end
 
   create_table "ai_dm_messages", force: :cascade do |t|
@@ -98,14 +133,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   create_table "ai_dynamic_params", force: :cascade do |t|
     t.bigint "ai_user_id", null: false
+    t.integer "anger", default: 0, null: false
+    t.integer "anxiety", default: 10, null: false
     t.integer "boredom", default: 10, null: false
     t.datetime "created_at", null: false
     t.integer "dissatisfaction", default: 10, null: false
+    t.integer "excitement", default: 20, null: false
     t.integer "fatigue_carried", default: 0, null: false
     t.integer "happiness", default: 50, null: false
     t.integer "loneliness", default: 10, null: false
     t.integer "relationship_dissatisfaction", default: 0, null: false
     t.integer "relationship_duration_days", default: 0, null: false
+    t.integer "self_confidence", default: 50, null: false
+    t.integer "social_energy", default: 50, null: false
+    t.integer "stress", default: 10, null: false
     t.datetime "updated_at", null: false
     t.index ["ai_user_id"], name: "index_ai_dynamic_params_on_ai_user_id", unique: true
   end
@@ -122,15 +163,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   create_table "ai_life_events", force: :cascade do |t|
     t.bigint "ai_user_id", null: false
+    t.string "chain_type"
     t.jsonb "context", default: {}
     t.datetime "created_at", null: false
     t.integer "event_type", null: false
     t.datetime "fired_at", null: false
     t.boolean "manually_triggered", default: false, null: false
+    t.bigint "parent_event_id"
     t.datetime "updated_at", null: false
     t.index ["ai_user_id", "event_type"], name: "index_ai_life_events_on_ai_user_id_and_event_type"
     t.index ["ai_user_id"], name: "index_ai_life_events_on_ai_user_id"
     t.index ["fired_at"], name: "index_ai_life_events_on_fired_at"
+    t.index ["parent_event_id"], name: "index_ai_life_events_on_parent_event_id"
   end
 
   create_table "ai_long_term_memories", force: :cascade do |t|
@@ -148,21 +192,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
   create_table "ai_personalities", force: :cascade do |t|
     t.integer "active_time_peak", default: 3, null: false
     t.bigint "ai_user_id", null: false
+    t.integer "competitiveness", default: 3, null: false
+    t.integer "creativity", default: 3, null: false
     t.datetime "created_at", null: false
     t.integer "curiosity", default: 3, null: false
     t.integer "drinking_frequency", default: 2, null: false
     t.integer "emotional_range", default: 3, null: false
     t.integer "empathy", default: 3, null: false
     t.integer "follow_philosophy", default: 1, null: false
+    t.integer "generosity", default: 3, null: false
+    t.integer "humor", default: 3, null: false
+    t.integer "independence", default: 3, null: false
     t.integer "jealousy", default: 2, null: false
     t.integer "need_for_approval", default: 3, null: false
+    t.integer "nostalgia_tendency", default: 3, null: false
+    t.integer "optimism", default: 3, null: false
+    t.integer "patience", default: 3, null: false
+    t.integer "perfectionism", default: 3, null: false
     t.integer "post_frequency", default: 3, null: false
     t.integer "primary_purpose", default: 0, null: false
     t.integer "risk_tolerance", default: 3, null: false
     t.integer "secondary_purpose"
     t.integer "self_esteem", default: 3, null: false
     t.integer "self_expression", default: 3, null: false
+    t.integer "sensitivity", default: 3, null: false
     t.integer "sociability", default: 3, null: false
+    t.integer "stubbornness", default: 3, null: false
+    t.integer "trustfulness", default: 3, null: false
     t.datetime "updated_at", null: false
     t.index ["ai_user_id"], name: "index_ai_personalities_on_ai_user_id", unique: true
   end
@@ -203,6 +259,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   create_table "ai_profiles", force: :cascade do |t|
     t.integer "age", null: false
+    t.date "age_base_date"
     t.bigint "ai_user_id", null: false
     t.text "bio"
     t.string "catchphrase"
@@ -344,6 +401,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
     t.index ["captured_at"], name: "index_market_snapshots_on_captured_at"
   end
 
+  create_table "notifications", force: :cascade do |t|
+    t.bigint "ai_post_id"
+    t.bigint "ai_user_id"
+    t.datetime "created_at", null: false
+    t.boolean "is_read", default: false, null: false
+    t.string "message", null: false
+    t.string "notification_type", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id", "is_read"], name: "index_notifications_on_user_id_and_is_read"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
+    t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
+    t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
+  end
+
   create_table "picro_messages", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "message_id", null: false
@@ -451,6 +524,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
 
   add_foreign_key "agent_judgments", "market_snapshots"
   add_foreign_key "ai_avatar_states", "ai_users"
+  add_foreign_key "ai_close_people", "ai_users"
+  add_foreign_key "ai_daily_schedules", "ai_users"
   add_foreign_key "ai_daily_states", "ai_users"
   add_foreign_key "ai_dm_messages", "ai_dm_threads", column: "thread_id"
   add_foreign_key "ai_dm_messages", "ai_users"
@@ -459,6 +534,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
   add_foreign_key "ai_dynamic_params", "ai_users"
   add_foreign_key "ai_interest_tags", "ai_users"
   add_foreign_key "ai_interest_tags", "interest_tags"
+  add_foreign_key "ai_life_events", "ai_life_events", column: "parent_event_id"
   add_foreign_key "ai_life_events", "ai_users"
   add_foreign_key "ai_long_term_memories", "ai_users"
   add_foreign_key "ai_personalities", "ai_users"
@@ -473,6 +549,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200001) do
   add_foreign_key "ai_relationships", "ai_users", column: "target_ai_user_id"
   add_foreign_key "ai_short_term_memories", "ai_users"
   add_foreign_key "ai_users", "users"
+  add_foreign_key "notifications", "ai_posts"
+  add_foreign_key "notifications", "ai_users"
+  add_foreign_key "notifications", "users"
   add_foreign_key "post_interest_tags", "ai_posts"
   add_foreign_key "post_interest_tags", "interest_tags"
   add_foreign_key "post_reports", "ai_posts"

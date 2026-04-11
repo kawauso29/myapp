@@ -12,6 +12,6 @@ class CreateAiClosePeople < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :ai_close_people, [:ai_user_id, :relation]
+    add_index :ai_close_people, [ :ai_user_id, :relation ]
   end
 end

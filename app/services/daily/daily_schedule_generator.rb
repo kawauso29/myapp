@@ -44,7 +44,7 @@ module Daily
                when 6..8 then "夏"
                when 9..11 then "秋"
                else "冬"
-               end
+      end
 
       state_desc = if @today_state
         "今日の体調=#{@today_state.physical}, 気分=#{@today_state.mood}, 忙しさ=#{@today_state.busyness}"
