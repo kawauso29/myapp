@@ -40,10 +40,10 @@ module Daily
     def build_prompt
       wday_label = %w[日曜日 月曜日 火曜日 水曜日 木曜日 金曜日 土曜日][@target_date.wday]
       season = case @target_date.month
-               when 3..5 then "春"
-               when 6..8 then "夏"
-               when 9..11 then "秋"
-               else "冬"
+      when 3..5 then "春"
+      when 6..8 then "夏"
+      when 9..11 then "秋"
+      else "冬"
       end
 
       state_desc = if @today_state
