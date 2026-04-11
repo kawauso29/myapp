@@ -245,3 +245,4 @@ main への push
 - 本番で `MonitorFailedJobsJob` のSlack通知が来ない場合、VPS `.env` に `SLACK_WEBHOOK_URL` が同期されているか確認する（GitHub Actionsの通知だけ動いていてアプリ通知が無効になる）
 - `ActiveJob::UnknownJobClassError` が継続する場合、**誤り**: systemdのsolid_queueサービスを再起動 → **正しい**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内で動作しているため別途再起動不要。Pumaの再起動後に十分な待機時間（10秒）を確保し、その後 `eager_load!` を実行する
 - `ActiveJob::UnknownJobClassError` 再発時、legacyジョブ停止のPID抽出が `$2/$3 == bin/jobs` だけだと `bundle exec bin/jobs` を取りこぼす。`ps -eo pid,args | awk` でコマンド全体を正規表現マッチして停止対象を拾う
+- legacy `bin/jobs` 停止処理で `ps ... args` の全文一致だけを使うと、`ssh-action` 実行中の `bash -c`（スクリプト本文に `bin/jobs` を含む）まで誤検知して自己終了(143)することがある → `ps -eo pid,comm,args` で `bash/sh` を除外し、さらに `$$` と `$PPID` を kill 対象から除外する

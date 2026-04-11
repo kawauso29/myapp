@@ -129,10 +129,13 @@ jobs:
             ls ~/myapp/public/app/ | head -10
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache/*
-            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
+            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
             if [ -n "$LEGACY_JOB_PIDS" ]; then
               echo "Stopping legacy bin/jobs processes: $LEGACY_JOB_PIDS"
               for pid in $LEGACY_JOB_PIDS; do
+                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                  continue
+                fi
                 kill "$pid" || true
                 sleep 2
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
@@ -185,10 +188,13 @@ jobs:
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             rm -rf tmp/cache/*
-            LEGACY_JOB_PIDS=$(ps -eo pid=,args= | awk '$0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
+            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
             if [ -n "$LEGACY_JOB_PIDS" ]; then
               echo "Stopping legacy bin/jobs processes during rollback: $LEGACY_JOB_PIDS"
               for pid in $LEGACY_JOB_PIDS; do
+                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                  continue
+                fi
                 kill "$pid" || true
                 sleep 2
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
