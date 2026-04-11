@@ -61,7 +61,8 @@ Rails.application.routes.draw do
                    registration: "sign_up"
                  },
                  defaults: { format: :json },
-                 singular: :user
+                 singular: :user,
+                 skip: [ :passwords ]
 
       # AI Users
       resources :ai_users, only: [ :index, :show, :create ] do
