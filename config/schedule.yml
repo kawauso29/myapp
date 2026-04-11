@@ -89,3 +89,4 @@ routing_health_check:
 monitor_failed_jobs:
   cron: "*/5 * * * *"
   class: "MonitorFailedJobsJob"
+  queue: low
