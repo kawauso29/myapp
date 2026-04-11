@@ -95,6 +95,7 @@ jobs:
             }
             set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
             set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+            set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
             set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
             set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
             set_env SLACK_GITHUB_MEMBER_ID '${{ secrets.SLACK_GITHUB_MEMBER_ID }}'
@@ -129,6 +130,9 @@ jobs:
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache/*
             sudo systemctl restart puma
+            if systemctl list-unit-files | grep -q '^solid_queue\.service'; then
+              sudo systemctl restart solid_queue
+            fi
             sleep 5
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
 
@@ -174,6 +178,9 @@ jobs:
             RAILS_ENV=production bin/rails db:migrate
             rm -rf tmp/cache/*
             sudo systemctl restart puma
+            if systemctl list-unit-files | grep -q '^solid_queue\.service'; then
+              sudo systemctl restart solid_queue
+            fi
             sleep 5
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
             echo "Rollback to $PRE_SHA complete"
