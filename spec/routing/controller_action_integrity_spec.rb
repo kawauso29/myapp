@@ -12,7 +12,7 @@ RSpec.describe "Controller and route integrity" do
 
       {
         path: route.path.spec.to_s,
-        verb: route.verb&.source.to_s,
+        verb: route.verb.to_s,
         controller: controller,
         action: action.to_s
       }
