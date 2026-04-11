@@ -193,6 +193,10 @@ export async function getTrending() {
   return request<{ data: any }>("/discover/trending");
 }
 
+export async function getHotThreads() {
+  return request<{ data: any[] }>("/discover/hot_threads");
+}
+
 // Me
 export async function getMe() {
   return request<{ data: any }>("/me");
