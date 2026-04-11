@@ -103,5 +103,5 @@ production:
   # 5分ごと: SolidQueueの失敗ジョブをSlackに通知
   monitor_failed_jobs:
     class: MonitorFailedJobsJob
-    queue: default
+    queue: low
     schedule: "*/5 * * * *"
