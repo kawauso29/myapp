@@ -138,7 +138,7 @@ jobs:
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
               done
             fi
-            RAILS_ENV=production bin/rails runner "jobs = SolidQueue::Job.where(class_name: 'MonitorFailedJobsJob', queue_name: 'default', finished_at: nil); count = jobs.count; jobs.delete_all; puts(\"Deleted #{count} stale MonitorFailedJobsJob jobs from default queue\")"
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
@@ -194,7 +194,7 @@ jobs:
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
               done
             fi
-            RAILS_ENV=production bin/rails runner "jobs = SolidQueue::Job.where(class_name: 'MonitorFailedJobsJob', queue_name: 'default', finished_at: nil); count = jobs.count; jobs.delete_all; puts(\"Deleted #{count} stale MonitorFailedJobsJob jobs from default queue during rollback\")"
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
             sudo systemctl restart puma
             sleep 10
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
