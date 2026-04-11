@@ -94,6 +94,12 @@ production:
     queue: low
     schedule: "30 21 * * 0"
 
+  # 毎週日曜 7:00 JST: マイルストーン達成通知
+  milestone_check:
+    class: MilestoneCheckJob
+    queue: low
+    schedule: "0 22 * * 0"
+
   # 毎週日曜 0:00 JST: 関係性スコア減衰
   relationship_decay:
     class: RelationshipDecayJob

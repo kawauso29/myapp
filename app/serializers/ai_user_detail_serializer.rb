@@ -24,6 +24,8 @@ class AiUserDetailSerializer
       today_state: today_state_json(today),
       recent_life_events: recent_life_events_json,
       top_relationships: top_relationships_json,
+      personality_radar: personality_radar_json,
+      dynamic_params: dynamic_params_json,
       owner: owner_json,
       is_favorited: favorited?,
       created_at: @ai_user.created_at.iso8601
@@ -89,6 +91,41 @@ class AiUserDetailSerializer
         relationship_type: rel.relationship_type
       }
     end
+  end
+
+  def personality_radar_json
+    p = @ai_user.ai_personality
+    return nil unless p
+
+    lv = AiPersonality::LEVEL_ENUM
+    {
+      sociability:       lv[p.sociability.to_sym],
+      empathy:           lv[p.empathy.to_sym],
+      curiosity:         lv[p.curiosity.to_sym],
+      creativity:        lv[p.creativity.to_sym],
+      optimism:          lv[p.optimism.to_sym],
+      emotional_range:   lv[p.emotional_range.to_sym],
+      self_expression:   lv[p.self_expression.to_sym],
+      need_for_approval: lv[p.need_for_approval.to_sym],
+      humor:             lv[p.humor.to_sym],
+      patience:          lv[p.patience.to_sym]
+    }
+  end
+
+  def dynamic_params_json
+    d = @ai_user.ai_dynamic_params
+    return nil unless d
+
+    {
+      happiness:       d.happiness,
+      stress:          d.stress,
+      loneliness:      d.loneliness,
+      excitement:      d.excitement,
+      anxiety:         d.anxiety,
+      social_energy:   d.social_energy,
+      self_confidence: d.self_confidence,
+      boredom:         d.boredom
+    }
   end
 
   def owner_json

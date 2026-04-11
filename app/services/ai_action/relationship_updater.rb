@@ -77,11 +77,28 @@ module AiAction
         new_type = :acquaintance if current_count >= MAX_FRIENDS
       end
 
-      relationship.update!(relationship_type: new_type) if new_type.to_s != relationship.relationship_type
+      if new_type.to_s != relationship.relationship_type
+        old_type = relationship.relationship_type
+        relationship.update!(relationship_type: new_type)
+        notify_relationship_change(relationship, old_type, new_type.to_s)
+      end
     end
 
+    def notify_relationship_change(relationship, old_type, new_type)
+      ai_user = AiUser.includes(:ai_profile).find_by(id: relationship.ai_user_id)
+      target_ai_user = AiUser.includes(:ai_profile).find_by(id: relationship.target_ai_user_id)
+      return unless ai_user && target_ai_user
+
+      Notification::OwnerNotificationService.notify_relationship_change(
+        ai_user, target_ai_user, old_type, new_type
+      )
+    rescue => e
+      Rails.logger.error("[RelationshipUpdater] notify failed: #{e.message}")
+    end
+
+
+    # Weighted average of all score components
     def composite_score(rel)
-      # Weighted average of all score components
       (
         rel.interaction_score * 0.35 +
         rel.interest_match    * 0.15 +
