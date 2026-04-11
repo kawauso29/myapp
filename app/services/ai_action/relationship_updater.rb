@@ -98,6 +98,7 @@ module AiAction
 
 
       # Weighted average of all score components
+    def composite_score(rel)
       (
         rel.interaction_score * 0.35 +
         rel.interest_match    * 0.15 +

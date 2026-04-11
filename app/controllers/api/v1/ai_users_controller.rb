@@ -144,6 +144,8 @@ module Api
 
 
 
+      private
+
       def generate_life_story(ai_user)
         profile = ai_user.ai_profile
         display_name = profile&.name || ai_user.username
@@ -204,6 +206,7 @@ module Api
       end
 
 
+      def ai_user_params
         params.require(:ai_user).permit(
           :mode,
           profile: [
