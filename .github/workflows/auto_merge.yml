@@ -8,6 +8,13 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+    # mainブランチのCIは自動マージ不要なのでフィルタリング
+    # これにより main push 後の CI 完了でこのワークフローが無駄に起動しなくなる
+    branches:
+      - 'claude/**'
+      - 'copilot/**'
+      - 'auto-fix/**'
+      - 'deploy-failure/**'
 
 permissions:
   contents: write
@@ -31,7 +38,7 @@ jobs:
             const branch = pr.head.ref;
 
             // 自動マージ対象ブランチのプレフィックス
-            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/'];
+            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
             const isAllowedBranch = ALLOWED_PREFIXES.some(p => branch.startsWith(p));
             if (!isAllowedBranch) {
               core.info(`Branch "${branch}" is not in allowed prefixes, skipping automerge label`);
@@ -39,12 +46,11 @@ jobs:
             }
 
             // 重要ファイルが変更されている場合は自動マージ対象外
+            // CI で検証済みのファイルは保護対象から除外
             const PROTECTED_PATTERNS = [
               /^db\/migrate\//,
               /^db\/schema\.rb$/,
-              /^Gemfile(\.lock)?$/,
-              /^config\/routes\.rb$/,
-              /^config\/application\.rb$/,
+              /^Gemfile\.lock$/,
               /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -112,7 +118,7 @@ jobs:
               core.info(`head_repository.owner.login is unavailable, falling back to base owner: ${headOwner}`);
             }
 
-            // mainブランチのCIは自動マージ対象外（早期リターン）
+            // mainブランチのCIは自動マージ対象外（ブランチフィルターで通常は来ないが念のため）
             if (headBranch === 'main') {
               core.info('CI ran on main branch, no PR to auto-merge');
               return;
@@ -172,13 +178,16 @@ jobs:
               return;
             }
 
-            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/'];
+            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
+            // CI で検証済みのファイルは保護対象から除外する:
+            //   config/routes.rb → route-check CIで検証済み
+            //   config/application.rb → CI全体で検証済み
+            //   Gemfile → bundler-audit CIで検証済み
+            // DB マイグレーション・lockファイルは本番影響リスクが高いため手動レビューを維持
             const PROTECTED_PATTERNS = [
               /^db\/migrate\//,
               /^db\/schema\.rb$/,
-              /^Gemfile(\.lock)?$/,
-              /^config\/routes\.rb$/,
-              /^config\/application\.rb$/,
+              /^Gemfile\.lock$/,
               /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
 
@@ -208,7 +217,10 @@ jobs:
             });
             const criticalFiles = files.filter(f => PROTECTED_PATTERNS.some(p => p.test(f.filename)));
             if (criticalFiles.length > 0) {
-              core.info(`PR #${pr.number} touches protected files, skipping automerge: ${criticalFiles.map(f => f.filename).join(', ')}`);
+              const fileList = criticalFiles.map(f => f.filename).join(', ');
+              core.info(`PR #${pr.number} touches protected files, skipping automerge: ${fileList}`);
+              core.setOutput('skip_reason', `保護ファイルが変更されているため自動マージをスキップしました: \`${fileList}\``);
+              core.setOutput('pr_number', String(pr.number));
               return;
             }
 
@@ -323,6 +335,28 @@ jobs:
               }
             }
 
+      - name: Notify Slack (skipped due to protected files)
+        if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.skip_reason != '' }}
+        env:
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_pr.outputs.pr_number }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then
+            echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
+            --arg reason "${{ steps.merge_pr.outputs.skip_reason }}" \
+            --arg pr_url "${PR_URL}" \
+            '{attachments:[{color:"#f0a500",text:":warning: *CI通過後も自動マージをスキップしました*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"理由",value:$reason,short:false},{title:"対応",value:("手動でマージするか、保護ファイルの変更が意図的か確認してください: " + $pr_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
+
       - name: Notify Slack (deploy dispatch failed after auto-merge)
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.deploy_dispatch_error != '' }}
         env:
@@ -367,17 +401,16 @@ jobs:
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
-  # CI が失敗（cancelled以外）した場合のみ通知する
-  # cancelled は concurrency group によるキャンセルなので通知不要
-  # push/pull_request 両方のCI失敗を通知対象にする（feature branch pushのCIが失敗した場合も通知が必要）
-  # main ブランチのCI失敗は ci.yml の notify ジョブが通知するためここでは除外
+  # CI が success 以外で完了した場合（failure / cancelled を含む）に通知する
+  # workflow_run の branches フィルターにより main ブランチは対象外
+  # cancelled は concurrency group によるキャンセル（push CI が PR CI に置き換えられた）など
+  # push/pull_request 両方のCI非成功を通知対象にする
   notify_automerge_skip_reason:
     if: >-
       ${{ github.event_name == 'workflow_run' &&
-          github.event.workflow_run.conclusion == 'failure' &&
+          github.event.workflow_run.conclusion != 'success' &&
           (github.event.workflow_run.event == 'pull_request' ||
-           github.event.workflow_run.event == 'push') &&
-          github.event.workflow_run.head_branch != 'main' }}
+           github.event.workflow_run.event == 'push') }}
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
