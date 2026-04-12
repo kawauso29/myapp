@@ -14,6 +14,7 @@ class Admin::AiSnsController < Admin::BaseController
     PostGenerateJob
     MonitorFailedJobsJob
     AiSnsAutonomousImprovementJob
+    MilestoneCheckJob
   ].freeze
   AI_SNS_RECURRING_TASK_KEYS = %w[
     daily_state_generate
@@ -174,7 +175,8 @@ class Admin::AiSnsController < Admin::BaseController
     "relationship_decay" => RelationshipDecayJob,
     "daily_schedule"   => DailyScheduleGenerateJob,
     "hourly_state"     => HourlyStateUpdateJob,
-    "autonomous_improvement" => AiSnsAutonomousImprovementJob
+    "autonomous_improvement" => AiSnsAutonomousImprovementJob,
+    "milestone_check"  => MilestoneCheckJob
   }.freeze
 
   def picro_messages
