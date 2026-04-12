@@ -59,8 +59,9 @@ module AiSns
       ]
 
       feature_proposals.each_with_index do |proposal, index|
+        feature_number = index + 1
         fields << {
-          title: "Feature #{index + 1}",
+          title: "Feature #{feature_number}",
           value: "#{proposal['title']} - #{proposal['rationale']}",
           short: false
         }

@@ -2,6 +2,7 @@ module AiSns
   class LlmAnalysisService
     MAX_QUICK_WINS = 3
     MAX_FEATURE_PROPOSALS = 3
+    JSON_CODE_BLOCK_PATTERN = /```json\s*(.*?)\s*```/m
 
     def self.call(observation:)
       new(observation: observation).call
@@ -59,7 +60,8 @@ module AiSns
     def parse_json(raw_response)
       JSON.parse(raw_response)
     rescue JSON::ParserError
-      extracted = raw_response[/```json\s*(.*?)\s*```/m, 1]
+      # LLM が markdown 形式で返した場合に ```json ... ``` から JSON 部分だけ抽出する
+      extracted = raw_response[JSON_CODE_BLOCK_PATTERN, 1]
       raise unless extracted
 
       JSON.parse(extracted)
