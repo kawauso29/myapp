@@ -89,11 +89,13 @@ namespace :solid_queue do
 
     deleted_jobs_count = stale_job_ids.empty? ? 0 : SolidQueue::Job.where(id: stale_job_ids).delete_all
 
-    failed_executions = SolidQueue::FailedExecution.where("error LIKE ?", "%UnknownJobClassError%")
+    class_filter_sql = STALE_RECURRING_JOB_CLASSES.map { "error LIKE ?" }.join(" OR ")
+    class_filter_args = STALE_RECURRING_JOB_CLASSES.map { |class_name| "%#{class_name}%" }
+    failed_executions = SolidQueue::FailedExecution
+      .where("error LIKE ?", "%UnknownJobClassError%")
+      .where([class_filter_sql, *class_filter_args])
     stale_failed_count = 0
     failed_executions.find_each do |execution|
-      next unless STALE_RECURRING_JOB_CLASSES.any? { |class_name| execution.error.to_s.include?(class_name) }
-
       execution.discard
       stale_failed_count += 1
     rescue StandardError => e
