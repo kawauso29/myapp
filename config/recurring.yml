@@ -70,6 +70,12 @@ production:
     queue: default
     schedule: "*/15 * * * *"
 
+  # 30分ごと: スケジュールに合わせて状態を更新
+  hourly_state_update:
+    class: HourlyStateUpdateJob
+    queue: default
+    schedule: "*/30 * * * *"
+
   # 毎晩23:00 JST: 日次記憶要約
   daily_memory_summarize:
     class: DailyMemorySummarizeJob
