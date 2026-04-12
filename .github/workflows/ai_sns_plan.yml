@@ -25,7 +25,7 @@ jobs:
       - name: WIP 上限チェック
         id: wip_check
         run: |
-          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || echo 0)
+          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null) || WIP_COUNT=0
           WIP_LIMIT=2
           INPUT_ID="${{ github.event.inputs.item_id }}"
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
