@@ -1,17 +1,17 @@
-name: 週次 PDCA ループ
+name: 日次 PDCA ループ
 
-# Plan→Do→Check→Act を毎週自動で回す
+# Plan→Do→Check→Act を毎日30分ごとに回す
 #
 # P (Plan)   : ai_sns_plan_status.yml の優先度順に次の施策を決定
 # D (Do)     : ai_sns_plan.yml を dispatch して Copilot に実装依頼
 # C (Check)  : KPI を収集して Slack にレポート
 # A (Act)    : WIP 上限チェックで並行実装数を制御（上限=2）
 #
-# 実行タイミング: 毎週月曜 9:00 JST (0:00 UTC)
+# 実行タイミング: 毎日30分ごと
 
 on:
   schedule:
-    - cron: "0 0 * * 1"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       force_advance:
@@ -103,7 +103,7 @@ jobs:
             '{
               attachments: [{
                 color: "#4299e1",
-                title: "📊 週次 PDCA レポート（Check フェーズ）",
+                title: "📊 日次 PDCA レポート（Check フェーズ）",
                 fields: [
                   {
                     title: "👥 ユーザー",
@@ -131,7 +131,7 @@ jobs:
                     short: true
                   }
                 ],
-                footer: "weekly_pdca.yml",
+                footer: "weekly_pdca.yml (毎30分実行)",
                 ts: now | floor
               }]
             }')
