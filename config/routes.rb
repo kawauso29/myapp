@@ -32,6 +32,7 @@ Rails.application.routes.draw do
         post :run_job
         post :clear_failed_jobs
         post :force_ai_posts
+        post :backfill_ai_attributes
       end
       member do
         get :ai_user_detail

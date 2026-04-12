@@ -1,5 +1,48 @@
 class Admin::AiSnsController < Admin::BaseController
   PER_PAGE = 30
+  PERSONALITY_DEFAULTS = {
+    sociability: 3,
+    post_frequency: 3,
+    active_time_peak: 3,
+    need_for_approval: 3,
+    emotional_range: 3,
+    risk_tolerance: 3,
+    self_expression: 3,
+    drinking_frequency: 2,
+    self_esteem: 3,
+    empathy: 3,
+    jealousy: 2,
+    curiosity: 3,
+    patience: 3,
+    optimism: 3,
+    creativity: 3,
+    independence: 3,
+    trustfulness: 3,
+    competitiveness: 3,
+    sensitivity: 3,
+    humor: 3,
+    nostalgia_tendency: 2,
+    perfectionism: 3,
+    stubbornness: 3,
+    generosity: 3,
+    follow_philosophy: 1,
+    primary_purpose: 0
+  }.freeze
+  DYNAMIC_PARAMS_DEFAULTS = {
+    dissatisfaction: 10,
+    loneliness: 10,
+    happiness: 50,
+    fatigue_carried: 0,
+    boredom: 10,
+    relationship_dissatisfaction: 0,
+    relationship_duration_days: 0,
+    stress: 10,
+    self_confidence: 50,
+    social_energy: 50,
+    excitement: 20,
+    anxiety: 10,
+    anger: 0
+  }.freeze
 
   def index
     today = Date.current
@@ -136,6 +179,14 @@ class Admin::AiSnsController < Admin::BaseController
     redirect_to admin_ai_sns_path, notice: "#{queued}件のAIの投稿ジョブをキューに追加しました"
   end
 
+  def backfill_ai_attributes
+    result = perform_backfill_ai_attributes
+    redirect_to admin_ai_sns_path, notice: "AI属性補完完了: profile日付=#{result[:profile_age_base_date]}件 / close_people日付=#{result[:close_people_age_base_date]}件 / personality作成=#{result[:personality_created]}件 / personality補完=#{result[:personality_fields_filled]}項目 / dynamic作成=#{result[:dynamic_params_created]}件 / dynamic補完=#{result[:dynamic_params_fields_filled]}項目 / avatar作成=#{result[:avatar_state_created]}件"
+  rescue => e
+    Rails.logger.error "Failed to backfill AI attributes: #{e.message}"
+    redirect_to admin_ai_sns_path, alert: "AI属性補完に失敗しました: #{e.message}"
+  end
+
   def toggle_active
     ai_user = AiUser.find(params[:id])
     ai_user.update!(is_active: !ai_user.is_active)
@@ -149,6 +200,63 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   private
+
+  def perform_backfill_ai_attributes
+    result = {
+      profile_age_base_date: 0,
+      close_people_age_base_date: 0,
+      personality_created: 0,
+      personality_fields_filled: 0,
+      dynamic_params_created: 0,
+      dynamic_params_fields_filled: 0,
+      avatar_state_created: 0
+    }
+    current_date = Date.current
+    current_time = Time.current
+
+    AiProfile.where(age_base_date: nil).where.not(age: nil).find_each do |profile|
+      profile.update_columns(age_base_date: current_date, updated_at: current_time)
+      result[:profile_age_base_date] += 1
+    end
+
+    AiClosePerson.where(age_base_date: nil).where.not(age: nil).find_each do |person|
+      person.update_columns(age_base_date: current_date, updated_at: current_time)
+      result[:close_people_age_base_date] += 1
+    end
+
+    AiUser.find_each do |ai_user|
+      personality = ai_user.ai_personality
+      unless personality
+        personality = ai_user.create_ai_personality!
+        result[:personality_created] += 1
+      end
+
+      dynamic_params = ai_user.ai_dynamic_params
+      unless dynamic_params
+        dynamic_params = ai_user.create_ai_dynamic_params!
+        result[:dynamic_params_created] += 1
+      end
+
+      if ai_user.ai_avatar_state.nil?
+        ai_user.create_ai_avatar_state!
+        result[:avatar_state_created] += 1
+      end
+
+      missing_personality_fields = PERSONALITY_DEFAULTS.select { |field, _| personality.public_send(field).nil? }
+      if missing_personality_fields.any?
+        personality.update_columns(**missing_personality_fields, updated_at: current_time)
+        result[:personality_fields_filled] += missing_personality_fields.size
+      end
+
+      missing_dynamic_param_fields = DYNAMIC_PARAMS_DEFAULTS.select { |field, _| dynamic_params.public_send(field).nil? }
+      if missing_dynamic_param_fields.any?
+        dynamic_params.update_columns(**missing_dynamic_param_fields, updated_at: current_time)
+        result[:dynamic_params_fields_filled] += missing_dynamic_param_fields.size
+      end
+    end
+
+    result
+  end
 
   def fetch_queue_stats
     {
