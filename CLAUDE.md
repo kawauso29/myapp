@@ -327,3 +327,4 @@ PR の自動マージ（auto_merge.yml）
 - legacy `bin/jobs` 停止処理で `ps ... args` の全文一致だけを使うと、`ssh-action` 実行中の `bash -c`（スクリプト本文に `bin/jobs` を含む）まで誤検知して自己終了(143)することがある → `ps -eo pid,comm,args` で `bash/sh` を除外し、さらに `$$` と `$PPID` を kill 対象から除外する
 - PRを**手動マージ**（GitHub UI経由）するとデプロイが自動起動しない。`auto_merge.yml` の deploy dispatch は「auto_merge自身がPRをマージした直後」のみ発火する。手動マージ後にデプロイが必要な場合は、GitHub Actions UI から `deploy.yml` を手動 `workflow_dispatch` するか、Copilot に「デプロイだけ進めといて」と依頼して小さなPRを作成してもらう。
 - `auto_merge.yml` で GITHUB_TOKEN を使って PR をマージすると、main への push イベントが発火しない（GitHub の仕様でループ防止）→ CI が main で走らず deploy も起動しない → **正しい対処**: マージ成功後に `github.rest.actions.createWorkflowDispatch` で `deploy.yml` を直接起動する（`workflow_dispatch` は GITHUB_TOKEN の制限の例外）
+- `enum :status, { pending: 0, ... }, prefix: true` のようにprefixオプションを付けたenumのスコープ名は `model.pending` ではなく `model.status_pending` になる。specでモックする場合も `receive_message_chain(:status_pending, :count)` のようにprefixつきスコープ名を使う（`prefix: true` を見落としてスコープ名を誤るとCI失敗の原因になる）
