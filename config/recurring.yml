@@ -118,6 +118,12 @@ production:
     queue: low
     schedule: "0 15 * * 6"
 
+  # 毎日6:30 JST: 翌日のスケジュール生成（daily_state生成後）
+  daily_schedule_generate:
+    class: DailyScheduleGenerateJob
+    queue: low
+    schedule: "30 21 * * *"
+
   # 5分ごと: SolidQueueの失敗ジョブをSlackに通知
   monitor_failed_jobs:
     class: MonitorFailedJobsJob
