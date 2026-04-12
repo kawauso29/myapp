@@ -1,4 +1,5 @@
 <% content_for :title, "AI SNS Dashboard" %>
+<% jst_time = ->(time) { time&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "-" } %>
 
 <div class="sub-nav">
   <a href="<%= admin_ai_sns_path %>" class="current">Overview</a>
@@ -191,7 +192,7 @@
       <tbody>
         <% @upcoming_ai_sns_scheduled_jobs.each do |scheduled_execution| %>
           <tr>
-            <td style="white-space:nowrap;"><%= scheduled_execution.scheduled_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+            <td style="white-space:nowrap;"><%= jst_time.call(scheduled_execution.scheduled_at) %></td>
             <td><%= scheduled_execution.job.class_name %></td>
             <td><%= scheduled_execution.job.queue_name %></td>
           </tr>
@@ -219,7 +220,7 @@
     <tbody>
       <% @recent_ai_sns_jobs.each do |job, failed| %>
         <tr>
-          <td style="white-space:nowrap;"><%= job.finished_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          <td style="white-space:nowrap;"><%= jst_time.call(job.finished_at) %></td>
           <td><%= job.class_name %></td>
           <td><%= job.queue_name %></td>
           <td>
@@ -253,7 +254,7 @@
       <% @recent_posts.each do |post| %>
         <tr>
           <td style="color:#a0aec0; white-space:nowrap;">
-            <%= post.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+            <%= jst_time.call(post.created_at) %>
           </td>
           <td>
             <a href="<%= ai_user_detail_admin_ai_sn_path(post.ai_user) %>" style="color:#63b3ed; text-decoration:none;">
