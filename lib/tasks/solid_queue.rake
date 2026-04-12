@@ -7,6 +7,11 @@ namespace :solid_queue do
     MonitorFailedJobsJob
     MarketAnalysisJob
   ].freeze
+  STALE_RECURRING_JOB_CLASSES = %w[
+    AiActionCheckJob
+    MonitorFailedJobsJob
+    MarketAnalysisJob
+  ].freeze
 
   desc "Delete stale unfinished MonitorFailedJobsJob records from default queue"
   task cleanup_stale_monitor_failed_jobs: :environment do
@@ -55,6 +60,47 @@ namespace :solid_queue do
 
     deleted_count = unknown_ids.empty? ? 0 : SolidQueue::Job.where(id: unknown_ids).delete_all
     puts "Deleted #{deleted_count} jobs referencing missing job classes"
+  end
+
+  desc "Delete stale recurring jobs and failed records for recurring jobs that should always exist"
+  task cleanup_stale_recurring_unknown_class_jobs: :environment do
+    stale_job_ids = []
+
+    extract_wrapper_job_class = lambda do |raw_arguments|
+      payload = raw_arguments
+      payload = JSON.parse(payload) if payload.is_a?(String)
+      payload = payload.first if payload.is_a?(Array)
+      payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)
+    rescue JSON::ParserError => e
+      Rails.logger.warn("solid_queue:cleanup_stale_recurring_unknown_class_jobs JSON parse failed: #{e.message}")
+      nil
+    end
+
+    SolidQueue::Job.where(finished_at: nil).find_each do |job|
+      job_class = if job.class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
+        extract_wrapper_job_class.call(job.arguments)
+      else
+        job.class_name
+      end
+      next unless STALE_RECURRING_JOB_CLASSES.include?(job_class)
+
+      stale_job_ids << job.id
+    end
+
+    deleted_jobs_count = stale_job_ids.empty? ? 0 : SolidQueue::Job.where(id: stale_job_ids).delete_all
+
+    failed_executions = SolidQueue::FailedExecution.where("error LIKE ?", "%UnknownJobClassError%")
+    stale_failed_count = 0
+    failed_executions.find_each do |execution|
+      next unless STALE_RECURRING_JOB_CLASSES.any? { |class_name| execution.error.to_s.include?(class_name) }
+
+      execution.discard
+      stale_failed_count += 1
+    rescue StandardError => e
+      Rails.logger.warn("solid_queue:cleanup_stale_recurring_unknown_class_jobs discard failed id=#{execution.id}: #{e.message}")
+    end
+
+    puts "Deleted #{deleted_jobs_count} stale recurring jobs and discarded #{stale_failed_count} UnknownJobClassError failed executions"
   end
 
   desc "Discard FailedExecution records with ActiveJob::UnknownJobClassError (stale pre-deploy failures)"

@@ -155,6 +155,7 @@ jobs:
             fi
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
             RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
             RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
             sudo systemctl restart puma
             sleep 10
@@ -227,6 +228,7 @@ jobs:
             fi
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
             RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
             RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
             sudo systemctl restart puma
             sleep 10
