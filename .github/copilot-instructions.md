@@ -44,7 +44,7 @@
 ### CI/CD の仕組み
 
 ```
-main への push（またはPRマージ）
+main への直接 push
     ↓
 [CI ワークフロー] scan_ruby / scan_js / lint / test / system-test
     ↓ 全成功                       ↓ 失敗
@@ -52,11 +52,17 @@ main への push（またはPRマージ）
   ↓ ヘルスチェック（3回）          ↓ rubocop --autocorrect
   ↓ 失敗 → 自動ロールバック        ↓ 自動修正PR作成 + Slack通知
   ↓ Slack通知
+
+PR の自動マージ（auto_merge.yml）
+    ↓
+[auto_merge] CI pass → PR マージ → deploy.yml を workflow_dispatch
+    ↓
+[Deploy ワークフロー]（上記と同じ）
 ```
 
 - **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で `main` の CI 完了（success）を待つ
 - **手動デプロイ**: `workflow_dispatch` でいつでも実行可能
-- **auto_merge は deploy を直接 dispatch しない**: マージ後に `main` CI が完了してから deploy が起動する
+- **auto_merge はマージ成功後に deploy を直接 dispatch する**: GITHUB_TOKEN によるマージでは push イベントが発火せず CI→deploy の連鎖が起きないため、`workflow_dispatch` で deploy.yml を直接起動する
 
 ### デプロイ先
 

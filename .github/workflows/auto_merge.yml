@@ -233,6 +233,23 @@ jobs:
                 merge_method: 'merge'
               });
               core.info(`Successfully merged PR #${pr.number}`);
+
+              // GITHUB_TOKEN によるマージでは push イベントが発火しないため、
+              // deploy ワークフローを直接 dispatch する（CI は PR で既に通過済み）
+              try {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'deploy.yml',
+                  ref: 'main',
+                  inputs: {
+                    reason: `Auto-deploy after merging PR #${pr.number}: ${pr.title}`
+                  }
+                });
+                core.info(`Dispatched deploy workflow for PR #${pr.number}`);
+              } catch (deployError) {
+                core.warning(`Failed to dispatch deploy workflow: ${deployError.message}`);
+              }
             } catch (error) {
               core.error(`Failed to merge PR #${pr.number}: ${error.message}`);
               const webhookUrl = process.env.SLACK_WEBHOOK_URL;
