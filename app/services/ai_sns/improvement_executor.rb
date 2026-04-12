@@ -20,13 +20,13 @@ module AiSns
     def call
       quick_win_results = execute_quick_wins
       notify_feature_proposals(quick_win_results)
-      created_issues = create_feature_proposal_issues
+      created_prs = create_feature_proposal_prs
 
       {
         "applied_quick_wins" => quick_win_results.count { |item| item["status"] == "applied" },
         "quick_win_results" => quick_win_results,
         "feature_proposals_count" => feature_proposals.size,
-        "created_issue_numbers" => created_issues.map { |i| i["number"] }
+        "created_pr_numbers" => created_prs.map { |pr| pr["number"] }
       }
     end
 
@@ -77,7 +77,7 @@ module AiSns
       )
     end
 
-    def create_feature_proposal_issues
+    def create_feature_proposal_prs
       feature_proposals.filter_map do |proposal|
         title = proposal["title"]
         rationale = proposal["rationale"]
@@ -93,14 +93,16 @@ module AiSns
           ---
 
           @github-copilot `docs/ai_sns_improvement_plan.md` の計画書を参照し、既存コードとの整合性を保ちながら **#{title}** を実装してください。
+
+          <!-- copilot:model claude-opus-4.6 -->
         BODY
 
-        issue = GithubIssueService.create_issue(
+        pr = GithubPrService.create_pr(
           title: "[AI SNS自動提案] #{title}",
           body: body
         )
-        Rails.logger.info("[ImprovementExecutor] Feature proposal issue created: ##{issue['number']}") if issue
-        issue
+        Rails.logger.info("[ImprovementExecutor] Feature proposal PR created: ##{pr['number']}") if pr
+        pr
       end
     end
 

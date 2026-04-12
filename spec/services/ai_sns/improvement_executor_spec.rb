@@ -21,7 +21,7 @@ RSpec.describe AiSns::ImprovementExecutor do
     it "enqueues allowed quick-win jobs and sends Slack notification" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
 
       result = described_class.call(analysis_result: analysis_result)
 
@@ -35,7 +35,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       unsupported = analysis_result.deep_dup
       unsupported["quick_wins"][0]["action"]["job_class"] = "UnknownJobClass"
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
 
       result = described_class.call(analysis_result: unsupported)
 
@@ -43,29 +43,29 @@ RSpec.describe AiSns::ImprovementExecutor do
       expect(result["quick_win_results"].first["status"]).to eq("skipped")
     end
 
-    it "creates GitHub Issues for each feature proposal" do
+    it "creates GitHub PRs for each feature proposal" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      fake_issue = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/issues/42" }
-      allow(GithubIssueService).to receive(:create_issue).and_return(fake_issue)
+      fake_pr = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/pull/42" }
+      allow(GithubPrService).to receive(:create_pr).and_return(fake_pr)
 
       result = described_class.call(analysis_result: analysis_result)
 
-      expect(GithubIssueService).to have_received(:create_issue).with(
+      expect(GithubPrService).to have_received(:create_pr).with(
         title: "[AI SNS自動提案] 会話スレッド改善",
         body: a_string_including("返信率を上げるため")
       )
-      expect(result["created_issue_numbers"]).to eq([42])
+      expect(result["created_pr_numbers"]).to eq([42])
     end
 
-    it "returns empty created_issue_numbers when GithubIssueService returns nil" do
+    it "returns empty created_pr_numbers when GithubPrService returns nil" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
 
       result = described_class.call(analysis_result: analysis_result)
 
-      expect(result["created_issue_numbers"]).to eq([])
+      expect(result["created_pr_numbers"]).to eq([])
     end
   end
 end
