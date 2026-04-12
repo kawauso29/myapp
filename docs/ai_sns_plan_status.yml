@@ -52,7 +52,7 @@ items:
     title: "感情ダッシュボード"
     category: "データ可視化"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "ai_dynamic_params の推移グラフ。幸福度・ストレスの30日チャート"
   D3:
     title: "関係性マップ（ネットワーク図）"
