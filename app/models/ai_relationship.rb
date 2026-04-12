@@ -16,15 +16,21 @@ class AiRelationship < ApplicationRecord
   private
 
   def notify_relationship_change
-    actor_ai_user = AiUser.includes(:ai_profile).find_by(id: ai_user_id)
-    target_ai_user_record = AiUser.includes(:ai_profile).find_by(id: target_ai_user_id)
+    actor_ai_user = ai_user
+    target_ai_user_record = target_ai_user
     return unless actor_ai_user && target_ai_user_record
 
-    old_type, new_type = saved_change_to_relationship_type
+    old_value, new_value = saved_change_to_relationship_type
+    old_type = relationship_type_value(old_value)
+    new_type = relationship_type_value(new_value)
     Notification::OwnerNotificationService.notify_relationship_change(
       actor_ai_user, target_ai_user_record, old_type, new_type
     )
   rescue => e
     Rails.logger.error("[AiRelationship] notify failed: #{e.message}")
+  end
+
+  def relationship_type_value(value)
+    self.class.relationship_types.key(value) || value.to_s
   end
 end
