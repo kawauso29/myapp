@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getToken, getMe, getMyFavorites, getMyAiUsers, signOut, toggleFavorite } from "../../lib/api";
+import { getToken, getMe, getMyFavorites, getMyAiUsers, getMyMilestones, signOut, toggleFavorite, type MilestoneEntry } from "../../lib/api";
 
 function moodEmoji(mood: string | null): string {
   switch (mood) {
@@ -21,11 +21,19 @@ function moodEmoji(mood: string | null): string {
   }
 }
 
+const RANK_META: Record<string, { label: string; color: string; icon: string }> = {
+  bronze:   { label: "ブロンズ",  color: "#cd7f32", icon: "🥉" },
+  silver:   { label: "シルバー",  color: "#a0a0a0", icon: "🥈" },
+  gold:     { label: "ゴールド",  color: "#f0c040", icon: "🥇" },
+  platinum: { label: "プラチナ",  color: "#9b59b6", icon: "💎" },
+};
+
 export default function ProfileScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [myAis, setMyAis] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,14 +54,16 @@ export default function ProfileScreen() {
 
   const loadData = async () => {
     try {
-      const [meRes, favsRes, myAisRes] = await Promise.all([
+      const [meRes, favsRes, myAisRes, milestonesRes] = await Promise.all([
         getMe(),
         getMyFavorites(),
         getMyAiUsers(),
+        getMyMilestones(),
       ]);
       setUser(meRes.data);
       setFavorites(favsRes.data);
       setMyAis(myAisRes.data);
+      setMilestones(milestonesRes.data);
     } catch (e) {
       console.warn("Failed to load profile:", e);
     } finally {
@@ -77,6 +87,7 @@ export default function ProfileScreen() {
     setUser(null);
     setFavorites([]);
     setMyAis([]);
+    setMilestones([]);
   };
 
   const handleRemoveFavorite = async (aiUserId: number) => {
@@ -114,15 +125,8 @@ export default function ProfileScreen() {
     );
   }
 
-  const rankLabel = (rank: string | undefined) => {
-    const map: Record<string, string> = {
-      bronze: "ブロンズ",
-      silver: "シルバー",
-      gold: "ゴールド",
-      platinum: "プラチナ",
-    };
-    return rank ? map[rank] || rank : "--";
-  };
+  const rank = user?.score_rank || "bronze";
+  const rankMeta = RANK_META[rank] || RANK_META.bronze;
 
   return (
     <ScrollView
@@ -140,21 +144,27 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.username}>{user?.username}</Text>
         <Text style={styles.email}>{user?.email}</Text>
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { borderColor: rankMeta.color }]}>
+          <Text style={styles.rankIcon}>{rankMeta.icon}</Text>
+          <Text style={[styles.rankLabel, { color: rankMeta.color }]}>{rankMeta.label}</Text>
+          <Text style={styles.rankScore}>スコア {user?.owner_score ?? 0}</Text>
+        </View>
       </View>
 
-      {/* Plan & Score */}
+      {/* Plan & Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>プラン</Text>
           <Text style={styles.statValue}>{user?.plan || "free"}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>オーナースコア</Text>
-          <Text style={styles.statValue}>{user?.owner_score ?? 0}</Text>
+          <Text style={styles.statLabel}>マイAI</Text>
+          <Text style={styles.statValue}>{myAis.length} / {user?.plan_limits?.max_ai_count ?? 1}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>ランク</Text>
-          <Text style={styles.statValue}>{rankLabel(user?.score_rank)}</Text>
+          <Text style={styles.statLabel}>達成数</Text>
+          <Text style={styles.statValue}>{milestones.length}</Text>
         </View>
       </View>
 
@@ -178,9 +188,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
         {myAis.length === 0 ? (
-          <View style={styles.emptyFavorites}>
+          <View style={styles.emptySection}>
             <Ionicons name="sparkles-outline" size={36} color="#ccc" />
-            <Text style={styles.emptyFavoritesText}>
+            <Text style={styles.emptySectionText}>
               まだAIを作っていません
             </Text>
           </View>
@@ -211,15 +221,43 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* Milestone / Training Diary Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>育成日記 🏆</Text>
+        {milestones.length === 0 ? (
+          <View style={styles.emptySection}>
+            <Ionicons name="trophy-outline" size={36} color="#ccc" />
+            <Text style={styles.emptySectionText}>まだ達成したマイルストーンはありません</Text>
+          </View>
+        ) : (
+          milestones.slice(0, 10).map((m) => (
+            <View key={m.id} style={styles.milestoneRow}>
+              <Text style={styles.milestoneIcon}>🎖️</Text>
+              <View style={styles.milestoneInfo}>
+                <Text style={styles.milestoneMessage}>{m.message}</Text>
+                {m.ai_user && (
+                  <TouchableOpacity onPress={() => router.push(`/ai/${m.ai_user!.id}`)}>
+                    <Text style={styles.milestoneAiName}>@{m.ai_user.username}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <Text style={styles.milestoneDate}>
+                {new Date(m.created_at).toLocaleDateString("ja-JP", { month: "short", day: "numeric" })}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+
       {/* Favorites Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
           お気に入りAI ({favorites.length})
         </Text>
         {favorites.length === 0 ? (
-          <View style={styles.emptyFavorites}>
+          <View style={styles.emptySection}>
             <Ionicons name="star-outline" size={36} color="#ccc" />
-            <Text style={styles.emptyFavoritesText}>
+            <Text style={styles.emptySectionText}>
               お気に入りのAIはまだありません
             </Text>
           </View>
@@ -313,6 +351,19 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 28, fontWeight: "bold", color: "#fff" },
   username: { fontSize: 20, fontWeight: "bold", color: "#1a1a2e" },
   email: { fontSize: 13, color: "#999", marginTop: 2 },
+  rankBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    backgroundColor: "#fff",
+  },
+  rankIcon: { fontSize: 18, marginRight: 4 },
+  rankLabel: { fontSize: 14, fontWeight: "bold", marginRight: 8 },
+  rankScore: { fontSize: 12, color: "#999" },
 
   // Stats
   statsRow: {
@@ -363,12 +414,27 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Empty favorites
-  emptyFavorites: {
+  // Empty sections
+  emptySection: {
     alignItems: "center",
     paddingVertical: 24,
   },
-  emptyFavoritesText: { color: "#ccc", fontSize: 14, marginTop: 8 },
+  emptySectionText: { color: "#ccc", fontSize: 14, marginTop: 8 },
+
+  // Milestone
+  milestoneRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  milestoneIcon: { fontSize: 20, marginRight: 10, marginTop: 2 },
+  milestoneInfo: { flex: 1 },
+  milestoneMessage: { fontSize: 14, color: "#333", lineHeight: 20 },
+  milestoneAiName: { fontSize: 12, color: "#6c63ff", marginTop: 2 },
+  milestoneDate: { fontSize: 11, color: "#bbb", marginLeft: 8, marginTop: 2 },
 
   // Favorite cards
   favoriteCard: {
@@ -413,3 +479,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, getAiUserLifeStory, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe } from "../../lib/api";
+import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry } from "../../lib/api";
 import { PostCard } from "../../components/PostCard";
 
 export default function AiDetailScreen() {
@@ -25,6 +25,9 @@ export default function AiDetailScreen() {
   const [lifeStory, setLifeStory] = useState<string | null>(null);
   const [lifeStoryLoading, setLifeStoryLoading] = useState(false);
   const [lifeStoryLoaded, setLifeStoryLoaded] = useState(false);
+  const [emotionHistory, setEmotionHistory] = useState<EmotionHistoryEntry[]>([]);
+  const [emotionLoading, setEmotionLoading] = useState(false);
+  const [emotionLoaded, setEmotionLoaded] = useState(false);
   const [interveneOpen, setInterveneOpen] = useState(false);
   const [interveneLoading, setInterveneLoading] = useState(false);
   const [interveneMessage, setInterveneMessage] = useState<string | null>(null);
@@ -89,6 +92,20 @@ export default function AiDetailScreen() {
       console.warn("Failed to load life story:", e);
     } finally {
       setLifeStoryLoading(false);
+    }
+  };
+
+  const loadEmotionHistory = async () => {
+    if (emotionLoading || emotionLoaded) return;
+    setEmotionLoading(true);
+    try {
+      const res = await getAiUserEmotionHistory(Number(id), 30);
+      setEmotionHistory(res.data || []);
+      setEmotionLoaded(true);
+    } catch (e) {
+      console.warn("Failed to load emotion history:", e);
+    } finally {
+      setEmotionLoading(false);
     }
   };
 
@@ -266,6 +283,25 @@ export default function AiDetailScreen() {
           ))}
         </View>
       )}
+
+      {/* Emotion Dashboard */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>感情ダッシュボード 📈</Text>
+        {emotionLoaded ? (
+          emotionHistory.length === 0 ? (
+            <Text style={styles.emptyText}>データがありません</Text>
+          ) : (
+            <EmotionChart data={emotionHistory} />
+          )
+        ) : emotionLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={loadEmotionHistory}>
+            <Ionicons name="analytics-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>30日チャートを表示する</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Intervention (自分のAIのみ) */}
       {isMyAi && (
@@ -560,4 +596,73 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#a7f3d0",
   },
   interveneMessageText: { fontSize: 13, color: "#065f46" },
+});
+
+// --- Emotion Chart Component ---
+function EmotionChart({ data }: { data: EmotionHistoryEntry[] }) {
+  const metrics = [
+    { key: "mood_score" as const, label: "気分", color: "#f1c40f" },
+    { key: "stress" as const,     label: "ストレス", color: "#e74c3c" },
+    { key: "motivation" as const, label: "投稿意欲", color: "#2ecc71" },
+    { key: "social_energy" as const, label: "社交", color: "#3498db" },
+  ];
+  // Show last 14 entries to keep it compact
+  const recent = data.slice(-14);
+
+  return (
+    <View>
+      {metrics.map(({ key, label, color }) => (
+        <View key={key} style={emotionStyles.metricRow}>
+          <Text style={[emotionStyles.metricLabel, { color }]}>{label}</Text>
+          <View style={emotionStyles.bars}>
+            {recent.map((entry, i) => {
+              const val = entry[key];
+              const pct = Math.min((val / 100) * 100, 100);
+              return (
+                <View key={i} style={emotionStyles.barWrapper}>
+                  <View style={emotionStyles.barOuter}>
+                    <View style={[emotionStyles.barInner, { height: `${pct}%`, backgroundColor: color }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ))}
+      {/* X-axis dates */}
+      <View style={emotionStyles.dateRow}>
+        {recent.map((entry, i) => {
+          const d = new Date(entry.date);
+          return (
+            <Text key={i} style={emotionStyles.dateLabel}>
+              {i === 0 || d.getDate() === 1 ? `${d.getMonth() + 1}/${d.getDate()}` : ""}
+            </Text>
+          );
+        })}
+      </View>
+      <View style={emotionStyles.legend}>
+        {metrics.map(({ key, label, color }) => (
+          <View key={key} style={emotionStyles.legendItem}>
+            <View style={[emotionStyles.legendDot, { backgroundColor: color }]} />
+            <Text style={emotionStyles.legendLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const emotionStyles = StyleSheet.create({
+  metricRow: { marginBottom: 6, paddingHorizontal: 16 },
+  metricLabel: { fontSize: 11, fontWeight: "bold", marginBottom: 2 },
+  bars: { flexDirection: "row", height: 40, alignItems: "flex-end" },
+  barWrapper: { flex: 1, paddingHorizontal: 1, height: 40, justifyContent: "flex-end" },
+  barOuter: { width: "100%", height: 40, justifyContent: "flex-end" },
+  barInner: { width: "100%", borderRadius: 2, minHeight: 2 },
+  dateRow: { flexDirection: "row", paddingHorizontal: 16, marginTop: 2 },
+  dateLabel: { flex: 1, fontSize: 8, color: "#bbb", textAlign: "center" },
+  legend: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, marginTop: 8, gap: 12 },
+  legendItem: { flexDirection: "row", alignItems: "center" },
+  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
+  legendLabel: { fontSize: 11, color: "#666" },
 });

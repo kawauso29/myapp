@@ -10,18 +10,31 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import type { HotThread, TrendingData } from "../../lib/api";
-import { getHotThreads, getTrending } from "../../lib/api";
+import type { HotThread, TrendingData, AiRankingEntry } from "../../lib/api";
+import { getHotThreads, getTrending, getAiRanking } from "../../lib/api";
+
+const RANK_BY_OPTIONS = [
+  { key: "followers" as const, label: "フォロワー", icon: "people" as const },
+  { key: "likes" as const,     label: "いいね",     icon: "heart" as const },
+  { key: "posts" as const,     label: "投稿数",     icon: "document-text" as const },
+];
 
 export default function DiscoverScreen() {
   const [data, setData] = useState<TrendingData | null>(null);
   const [hotThreads, setHotThreads] = useState<HotThread[]>([]);
+  const [ranking, setRanking] = useState<AiRankingEntry[]>([]);
+  const [rankBy, setRankBy] = useState<"followers" | "likes" | "posts">("followers");
+  const [rankLoading, setRankLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadTrending();
   }, []);
+
+  useEffect(() => {
+    loadRanking(rankBy);
+  }, [rankBy]);
 
   const loadTrending = async () => {
     try {
@@ -39,10 +52,23 @@ export default function DiscoverScreen() {
     }
   };
 
+  const loadRanking = async (by: "followers" | "likes" | "posts") => {
+    setRankLoading(true);
+    try {
+      const res = await getAiRanking(by);
+      setRanking(res.data || []);
+    } catch (e) {
+      console.warn("Failed to load ranking:", e);
+    } finally {
+      setRankLoading(false);
+    }
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadTrending();
-  }, []);
+    loadRanking(rankBy);
+  }, [rankBy]);
 
   if (loading) {
     return (
@@ -65,6 +91,13 @@ export default function DiscoverScreen() {
   const todayEvents = data.today_events || [];
   const growingAis = data.growing_ai_users || [];
   const todayMood = data.today_mood_summary || {};
+
+  const rankMedal = (rank: number) => {
+    if (rank === 1) return "🥇";
+    if (rank === 2) return "🥈";
+    if (rank === 3) return "🥉";
+    return `${rank}`;
+  };
 
   return (
     <ScrollView
@@ -112,6 +145,47 @@ export default function DiscoverScreen() {
           )}
         </View>
       )}
+
+      {/* AI Ranking */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>AIランキング 🏆</Text>
+        {/* Rank By Selector */}
+        <View style={styles.rankByRow}>
+          {RANK_BY_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.rankByButton, rankBy === opt.key && styles.rankByButtonActive]}
+              onPress={() => setRankBy(opt.key)}
+            >
+              <Ionicons name={opt.icon} size={14} color={rankBy === opt.key ? "#fff" : "#888"} />
+              <Text style={[styles.rankByLabel, rankBy === opt.key && styles.rankByLabelActive]}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {rankLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 16 }} />
+        ) : ranking.length === 0 ? (
+          <Text style={styles.emptyText}>データがありません</Text>
+        ) : (
+          ranking.slice(0, 10).map((entry) => (
+            <TouchableOpacity
+              key={entry.ai_user.id}
+              style={styles.rankRow}
+              onPress={() => router.push(`/ai/${entry.ai_user.id}`)}
+            >
+              <Text style={styles.rankMedal}>{rankMedal(entry.rank)}</Text>
+              <View style={styles.rankAvatar}>
+                <Text style={styles.rankAvatarText}>{entry.ai_user.display_name?.[0] || "?"}</Text>
+              </View>
+              <View style={styles.rankInfo}>
+                <Text style={styles.rankName}>{entry.ai_user.display_name}</Text>
+                <Text style={styles.rankUsername}>@{entry.ai_user.username}</Text>
+              </View>
+              <Text style={styles.rankValue}>{entry.metric.value.toLocaleString()}</Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
 
       {/* Trending AIs */}
       {trendingAis.length > 0 && (
@@ -256,6 +330,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { color: "#999", fontSize: 14, marginTop: 12 },
+  emptyText: { fontSize: 13, color: "#bbb", textAlign: "center", paddingVertical: 16 },
   section: {
     backgroundColor: "#fff",
     marginTop: 8,
@@ -292,6 +367,51 @@ const styles = StyleSheet.create({
   },
   moodCount: { fontSize: 13, color: "#888", width: 30, textAlign: "right" },
   moodWeather: { fontSize: 13, color: "#666", paddingHorizontal: 16, marginTop: 6 },
+
+  // AI Ranking
+  rankByRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  rankByButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0f0",
+    backgroundColor: "#f8f9fa",
+    gap: 4,
+  },
+  rankByButtonActive: { backgroundColor: "#6c63ff", borderColor: "#6c63ff" },
+  rankByLabel: { fontSize: 12, color: "#888" },
+  rankByLabelActive: { color: "#fff" },
+  rankRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  rankMedal: { fontSize: 20, width: 32, textAlign: "center", marginRight: 8 },
+  rankAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#e8e8f0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  rankAvatarText: { fontSize: 16, fontWeight: "bold", color: "#555" },
+  rankInfo: { flex: 1 },
+  rankName: { fontSize: 14, fontWeight: "bold", color: "#1a1a2e" },
+  rankUsername: { fontSize: 11, color: "#999", marginTop: 1 },
+  rankValue: { fontSize: 14, fontWeight: "bold", color: "#6c63ff" },
 
   // Trending horizontal cards
   horizontalList: { paddingHorizontal: 12 },
@@ -414,3 +534,4 @@ const styles = StyleSheet.create({
   featuredUsername: { fontSize: 12, color: "#999", marginTop: 1 },
   featuredBio: { fontSize: 13, color: "#666", marginTop: 4, lineHeight: 18 },
 });
+

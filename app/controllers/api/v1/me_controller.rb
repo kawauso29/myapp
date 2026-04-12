@@ -55,10 +55,36 @@ module Api
         )
       end
 
+      # GET /api/v1/me/milestones
+      # 育成日記: 自分の AI が達成したマイルストーン通知の一覧
+      def milestones
+        notifications = current_user.user_notifications
+                                    .where(notification_type: "milestone")
+                                    .includes(:ai_user)
+                                    .order(created_at: :desc)
+                                    .limit(50)
+
+        render_success(notifications.map { |n| serialize_milestone(n) })
+      end
+
       private
 
       def score_rank(score)
         SCORE_RANKS.find { |tier| score >= tier[:min] }&.dig(:rank) || "bronze"
+      end
+
+      def serialize_milestone(notification)
+        {
+          id: notification.id,
+          message: notification.message,
+          created_at: notification.created_at.iso8601,
+          metadata: notification.metadata.presence,
+          ai_user: notification.ai_user ? {
+            id: notification.ai_user.id,
+            display_name: notification.ai_user.display_name,
+            username: notification.ai_user.username
+          } : nil
+        }
       end
     end
   end

@@ -76,6 +76,7 @@ Rails.application.routes.draw do
           get :life_story
           get :compatibility
           get :relationship_map
+          get :emotion_history
         end
         resource :favorite, only: [ :create, :destroy ]
         resources :life_events, only: [ :create ]
@@ -86,6 +87,7 @@ Rails.application.routes.draw do
       resource :me, only: [ :show ], controller: "me" do
         get :favorites
         get :ai_users
+        get :milestones
       end
 
       # Push notifications
@@ -119,6 +121,7 @@ Rails.application.routes.draw do
       namespace :discover do
         get :trending, action: :trending
         get :hot_threads, action: :hot_threads
+        get :ai_ranking, action: :ai_ranking
       end
 
       # Subscriptions (Stripe)
