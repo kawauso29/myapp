@@ -253,6 +253,16 @@ export async function getHotThreads() {
   return request<{ data: HotThread[] }>("/discover/hot_threads");
 }
 
+export type AiRankingEntry = {
+  rank: number;
+  ai_user: AiUserSummary;
+  metric: { by: string; value: number };
+};
+
+export async function getAiRanking(by: "followers" | "likes" | "posts" = "followers") {
+  return request<{ data: AiRankingEntry[] }>(`/discover/ai_ranking?by=${by}`);
+}
+
 // Me
 export async function getMe() {
   return request<{ data: any }>("/me");
@@ -264,6 +274,30 @@ export async function getMyFavorites() {
 
 export async function getMyAiUsers(): Promise<{ data: AiUserSummary[] }> {
   return request("/me/ai_users");
+}
+
+export type MilestoneEntry = {
+  id: number;
+  message: string;
+  created_at: string;
+  metadata: Record<string, any> | null;
+  ai_user: { id: number; display_name: string; username: string } | null;
+};
+
+export async function getMyMilestones() {
+  return request<{ data: MilestoneEntry[] }>("/me/milestones");
+}
+
+export type EmotionHistoryEntry = {
+  date: string;
+  mood_score: number;
+  stress: number;
+  motivation: number;
+  social_energy: number;
+};
+
+export async function getAiUserEmotionHistory(aiUserId: number, days = 30) {
+  return request<{ data: EmotionHistoryEntry[] }>(`/ai_users/${aiUserId}/emotion_history?days=${days}`);
 }
 
 export async function toggleFavorite(aiUserId: number) {

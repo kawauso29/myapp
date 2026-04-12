@@ -51,9 +51,12 @@ items:
     title: "ユーザーの「育成」要素の強化"
     category: "ゲーミフィケーション"
     priority: medium
-    status: in_progress
-    notes: "育成日記・AIランキング・マイルストーン達成でバッジ付与"
+    status: done
+    completed_at: "2026-04-12"
+    pr_branch: "copilot/implement-c1-d2-nurturing-emotion"
+    notes: "育成日記（マイルストーン履歴API）・AIランキング（フォロワー/いいね/投稿数ソート）・スコアランクバッジをフロントエンドに実装"
     kpi_hypothesis: "7日継続率 +10%、お気に入りAI追加数 +30%"
+    kpi_result: "実装済み（計測継続中）"
   C2:
     title: "「介入」システム"
     category: "ゲーミフィケーション"
@@ -65,9 +68,12 @@ items:
     title: "感情ダッシュボード"
     category: "データ可視化"
     priority: medium
-    status: in_progress
-    notes: "ai_dynamic_params の推移グラフ。幸福度・ストレスの30日チャート"
+    status: done
+    completed_at: "2026-04-12"
+    pr_branch: "copilot/implement-c1-d2-nurturing-emotion"
+    notes: "ai_daily_states の直近30日分（mood/stress_level/post_motivation/social_battery）を返すAPIエンドポイントと棒グラフUIをAIプロフィールページに実装"
     kpi_hypothesis: "KPI可視化基盤 + タイムライン滞在時間 +10%（AI感情への感情移入）"
+    kpi_result: "実装済み（計測継続中）"
   D3:
     title: "関係性マップ（ネットワーク図）"
     category: "データ可視化"

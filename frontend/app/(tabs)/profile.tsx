@@ -10,7 +10,475 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getToken, getMe, getMyFavorites, getMyAiUsers, signOut, toggleFavorite } from "../../lib/api";
+import { getToken, getMe, getMyFavorites, getMyAiUsers, getMyMilestones, signOut, toggleFavorite, type MilestoneEntry } from "../../lib/api";
+
+function moodEmoji(mood: string | null): string {
+  switch (mood) {
+    case "positive": return "😊";
+    case "negative": return "😔";
+    case "very_negative": return "😢";
+    default: return "😐";
+  }
+}
+
+const RANK_META: Record<string, { label: string; color: string; icon: string }> = {
+  bronze:   { label: "ブロンズ",  color: "#cd7f32", icon: "🥉" },
+  silver:   { label: "シルバー",  color: "#a0a0a0", icon: "🥈" },
+  gold:     { label: "ゴールド",  color: "#f0c040", icon: "🥇" },
+  platinum: { label: "プラチナ",  color: "#9b59b6", icon: "💎" },
+};
+
+export default function ProfileScreen() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [myAis, setMyAis] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    checkAuthAndLoad();
+  }, []);
+
+  const checkAuthAndLoad = async () => {
+    const token = await getToken();
+    if (token) {
+      setIsLoggedIn(true);
+      await loadData();
+    } else {
+      setIsLoggedIn(false);
+      setLoading(false);
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      const [meRes, favsRes, myAisRes, milestonesRes] = await Promise.all([
+        getMe(),
+        getMyFavorites(),
+        getMyAiUsers(),
+        getMyMilestones(),
+      ]);
+      setUser(meRes.data);
+      setFavorites(favsRes.data);
+      setMyAis(myAisRes.data);
+      setMilestones(milestonesRes.data);
+    } catch (e) {
+      console.warn("Failed to load profile:", e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch {
+      // ignore errors on sign out
+    }
+    setIsLoggedIn(false);
+    setUser(null);
+    setFavorites([]);
+    setMyAis([]);
+    setMilestones([]);
+  };
+
+  const handleRemoveFavorite = async (aiUserId: number) => {
+    try {
+      await toggleFavorite(aiUserId);
+      setFavorites((prev) => prev.filter((f) => f.id !== aiUserId));
+    } catch (e) {
+      console.warn("Failed to remove favorite:", e);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#6c63ff" />
+      </View>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <View style={styles.loginPrompt}>
+        <Ionicons name="person-circle-outline" size={80} color="#ccc" />
+        <Text style={styles.loginTitle}>マイページ</Text>
+        <Text style={styles.loginMessage}>
+          ログインすると、お気に入りAIの管理や{"\n"}詳細なステータスが確認できます
+        </Text>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={() => router.push("/login")}
+        >
+          <Text style={styles.loginButtonText}>ログイン / 新規登録</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const rank = user?.score_rank || "bronze";
+  const rankMeta = RANK_META[rank] || RANK_META.bronze;
+
+  return (
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* User Info Header */}
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {user?.username?.[0]?.toUpperCase() || "?"}
+          </Text>
+        </View>
+        <Text style={styles.username}>{user?.username}</Text>
+        <Text style={styles.email}>{user?.email}</Text>
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { borderColor: rankMeta.color }]}>
+          <Text style={styles.rankIcon}>{rankMeta.icon}</Text>
+          <Text style={[styles.rankLabel, { color: rankMeta.color }]}>{rankMeta.label}</Text>
+          <Text style={styles.rankScore}>スコア {user?.owner_score ?? 0}</Text>
+        </View>
+      </View>
+
+      {/* Plan & Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>プラン</Text>
+          <Text style={styles.statValue}>{user?.plan || "free"}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>マイAI</Text>
+          <Text style={styles.statValue}>{myAis.length} / {user?.plan_limits?.max_ai_count ?? 1}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>達成数</Text>
+          <Text style={styles.statValue}>{milestones.length}</Text>
+        </View>
+      </View>
+
+      {/* Create AI Button */}
+      <TouchableOpacity
+        style={styles.createAiButton}
+        onPress={() => router.push("/create-ai")}
+      >
+        <Ionicons name="sparkles-outline" size={20} color="#fff" />
+        <Text style={styles.createAiButtonText}>AIを作成する</Text>
+      </TouchableOpacity>
+
+      {/* My AI Section */}
+      <View style={styles.section}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0, marginBottom: 0 }]}>
+            マイAI ({myAis.length} / {user?.plan_limits?.max_ai_count ?? 1})
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/create-ai")}>
+            <Ionicons name="add-circle-outline" size={22} color="#6c63ff" />
+          </TouchableOpacity>
+        </View>
+        {myAis.length === 0 ? (
+          <View style={styles.emptySection}>
+            <Ionicons name="sparkles-outline" size={36} color="#ccc" />
+            <Text style={styles.emptySectionText}>
+              まだAIを作っていません
+            </Text>
+          </View>
+        ) : (
+          myAis.map((ai) => (
+            <TouchableOpacity
+              key={ai.id}
+              style={styles.favoriteCard}
+              onPress={() => router.push(`/ai/${ai.id}`)}
+            >
+              <View style={styles.favoriteAvatar}>
+                <Text style={styles.favoriteAvatarText}>
+                  {ai.display_name?.[0] || "?"}
+                </Text>
+              </View>
+              <View style={styles.favoriteInfo}>
+                <Text style={styles.favoriteName}>{ai.display_name}</Text>
+                <Text style={styles.favoriteUsername}>@{ai.username}</Text>
+                {ai.occupation && (
+                  <Text style={styles.aiOccupation}>{ai.occupation}</Text>
+                )}
+              </View>
+              <View style={styles.aiMoodBadge}>
+                <Text style={styles.aiMoodText}>{moodEmoji(ai.today_mood)}</Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+
+      {/* Milestone / Training Diary Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>育成日記 🏆</Text>
+        {milestones.length === 0 ? (
+          <View style={styles.emptySection}>
+            <Ionicons name="trophy-outline" size={36} color="#ccc" />
+            <Text style={styles.emptySectionText}>まだ達成したマイルストーンはありません</Text>
+          </View>
+        ) : (
+          milestones.slice(0, 10).map((m) => (
+            <View key={m.id} style={styles.milestoneRow}>
+              <Text style={styles.milestoneIcon}>🎖️</Text>
+              <View style={styles.milestoneInfo}>
+                <Text style={styles.milestoneMessage}>{m.message}</Text>
+                {m.ai_user && (
+                  <TouchableOpacity onPress={() => router.push(`/ai/${m.ai_user!.id}`)}>
+                    <Text style={styles.milestoneAiName}>@{m.ai_user.username}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <Text style={styles.milestoneDate}>
+                {new Date(m.created_at).toLocaleDateString("ja-JP", { month: "short", day: "numeric" })}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Favorites Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>
+          お気に入りAI ({favorites.length})
+        </Text>
+        {favorites.length === 0 ? (
+          <View style={styles.emptySection}>
+            <Ionicons name="star-outline" size={36} color="#ccc" />
+            <Text style={styles.emptySectionText}>
+              お気に入りのAIはまだありません
+            </Text>
+          </View>
+        ) : (
+          favorites.map((ai) => (
+            <TouchableOpacity
+              key={ai.id}
+              style={styles.favoriteCard}
+              onPress={() => router.push(`/ai/${ai.id}`)}
+            >
+              <View style={styles.favoriteAvatar}>
+                <Text style={styles.favoriteAvatarText}>
+                  {ai.display_name?.[0] || "?"}
+                </Text>
+              </View>
+              <View style={styles.favoriteInfo}>
+                <Text style={styles.favoriteName}>{ai.display_name}</Text>
+                <Text style={styles.favoriteUsername}>@{ai.username}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.removeFavoriteButton}
+                onPress={() => handleRemoveFavorite(ai.id)}
+              >
+                <Ionicons name="star" size={22} color="#f0c040" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+
+      {/* Sign Out */}
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={18} color="#e74c3c" />
+        <Text style={styles.signOutText}>ログアウト</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  // Login prompt
+  loginPrompt: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    backgroundColor: "#f8f9fa",
+  },
+  loginTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+    marginTop: 16,
+  },
+  loginMessage: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  loginButton: {
+    backgroundColor: "#1a1a2e",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    marginTop: 24,
+  },
+  loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+
+  // Header
+  header: {
+    alignItems: "center",
+    paddingVertical: 24,
+    backgroundColor: "#fff",
+  },
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#1a1a2e",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  avatarText: { fontSize: 28, fontWeight: "bold", color: "#fff" },
+  username: { fontSize: 20, fontWeight: "bold", color: "#1a1a2e" },
+  email: { fontSize: 13, color: "#999", marginTop: 2 },
+  rankBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    backgroundColor: "#fff",
+  },
+  rankIcon: { fontSize: 18, marginRight: 4 },
+  rankLabel: { fontSize: 14, fontWeight: "bold", marginRight: 8 },
+  rankScore: { fontSize: 12, color: "#999" },
+
+  // Stats
+  statsRow: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  statCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  statLabel: { fontSize: 12, color: "#999" },
+  statValue: { fontSize: 18, fontWeight: "bold", color: "#1a1a2e", marginTop: 4 },
+
+  // Create AI
+  createAiButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#6c63ff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  createAiButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+
+  // Section
+  section: {
+    backgroundColor: "#fff",
+    marginTop: 8,
+    paddingVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+
+  // Empty sections
+  emptySection: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  emptySectionText: { color: "#ccc", fontSize: 14, marginTop: 8 },
+
+  // Milestone
+  milestoneRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  milestoneIcon: { fontSize: 20, marginRight: 10, marginTop: 2 },
+  milestoneInfo: { flex: 1 },
+  milestoneMessage: { fontSize: 14, color: "#333", lineHeight: 20 },
+  milestoneAiName: { fontSize: 12, color: "#6c63ff", marginTop: 2 },
+  milestoneDate: { fontSize: 11, color: "#bbb", marginLeft: 8, marginTop: 2 },
+
+  // Favorite cards
+  favoriteCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  favoriteAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e8e8f0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  favoriteAvatarText: { fontSize: 18, fontWeight: "bold", color: "#555" },
+  favoriteInfo: { flex: 1 },
+  favoriteName: { fontSize: 15, fontWeight: "bold", color: "#1a1a2e" },
+  favoriteUsername: { fontSize: 12, color: "#999", marginTop: 1 },
+  removeFavoriteButton: { padding: 8 },
+  aiOccupation: { fontSize: 12, color: "#6c63ff", marginTop: 1 },
+  aiMoodBadge: { width: 30, alignItems: "center" },
+  aiMoodText: { fontSize: 18 },
+
+  // Sign out
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    marginTop: 8,
+    paddingVertical: 16,
+  },
+  signOutText: {
+    fontSize: 15,
+    color: "#e74c3c",
+    marginLeft: 8,
+    fontWeight: "600",
+  },
+});
 
 function moodEmoji(mood: string | null): string {
   switch (mood) {

@@ -18,6 +18,38 @@ module Api
         render_success(build_hot_threads)
       end
 
+      # GET /api/v1/discover/ai_ranking
+      # AIランキング: フォロワー数・いいね数・スコアで上位 AI を返す
+      def ai_ranking
+        by = params[:by] || "followers"
+        limit = [ (params[:limit] || 20).to_i, 50 ].min
+
+        ai_users = case by
+        when "likes"
+                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
+                           .order(total_likes: :desc)
+                           .limit(limit)
+        when "posts"
+                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
+                           .order(posts_count: :desc)
+                           .limit(limit)
+        else
+                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
+                           .order(followers_count: :desc)
+                           .limit(limit)
+        end
+
+        render_success(
+          ai_users.map.with_index(1) do |ai, rank|
+            {
+              rank: rank,
+              ai_user: AiUserSerializer.new(ai, current_user: current_user).as_json,
+              metric: { by: by, value: metric_value(ai, by) }
+            }
+          end
+        )
+      end
+
       private
 
       # Top 10 AI users by likes received in the last 24 hours
@@ -183,6 +215,14 @@ module Api
           weather: dominant_weather ? AiDailyState.weather_conditions.key(dominant_weather) : nil,
           dominant_whim: dominant_whim ? AiDailyState.daily_whims.key(dominant_whim) : nil
         }
+      end
+
+      def metric_value(ai, by)
+        case by
+        when "likes"  then ai.total_likes
+        when "posts"  then ai.posts_count
+        else               ai.followers_count
+        end
       end
     end
   end
