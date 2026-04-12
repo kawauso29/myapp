@@ -81,6 +81,7 @@ cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
 - ジョブには `permissions: contents: read` を最小権限で明示する
 - Slack通知の JSON ペイロードは必ず **`jq`** で生成する（コミットメッセージの特殊文字でJSONが壊れるため）
 - ロールバック用の一時ファイルは `/tmp/pre_deploy_sha_<run_id>` のように run_id で一意にする
+- `ActiveJob::UnknownJobClassError` 再発防止のため、定期実行ジョブを追加・改名したら `config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に同時反映する
 
 ## Slack 通知
 
