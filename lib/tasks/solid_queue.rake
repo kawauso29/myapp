@@ -31,7 +31,8 @@ namespace :solid_queue do
           if payload.is_a?(Hash)
             payload["job_class"] || payload[:job_class]
           end
-        rescue JSON::ParserError
+        rescue JSON::ParserError => e
+          Rails.logger.warn("solid_queue:cleanup_unknown_job_classes JSON parse failed for job_id=#{job.id}: #{e.message}")
           nil
         end
 
