@@ -126,7 +126,7 @@ jobs:
 
             // PR検索関数（リトライ付き）
             // create_pr.yml がPRをまだ作成中の場合に備えて、待機してリトライする
-            async function findPr(attempt) {
+            async function findPr(lookupAttempt) {
               const prNumber = workflowRun.pull_requests?.[0]?.number;
               if (prNumber) {
                 const { data } = await github.rest.pulls.get({
@@ -139,7 +139,7 @@ jobs:
                 }
               }
 
-              if (!detectedHeadOwner && attempt === 1) {
+              if (!detectedHeadOwner && lookupAttempt === 1) {
                 core.info(`head_repository.owner.login is unavailable during PR lookup fallback; trying ${(headOwner ?? 'unknown-owner')}:${(headBranch ?? 'unknown-branch')}`);
               }
               const { data: prs } = await github.rest.pulls.list({
@@ -262,7 +262,7 @@ jobs:
               });
             }
 
-            // マージ（リトライ3回、5秒→10秒→15秒で段階的にバックオフ）
+            // マージ（最大3回試行、失敗後バックオフ: 1回目失敗→5s待機→2回目失敗→10s待機→3回目）
             core.info(`CI passed for PR #${pr.number}, merging...`);
             let merged = false;
             const MAX_MERGE_ATTEMPTS = 3;
@@ -309,7 +309,7 @@ jobs:
 
             // GITHUB_TOKEN によるマージでは push イベントが発火しないため、
             // deploy ワークフローを直接 dispatch する（CI は PR で既に通過済み）
-            // リトライ3回、バックオフ（5s, 10s, 15s）
+            // 最大3回試行、失敗後バックオフ: 1回目失敗→5s待機→2回目失敗→10s待機→3回目
             for (let deployAttempt = 1; deployAttempt <= 3; deployAttempt++) {
               try {
                 await github.rest.actions.createWorkflowDispatch({
