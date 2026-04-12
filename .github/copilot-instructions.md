@@ -92,6 +92,7 @@ cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
 - ロールバック用の一時ファイルは `/tmp/pre_deploy_sha_<run_id>` のように run_id で一意にする
 - `auto_merge.yml` の保護対象では `.github/workflows/` 全体を一律除外しない。運用系（`auto_merge.yml` / `deploy.yml` / `auto_create_pr.yml` / `create_pr.yml` / `post_deploy_cleanup.yml`）は自動マージ対象に含める
 - `ActiveJob::UnknownJobClassError` 再発防止のため、定期実行ジョブを追加・改名したら `config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に同時反映する
+- `ActiveJob::UnknownJobClassError` がデプロイ後に繰り返す場合、SolidQueueのforkモードが原因。`config/puma.rb` で `solid_queue_mode :async` を設定する。deploy.ymlのcleanup tasksはPuma再起動後に実行する。ブート時の自動cleanup は `config/initializers/solid_queue_boot_cleanup.rb` が担当する
 
 ## Slack 通知
 
