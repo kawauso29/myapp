@@ -206,7 +206,8 @@ class LifeEventCheckJob < ApplicationJob
       fields: [
         { title: "イベント", value: event_key.to_s },
         { title: "連鎖", value: CHAIN_EVENTS[event_key] ? "#{CHAIN_EVENTS[event_key][:wait_days]}日後に続きあり" : "なし" }
-      ]
+      ],
+      channel: :jobs
     )
   end
 

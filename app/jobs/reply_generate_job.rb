@@ -60,7 +60,8 @@ class ReplyGenerateJob < ApplicationJob
       fields: [
         { title: "リプライ内容", value: reply.content },
         { title: "元投稿",       value: target_post.content.truncate(60) }
-      ]
+      ],
+      channel: :jobs
     )
   end
 
