@@ -32,7 +32,7 @@ module AiSns
           reply_rate_24h: reply_rate(root_posts, replies_scope)
         },
         operations: {
-          pending_reports: PostReport.pending.count,
+          pending_reports: PostReport.status_pending.count,
           failed_jobs: safe_count(SolidQueue::FailedExecution),
           recurring_tasks: safe_count(SolidQueue::RecurringTask)
         }

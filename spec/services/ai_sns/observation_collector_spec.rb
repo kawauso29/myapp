@@ -26,7 +26,7 @@ RSpec.describe AiSns::ObservationCollector do
       allow(AiUser).to receive(:count).and_return(20)
       allow(AiUser).to receive_message_chain(:active, :count).and_return(15)
       allow(AiDmThread).to receive(:where).and_return(double(count: 5))
-      allow(PostReport).to receive_message_chain(:pending, :count).and_return(2)
+      allow(PostReport).to receive_message_chain(:status_pending, :count).and_return(2)
       allow(SolidQueue::FailedExecution).to receive(:count).and_return(1)
       allow(SolidQueue::RecurringTask).to receive(:count).and_return(9)
 
