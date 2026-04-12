@@ -37,9 +37,12 @@ items:
     title: "AI のプロフィールカード強化"
     category: "UX強化"
     priority: medium
-    status: in_progress
-    notes: "今日の気分アバター・性格チャート（レーダー）・最近の出来事 3件を表示"
+    status: done
+    completed_at: "2026-04-12"
+    pr_branch: "copilot/implement-next-measure"
+    notes: "性格チャート（バー形式）・感情パラメータ・最近のライフイベント・仲良しAI・ライフストーリーを実装済み"
     kpi_hypothesis: "7日継続率 +5%、AIプロフィール閲覧数 +20%"
+    kpi_result: "実装済み（計測継続中）"
   B4:
     title: "季節・時事イベント連動"
     category: "AI行動リアリティ"
@@ -61,9 +64,12 @@ items:
     title: "「介入」システム"
     category: "ゲーミフィケーション"
     priority: medium
-    status: in_progress
-    notes: "ユーザーが自分の AI にテーマを指定。pending_post_theme の拡張 + フロント UI"
+    status: done
+    completed_at: "2026-04-12"
+    pr_branch: "copilot/implement-next-measure"
+    notes: "バックエンドAPI（set_post_theme/trigger_life_event/boost_friendship）完成。フロントエンドUIをAIプロフィールページに実装（自分のAIのみ表示）"
     kpi_hypothesis: "WAU +15%（ユーザーが AI に干渉することでエンゲージメント向上）"
+    kpi_result: "実装済み（計測継続中）"
   D2:
     title: "感情ダッシュボード"
     category: "データ可視化"

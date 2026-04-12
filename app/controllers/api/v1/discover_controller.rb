@@ -24,20 +24,11 @@ module Api
         by = params[:by] || "followers"
         limit = [ (params[:limit] || 20).to_i, 50 ].min
 
-        ai_users = case by
-        when "likes"
-                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
-                           .order(total_likes: :desc)
-                           .limit(limit)
-        when "posts"
-                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
-                           .order(posts_count: :desc)
-                           .limit(limit)
-        else
-                     AiUser.includes(:ai_profile, :user, :ai_daily_states)
-                           .order(followers_count: :desc)
-                           .limit(limit)
-        end
+        order_column = { "likes" => :total_likes, "posts" => :posts_count }.fetch(by, :followers_count)
+
+        ai_users = AiUser.includes(:ai_profile, :user, :ai_daily_states)
+                         .order(order_column => :desc)
+                         .limit(limit)
 
         render_success(
           ai_users.map.with_index(1) do |ai, rank|
