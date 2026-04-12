@@ -266,7 +266,9 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
 
         memory_line = "2024年01月: 小さな挑戦を始めた"
         event_line = "2024年02月: job_change"
-        expect(captured_prompt.index(memory_line)).to be < captured_prompt.index(event_line)
+        expect(captured_prompt).to include(memory_line)
+        expect(captured_prompt).to include(event_line)
+        expect(captured_prompt).to match(/#{Regexp.escape(memory_line)}.*#{Regexp.escape(event_line)}/m)
       end
     end
 

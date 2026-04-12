@@ -252,7 +252,7 @@ module Api
                              .limit(20)
                              .map do |event|
           {
-            sort_at: event.fired_at.to_date,
+            sort_at: event.fired_at,
             line: "#{event.fired_at.strftime('%Y年%m月')}: #{event.event_type}"
           }
         end
@@ -262,7 +262,7 @@ module Api
                           .limit(20)
                           .map do |memory|
           {
-            sort_at: memory.occurred_on,
+            sort_at: memory.occurred_on.in_time_zone,
             line: "#{memory.occurred_on.strftime('%Y年%m月')}: #{memory.content}"
           }
         end
