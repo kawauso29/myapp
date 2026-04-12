@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   # PRが開かれたときに条件を満たせば automerge ラベルを付与する
@@ -232,6 +233,22 @@ jobs:
                 merge_method: 'merge'
               });
               core.info(`Successfully merged PR #${pr.number}`);
+
+              // マージ成功後、deploy.yml を直接 dispatch してデプロイを開始する
+              // （CIのmain再実行を待たずに即デプロイ。CIはすでにPRで通過済み）
+              try {
+                const reason = `Auto-merged PR #${pr.number}: ${pr.title}`;
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'deploy.yml',
+                  ref: 'main',
+                  inputs: { reason }
+                });
+                core.info(`Dispatched deploy.yml for PR #${pr.number}: ${pr.title}`);
+              } catch (deployDispatchError) {
+                core.warning(`Failed to dispatch deploy.yml: ${deployDispatchError.message}`);
+              }
             } catch (error) {
               core.error(`Failed to merge PR #${pr.number}: ${error.message}`);
               const webhookUrl = process.env.SLACK_WEBHOOK_URL;
