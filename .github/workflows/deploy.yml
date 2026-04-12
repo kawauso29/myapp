@@ -49,7 +49,7 @@ jobs:
 
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: [self-hosted, sakura-vps]
+    runs-on: ubuntu-latest
     needs: build_frontend
     permissions:
       contents: read
@@ -74,146 +74,172 @@ jobs:
             -d "${PAYLOAD}"
 
       - name: Copy tarball to VPS
-        run: cp frontend.tar.gz /tmp/
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "frontend.tar.gz"
+          target: "/tmp/"
 
       - name: Sync Slack env vars to VPS
-        run: |
-          set_env() {
-            KEY=$1; VAL=$2; FILE=~/myapp/.env
-            touch $FILE
-            if grep -q "^${KEY}=" $FILE; then
-              sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
-            else
-              echo "${KEY}=${VAL}" >> $FILE
-            fi
-          }
-          set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
-          set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
-          set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
-          set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}'
-          set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
-          set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
-          set_env SLACK_GITHUB_MEMBER_ID '${{ secrets.SLACK_GITHUB_MEMBER_ID }}'
-          set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
-          set_env SOLID_QUEUE_IN_PUMA '1'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set_env() {
+              KEY=$1; VAL=$2; FILE=~/myapp/.env
+              touch $FILE
+              if grep -q "^${KEY}=" $FILE; then
+                sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
+              else
+                echo "${KEY}=${VAL}" >> $FILE
+              fi
+            }
+            set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
+            set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+            set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
+            set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}'
+            set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
+            set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
+            set_env SLACK_GITHUB_MEMBER_ID '${{ secrets.SLACK_GITHUB_MEMBER_ID }}'
+            set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
+            set_env SOLID_QUEUE_IN_PUMA '1'
 
       - name: Deploy Rails + frontend
         id: deploy_rails
-        run: |
-          set -e
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          cd ~/myapp
-          stop_puma_for_code_switch() {
-            sudo systemctl stop puma || true
-            for _ in 1 2 3 4 5; do
-              sudo systemctl is-active --quiet puma || return 0
-              sleep 2
-            done
-            echo "Puma did not stop in time"
-            exit 1
-          }
-          # 古いコードでジョブを処理しないよう、先にPumaを停止
-          stop_puma_for_code_switch
-          # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
-          git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
-          git fetch origin main
-          git reset --hard origin/main
-          bundle install
-          RAILS_ENV=production bin/rails db:migrate
-          RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
-          RAILS_ENV=production bin/rails assets:precompile
-          rm -rf ~/myapp/public/app
-          mkdir -p ~/myapp/public/app
-          tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
-          rm /tmp/frontend.tar.gz
-          echo "Frontend files:"
-          ls ~/myapp/public/app/ | head -10
-          sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
-          rm -rf tmp/cache && mkdir -p tmp/cache
-          LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
-          if [ -n "$LEGACY_JOB_PIDS" ]; then
-            echo "Stopping legacy bin/jobs processes: $LEGACY_JOB_PIDS"
-            for pid in $LEGACY_JOB_PIDS; do
-              if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
-                continue
-              fi
-              kill "$pid" || true
-              sleep 2
-              kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
-            done
-          fi
-          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
-          RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
-          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
-          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-          sudo systemctl restart puma
-          sleep 10
-          RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-          RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+            cd ~/myapp
+            stop_puma_for_code_switch() {
+              sudo systemctl stop puma || true
+              for _ in 1 2 3 4 5; do
+                sudo systemctl is-active --quiet puma || return 0
+                sleep 2
+              done
+              echo "Puma did not stop in time"
+              exit 1
+            }
+            # 古いコードでジョブを処理しないよう、先にPumaを停止
+            stop_puma_for_code_switch
+            # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
+            git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
+            git fetch origin main
+            git reset --hard origin/main
+            bundle install
+            RAILS_ENV=production bin/rails db:migrate
+            RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
+            RAILS_ENV=production bin/rails assets:precompile
+            rm -rf ~/myapp/public/app
+            mkdir -p ~/myapp/public/app
+            tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
+            rm /tmp/frontend.tar.gz
+            echo "Frontend files:"
+            ls ~/myapp/public/app/ | head -10
+            sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
+            rm -rf tmp/cache && mkdir -p tmp/cache
+            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
+            if [ -n "$LEGACY_JOB_PIDS" ]; then
+              echo "Stopping legacy bin/jobs processes: $LEGACY_JOB_PIDS"
+              for pid in $LEGACY_JOB_PIDS; do
+                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                  continue
+                fi
+                kill "$pid" || true
+                sleep 2
+                kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
+              done
+            fi
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
+            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+            sudo systemctl restart puma
+            sleep 10
+            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
 
       - name: Health check after deploy
         id: health_check
         if: steps.deploy_rails.outcome == 'success'
-        run: |
-          for i in 1 2 3; do
-            if curl -f -s --max-time 10 http://localhost/ > /dev/null 2>&1; then
-              echo "Health check passed (attempt $i)"
-              exit 0
-            fi
-            echo "Health check failed (attempt $i), retrying in 5s..."
-            sleep 5
-          done
-          echo "Health check failed after 3 attempts"
-          exit 1
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            for i in 1 2 3; do
+              if curl -f -s --max-time 10 http://localhost/ > /dev/null 2>&1; then
+                echo "Health check passed (attempt $i)"
+                exit 0
+              fi
+              echo "Health check failed (attempt $i), retrying in 5s..."
+              sleep 5
+            done
+            echo "Health check failed after 3 attempts"
+            exit 1
 
       - name: Rollback on failure
         if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
-        run: |
-          set -e
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          cd ~/myapp
-          stop_puma_for_code_switch() {
-            sudo systemctl stop puma || true
-            for _ in 1 2 3 4 5; do
-              sudo systemctl is-active --quiet puma || return 0
-              sleep 2
-            done
-            echo "Puma did not stop in time during rollback"
-            exit 1
-          }
-          # ロールバック時も古いコードでジョブを処理しないよう先に停止
-          stop_puma_for_code_switch
-          PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
-          if [ -z "$PRE_SHA" ]; then
-            echo "No pre-deploy SHA found, skipping rollback"
-            exit 1
-          fi
-          echo "Rolling back to $PRE_SHA ..."
-          git reset --hard "$PRE_SHA"
-          bundle install
-          RAILS_ENV=production bin/rails db:migrate
-          rm -rf tmp/cache && mkdir -p tmp/cache
-          LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
-          if [ -n "$LEGACY_JOB_PIDS" ]; then
-            echo "Stopping legacy bin/jobs processes during rollback: $LEGACY_JOB_PIDS"
-            for pid in $LEGACY_JOB_PIDS; do
-              if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
-                continue
-              fi
-              kill "$pid" || true
-              sleep 2
-              kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
-            done
-          fi
-          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
-          RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
-          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
-          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-          sudo systemctl restart puma
-          sleep 10
-          RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-          RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
-          echo "Rollback to $PRE_SHA complete"
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+            cd ~/myapp
+            stop_puma_for_code_switch() {
+              sudo systemctl stop puma || true
+              for _ in 1 2 3 4 5; do
+                sudo systemctl is-active --quiet puma || return 0
+                sleep 2
+              done
+              echo "Puma did not stop in time during rollback"
+              exit 1
+            }
+            # ロールバック時も古いコードでジョブを処理しないよう先に停止
+            stop_puma_for_code_switch
+            PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
+            if [ -z "$PRE_SHA" ]; then
+              echo "No pre-deploy SHA found, skipping rollback"
+              exit 1
+            fi
+            echo "Rolling back to $PRE_SHA ..."
+            git reset --hard "$PRE_SHA"
+            bundle install
+            RAILS_ENV=production bin/rails db:migrate
+            rm -rf tmp/cache && mkdir -p tmp/cache
+            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
+            if [ -n "$LEGACY_JOB_PIDS" ]; then
+              echo "Stopping legacy bin/jobs processes during rollback: $LEGACY_JOB_PIDS"
+              for pid in $LEGACY_JOB_PIDS; do
+                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                  continue
+                fi
+                kill "$pid" || true
+                sleep 2
+                kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
+              done
+            fi
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
+            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+            sudo systemctl restart puma
+            sleep 10
+            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
+            echo "Rollback to $PRE_SHA complete"
 
       - name: Notify Slack (deploy success)
         if: success()
