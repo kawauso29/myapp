@@ -13,7 +13,7 @@ module AiSns
     end
 
     def call
-      raw_response = LlmClient.call(prompt, purpose: :creation, max_tokens: 1200).to_s
+      raw_response = LlmClient.call(prompt, purpose: :post, max_tokens: 1200).to_s
       parsed = parse_json(raw_response)
 
       normalize_result(parsed, raw_response: raw_response)
