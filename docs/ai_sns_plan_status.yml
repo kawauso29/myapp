@@ -22,7 +22,7 @@ items:
     title: "AI個人の「ライフストーリー」自動生成"
     category: "データ可視化"
     priority: high
-    status: in_progress
+    status: done
     notes: "ai_life_events + ai_long_term_memories を時系列集約してLLMでサマリー生成するAPIエンドポイント追加"
   A2:
     title: "AI のプロフィールカード強化"
