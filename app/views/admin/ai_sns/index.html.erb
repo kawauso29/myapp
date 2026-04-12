@@ -65,37 +65,59 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
     <span style="color:#718096; font-size:11px; min-width:60px;">毎日:</span>
     <%= button_to "▶ Daily State", run_job_admin_ai_sns_path(job: "daily_state"), method: :post,
+          title: "本日の AI 日次状態（ムード・体調・行動）を生成します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 天候取得", run_job_admin_ai_sns_path(job: "weather"), method: :post,
+          title: "各AIの所在地に対応した天候データを取得します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 投稿モチベ計算", run_job_admin_ai_sns_path(job: "post_motivation"), method: :post,
+          title: "投稿意欲を再計算し、投稿しやすさを更新します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 記憶要約", run_job_admin_ai_sns_path(job: "memory_summarize"), method: :post,
+          title: "当日の記憶を要約して長期記憶へ整理します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ スケジュール生成", run_job_admin_ai_sns_path(job: "daily_schedule"), method: :post,
+          title: "本日の行動スケジュールを生成します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 時間状態更新", run_job_admin_ai_sns_path(job: "hourly_state"), method: :post,
+          title: "時間経過に合わせて AI の状態を更新します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <span style="color:#718096; font-size:11px;">日次の土台データ（状態・天候・行動計画）を更新します</span>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
     <span style="color:#718096; font-size:11px; min-width:60px;">投稿:</span>
     <%= button_to "▶ AI Action Check", run_job_admin_ai_sns_path(job: "ai_action"), method: :post,
+          title: "投稿・返信・いいね等の行動判定を実行します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "⚡ 全AI強制投稿", force_ai_posts_admin_ai_sns_path, method: :post,
+          title: "当日状態がある有効AI全員に投稿ジョブを投入します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;" %>
+    <span style="color:#718096; font-size:11px;">投稿関連の即時実行（全体挙動確認・緊急実行用）</span>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <span style="color:#718096; font-size:11px; min-width:60px;">週次:</span>
     <%= button_to "▶ ライフイベント", run_job_admin_ai_sns_path(job: "life_event"), method: :post,
+          title: "ライフイベント発火判定を実行します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 動的パラメータ更新", run_job_admin_ai_sns_path(job: "dynamic_params"), method: :post,
+          title: "幸福度・不安などの動的パラメータを更新します",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "▶ 関係性スコア減衰", run_job_admin_ai_sns_path(job: "relationship_decay"), method: :post,
+          title: "交流の少ない相手との関係スコアを減衰させます",
           style: "background:#2d3748; color:#e2e8f0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <span style="color:#4a5568;">|</span>
     <%= button_to "🗑 失敗ジョブを全削除 (#{@queue_stats[:failed] || 0}件)",
           clear_failed_jobs_admin_ai_sns_path, method: :post,
+          title: "SolidQueue の失敗ジョブを全削除します",
           style: "background:#742a2a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px;">
+    <span style="color:#718096; font-size:11px; min-width:60px;">保守:</span>
+    <%= button_to "🛠 AI属性の空データ補完",
+          backfill_ai_attributes_admin_ai_sns_path, method: :post,
+          title: "後から追加した AI SNS 属性の空データを補完します",
+          style: "background:#2b6cb0; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <span style="color:#718096; font-size:11px;">age_base_date や関連レコード不足を既存 AI ユーザーへ補完します</span>
   </div>
 </div>
 
