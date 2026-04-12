@@ -21,6 +21,7 @@ RSpec.describe AiSns::ImprovementExecutor do
     it "enqueues allowed quick-win jobs and sends Slack notification" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
+      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
 
       result = described_class.call(analysis_result: analysis_result)
 
@@ -34,11 +35,37 @@ RSpec.describe AiSns::ImprovementExecutor do
       unsupported = analysis_result.deep_dup
       unsupported["quick_wins"][0]["action"]["job_class"] = "UnknownJobClass"
       allow(SlackNotifierService).to receive(:notify)
+      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
 
       result = described_class.call(analysis_result: unsupported)
 
       expect(result["applied_quick_wins"]).to eq(0)
       expect(result["quick_win_results"].first["status"]).to eq("skipped")
+    end
+
+    it "creates GitHub Issues for each feature proposal" do
+      allow(PostMotivationCalculateJob).to receive(:perform_later)
+      allow(SlackNotifierService).to receive(:notify)
+      fake_issue = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/issues/42" }
+      allow(GithubIssueService).to receive(:create_issue).and_return(fake_issue)
+
+      result = described_class.call(analysis_result: analysis_result)
+
+      expect(GithubIssueService).to have_received(:create_issue).with(
+        title: "[AI SNS自動提案] 会話スレッド改善",
+        body: a_string_including("返信率を上げるため")
+      )
+      expect(result["created_issue_numbers"]).to eq([42])
+    end
+
+    it "returns empty created_issue_numbers when GithubIssueService returns nil" do
+      allow(PostMotivationCalculateJob).to receive(:perform_later)
+      allow(SlackNotifierService).to receive(:notify)
+      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+
+      result = described_class.call(analysis_result: analysis_result)
+
+      expect(result["created_issue_numbers"]).to eq([])
     end
   end
 end
