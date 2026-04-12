@@ -54,7 +54,7 @@ jobs:
     permissions:
       contents: read
     env:
-      COMMIT_MSG: ${{ github.event.inputs.reason || github.event.workflow_run.head_commit.message || 'Manual deploy' }}
+      COMMIT_MSG: ${{ github.event.inputs.reason || github.event.workflow_run.head_commit.message || 'Auto-deploy from CI' }}
     steps:
       - uses: actions/checkout@v4
 
