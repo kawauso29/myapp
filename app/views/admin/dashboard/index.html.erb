@@ -257,7 +257,7 @@
   <div class="card" style="border-color:#68d391; margin-top:16px;">
     <h2 style="color:#68d391;">📊 週次 KPI
       <span style="float:right; font-size:11px; color:#4a5568; font-weight:normal;">
-        直近7日間 | <%= kpi[:collected_at] ? Time.parse(kpi[:collected_at]).in_time_zone("Tokyo").strftime("%m/%d %H:%M") : "-" %>
+        直近7日間 | <%= kpi[:collected_at] ? Time.zone.parse(kpi[:collected_at].to_s).strftime("%m/%d %H:%M") : "-" %>
       </span>
     </h2>
     <div class="stats-grid" style="margin-bottom:12px;">
