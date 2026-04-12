@@ -70,7 +70,8 @@ class BirthdayCheckJob < ApplicationJob
 
     SlackNotifierService.notify(
       text: ":birthday: *誕生日* @#{ai.username} #{new_age}歳になりました",
-      color: :success
+      color: :success,
+      channel: :jobs
     )
   end
 

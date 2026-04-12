@@ -49,7 +49,8 @@ class PicroCheckJob < ApplicationJob
     SlackNotifierService.notify(
       text: "Picro新着#{new_messages.size}件 → LINE通知送信済み",
       color: :info,
-      fields: slack_fields
+      fields: slack_fields,
+      channel: :jobs
     )
 
     Rails.logger.info("[PicroCheckJob] 完了: #{new_messages.size}件の新着を通知")

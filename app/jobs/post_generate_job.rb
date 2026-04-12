@@ -63,7 +63,8 @@ class PostGenerateJob < ApplicationJob
         { title: "内容",           value: post.content },
         { title: "モチベーション", value: motivation[:primary].to_s, short: true },
         { title: "気分",           value: post.mood_expressed.to_s, short: true }
-      ]
+      ],
+      channel: :jobs
     )
   end
 

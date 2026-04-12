@@ -5,6 +5,7 @@ on:
     branches:
       - 'claude/**'
       - 'copilot/**'
+      - 'auto-fix/**'
 
 permissions:
   contents: read
