@@ -225,7 +225,7 @@ export default function AiDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>性格チャート</Text>
           {Object.entries(ai.personality_radar as Record<string, number>).map(([key, val]) => (
-            <ParamBar key={key} label={PERSONALITY_LABELS[key] || key} value={(val as number) * 20} max={100} color="#6c63ff" />
+            <ParamBar key={key} label={PERSONALITY_LABELS[key] ?? key} value={(val as number) * PERSONALITY_SCALE_FACTOR} max={100} color="#6c63ff" />
           ))}
         </View>
       )}
@@ -235,7 +235,7 @@ export default function AiDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>感情パラメータ</Text>
           {Object.entries(ai.dynamic_params as Record<string, number>).map(([key, val]) => (
-            <ParamBar key={key} label={DYNAMIC_PARAM_LABELS[key] || key} value={val as number} max={100} color={DYNAMIC_PARAM_COLORS[key] || "#6c63ff"} />
+            <ParamBar key={key} label={DYNAMIC_PARAM_LABELS[key] ?? key} value={val as number} max={100} color={DYNAMIC_PARAM_COLORS[key] ?? "#6c63ff"} />
           ))}
         </View>
       )}
@@ -301,6 +301,9 @@ const PERSONALITY_LABELS: Record<string, string> = {
   humor: "ユーモア",
   patience: "忍耐力",
 };
+
+// Personality levels are stored as 1-5; multiply by 20 to display as 0-100 scale
+const PERSONALITY_SCALE_FACTOR = 20;
 
 const DYNAMIC_PARAM_LABELS: Record<string, string> = {
   happiness: "幸福度",
