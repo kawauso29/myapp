@@ -112,19 +112,28 @@ jobs:
               core.info(`head_repository.owner.login is unavailable, falling back to base owner: ${headOwner}`);
             }
 
-            let pr = null;
-            const prNumber = workflowRun.pull_requests?.[0]?.number;
-            if (prNumber) {
-              const { data } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber
-              });
-              if (data.state === 'open') {
-                pr = data;
+            // mainブランチのCIは自動マージ対象外（早期リターン）
+            if (headBranch === 'main') {
+              core.info('CI ran on main branch, no PR to auto-merge');
+              return;
+            }
+
+            // PR検索関数（リトライ付き）
+            // create_pr.yml がPRをまだ作成中の場合に備えて、待機してリトライする
+            async function findPr(attempt) {
+              const prNumber = workflowRun.pull_requests?.[0]?.number;
+              if (prNumber) {
+                const { data } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                if (data.state === 'open') {
+                  return data;
+                }
               }
-            } else {
-              if (!detectedHeadOwner) {
+
+              if (!detectedHeadOwner && attempt === 1) {
                 core.info(`head_repository.owner.login is unavailable during PR lookup fallback; trying ${(headOwner ?? 'unknown-owner')}:${(headBranch ?? 'unknown-branch')}`);
               }
               const { data: prs } = await github.rest.pulls.list({
@@ -133,17 +142,27 @@ jobs:
                 state: 'open',
                 head: `${headOwner}:${headBranch}`
               });
-              pr = prs.find(p => p.head.sha === headSha);
-              if (!pr && prs.length > 0) {
-                // SHAが一致しないが、同じブランチのPRが存在する
-                // （新しいpushがあった可能性。後のSHAチェックで安全に判定される）
-                pr = prs[0];
-                core.info(`PR #${pr.number} found by branch but SHA differs (CI: ${headSha}, PR: ${pr.head.sha}). Will verify before merge.`);
+              let found = prs.find(p => p.head.sha === headSha);
+              if (!found && prs.length > 0) {
+                found = prs[0];
+                core.info(`PR #${found.number} found by branch but SHA differs (CI: ${headSha}, PR: ${found.head.sha}). Will verify before merge.`);
+              }
+              return found || null;
+            }
+
+            // PR検索（最大3回リトライ、15秒間隔で待機）
+            let pr = null;
+            for (let lookupAttempt = 1; lookupAttempt <= 3; lookupAttempt++) {
+              pr = await findPr(lookupAttempt);
+              if (pr) break;
+              if (lookupAttempt < 3) {
+                core.info(`No open PR found (attempt ${lookupAttempt}/3), waiting 15s for PR creation...`);
+                await new Promise(r => setTimeout(r, 15000));
               }
             }
 
             if (!pr) {
-              core.info(`No open PR found for this CI run (head: ${headOwner}:${headBranch}, sha: ${headSha})`);
+              core.info(`No open PR found for this CI run after 3 attempts (head: ${headOwner}:${headBranch}, sha: ${headSha})`);
               return;
             }
             core.setOutput('pr_number', String(pr.number));
@@ -231,10 +250,11 @@ jobs:
               });
             }
 
-            // マージ（リトライ2回、3秒間隔）
+            // マージ（リトライ3回、5秒→10秒→15秒で段階的にバックオフ）
             core.info(`CI passed for PR #${pr.number}, merging...`);
             let merged = false;
-            for (let mergeAttempt = 1; mergeAttempt <= 2; mergeAttempt++) {
+            const MAX_MERGE_ATTEMPTS = 3;
+            for (let mergeAttempt = 1; mergeAttempt <= MAX_MERGE_ATTEMPTS; mergeAttempt++) {
               try {
                 await github.rest.pulls.merge({
                   owner: context.repo.owner,
@@ -247,11 +267,13 @@ jobs:
                 merged = true;
                 break;
               } catch (error) {
-                if (mergeAttempt < 2) {
-                  core.warning(`Merge attempt ${mergeAttempt}/2 failed: ${error.message}, retrying in 3s...`);
-                  await new Promise(r => setTimeout(r, 3000));
+                if (mergeAttempt < MAX_MERGE_ATTEMPTS) {
+                  const delay = mergeAttempt * 5;
+                  core.warning(`Merge attempt ${mergeAttempt}/${MAX_MERGE_ATTEMPTS} failed: ${error.message}, retrying in ${delay}s...`);
+                  await new Promise(r => setTimeout(r, delay * 1000));
                 } else {
-                  core.error(`Failed to merge PR #${pr.number} after 2 attempts: ${error.message}`);
+                  core.error(`Failed to merge PR #${pr.number} after ${MAX_MERGE_ATTEMPTS} attempts: ${error.message}`);
+                  core.setOutput('merge_error', error.message);
                   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
                   if (webhookUrl) {
                     const payload = JSON.stringify({
@@ -265,7 +287,8 @@ jobs:
                     });
                     await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
                   }
-                  throw error;
+                  // マージ失敗は throw せず return して後続のデプロイをスキップする
+                  return;
                 }
               }
             }
@@ -274,7 +297,7 @@ jobs:
 
             // GITHUB_TOKEN によるマージでは push イベントが発火しないため、
             // deploy ワークフローを直接 dispatch する（CI は PR で既に通過済み）
-            // リトライ3回、指数バックオフ（3s, 6s, 12s）
+            // リトライ3回、指数バックオフ（5s, 10s, 20s）
             for (let deployAttempt = 1; deployAttempt <= 3; deployAttempt++) {
               try {
                 await github.rest.actions.createWorkflowDispatch({
@@ -290,7 +313,7 @@ jobs:
                 break;
               } catch (deployError) {
                 if (deployAttempt < 3) {
-                  const delay = deployAttempt * 3;
+                  const delay = deployAttempt * 5;
                   core.warning(`Deploy dispatch attempt ${deployAttempt}/3 failed: ${deployError.message}, retrying in ${delay}s...`);
                   await new Promise(r => setTimeout(r, delay * 1000));
                 } else {
@@ -322,11 +345,37 @@ jobs:
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
+      - name: Notify Slack (merge failed)
+        if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.merge_error != '' }}
+        env:
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_pr.outputs.pr_number }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then
+            echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
+            --arg error "${{ steps.merge_pr.outputs.merge_error }}" \
+            --arg pr_url "${PR_URL}" \
+            '{attachments:[{color:"#e01e5a",text:":x: *自動マージに失敗しました*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"エラー",value:$error,short:false},{title:"次のアクション",value:("PRを確認して手動マージしてください: " + $pr_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
+
+  # CI が失敗（cancelled以外）した場合のみ通知する
+  # cancelled は concurrency group によるキャンセルなので通知不要
   notify_automerge_skip_reason:
     if: >-
       ${{ github.event_name == 'workflow_run' &&
-          github.event.workflow_run.event == 'pull_request' &&
-          github.event.workflow_run.conclusion != 'success' }}
+          github.event.workflow_run.conclusion == 'failure' &&
+          (github.event.workflow_run.event == 'pull_request' ||
+           github.event.workflow_run.event == 'push') &&
+          github.event.workflow_run.head_branch != 'main' }}
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
@@ -349,7 +398,7 @@ jobs:
             --arg branch "${HEAD_BRANCH}" \
             --arg conclusion "${RUN_CONCLUSION}" \
             --arg run_url "${RUN_URL}" \
-            '{attachments:[{color:"#f0a500",text:":warning: *自動マージをスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("PR CI の結果が `" + $conclusion + "` のため自動マージ条件を満たしていません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+            '{attachments:[{color:"#f0a500",text:":warning: *自動マージをスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("CI の結果が `" + $conclusion + "` のため自動マージ条件を満たしていません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

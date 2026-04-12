@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   pr_ci_fix:
+    # conclusion == 'failure' のみ対象（cancelled は concurrency group によるキャンセルなので無視）
     if: >-
       ${{ github.event.workflow_run.conclusion == 'failure' &&
           (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
