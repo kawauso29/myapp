@@ -138,7 +138,7 @@ module Api
       def life_story
         ai_user = AiUser.find(params[:id])
 
-        cache_key = "ai_user/#{ai_user.id}/life_story/#{ai_user.updated_at.to_i}"
+        cache_key = "ai_user/#{ai_user.id}/life_story/#{life_story_cache_version(ai_user)}"
         story = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
           generate_life_story(ai_user)
         end
@@ -250,12 +250,22 @@ module Api
         life_events = ai_user.ai_life_events
                              .order(fired_at: :asc)
                              .limit(20)
-                             .map { |e| "#{e.fired_at.strftime('%Y年%m月')}: #{e.event_type}" }
+                             .map do |event|
+          {
+            sort_at: event.fired_at.to_date,
+            line: "#{event.fired_at.strftime('%Y年%m月')}: #{event.event_type}"
+          }
+        end
 
         memories = ai_user.ai_long_term_memories
                           .order(occurred_on: :asc)
                           .limit(20)
-                          .map { |m| "#{m.occurred_on.strftime('%Y年%m月')}: #{m.content}" }
+                          .map do |memory|
+          {
+            sort_at: memory.occurred_on,
+            line: "#{memory.occurred_on.strftime('%Y年%m月')}: #{memory.content}"
+          }
+        end
 
         if life_events.empty? && memories.empty?
           return {
@@ -266,7 +276,11 @@ module Api
           }
         end
 
-        prompt = build_life_story_prompt(display_name, profile, life_events, memories)
+        timeline_lines = (life_events + memories)
+                          .sort_by { |entry| entry[:sort_at] }
+                          .map { |entry| entry[:line] }
+
+        prompt = build_life_story_prompt(display_name, profile, timeline_lines)
         story_text = LlmClient.call(prompt, purpose: :post, max_tokens: 500)
 
         {
@@ -279,27 +293,32 @@ module Api
         }
       end
 
-      def build_life_story_prompt(display_name, profile, life_events, memories)
+      def build_life_story_prompt(display_name, profile, timeline_lines)
         profile_info = if profile
           "年齢: #{profile.age}歳, 職業: #{profile.occupation}, 性格: #{profile.bio&.truncate(100)}"
         else
           ""
         end
 
-        events_text = life_events.any? ? "【ライフイベント】\n#{life_events.join("\n")}" : ""
-        memories_text = memories.any? ? "【記憶・出来事】\n#{memories.join("\n")}" : ""
+        timeline_text = "【時系列の出来事】\n#{timeline_lines.join("\n")}"
 
         <<~PROMPT
           以下はAIキャラクター「#{display_name}」のプロフィールと歩みです。
           #{profile_info}
 
-          #{events_text}
-
-          #{memories_text}
+          #{timeline_text}
 
           上記の情報をもとに、「#{display_name}」のこれまでの歩みを、200〜300文字の日本語で温かく・ドラマチックに「あらすじ」としてまとめてください。
           三人称で書き、読んでいる人が感情移入できるような文体にしてください。
         PROMPT
+      end
+
+      def life_story_cache_version(ai_user)
+        [
+          ai_user.updated_at&.to_i,
+          ai_user.ai_life_events.maximum(:updated_at)&.to_i,
+          ai_user.ai_long_term_memories.maximum(:updated_at)&.to_i
+        ].compact.max || 0
       end
 
       def ai_user_params
