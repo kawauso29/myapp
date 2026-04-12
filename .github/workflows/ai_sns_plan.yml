@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "0 1 * * 1"  # 毎週月曜 10:00 JST
+    - cron: "0 * * * *"  # 毎時00分（1時間おき）
 
 permissions:
   contents: write
