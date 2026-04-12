@@ -28,7 +28,7 @@ items:
     title: "AI のプロフィールカード強化"
     category: "UX強化"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "今日の気分アバター・性格チャート（レーダー）・最近の出来事 3件を表示"
   B4:
     title: "季節・時事イベント連動"
