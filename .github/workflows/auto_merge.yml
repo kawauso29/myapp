@@ -297,7 +297,7 @@ jobs:
 
             // GITHUB_TOKEN によるマージでは push イベントが発火しないため、
             // deploy ワークフローを直接 dispatch する（CI は PR で既に通過済み）
-            // リトライ3回、指数バックオフ（5s, 10s, 20s）
+            // リトライ3回、バックオフ（5s, 10s, 15s）
             for (let deployAttempt = 1; deployAttempt <= 3; deployAttempt++) {
               try {
                 await github.rest.actions.createWorkflowDispatch({
@@ -369,6 +369,8 @@ jobs:
 
   # CI が失敗（cancelled以外）した場合のみ通知する
   # cancelled は concurrency group によるキャンセルなので通知不要
+  # push/pull_request 両方のCI失敗を通知対象にする（feature branch pushのCIが失敗した場合も通知が必要）
+  # main ブランチのCI失敗は ci.yml の notify ジョブが通知するためここでは除外
   notify_automerge_skip_reason:
     if: >-
       ${{ github.event_name == 'workflow_run' &&
