@@ -155,9 +155,25 @@ jobs:
             fi
             # Pre-restart cleanup: discard stale failures from previous deploys
             RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+            # Ensure sockets directory exists
+            mkdir -p ~/myapp/tmp/sockets
             # Restart Puma (also restarts SolidQueue since SOLID_QUEUE_IN_PUMA=1)
             sudo systemctl restart puma
-            sleep 10
+            # Wait for puma socket to appear (up to 30s)
+            for i in $(seq 1 30); do
+              if [ -S ~/myapp/tmp/sockets/puma.sock ]; then
+                echo "Puma socket ready after ${i}s"
+                break
+              fi
+              sleep 1
+            done
+            if [ ! -S ~/myapp/tmp/sockets/puma.sock ]; then
+              echo "ERROR: puma.sock not found after 30s - puma may have failed to start"
+              sudo systemctl status puma --no-pager || true
+              exit 1
+            fi
+            echo "Puma status:"
+            sudo systemctl is-active puma || true
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
             RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
             # Post-restart cleanup: discard any transient UnknownJobClassError failures
@@ -177,11 +193,12 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             for i in 1 2 3; do
-              if curl -f -s --max-time 10 http://localhost/ > /dev/null 2>&1; then
-                echo "Health check passed (attempt $i)"
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost/up 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "Health check passed (attempt $i, status=$STATUS)"
                 exit 0
               fi
-              echo "Health check failed (attempt $i), retrying in 5s..."
+              echo "Health check failed (attempt $i, status=$STATUS), retrying in 5s..."
               sleep 5
             done
             echo "Health check failed after 3 attempts"
