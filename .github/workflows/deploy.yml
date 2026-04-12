@@ -1,21 +1,20 @@
 name: Deploy to Sakura VPS
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual dispatch'
+        description: 'Deploy reason (auto-filled by auto_merge or enter manually)'
         required: false
-        default: 'Manual sync from admin panel'
+        default: 'Manual deploy'
+
+# 同時デプロイを防ぐ（キューイング: cancel-in-progress: false で直列実行）
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   build_frontend:
-    # workflow_run の場合は CI が成功した場合のみデプロイ。手動実行は常に実行。
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -49,7 +48,7 @@ jobs:
     permissions:
       contents: read
     env:
-      COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.inputs.reason || 'Manual deploy' }}
+      COMMIT_MSG: ${{ github.event.inputs.reason || 'Manual deploy' }}
     steps:
       - uses: actions/checkout@v4
 
