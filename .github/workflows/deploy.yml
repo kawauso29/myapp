@@ -111,8 +111,6 @@ jobs:
             set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
             set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}'
             set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
-            set_env SLACK_CLAUDE_CHANNEL_ID '${{ secrets.SLACK_CLAUDE_CHANNEL_ID }}'
-            set_env SLACK_GITHUB_MEMBER_ID '${{ secrets.SLACK_GITHUB_MEMBER_ID }}'
             set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
             set_env SOLID_QUEUE_IN_PUMA '1'
 
