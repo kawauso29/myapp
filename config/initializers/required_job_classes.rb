@@ -6,6 +6,9 @@ Rails.application.reloader.to_prepare do
     RelationshipDecayJob
     MonitorFailedJobsJob
     MarketAnalysisJob
+    WeatherFetchJob
+    DailyScheduleGenerateJob
+    DynamicParamsUpdateJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

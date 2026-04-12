@@ -6,6 +6,9 @@ namespace :solid_queue do
     RelationshipDecayJob
     MonitorFailedJobsJob
     MarketAnalysisJob
+    WeatherFetchJob
+    DailyScheduleGenerateJob
+    DynamicParamsUpdateJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob
