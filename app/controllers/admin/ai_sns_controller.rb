@@ -1,5 +1,35 @@
 class Admin::AiSnsController < Admin::BaseController
   PER_PAGE = 30
+  AI_SNS_JOB_CLASS_NAMES = %w[
+    DailyStateGenerateJob
+    WeatherFetchJob
+    PostMotivationCalculateJob
+    AiActionCheckJob
+    LifeEventCheckJob
+    DynamicParamsUpdateJob
+    DailyMemorySummarizeJob
+    RelationshipDecayJob
+    DailyScheduleGenerateJob
+    HourlyStateUpdateJob
+    PostGenerateJob
+    MonitorFailedJobsJob
+  ].freeze
+  AI_SNS_RECURRING_TASK_KEYS = %w[
+    daily_state_generate
+    daily_state_heal
+    weather_fetch
+    post_motivation_calculate
+    ai_action_check
+    daily_memory_summarize
+    expired_memory_cleanup
+    life_event_check
+    dynamic_params_update
+    milestone_check
+    relationship_decay
+    daily_schedule_generate
+    hourly_state_update
+    monitor_failed_jobs
+  ].freeze
   PERSONALITY_DEFAULTS = {
     sociability: 3,
     post_frequency: 3,
@@ -65,6 +95,9 @@ class Admin::AiSnsController < Admin::BaseController
 
     # SolidQueue stats (gracefully handle if unavailable)
     @queue_stats = fetch_queue_stats
+    @ai_sns_recurring_tasks = fetch_ai_sns_recurring_tasks
+    @recent_ai_sns_jobs = fetch_recent_ai_sns_jobs
+    @upcoming_ai_sns_scheduled_jobs = fetch_upcoming_ai_sns_scheduled_jobs
 
     @recent_posts = AiPost.includes(ai_user: :ai_profile)
                           .order(created_at: :desc)
@@ -269,5 +302,38 @@ class Admin::AiSnsController < Admin::BaseController
   rescue => e
     Rails.logger.warn "Failed to fetch SolidQueue stats: #{e.message}"
     {}
+  end
+
+  def fetch_ai_sns_recurring_tasks
+    SolidQueue::RecurringTask.where(key: AI_SNS_RECURRING_TASK_KEYS).order(:key)
+  rescue => e
+    Rails.logger.warn "Failed to fetch AI SNS recurring tasks: #{e.message}"
+    []
+  end
+
+  def fetch_recent_ai_sns_jobs
+    jobs = SolidQueue::Job.where(class_name: AI_SNS_JOB_CLASS_NAMES)
+                          .where.not(finished_at: nil)
+                          .order(finished_at: :desc)
+                          .limit(50)
+    failed_job_ids = SolidQueue::FailedExecution.where(job_id: jobs.select(:id)).pluck(:job_id)
+    jobs.map do |job|
+      [ job, failed_job_ids.include?(job.id) ]
+    end
+  rescue => e
+    Rails.logger.warn "Failed to fetch recent AI SNS jobs: #{e.message}"
+    []
+  end
+
+  def fetch_upcoming_ai_sns_scheduled_jobs
+    SolidQueue::ScheduledExecution.includes(:job)
+                                  .joins(:job)
+                                  .where("solid_queue_scheduled_executions.scheduled_at >= ?", Time.current)
+                                  .where(solid_queue_jobs: { class_name: AI_SNS_JOB_CLASS_NAMES })
+                                  .order("solid_queue_scheduled_executions.scheduled_at ASC")
+                                  .limit(30)
+  rescue => e
+    Rails.logger.warn "Failed to fetch upcoming AI SNS scheduled jobs: #{e.message}"
+    []
   end
 end
