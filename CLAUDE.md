@@ -229,8 +229,9 @@ main への push
 ### デプロイゲート（deploy.yml）
 
 - `main` push だけでデプロイが走らない。**CI が全ジョブ成功した後にのみ** deploy.yml が起動する
-- トリガー: `workflow_run: workflows: ["CI"], types: [completed]`
+- トリガー: `workflow_run: workflows: ["CI"], types: [completed], branches: [main]`
 - `workflow_dispatch` で手動デプロイは引き続き可能
+- `auto_merge.yml` からの deploy 直接 dispatch は使わず、`main` 側 CI 完了を待って deploy する
 
 ### ヘルスチェック + ロールバック（deploy.yml）
 

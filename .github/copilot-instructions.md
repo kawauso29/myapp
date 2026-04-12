@@ -54,8 +54,9 @@ main への push（またはPRマージ）
   ↓ Slack通知
 ```
 
-- **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で CI 完了を待つ
+- **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で `main` の CI 完了（success）を待つ
 - **手動デプロイ**: `workflow_dispatch` でいつでも実行可能
+- **auto_merge は deploy を直接 dispatch しない**: マージ後に `main` CI が完了してから deploy が起動する
 
 ### デプロイ先
 
