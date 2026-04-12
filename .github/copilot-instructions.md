@@ -54,8 +54,9 @@ main への push（またはPRマージ）
   ↓ Slack通知
 ```
 
-- **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で CI 完了を待つ
+- **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で `main` の CI 完了（success）を待つ
 - **手動デプロイ**: `workflow_dispatch` でいつでも実行可能
+- **auto_merge は deploy を直接 dispatch しない**: マージ後に `main` CI が完了してから deploy が起動する
 
 ### デプロイ先
 
@@ -81,6 +82,7 @@ cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
 - ジョブには `permissions: contents: read` を最小権限で明示する
 - Slack通知の JSON ペイロードは必ず **`jq`** で生成する（コミットメッセージの特殊文字でJSONが壊れるため）
 - ロールバック用の一時ファイルは `/tmp/pre_deploy_sha_<run_id>` のように run_id で一意にする
+- `auto_merge.yml` の保護対象では `.github/workflows/` 全体を一律除外しない。運用系（`auto_merge.yml` / `deploy.yml` / `auto_create_pr.yml` / `create_pr.yml` / `post_deploy_cleanup.yml`）は自動マージ対象に含める
 - `ActiveJob::UnknownJobClassError` 再発防止のため、定期実行ジョブを追加・改名したら `config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に同時反映する
 
 ## Slack 通知

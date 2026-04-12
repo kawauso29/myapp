@@ -45,7 +45,7 @@ jobs:
               /^Gemfile(\.lock)?$/,
               /^config\/routes\.rb$/,
               /^config\/application\.rb$/,
-              /^\.github\/workflows\//,
+              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
@@ -124,8 +124,7 @@ jobs:
               }
             } else {
               if (!detectedHeadOwner) {
-                core.info('Unable to determine PR head owner from workflow_run payload, skipping');
-                return;
+                core.info(`head_repository.owner.login is unavailable during PR lookup fallback; trying ${(headOwner ?? 'unknown-owner')}:${(headBranch ?? 'unknown-branch')}`);
               }
               const { data: prs } = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -153,7 +152,7 @@ jobs:
               /^Gemfile(\.lock)?$/,
               /^config\/routes\.rb$/,
               /^config\/application\.rb$/,
-              /^\.github\/workflows\//,
+              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
 
             const prHeadRepoFullName = pr.head.repo?.full_name;
@@ -234,22 +233,6 @@ jobs:
                 merge_method: 'merge'
               });
               core.info(`Successfully merged PR #${pr.number}`);
-
-              // マージ成功後、deploy.yml を直接 dispatch してデプロイを開始する
-              // （CIのmain再実行を待たずに即デプロイ。CIはすでにPRで通過済み）
-              try {
-                const reason = `Auto-merged PR #${pr.number}: ${pr.title}`;
-                await github.rest.actions.createWorkflowDispatch({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  workflow_id: 'deploy.yml',
-                  ref: 'main',
-                  inputs: { reason }
-                });
-                core.info(`Dispatched deploy.yml for PR #${pr.number}: ${pr.title}`);
-              } catch (deployDispatchError) {
-                core.warning(`Failed to dispatch deploy.yml: ${deployDispatchError.message}`);
-              }
             } catch (error) {
               core.error(`Failed to merge PR #${pr.number}: ${error.message}`);
               const webhookUrl = process.env.SLACK_WEBHOOK_URL;
