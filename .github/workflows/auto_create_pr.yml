@@ -83,11 +83,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (auto PR skipped)
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg branch "${{ github.event.workflow_run.head_branch }}" \
-            --arg conclusion "${{ github.event.workflow_run.conclusion }}" \
-            --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
+            --arg branch "${HEAD_BRANCH}" \
+            --arg conclusion "${RUN_CONCLUSION}" \
+            --arg run_url "${RUN_URL}" \
             '{attachments:[{color:"#f0a500",text:":warning: *自動PR作成をスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("CI結果が `" + $conclusion + "` のため自動PR作成は実行されません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Create PR",ts:now|floor}]}')
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
