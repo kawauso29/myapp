@@ -47,6 +47,9 @@ class Admin::DashboardController < Admin::BaseController
     @ai_sns_plan_stats = Admin::AiSnsPlanService.stats
     @ai_sns_plan_next  = Admin::AiSnsPlanService.next_item
     @ai_sns_plan_items = Admin::AiSnsPlanService.items_by_priority
+
+    # 週次 KPI メトリクス（PDCA の Check フェーズ）
+    @kpi_metrics = Admin::KpiService.weekly_metrics
   end
 
   def sync_env

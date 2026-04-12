@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "0 * * * *"  # 毎時00分（1時間おき）
+    - cron: "0 * * * *"  # 毎時00分（WIP上限チェック込み）
 
 permissions:
   contents: write
@@ -22,8 +22,26 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: WIP 上限チェック
+        id: wip_check
+        run: |
+          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || echo 0)
+          WIP_LIMIT=2
+          INPUT_ID="${{ github.event.inputs.item_id }}"
+          echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [ "${WIP_COUNT}" -ge "${WIP_LIMIT}" ]; then
+            # 手動指定項目が既に in_progress の場合は重複起票防止のためスキップ
+            echo "wip_exceeded=true" >> "$GITHUB_OUTPUT"
+            echo "WIP上限 (${WIP_COUNT}/${WIP_LIMIT}) に達しているため起票をスキップします"
+          else
+            echo "wip_exceeded=false" >> "$GITHUB_OUTPUT"
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 起票可能"
+          fi
+
       - name: 次の実装項目を選択
         id: select
+        if: steps.wip_check.outputs.wip_exceeded == 'false'
         run: |
           INPUT_ID="${{ github.event.inputs.item_id }}"
 
@@ -63,18 +81,20 @@ jobs:
           CATEGORY=$(yq ".items.${ITEM_ID}.category" docs/ai_sns_plan_status.yml)
           PRIORITY=$(yq ".items.${ITEM_ID}.priority" docs/ai_sns_plan_status.yml)
           NOTES=$(yq ".items.${ITEM_ID}.notes" docs/ai_sns_plan_status.yml)
+          KPI_HYPOTHESIS=$(yq ".items.${ITEM_ID}.kpi_hypothesis // \"\"" docs/ai_sns_plan_status.yml)
 
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
           echo "item_title=${TITLE}" >> "$GITHUB_OUTPUT"
           echo "item_category=${CATEGORY}" >> "$GITHUB_OUTPUT"
           echo "item_priority=${PRIORITY}" >> "$GITHUB_OUTPUT"
           echo "item_notes=${NOTES}" >> "$GITHUB_OUTPUT"
+          echo "item_kpi_hypothesis=${KPI_HYPOTHESIS}" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
           echo "選択された項目: [${ITEM_ID}] ${TITLE}"
 
       - name: ステータスを in_progress に更新してコミット
-        if: steps.select.outputs.skip == 'false'
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         run: |
           ITEM_ID="${{ steps.select.outputs.item_id }}"
           yq -i ".items.${ITEM_ID}.status = \"in_progress\"" docs/ai_sns_plan_status.yml
@@ -87,7 +107,7 @@ jobs:
           git push origin HEAD
 
       - name: 実装依頼 Issue を起票
-        if: steps.select.outputs.skip == 'false'
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         id: create_issue
         uses: actions/github-script@v7
         with:
@@ -97,6 +117,7 @@ jobs:
             const category = '${{ steps.select.outputs.item_category }}'
             const priority = '${{ steps.select.outputs.item_priority }}'
             const notes = '${{ steps.select.outputs.item_notes }}'
+            const kpiHypothesis = '${{ steps.select.outputs.item_kpi_hypothesis }}'
 
             const priorityLabel = { high: '★★★ 高', medium: '★★☆ 中', low: '★☆☆ 低' }[priority] || priority
 
@@ -110,6 +131,7 @@ jobs:
               '### 概要',
               notes,
               '',
+              kpiHypothesis ? `### KPI 仮説（Do 後に Check する指標）\n${kpiHypothesis}\n` : '',
               '### 参考ドキュメント',
               '- `docs/ai_sns_improvement_plan.md` — 全体計画書',
               '- `docs/ai_sns_plan_status.yml` — 進捗管理ファイル',
@@ -134,7 +156,7 @@ jobs:
             core.setOutput('issue_url', issue.data.html_url)
 
       - name: Slack 通知
-        if: steps.select.outputs.skip == 'false'
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
         run: |
@@ -157,7 +179,7 @@ jobs:
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
       - name: 全項目完了通知
-        if: steps.select.outputs.skip == 'true'
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
         run: |

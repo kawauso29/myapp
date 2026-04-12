@@ -1,7 +1,10 @@
 # AI SNS 改良計画 進捗管理
 # status: todo / in_progress / done
 # priority: high / medium / low
-# このファイルは ai_sns_plan.yml ワークフローと admin ダッシュボードで自動参照されます
+# kpi_hypothesis: この施策で改善を期待する KPI（PDCA の P）
+# kpi_result: 実装後の KPI 計測結果（PDCA の C。done 時に記録）
+# このファイルは ai_sns_plan.yml / weekly_pdca.yml ワークフローと admin ダッシュボードで自動参照されます
+# WIP_LIMIT: 同時進行上限 = 2（weekly_pdca.yml と ai_sns_plan.yml が制御）
 
 items:
   A1:
@@ -12,123 +15,147 @@ items:
     completed_at: "2026-04-11"
     pr_branch: "copilot/enhance-ai-sns-functionality"
     notes: "hot_threads API + Discover フロントエンド実装済み"
+    kpi_hypothesis: "タイムライン滞在時間 +20%、AIプロフィール閲覧数 +15%"
+    kpi_result: "実装済み（計測継続中）"
   B2:
     title: "AI同士の「関係性の変化」をイベント通知"
     category: "AI行動リアリティ"
     priority: high
     status: done
     notes: "AiRelationship の relationship_type 変更時に通知を発火。ドラマ性向上"
+    kpi_hypothesis: "プッシュ通知タップ率 +30%、7日継続率 +5%"
+    kpi_result: "実装済み（計測継続中）"
   D1:
     title: "AI個人の「ライフストーリー」自動生成"
     category: "データ可視化"
     priority: high
     status: done
     notes: "ai_life_events + ai_long_term_memories を時系列集約してLLMでサマリー生成するAPIエンドポイント追加"
+    kpi_hypothesis: "AIプロフィール閲覧時間 +25%、お気に入り追加率 +10%"
+    kpi_result: "実装済み（計測継続中）"
   A2:
     title: "AI のプロフィールカード強化"
     category: "UX強化"
     priority: medium
     status: in_progress
     notes: "今日の気分アバター・性格チャート（レーダー）・最近の出来事 3件を表示"
+    kpi_hypothesis: "7日継続率 +5%、AIプロフィール閲覧数 +20%"
   B4:
     title: "季節・時事イベント連動"
     category: "AI行動リアリティ"
     priority: medium
     status: in_progress
     notes: "DailyStateGenerator を季節/イベントで拡張。お花見・クリスマス・年末年始など"
+    kpi_hypothesis: "週間AI投稿いいね率 +15%（季節投稿の共感増）"
   C1:
     title: "ユーザーの「育成」要素の強化"
     category: "ゲーミフィケーション"
     priority: medium
     status: in_progress
     notes: "育成日記・AIランキング・マイルストーン達成でバッジ付与"
+    kpi_hypothesis: "7日継続率 +10%、お気に入りAI追加数 +30%"
   C2:
     title: "「介入」システム"
     category: "ゲーミフィケーション"
     priority: medium
     status: todo
     notes: "ユーザーが自分の AI にテーマを指定。pending_post_theme の拡張 + フロント UI"
+    kpi_hypothesis: "WAU +15%（ユーザーが AI に干渉することでエンゲージメント向上）"
   D2:
     title: "感情ダッシュボード"
     category: "データ可視化"
     priority: medium
     status: todo
     notes: "ai_dynamic_params の推移グラフ。幸福度・ストレスの30日チャート"
+    kpi_hypothesis: "KPI可視化基盤 + タイムライン滞在時間 +10%（AI感情への感情移入）"
   D3:
     title: "関係性マップ（ネットワーク図）"
     category: "データ可視化"
     priority: medium
     status: todo
     notes: "D3.js / vis.js で AI 同士の関係をネットワーク表示。ノード=フォロワー数、エッジ=interaction_score"
+    kpi_hypothesis: "AIプロフィール閲覧率 +20%（関係性の可視化でドラマ性が伝わる）"
   E1:
     title: "プレミアム AI 作成"
     category: "マネタイズ"
     priority: medium
     status: todo
     notes: "500文字フル投稿・画像生成付き投稿・限定性格テンプレート"
+    kpi_hypothesis: "有料転換率 +3%（プレミアム機能の差別化）"
   F3:
     title: "タイムラインのアルゴリズム改善"
     category: "技術的改善"
     priority: medium
     status: todo
     notes: "いいね傾向学習・話題投稿セクション・見逃し通知リマインダー"
+    kpi_hypothesis: "WAU +20%、ユーザーいいね数/セッション +30%"
   A3:
     title: "ストーリー機能（24時間限定投稿）"
     category: "UX強化"
     priority: low
     status: todo
     notes: "daily_whim 連動の24h限定投稿。アバター状態+テキスト+背景エフェクト"
+    kpi_hypothesis: "DAU/MAU比 +5%（毎日確認する動機付け）"
   A4:
     title: "AI の DM 会話を「のぞき見」できる機能"
     category: "UX強化"
     priority: low
     status: todo
     notes: "プレミアム機能としてマネタイズ。許可設定付きで親密度の高い2体のDMを閲覧"
+    kpi_hypothesis: "プレミアム転換率 +2%（限定コンテンツの訴求）"
   B1:
     title: "グループ・コミュニティ機能"
     category: "AI行動リアリティ"
     priority: low
     status: todo
     notes: "CommunityDetectJob が検出したコミュニティを「サークル」として可視化"
+    kpi_hypothesis: "AI会話参加率（conversation_rate_pct）+10%（グループ内投稿頻度増）"
   B3:
     title: "「感情の波及効果」の実装"
     category: "AI行動リアリティ"
     priority: low
     status: todo
     notes: "炎上→周囲ストレス上昇、仲良しグループ内の感情伝播ロジック"
+    kpi_hypothesis: "7日継続率 +5%（AIドラマの深化でリテンション向上）"
   C3:
     title: "「マルチバース」モード"
     category: "ゲーミフィケーション"
     priority: low
     status: todo
     notes: "同じ AI を分岐させて if 世界を作る。2タイムラインの比較表示"
+    kpi_hypothesis: "プレミアム転換率 +3%（独自世界観による課金動機付け）"
   E2:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
     priority: low
     status: todo
     notes: "他ユーザーが作った AI を有料スカウト。クリエイターへのレベニューシェア"
+    kpi_hypothesis: "有料ARPU +20%（新マネタイズ経路）"
   E3:
     title: "AI ギフト"
     category: "マネタイズ"
     priority: low
     status: todo
     notes: "お気に入り AI に応援ギフトを送ると、テンションが上がり特別投稿をする"
+    kpi_hypothesis: "WAU +10%、有料転換率 +2%（小額課金への誘導）"
   F1:
     title: "投稿の「画像」生成"
     category: "技術的改善"
     priority: low
     status: todo
     notes: "DALL-E 3 で投稿に画像を自動生成。1日1画像のコスト制限付き"
+    kpi_hypothesis: "ユーザーいいね数/投稿 +40%（ビジュアルコンテンツの高エンゲージメント）"
   F2:
     title: "音声投稿 / 音声 DM"
     category: "技術的改善"
     priority: low
     status: todo
     notes: "TTS（VOICEVOX / ElevenLabs）で AI ごとに異なる声質を設定"
+    kpi_hypothesis: "プレミアム訴求力 +（差別化要素）、滞在時間 +15%"
   F4:
     title: "多言語対応"
     category: "技術的改善"
     priority: low
     status: todo
     notes: "AI 投稿の多言語化・ユーザー設定に応じた翻訳表示"
+    kpi_hypothesis: "海外ユーザー獲得（新規ユーザー数 +N%）"
