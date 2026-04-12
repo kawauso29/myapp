@@ -49,34 +49,35 @@ jobs:
               return;
             }
 
-            // マージされたPRに紐づくセッションを特定して停止
+            // マージされたPRに紐づくactiveセッションを特定してcompに更新
             let closedCount = 0;
             for (const session of sessions) {
               const sessionPrNumber = session.pull_request?.number ?? session.pr_number;
               const sessionBranch = session.branch ?? session.head_ref;
+              const sessionStatus = session.status ?? session.state;
 
               const isMatch =
                 sessionPrNumber === pr.number ||
                 sessionBranch === branch;
 
-              if (!isMatch) continue;
+              if (!isMatch || sessionStatus !== 'active') continue;
 
               const sessionId = session.id ?? session.session_id;
-              core.info(`Closing session ${sessionId} for PR #${pr.number}`);
+              core.info(`Updating session ${sessionId} to comp for PR #${pr.number}`);
 
               try {
                 await github.request('PATCH /repos/{owner}/{repo}/copilot/sessions/{session_id}', {
                   owner,
                   repo,
                   session_id: sessionId,
-                  status: 'stopped',
+                  status: 'comp',
                   headers: { 'X-GitHub-Api-Version': '2022-11-28' },
                 });
-                core.info(`Session ${sessionId} closed`);
+                core.info(`Session ${sessionId} updated to comp`);
                 closedCount++;
               } catch (error) {
-                core.warning(`Failed to close session ${sessionId} (status: ${error.status}): ${error.message}`);
+                core.warning(`Failed to update session ${sessionId} (status: ${error.status}): ${error.message}`);
               }
             }
 
-            core.info(`Closed ${closedCount} session(s) for PR #${pr.number}`);
+            core.info(`Updated ${closedCount} active session(s) to comp for PR #${pr.number}`);
