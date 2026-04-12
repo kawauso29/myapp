@@ -12,10 +12,13 @@ on:
         required: false
         default: 'Manual deploy'
 
-# 同時デプロイを防ぐ（最新コミットを優先: cancel-in-progress: true で古いキューをキャンセル）
+# 同時デプロイを防ぐ
+# cancel-in-progress: false にすることで実行中のデプロイをキャンセルせずキューに入れる
+# （キャンセルするとPuma停止後にrestart前でデプロイが中断されVPSが停止状態になる危険がある）
+# 新しいデプロイがキューに入ると、既にキュー待ちのデプロイは自動的にキャンセルされ最新のみが残る
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build_frontend:
