@@ -316,3 +316,4 @@ main への push
 - `ActiveJob::UnknownJobClassError` 再発防止のため、定期実行ジョブを追加・改名したら `config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に同時反映する
 - `ActiveJob::UnknownJobClassError` 再発時、legacyジョブ停止のPID抽出が `$2/$3 == bin/jobs` だけだと `bundle exec bin/jobs` を取りこぼす。`ps -eo pid,args | awk` でコマンド全体を正規表現マッチして停止対象を拾う
 - legacy `bin/jobs` 停止処理で `ps ... args` の全文一致だけを使うと、`ssh-action` 実行中の `bash -c`（スクリプト本文に `bin/jobs` を含む）まで誤検知して自己終了(143)することがある → `ps -eo pid,comm,args` で `bash/sh` を除外し、さらに `$$` と `$PPID` を kill 対象から除外する
+- PRを**手動マージ**（GitHub UI経由）するとデプロイが自動起動しない。`auto_merge.yml` の deploy dispatch は「auto_merge自身がPRをマージした直後」のみ発火する。手動マージ後にデプロイが必要な場合は、GitHub Actions UI から `deploy.yml` を手動 `workflow_dispatch` するか、Copilot に「デプロイだけ進めといて」と依頼して小さなPRを作成してもらう。
