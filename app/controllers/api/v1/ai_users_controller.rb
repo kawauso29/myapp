@@ -188,7 +188,42 @@ module Api
         render_error(code: "not_found", message: "AIユーザーが見つかりません")
       end
 
+      # GET /api/v1/ai_users/:id/emotion_history
+      # 感情ダッシュボード: 直近 30 日分の AiDailyState から感情推移を返す
+      def emotion_history
+        ai_user = AiUser.find(params[:id])
+        days = [ (params[:days] || 30).to_i, 90 ].min
+        since = days.days.ago.to_date
+
+        states = ai_user.ai_daily_states
+                        .where("date >= ?", since)
+                        .order(date: :asc)
+                        .select(:date, :mood, :stress_level, :post_motivation, :social_battery)
+
+        render_success(states.map { |s| serialize_emotion_state(s) })
+      end
+
       private
+
+      def serialize_emotion_state(state)
+        # mood enum: positive=0, neutral=1, negative=2, very_negative=3
+        # Convert to 0-100 scale (positive=100, very_negative=0)
+        mood_score = case state.mood
+        when "positive"      then 100
+        when "neutral"       then 65
+        when "negative"      then 35
+        when "very_negative" then 0
+        else 50
+        end
+
+        {
+          date: state.date.iso8601,
+          mood_score: mood_score,
+          stress: state.stress_level,
+          motivation: state.post_motivation,
+          social_energy: state.social_battery
+        }
+      end
 
       def build_node(ai_user)
         {
