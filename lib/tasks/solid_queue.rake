@@ -7,11 +7,11 @@ namespace :solid_queue do
     MonitorFailedJobsJob
     MarketAnalysisJob
   ].freeze
-  STALE_RECURRING_JOB_CLASSES = %w[
+  STALE_RECURRING_JOB_CLASSES = (REQUIRED_JOB_CLASSES & %w[
     AiActionCheckJob
     MonitorFailedJobsJob
     MarketAnalysisJob
-  ].freeze
+  ]).freeze
 
   desc "Delete stale unfinished MonitorFailedJobsJob records from default queue"
   task cleanup_stale_monitor_failed_jobs: :environment do
@@ -89,11 +89,10 @@ namespace :solid_queue do
 
     deleted_jobs_count = stale_job_ids.empty? ? 0 : SolidQueue::Job.where(id: stale_job_ids).delete_all
 
-    class_filter_sql = STALE_RECURRING_JOB_CLASSES.map { "error LIKE ?" }.join(" OR ")
-    class_filter_args = STALE_RECURRING_JOB_CLASSES.map { |class_name| "%#{class_name}%" }
+    class_filter_pattern = STALE_RECURRING_JOB_CLASSES.map { |class_name| Regexp.escape(class_name) }.join("|")
     failed_executions = SolidQueue::FailedExecution
       .where("error LIKE ?", "%UnknownJobClassError%")
-      .where([class_filter_sql, *class_filter_args])
+      .where("error ~* ?", class_filter_pattern)
     stale_failed_count = 0
     failed_executions.find_each do |execution|
       execution.discard
