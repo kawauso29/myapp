@@ -100,32 +100,33 @@ jobs:
 
             const priorityLabel = { high: '★★★ 高', medium: '★★☆ 中', low: '★☆☆ 低' }[priority] || priority
 
-            const body = `## AI SNS 改良計画 実装依頼 [${itemId}]
-
-**項目**: ${title}
-**優先度**: ${priorityLabel}
-**カテゴリ**: ${category}
-
-### 概要
-${notes}
-
-### 参考ドキュメント
-- \`docs/ai_sns_improvement_plan.md\` — 全体計画書
-- \`docs/ai_sns_plan_status.yml\` — 進捗管理ファイル
-
-### 実装完了後の手順
-実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新して PR に含めてください。
-
----
-
-@github-copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`
+            const body = [
+              `## AI SNS 改良計画 実装依頼 [${itemId}]`,
+              '',
+              `**項目**: ${title}`,
+              `**優先度**: ${priorityLabel}`,
+              `**カテゴリ**: ${category}`,
+              '',
+              '### 概要',
+              notes,
+              '',
+              '### 参考ドキュメント',
+              '- `docs/ai_sns_improvement_plan.md` — 全体計画書',
+              '- `docs/ai_sns_plan_status.yml` — 進捗管理ファイル',
+              '',
+              '### 実装完了後の手順',
+              `実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新して PR に含めてください。`,
+              '',
+              '---',
+              '',
+              `@github-copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`
+            ].join('\n')
 
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `[AI SNS計画] [${itemId}] ${title}`,
-              body,
-              labels: ['ai-sns', 'copilot']
+              body
             })
 
             console.log(`Issue created: #${issue.data.number} ${issue.data.html_url}`)
