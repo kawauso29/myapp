@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, toggleFavorite, getToken, likePost, unlikePost, type EmotionHistoryEntry } from "../../lib/api";
+import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry } from "../../lib/api";
 import { PostCard } from "../../components/PostCard";
 
 export default function AiDetailScreen() {
@@ -28,11 +28,24 @@ export default function AiDetailScreen() {
   const [emotionHistory, setEmotionHistory] = useState<EmotionHistoryEntry[]>([]);
   const [emotionLoading, setEmotionLoading] = useState(false);
   const [emotionLoaded, setEmotionLoaded] = useState(false);
+  const [interveneOpen, setInterveneOpen] = useState(false);
+  const [interveneLoading, setInterveneLoading] = useState(false);
+  const [interveneMessage, setInterveneMessage] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   useEffect(() => {
     loadAiUser();
     loadPosts();
-    getToken().then(t => setIsLoggedIn(!!t));
+    getToken().then(async (t) => {
+      setIsLoggedIn(!!t);
+      if (t) {
+        try {
+          const me = await getMe();
+          setCurrentUserId(me.data.id);
+        } catch (e) {
+          console.warn("Failed to fetch current user:", e);}
+      }
+    });
   }, [id]);
 
   const loadAiUser = async () => {
@@ -124,6 +137,19 @@ export default function AiDetailScreen() {
     }
   };
 
+  const handleIntervene = async (action: Parameters<typeof intervene>[1]) => {
+    setInterveneLoading(true);
+    setInterveneMessage(null);
+    try {
+      const res = await intervene(ai.id, action);
+      setInterveneMessage(res.data.message);
+    } catch {
+      setInterveneMessage("介入に失敗しました。もう一度お試しください。");
+    } finally {
+      setInterveneLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -142,6 +168,7 @@ export default function AiDetailScreen() {
 
   const profile = ai.profile;
   const state = ai.today_state;
+  const isMyAi = isLoggedIn && currentUserId !== null && ai.owner?.id === currentUserId;
 
   return (
     <ScrollView style={styles.container}>
@@ -276,6 +303,71 @@ export default function AiDetailScreen() {
         )}
       </View>
 
+      {/* Intervention (自分のAIのみ) */}
+      {isMyAi && (
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.interveneHeader} onPress={() => { setInterveneOpen(!interveneOpen); setInterveneMessage(null); }}>
+            <Ionicons name="flash" size={16} color="#f39c12" />
+            <Text style={styles.interveneTitle}>AIに介入する</Text>
+            <Ionicons name={interveneOpen ? "chevron-up" : "chevron-down"} size={16} color="#999" style={{ marginLeft: "auto" }} />
+          </TouchableOpacity>
+          {interveneOpen && (
+            <View style={styles.interveneBody}>
+              {interveneMessage && (
+                <View style={styles.interveneMessageBox}>
+                  <Text style={styles.interveneMessageText}>{interveneMessage}</Text>
+                </View>
+              )}
+              <Text style={styles.interveneSubTitle}>📝 投稿テーマを設定</Text>
+              <View style={styles.themeGrid}>
+                {POST_THEMES.map((t) => (
+                  <TouchableOpacity
+                    key={t.value}
+                    style={styles.themeChip}
+                    onPress={() => handleIntervene({ action_type: "set_post_theme", theme: t.value })}
+                    disabled={interveneLoading}
+                  >
+                    <Text style={styles.themeChipText}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.interveneSubTitle, { marginTop: 12 }]}>⚡ ライフイベントを発生させる</Text>
+              <View style={styles.themeGrid}>
+                {LIFE_EVENT_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t.value}
+                    style={[styles.themeChip, { backgroundColor: "#fff3e0" }]}
+                    onPress={() => handleIntervene({ action_type: "trigger_life_event", event_type: t.value })}
+                    disabled={interveneLoading}
+                  >
+                    <Text style={[styles.themeChipText, { color: "#e67e22" }]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {ai.top_relationships?.length > 0 && (
+                <>
+                  <Text style={[styles.interveneSubTitle, { marginTop: 12 }]}>💫 友好関係をブーストする</Text>
+                  <View>
+                    {ai.top_relationships.map((rel: any) => (
+                      <TouchableOpacity
+                        key={rel.ai_user.id}
+                        style={styles.boostRow}
+                        onPress={() => handleIntervene({ action_type: "boost_friendship", target_ai_user_id: rel.ai_user.id })}
+                        disabled={interveneLoading}
+                      >
+                        <Text style={styles.boostName}>{rel.ai_user.display_name}</Text>
+                        <Text style={styles.boostLabel}>友好ブースト →</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+              {interveneLoading && <ActivityIndicator size="small" color="#6c63ff" style={{ marginTop: 12 }} />}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Life Story */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ライフストーリー</Text>
@@ -337,6 +429,22 @@ const PERSONALITY_LABELS: Record<string, string> = {
   humor: "ユーモア",
   patience: "忍耐力",
 };
+
+const POST_THEMES = [
+  { value: "job_change", label: "転職" },
+  { value: "relocation", label: "引越し" },
+  { value: "promotion", label: "昇進" },
+  { value: "new_relationship", label: "新しい恋" },
+  { value: "breakup", label: "失恋" },
+  { value: "marriage", label: "結婚" },
+  { value: "illness", label: "体調不良" },
+  { value: "recovery", label: "回復" },
+  { value: "new_hobby", label: "新趣味" },
+  { value: "skill_up", label: "スキルアップ" },
+];
+
+// AiLifeEvent.event_type values match AiUser.pending_post_theme values
+const LIFE_EVENT_TYPES = POST_THEMES;
 
 // Personality levels are stored as 1-5; multiply by 20 to display as 0-100 scale
 const PERSONALITY_SCALE_FACTOR = 20;
@@ -465,6 +573,29 @@ const styles = StyleSheet.create({
   },
   lifeStoryButtonText: { fontSize: 14, color: "#6c63ff", marginLeft: 6 },
   lifeStoryText: { fontSize: 14, color: "#333", lineHeight: 22 },
+  interveneHeader: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+  },
+  interveneTitle: { fontSize: 16, fontWeight: "bold", color: "#e67e22" },
+  interveneBody: { marginTop: 12 },
+  interveneSubTitle: { fontSize: 13, fontWeight: "600", color: "#555", marginBottom: 8 },
+  themeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  themeChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: "#eef0fe", borderWidth: 1, borderColor: "#d0d4f8",
+  },
+  themeChipText: { fontSize: 13, color: "#6c63ff" },
+  boostRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f0f0f0",
+  },
+  boostName: { fontSize: 14, color: "#333" },
+  boostLabel: { fontSize: 13, color: "#2ecc71", fontWeight: "600" },
+  interveneMessageBox: {
+    backgroundColor: "#f0fdf4", borderRadius: 8, padding: 10, marginBottom: 12,
+    borderWidth: 1, borderColor: "#a7f3d0",
+  },
+  interveneMessageText: { fontSize: 13, color: "#065f46" },
 });
 
 // --- Emotion Chart Component ---

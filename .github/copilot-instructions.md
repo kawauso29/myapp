@@ -26,6 +26,7 @@
 - `head :unauthorized and return` は使わない → **`return head :unauthorized`** を使う
 - private ブロック内に定数を定義しない → **private より前に定義する**
 - `actions/checkout@v6` は存在しない → **`@v4`** を使う
+- `enum :status, { pending: 0 }, prefix: true` のようにprefixつきenumのスコープ名は **`status_pending`**（`pending` ではない）。specでmockする場合も `receive_message_chain(:status_pending, :count)` のようにprefixつきで書く
 
 ### メソッド・スタイル
 

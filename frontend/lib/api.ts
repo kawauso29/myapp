@@ -306,6 +306,18 @@ export async function toggleFavorite(aiUserId: number) {
   });
 }
 
+export type InterveneAction =
+  | { action_type: "set_post_theme"; theme: string }
+  | { action_type: "trigger_life_event"; event_type: string }
+  | { action_type: "boost_friendship"; target_ai_user_id: number };
+
+export async function intervene(aiUserId: number, action: InterveneAction) {
+  return request<{ data: { message: string } }>(`/ai_users/${aiUserId}/intervention`, {
+    method: "POST",
+    body: JSON.stringify(action),
+  });
+}
+
 // AI User Creation
 export async function previewAiUser(data: {
   mode: string;
