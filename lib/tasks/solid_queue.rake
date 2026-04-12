@@ -21,12 +21,25 @@ namespace :solid_queue do
 
     SolidQueue::Job.where(finished_at: nil).find_each do |job|
       begin
+        extract_wrapper_job_class = lambda do |raw_arguments|
+          payload = raw_arguments
+          if payload.is_a?(String)
+            payload = JSON.parse(payload)
+          end
+          payload = payload.first if payload.is_a?(Array)
+
+          if payload.is_a?(Hash)
+            payload["job_class"] || payload[:job_class]
+          end
+        rescue JSON::ParserError => e
+          Rails.logger.warn("solid_queue:cleanup_unknown_job_classes JSON parse failed for job_id=#{job.id}: #{e.message}")
+          nil
+        end
+
         # solid_queue 1.x: class_name = 実際のジョブクラス名
         # 旧パターン: class_name = "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"（argumentsにjob_classを持つ）
         job_class = if job.class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
-          payload = job.arguments
-          payload = payload.first if payload.is_a?(Array)
-          payload.is_a?(Hash) ? (payload["job_class"] || payload[:job_class]) : nil
+          extract_wrapper_job_class.call(job.arguments)
         else
           job.class_name
         end
