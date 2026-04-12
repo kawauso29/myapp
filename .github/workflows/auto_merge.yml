@@ -45,26 +45,6 @@ jobs:
               return;
             }
 
-            // 重要ファイルが変更されている場合は自動マージ対象外
-            // CI で検証済みのファイルは保護対象から除外
-            const PROTECTED_PATTERNS = [
-              /^db\/migrate\//,
-              /^db\/schema\.rb$/,
-              /^Gemfile\.lock$/,
-              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
-            ];
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              per_page: 100,
-            });
-            const criticalFiles = files.filter(f => PROTECTED_PATTERNS.some(p => p.test(f.filename)));
-            if (criticalFiles.length > 0) {
-              core.info(`PR #${pr.number} touches protected files, skipping automerge: ${criticalFiles.map(f => f.filename).join(', ')}`);
-              return;
-            }
-
             // ラベルが存在しない場合は作成する
             try {
               await github.rest.issues.getLabel({
@@ -179,18 +159,6 @@ jobs:
             }
 
             const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
-            // CI で検証済みのファイルは保護対象から除外する:
-            //   config/routes.rb → route-check CIで検証済み
-            //   config/application.rb → CI全体で検証済み
-            //   Gemfile → bundler-audit CIで検証済み
-            // DB マイグレーション・lockファイルは本番影響リスクが高いため手動レビューを維持
-            const PROTECTED_PATTERNS = [
-              /^db\/migrate\//,
-              /^db\/schema\.rb$/,
-              /^Gemfile\.lock$/,
-              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
-            ];
-
             const prHeadRepoFullName = pr.head.repo?.full_name;
             if (!prHeadRepoFullName) {
               core.info(`PR #${pr.number}: head repository is unavailable, skipping`);
@@ -206,21 +174,6 @@ jobs:
             const isAllowedBranch = ALLOWED_PREFIXES.some(p => pr.head.ref.startsWith(p));
             if (!isAllowedBranch) {
               core.info(`PR #${pr.number}: branch "${pr.head.ref}" is not auto-merge eligible, skipping`);
-              return;
-            }
-
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              per_page: 100,
-            });
-            const criticalFiles = files.filter(f => PROTECTED_PATTERNS.some(p => p.test(f.filename)));
-            if (criticalFiles.length > 0) {
-              const fileList = criticalFiles.map(f => f.filename).join(', ');
-              core.info(`PR #${pr.number} touches protected files, skipping automerge: ${fileList}`);
-              core.setOutput('skip_reason', `保護ファイルが変更されているため自動マージをスキップしました: \`${fileList}\``);
-              core.setOutput('pr_number', String(pr.number));
               return;
             }
 
