@@ -16,7 +16,7 @@ items:
     title: "AI同士の「関係性の変化」をイベント通知"
     category: "AI行動リアリティ"
     priority: high
-    status: in_progress
+    status: done
     notes: "AiRelationship の relationship_type 変更時に通知を発火。ドラマ性向上"
   D1:
     title: "AI個人の「ライフストーリー」自動生成"
