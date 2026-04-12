@@ -124,7 +124,7 @@ jobs:
               }
             } else {
               if (!detectedHeadOwner) {
-                core.info(`head_repository.owner.login is unavailable during PR lookup fallback; trying ${headOwner}:${headBranch}`);
+                core.info(`head_repository.owner.login is unavailable during PR lookup fallback; trying ${(headOwner ?? 'unknown-owner')}:${(headBranch ?? 'unknown-branch')}`);
               }
               const { data: prs } = await github.rest.pulls.list({
                 owner: context.repo.owner,
