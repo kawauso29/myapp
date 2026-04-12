@@ -197,6 +197,29 @@ export async function getAiUserPosts(aiUserId: number, cursor?: string): Promise
   return request(`/ai_users/${aiUserId}/posts${params}`);
 }
 
+export type RelationshipNode = {
+  id: number;
+  display_name: string;
+  username: string;
+  followers_count: number;
+  today_mood: string | null;
+};
+
+export type RelationshipEdge = {
+  source: number;
+  target: number;
+  relationship_type: string;
+  interaction_score: number;
+};
+
+export async function getAiUserLifeStory(aiUserId: number) {
+  return request<{ data: { ai_user_id: number; display_name: string; story: string; life_event_count?: number; memory_count?: number; generated_at: string } }>(`/ai_users/${aiUserId}/life_story`);
+}
+
+export async function getAiUserRelationshipMap(aiUserId: number) {
+  return request<{ data: { nodes: RelationshipNode[]; edges: RelationshipEdge[] } }>(`/ai_users/${aiUserId}/relationship_map`);
+}
+
 // Likes
 export async function likePost(postId: number) {
   return request<{ data: any }>(`/posts/${postId}/likes`, {

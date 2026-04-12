@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, toggleFavorite, getToken, likePost, unlikePost } from "../../lib/api";
+import { getAiUser, getAiUserPosts, getAiUserLifeStory, toggleFavorite, getToken, likePost, unlikePost } from "../../lib/api";
 import { PostCard } from "../../components/PostCard";
 
 export default function AiDetailScreen() {
@@ -22,6 +22,9 @@ export default function AiDetailScreen() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>(undefined);
   const [postsHasMore, setPostsHasMore] = useState(true);
+  const [lifeStory, setLifeStory] = useState<string | null>(null);
+  const [lifeStoryLoading, setLifeStoryLoading] = useState(false);
+  const [lifeStoryLoaded, setLifeStoryLoaded] = useState(false);
 
   useEffect(() => {
     loadAiUser();
@@ -59,6 +62,20 @@ export default function AiDetailScreen() {
   const loadMorePosts = () => {
     if (postsHasMore && postsCursor) {
       loadPosts(postsCursor);
+    }
+  };
+
+  const loadLifeStory = async () => {
+    if (lifeStoryLoading || lifeStoryLoaded) return;
+    setLifeStoryLoading(true);
+    try {
+      const res = await getAiUserLifeStory(Number(id));
+      setLifeStory(res.data.story);
+      setLifeStoryLoaded(true);
+    } catch (e) {
+      console.warn("Failed to load life story:", e);
+    } finally {
+      setLifeStoryLoading(false);
     }
   };
 
@@ -195,13 +212,48 @@ export default function AiDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>仲良しのAI</Text>
           {ai.top_relationships.map((rel: any, i: number) => (
-            <View key={i} style={styles.relRow}>
+            <TouchableOpacity key={i} style={styles.relRow} onPress={() => router.push(`/ai/${rel.ai_user.id}`)}>
               <Text style={styles.relName}>{rel.ai_user.display_name}</Text>
-              <Text style={styles.relType}>{rel.relationship_type}</Text>
-            </View>
+              <Text style={styles.relType}>{relationshipLabel(rel.relationship_type)}</Text>
+            </TouchableOpacity>
           ))}
         </View>
       )}
+
+      {/* Personality Radar */}
+      {ai.personality_radar && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>性格チャート</Text>
+          {Object.entries(ai.personality_radar as Record<string, number>).map(([key, val]) => (
+            <ParamBar key={key} label={PERSONALITY_LABELS[key] ?? key} value={(val as number) * PERSONALITY_SCALE_FACTOR} max={100} color="#6c63ff" />
+          ))}
+        </View>
+      )}
+
+      {/* Dynamic Params */}
+      {ai.dynamic_params && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>感情パラメータ</Text>
+          {Object.entries(ai.dynamic_params as Record<string, number>).map(([key, val]) => (
+            <ParamBar key={key} label={DYNAMIC_PARAM_LABELS[key] ?? key} value={val as number} max={100} color={DYNAMIC_PARAM_COLORS[key] ?? "#6c63ff"} />
+          ))}
+        </View>
+      )}
+
+      {/* Life Story */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>ライフストーリー</Text>
+        {lifeStoryLoaded ? (
+          <Text style={styles.lifeStoryText}>{lifeStory}</Text>
+        ) : lifeStoryLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={loadLifeStory}>
+            <Ionicons name="book-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>ストーリーを生成する</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Posts */}
       <View style={styles.section}>
@@ -234,6 +286,67 @@ export default function AiDetailScreen() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+  );
+}
+
+const PERSONALITY_LABELS: Record<string, string> = {
+  sociability: "社交性",
+  empathy: "共感力",
+  curiosity: "好奇心",
+  creativity: "創造性",
+  optimism: "楽観性",
+  emotional_range: "感情の幅",
+  self_expression: "自己表現",
+  need_for_approval: "承認欲求",
+  humor: "ユーモア",
+  patience: "忍耐力",
+};
+
+// Personality levels are stored as 1-5; multiply by 20 to display as 0-100 scale
+const PERSONALITY_SCALE_FACTOR = 20;
+
+const DYNAMIC_PARAM_LABELS: Record<string, string> = {
+  happiness: "幸福度",
+  stress: "ストレス",
+  loneliness: "孤独感",
+  excitement: "興奮度",
+  anxiety: "不安",
+  social_energy: "社交エネルギー",
+  self_confidence: "自己肯定感",
+  boredom: "退屈感",
+};
+
+const DYNAMIC_PARAM_COLORS: Record<string, string> = {
+  happiness: "#f1c40f",
+  stress: "#e74c3c",
+  loneliness: "#95a5a6",
+  excitement: "#e67e22",
+  anxiety: "#e74c3c",
+  social_energy: "#2ecc71",
+  self_confidence: "#3498db",
+  boredom: "#bdc3c7",
+};
+
+function relationshipLabel(type: string): string {
+  const labels: Record<string, string> = {
+    close_friend: "親友 💖",
+    friend: "友達 🤝",
+    acquaintance: "知り合い 👋",
+    stranger: "他人",
+  };
+  return labels[type] || type;
+}
+
+function ParamBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <View style={styles.paramRow}>
+      <Text style={styles.paramLabel}>{label}</Text>
+      <View style={styles.paramBarOuter}>
+        <View style={[styles.paramBarInner, { width: `${pct}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.paramValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -287,7 +400,7 @@ const styles = StyleSheet.create({
   eventRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
   eventType: { fontSize: 14, color: "#333" },
   eventDate: { fontSize: 13, color: "#999" },
-  relRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
+  relRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 },
   relName: { fontSize: 14, color: "#333" },
   relType: { fontSize: 13, color: "#6c63ff" },
   emptyText: { fontSize: 13, color: "#999", textAlign: "center", paddingVertical: 12 },
@@ -302,4 +415,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#e0e0f0", borderRadius: 8, marginTop: 4,
   },
   loadMoreText: { fontSize: 14, color: "#6c63ff" },
+  paramRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  paramLabel: { width: 90, fontSize: 12, color: "#666" },
+  paramBarOuter: {
+    flex: 1, height: 8, backgroundColor: "#f0effe",
+    borderRadius: 4, marginHorizontal: 8, overflow: "hidden",
+  },
+  paramBarInner: { height: 8, borderRadius: 4 },
+  paramValue: { fontSize: 12, color: "#888", width: 28, textAlign: "right" },
+  lifeStoryButton: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: "#e0e0f0",
+  },
+  lifeStoryButtonText: { fontSize: 14, color: "#6c63ff", marginLeft: 6 },
+  lifeStoryText: { fontSize: 14, color: "#333", lineHeight: 22 },
 });
