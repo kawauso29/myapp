@@ -13,6 +13,7 @@ class Admin::AiSnsController < Admin::BaseController
     HourlyStateUpdateJob
     PostGenerateJob
     MonitorFailedJobsJob
+    AiSnsAutonomousImprovementJob
   ].freeze
   AI_SNS_RECURRING_TASK_KEYS = %w[
     daily_state_generate
@@ -29,6 +30,7 @@ class Admin::AiSnsController < Admin::BaseController
     daily_schedule_generate
     hourly_state_update
     monitor_failed_jobs
+    ai_sns_autonomous_improvement
   ].freeze
   PERSONALITY_DEFAULTS = {
     sociability: 3,
@@ -171,7 +173,8 @@ class Admin::AiSnsController < Admin::BaseController
     "memory_summarize" => DailyMemorySummarizeJob,
     "relationship_decay" => RelationshipDecayJob,
     "daily_schedule"   => DailyScheduleGenerateJob,
-    "hourly_state"     => HourlyStateUpdateJob
+    "hourly_state"     => HourlyStateUpdateJob,
+    "autonomous_improvement" => AiSnsAutonomousImprovementJob
   }.freeze
 
   def picro_messages

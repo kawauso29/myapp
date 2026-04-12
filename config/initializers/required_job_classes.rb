@@ -9,6 +9,7 @@ Rails.application.reloader.to_prepare do
     WeatherFetchJob
     DailyScheduleGenerateJob
     DynamicParamsUpdateJob
+    AiSnsAutonomousImprovementJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

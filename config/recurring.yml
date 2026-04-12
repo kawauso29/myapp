@@ -70,6 +70,12 @@ production:
     queue: default
     schedule: "*/15 * * * *"
 
+  # 30分ごと: 観察→分析→実行の自動改善ループ
+  ai_sns_autonomous_improvement:
+    class: AiSnsAutonomousImprovementJob
+    queue: low
+    schedule: "*/30 * * * *"
+
   # 30分ごと: スケジュールに合わせて状態を更新
   hourly_state_update:
     class: HourlyStateUpdateJob
