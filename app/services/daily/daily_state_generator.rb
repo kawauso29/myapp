@@ -30,20 +30,20 @@ module Daily
       fatigue = carry_fatigue
       hangover = @yesterday&.is_drinking && @yesterday.drinking_level >= 2
       physical = generate_physical(fatigue, hangover)
-      mood = generate_mood(physical)
+      today_events = load_today_events
+      mood = generate_mood(physical, today_events)
       energy = generate_energy(physical, mood)
       busyness = generate_busyness
       is_drinking = generate_drinking(physical)
       drinking_level = is_drinking ? rand(1..3) : 0
       daily_whim = pick_daily_whim
-      timeline_urge = generate_timeline_urge(mood)
-      today_events = load_today_events
+      timeline_urge = generate_timeline_urge(mood, today_events)
       stress_level = generate_stress_level(physical, busyness, mood)
       social_battery = generate_social_battery(energy, mood)
       concentration = generate_concentration(physical, sleep_quality: hangover ? :bad : :normal)
       appetite = generate_appetite(physical, hangover)
       morning_mood = generate_morning_mood(fatigue, hangover)
-      going_out = generate_going_out(busyness, energy)
+      going_out = generate_going_out(busyness, energy, today_events)
       post_motivation = generate_post_motivation(mood, today_events)
 
       @ai.ai_daily_states.create!(
@@ -94,10 +94,11 @@ module Daily
       end
     end
 
-    def generate_mood(physical)
+    def generate_mood(physical, today_events = [])
       score = 0
       score += WEEKDAY_MOOD[Date.current.wday]
       score += SEASON_MOOD[current_season]
+      score += event_mood_bonus(today_events)
 
       range_factor = { very_low: 0.3, low: 0.6, normal: 1.0, high: 1.5, very_high: 2.0 }
       score += (rand(-15..15) * range_factor[@personality.emotional_range.to_sym]).round
@@ -150,7 +151,9 @@ module Daily
       rand < base * day_mult
     end
 
-    def generate_timeline_urge(mood)
+    def generate_timeline_urge(mood, today_events = [])
+      return :high_urge if year_end_reflection_event?(today_events)
+
       if mood == :positive
         :high_urge
       elsif mood == :very_negative
@@ -246,8 +249,9 @@ module Daily
       end
     end
 
-    def generate_going_out(busyness, energy)
+    def generate_going_out(busyness, energy, today_events = [])
       return false if energy == :low
+      return true if cherry_blossom_outing_day?(today_events)
       return true  if busyness == :busy
 
       r = rand
@@ -259,7 +263,62 @@ module Daily
       mood_bonus = { positive: +20, very_positive: +30, neutral: 0, negative: -10, very_negative: -20 }
       base += mood_bonus.fetch(mood.to_sym, 0)
       base += 20 if today_events.any?
+      base += 15 if event?(today_events, "cherry_blossom")
+      base += 20 if event?(today_events, "valentine")
+      base += christmas_post_bonus(today_events)
+      base += 20 if year_end_reflection_event?(today_events)
       base.clamp(10, 100)
+    end
+
+    def event_mood_bonus(today_events)
+      bonus = 0
+      bonus += 8 if event?(today_events, "cherry_blossom")
+      bonus += valentine_mood_bonus(today_events)
+      bonus += christmas_mood_bonus(today_events)
+      bonus += 8 if event?(today_events, "new_year")
+      bonus += 8 if event?(today_events, "new_year_eve")
+      bonus
+    end
+
+    def valentine_mood_bonus(today_events)
+      return 0 unless event?(today_events, "valentine")
+      return 10 if coupled_profile?
+
+      -8
+    end
+
+    def christmas_mood_bonus(today_events)
+      return 0 unless event?(today_events, "christmas_eve")
+      return 10 if coupled_profile?
+
+      -10
+    end
+
+    def christmas_post_bonus(today_events)
+      return 0 unless event?(today_events, "christmas_eve")
+      return 15 if coupled_profile?
+
+      5
+    end
+
+    def cherry_blossom_outing_day?(today_events)
+      event?(today_events, "cherry_blossom") && outgoing_personality?
+    end
+
+    def year_end_reflection_event?(today_events)
+      event?(today_events, "new_year") || event?(today_events, "new_year_eve")
+    end
+
+    def event?(today_events, key)
+      today_events.include?(key)
+    end
+
+    def coupled_profile?
+      @profile&.relationship_status_in_relationship? || @profile&.relationship_status_married?
+    end
+
+    def outgoing_personality?
+      @personality.sociability_high? || @personality.sociability_very_high?
     end
 
     def load_today_events

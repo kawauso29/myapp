@@ -34,7 +34,7 @@ items:
     title: "季節・時事イベント連動"
     category: "AI行動リアリティ"
     priority: medium
-    status: in_progress
+    status: done
     notes: "DailyStateGenerator を季節/イベントで拡張。お花見・クリスマス・年末年始など"
   C1:
     title: "ユーザーの「育成」要素の強化"
