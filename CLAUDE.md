@@ -312,6 +312,7 @@ main への push
 - jobのspec: `AiUser.where.find_each` で取得した別AIがdaily_stateを持たないとprocess_aiが早期returnしてしまいselectが期待回数呼ばれない → テスト対象の全AIにdaily_stateを作成する
 - CIのSlack通知JSONを文字列直書きするとコミットメッセージの記号/改行で通知ジョブが落ちる → `jq -n --arg ...` で常にJSONを生成する
 - `auto_fix.yml` をCI失敗全体で起動するとlint無関係の失敗でも自動修正フローが走り運用ノイズになる → workflow_runのjob一覧から `lint` 失敗時だけ実行する
+- `auto_merge.yml` の保護パターンで `.github/workflows/` 全体を対象にすると、PR自動作成/自動マージ/自動デプロイ改善のワークフロー修正PRまで自動マージされず詰まる → 運用系（`auto_merge.yml` / `deploy.yml` / `auto_create_pr.yml` / `create_pr.yml` / `post_deploy_cleanup.yml`）は保護対象から除外する
 - 本番で `MonitorFailedJobsJob` のSlack通知が来ない場合、VPS `.env` に `SLACK_WEBHOOK_URL_ERROR` が同期されているか確認する（旧 `SLACK_WEBHOOK_URL`。`deploy.yml` が自動同期するが未設定の場合は手動で `SLACK_WEBHOOK_URL_ERROR=<webhook>` を追記）
 - `ActiveJob::UnknownJobClassError` が継続する場合、**誤り**: systemdのsolid_queueサービスを再起動 → **正しい**: solid_queueは `SOLID_QUEUE_IN_PUMA=1` でPuma内で動作しているため別途再起動不要。Pumaの再起動後に十分な待機時間（10秒）を確保し、その後 `eager_load!` を実行する
 - `ActiveJob::UnknownJobClassError` 再発防止のため、定期実行ジョブを追加・改名したら `config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に同時反映する

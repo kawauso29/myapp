@@ -45,7 +45,7 @@ jobs:
               /^Gemfile(\.lock)?$/,
               /^config\/routes\.rb$/,
               /^config\/application\.rb$/,
-              /^\.github\/workflows\//,
+              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
@@ -152,7 +152,7 @@ jobs:
               /^Gemfile(\.lock)?$/,
               /^config\/routes\.rb$/,
               /^config\/application\.rb$/,
-              /^\.github\/workflows\//,
+              /^\.github\/workflows\/(?!auto_merge\.yml$|deploy\.yml$|auto_create_pr\.yml$|create_pr\.yml$|post_deploy_cleanup\.yml$).+/,
             ];
 
             const prHeadRepoFullName = pr.head.repo?.full_name;
