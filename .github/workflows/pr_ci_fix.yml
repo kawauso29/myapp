@@ -115,12 +115,12 @@ jobs:
             } catch (e) {
               core.warning(`Copilot assign failed: ${e.message}`);
             }
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `🤖 lint CI が失敗しましたが、RuboCop では自動修正できませんでした。修正をお願いします。\n\n**CIログ**: ${runUrl}`
-            });
+             await github.rest.issues.createComment({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               issue_number: prNumber,
+               body: `🤖 lint CI が失敗しましたが、RuboCop では自動修正できませんでした。\n\n@github-copilot このPRで修正コミットを追加してください。\n\n**CIログ**: ${runUrl}`
+             });
 
       # test / route-check 等の失敗 → Copilotをassignしてコメント
       - name: Assign Copilot for non-lint failures
@@ -141,12 +141,12 @@ jobs:
             } catch (e) {
               core.warning(`Copilot assign failed: ${e.message}`);
             }
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `🤖 CI が失敗しました。修正をお願いします。\n\n**失敗したジョブ**: \`${failedJobs}\`\n**CIログ**: ${runUrl}`
-            });
+             await github.rest.issues.createComment({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               issue_number: prNumber,
+               body: `🤖 CI が失敗しました。\n\n@github-copilot このPRで修正コミットを追加してください。\n\n**失敗したジョブ**: \`${failedJobs}\`\n**CIログ**: ${runUrl}`
+             });
 
       - name: Notify Slack
         if: steps.info.outputs.has_pr == 'true'
