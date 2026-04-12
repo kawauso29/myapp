@@ -72,7 +72,8 @@ module AiSns
       SlackNotifierService.notify(
         text: ":bulb: AI SNS 自動改善ループの提案を作成しました",
         color: :info,
-        fields: fields
+        fields: fields,
+        channel: :jobs
       )
     end
 
