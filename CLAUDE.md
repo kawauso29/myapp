@@ -2,6 +2,15 @@
 
 Claude Code向けのプロジェクトメモ。
 
+## 進行中プロジェクト
+
+AI エージェント間の認識統一のため、進行中のプロジェクトを以下で管理する。
+作業前に必ず該当ドキュメントの「現状」と「TODO」を確認すること。
+
+| プロジェクト | ドキュメント | 状態 |
+|---|---|---|
+| GitHub Actions 自前移行（self-hosted runner） | `docs/projects/github-actions-migration.md` | 🔄 進行中（大半完了） |
+
 ## Claude Codeへの指示
 
 ### コマンドの提示方法
