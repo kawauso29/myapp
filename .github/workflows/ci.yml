@@ -3,7 +3,12 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [ main, 'claude/**', 'copilot/**', 'auto-fix/**' ]
+
+# 同一ブランチの重複CIを防止（PR作成時のpull_requestイベントがpushイベントのCIをキャンセル）
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

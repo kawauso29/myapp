@@ -13,9 +13,9 @@ jobs:
   create_pr_on_ci_pass:
     if: >-
       ${{ github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event == 'push' &&
           (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
-           startsWith(github.event.workflow_run.head_branch, 'copilot/')) }}
+           startsWith(github.event.workflow_run.head_branch, 'copilot/') ||
+           startsWith(github.event.workflow_run.head_branch, 'auto-fix/')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Create pull request if missing
@@ -76,10 +76,10 @@ jobs:
 
   notify_pr_skip_reason:
     if: >-
-      ${{ github.event.workflow_run.conclusion != 'success' &&
-          github.event.workflow_run.event == 'push' &&
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
           (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
-           startsWith(github.event.workflow_run.head_branch, 'copilot/')) }}
+           startsWith(github.event.workflow_run.head_branch, 'copilot/') ||
+           startsWith(github.event.workflow_run.head_branch, 'auto-fix/')) }}
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}

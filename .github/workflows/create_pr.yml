@@ -36,14 +36,32 @@ jobs:
             const commitMessage = context.payload.head_commit?.message || branch;
             const title = commitMessage.split('\n')[0];
 
-            const { data: pr } = await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: `ブランチ \`${branch}\` からの自動PR作成\n\nCI通過後に自動マージされます。`,
-              head: branch,
-              base: 'main',
-              draft: false
-            });
-
-            core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+            // リトライ付きPR作成（3回、指数バックオフ）
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const { data: pr } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: `ブランチ \`${branch}\` からの自動PR作成\n\nCI通過後に自動マージされます。`,
+                  head: branch,
+                  base: 'main',
+                  draft: false
+                });
+                core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+                return;
+              } catch (error) {
+                if (error.status === 422) {
+                  core.info(`PR creation returned 422 (may already exist): ${error.message}`);
+                  return;
+                }
+                if (attempt < 3) {
+                  const delay = attempt * 3;
+                  core.warning(`PR creation attempt ${attempt}/3 failed: ${error.message}, retrying in ${delay}s...`);
+                  await new Promise(r => setTimeout(r, delay * 1000));
+                } else {
+                  core.error(`PR creation failed after 3 attempts: ${error.message}`);
+                  throw error;
+                }
+              }
+            }
