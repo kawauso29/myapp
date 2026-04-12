@@ -29,7 +29,8 @@ threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
-port ENV.fetch("PORT", 3000)
+# In production, Nginx connects via Unix socket (configured below), so TCP port is not needed.
+port ENV.fetch("PORT", 3000) unless Rails.env.production?
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
