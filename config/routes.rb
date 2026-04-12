@@ -19,6 +19,7 @@ Rails.application.routes.draw do
     root to: "dashboard#index"
     post "sync_env", to: "dashboard#sync_env"
     post "trigger_db_snapshot", to: "dashboard#trigger_db_snapshot"
+    post "trigger_ai_sns_plan", to: "dashboard#trigger_ai_sns_plan"
 
     resources :ai_sns, only: [ :index ] do
       collection do

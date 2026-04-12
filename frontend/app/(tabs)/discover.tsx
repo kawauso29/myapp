@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getTrending } from "../../lib/api";
+import type { HotThread, TrendingData } from "../../lib/api";
+import { getHotThreads, getTrending } from "../../lib/api";
 
 export default function DiscoverScreen() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<TrendingData | null>(null);
+  const [hotThreads, setHotThreads] = useState<HotThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -23,8 +25,12 @@ export default function DiscoverScreen() {
 
   const loadTrending = async () => {
     try {
-      const res = await getTrending();
-      setData(res.data);
+      const [trendingRes, hotThreadsRes] = await Promise.all([
+        getTrending(),
+        getHotThreads(),
+      ]);
+      setData(trendingRes.data || null);
+      setHotThreads(hotThreadsRes.data || []);
     } catch (e) {
       console.warn("Failed to load trending:", e);
     } finally {
@@ -116,7 +122,7 @@ export default function DiscoverScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
           >
-            {trendingAis.map((item: any) => (
+            {trendingAis.map((item) => (
               <TouchableOpacity
                 key={item.ai_user.id}
                 style={styles.trendingCard}
@@ -145,11 +151,47 @@ export default function DiscoverScreen() {
         </View>
       )}
 
+      {/* Hot Conversation Threads */}
+      {hotThreads.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>今盛り上がってる会話 🔥</Text>
+          {hotThreads.map((thread, index) => (
+            <TouchableOpacity
+              key={`${thread.root_post?.id || "thread"}-${index}`}
+              style={styles.threadCard}
+              onPress={() => {
+                if (thread.root_post?.id) router.push(`/post/${thread.root_post.id}`);
+              }}
+            >
+              <Text style={styles.threadMeta}>
+                直近返信 {thread.recent_reply_count}件 / 合計 {thread.total_reply_count}件
+              </Text>
+              <Text style={styles.threadRootAuthor}>
+                {thread.root_post?.ai_user?.display_name || "AI"}
+              </Text>
+              <Text style={styles.threadRootContent} numberOfLines={2}>
+                {thread.root_post?.content || ""}
+              </Text>
+              {(thread.recent_replies || []).slice(0, 2).map((reply) => (
+                <View key={reply.id} style={styles.threadReplyRow}>
+                  <Text style={styles.threadReplyAuthor}>
+                    {reply.ai_user?.display_name || "AI"}:
+                  </Text>
+                  <Text style={styles.threadReplyContent} numberOfLines={1}>
+                    {reply.content}
+                  </Text>
+                </View>
+              ))}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {/* Today's Events */}
       {todayEvents.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今日のイベント</Text>
-          {todayEvents.map((event: any, index: number) => (
+          {todayEvents.map((event, index: number) => (
             <View key={index} style={styles.eventCard}>
               <View style={styles.eventIcon}>
                 <Ionicons name="flash" size={18} color="#6c63ff" />
@@ -180,7 +222,7 @@ export default function DiscoverScreen() {
       {growingAis.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>伸びているAI</Text>
-          {growingAis.map((item: any) => (
+          {growingAis.map((item) => (
             <TouchableOpacity
               key={item.ai_user.id}
               style={styles.featuredCard}
@@ -281,6 +323,51 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   trendingStatText: { fontSize: 12, color: "#888", marginLeft: 3 },
+
+  // Events
+  threadCard: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    backgroundColor: "#fafafa",
+  },
+  threadMeta: {
+    fontSize: 12,
+    color: "#ff6b35",
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  threadRootAuthor: {
+    fontSize: 13,
+    color: "#6c63ff",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  threadRootContent: {
+    fontSize: 14,
+    color: "#1a1a2e",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  threadReplyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  threadReplyAuthor: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
+    marginRight: 6,
+  },
+  threadReplyContent: {
+    flex: 1,
+    fontSize: 12,
+    color: "#777",
+  },
 
   // Events
   eventCard: {
