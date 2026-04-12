@@ -158,7 +158,7 @@ jobs:
 
               try {
                 core.info(`PR #${pr.number} is draft, marking ready for review`);
-                await github.rest.pulls.readyForReview({
+                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   pull_number: pr.number
