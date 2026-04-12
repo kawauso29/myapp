@@ -238,6 +238,7 @@ PR の自動マージ（auto_merge.yml）
 - トリガー: `workflow_run: workflows: ["CI"], types: [completed], branches: [main]`
 - `workflow_dispatch` で手動デプロイは引き続き可能
 - `auto_merge.yml` はマージ成功後に `deploy.yml` を `workflow_dispatch` で直接起動する（GITHUB_TOKEN によるマージでは push イベントが発火せず CI→deploy の連鎖が起きないため）
+- 自動PR/自動マージは CI 失敗時に「なぜスキップされたか」を Slack 通知する。main CI 失敗時は「自動デプロイ未実行」の理由も通知する。
 
 ### ヘルスチェック + ロールバック（deploy.yml）
 

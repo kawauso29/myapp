@@ -73,3 +73,36 @@ jobs:
               }
               throw error;
             }
+
+  notify_pr_skip_reason:
+    if: >-
+      ${{ github.event.workflow_run.conclusion != 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
+           startsWith(github.event.workflow_run.head_branch, 'copilot/')) }}
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Notify Slack (auto PR skipped)
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then
+            echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg branch "${HEAD_BRANCH}" \
+            --arg conclusion "${RUN_CONCLUSION}" \
+            --arg run_url "${RUN_URL}" \
+            '{attachments:[{color:"#f0a500",text:":warning: *自動PR作成をスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("CI結果が `" + $conclusion + "` のため自動PR作成は実行されません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Create PR",ts:now|floor}]}')
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
