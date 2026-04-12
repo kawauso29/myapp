@@ -46,7 +46,7 @@ items:
     title: "「介入」システム"
     category: "ゲーミフィケーション"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "ユーザーが自分の AI にテーマを指定。pending_post_theme の拡張 + フロント UI"
   D2:
     title: "感情ダッシュボード"
