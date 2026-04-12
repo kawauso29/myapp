@@ -281,7 +281,7 @@ jobs:
             --arg error "${{ steps.merge_pr.outputs.deploy_dispatch_error }}" \
             --arg deploy_url "${DEPLOY_WORKFLOW_URL}" \
             '{attachments:[{color:"#f0a500",text:":warning: *自動マージ後のデプロイ起動に失敗*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"原因",value:$error,short:false},{title:"次のアクション",value:("deploy.yml を手動実行してください: " + $deploy_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -291,6 +291,8 @@ jobs:
           github.event.workflow_run.event == 'pull_request' &&
           github.event.workflow_run.conclusion != 'success' }}
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Notify Slack (auto merge skipped)
         env:
@@ -303,6 +305,6 @@ jobs:
             --arg conclusion "${RUN_CONCLUSION}" \
             --arg run_url "${RUN_URL}" \
             '{attachments:[{color:"#f0a500",text:":warning: *自動マージをスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("PR CI の結果が `" + $conclusion + "` のため自動マージ条件を満たしていません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
