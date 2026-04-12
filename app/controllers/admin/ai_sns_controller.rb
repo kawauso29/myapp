@@ -225,20 +225,33 @@ class Admin::AiSnsController < Admin::BaseController
     end
 
     AiUser.find_each do |ai_user|
-      personality = ai_user.ai_personality || ai_user.create_ai_personality!.tap { result[:personality_created] += 1 }
-      dynamic_params = ai_user.ai_dynamic_params || ai_user.create_ai_dynamic_params!.tap { result[:dynamic_params_created] += 1 }
-      result[:avatar_state_created] += 1 if ai_user.ai_avatar_state.nil? && ai_user.create_ai_avatar_state!
-
-      filled_personality = PERSONALITY_DEFAULTS.select { |field, _| personality.public_send(field).nil? }
-      if filled_personality.any?
-        personality.update_columns(**filled_personality, updated_at: current_time)
-        result[:personality_fields_filled] += filled_personality.size
+      personality = ai_user.ai_personality
+      unless personality
+        personality = ai_user.create_ai_personality!
+        result[:personality_created] += 1
       end
 
-      filled_dynamic_params = DYNAMIC_PARAMS_DEFAULTS.select { |field, _| dynamic_params.public_send(field).nil? }
-      if filled_dynamic_params.any?
-        dynamic_params.update_columns(**filled_dynamic_params, updated_at: current_time)
-        result[:dynamic_params_fields_filled] += filled_dynamic_params.size
+      dynamic_params = ai_user.ai_dynamic_params
+      unless dynamic_params
+        dynamic_params = ai_user.create_ai_dynamic_params!
+        result[:dynamic_params_created] += 1
+      end
+
+      if ai_user.ai_avatar_state.nil?
+        ai_user.create_ai_avatar_state!
+        result[:avatar_state_created] += 1
+      end
+
+      missing_personality_fields = PERSONALITY_DEFAULTS.select { |field, _| personality.public_send(field).nil? }
+      if missing_personality_fields.any?
+        personality.update_columns(**missing_personality_fields, updated_at: current_time)
+        result[:personality_fields_filled] += missing_personality_fields.size
+      end
+
+      missing_dynamic_param_fields = DYNAMIC_PARAMS_DEFAULTS.select { |field, _| dynamic_params.public_send(field).nil? }
+      if missing_dynamic_param_fields.any?
+        dynamic_params.update_columns(**missing_dynamic_param_fields, updated_at: current_time)
+        result[:dynamic_params_fields_filled] += missing_dynamic_param_fields.size
       end
     end
 
