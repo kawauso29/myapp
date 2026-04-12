@@ -19,9 +19,9 @@ daily_schedule_generate:
   class: DailyScheduleGenerateJob
   queue: low
 
-# 毎時間、スケジュールに合わせて状態を更新（6〜25時）
+# 30分ごと、スケジュールに合わせて状態を更新（6〜25時）
 hourly_state_update:
-  cron: "0 6-25 * * *"
+  cron: "*/30 6-25 * * *"
   class: HourlyStateUpdateJob
   queue: default
 
