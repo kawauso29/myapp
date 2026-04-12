@@ -5,25 +5,18 @@ on:
 
 jobs:
   snapshot:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
-          chmod 600 ~/.ssh/vps_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-
       - name: Run DB snapshot on VPS
         run: |
-          ssh -i ~/.ssh/vps_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            'export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH" && cd ~/myapp && RAILS_ENV=production bin/rails db:snapshot 2>/dev/null' \
-            > db_snapshot.json
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          cd ~/myapp
+          RAILS_ENV=production bin/rails db:snapshot 2>/dev/null > $GITHUB_WORKSPACE/db_snapshot.json
 
       - name: Commit to db-snapshots branch
         run: |
