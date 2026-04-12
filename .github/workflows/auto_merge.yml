@@ -272,10 +272,18 @@ jobs:
             }
 
       - name: Notify Slack (deploy dispatch failed after auto-merge)
-        if: ${{ steps.merge_pr.outputs.deploy_dispatch_error != '' }}
+        if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.deploy_dispatch_error != '' }}
         env:
           DEPLOY_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/deploy.yml
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then
+            echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(jq -n \
             --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
             --arg error "${{ steps.merge_pr.outputs.deploy_dispatch_error }}" \
@@ -300,6 +308,14 @@ jobs:
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then
+            echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(jq -n \
             --arg branch "${HEAD_BRANCH}" \
             --arg conclusion "${RUN_CONCLUSION}" \
