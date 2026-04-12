@@ -40,7 +40,7 @@ items:
     title: "ユーザーの「育成」要素の強化"
     category: "ゲーミフィケーション"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "育成日記・AIランキング・マイルストーン達成でバッジ付与"
   C2:
     title: "「介入」システム"
