@@ -286,13 +286,18 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping failure notification"
             exit 0
           fi
+          DEPLOY_SKIP_REASON=""
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
+            DEPLOY_SKIP_REASON="main の CI が失敗したため、自動デプロイは実行されません"
+          fi
           PAYLOAD=$(jq -n \
             --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
             --arg actor "${{ github.actor }}" \
             --arg msg "${{ github.event.head_commit.message }}" \
             --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | job-check: ${{ needs.job-check.result }} | route-check: ${{ needs.route-check.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
             --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* \($notify_label) by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
+            --arg deploy_skip_reason "${DEPLOY_SKIP_REASON}" \
+            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* \($notify_label) by \($actor)",fields:([{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}] + (if $deploy_skip_reason == "" then [] else [{title:"デプロイ",value:$deploy_skip_reason,short:false}] end)),footer:"GitHub Actions",ts:now|floor}]}')
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack failure notification failed; continuing"

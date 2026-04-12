@@ -63,6 +63,7 @@ PR の自動マージ（auto_merge.yml）
 - **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で `main` の CI 完了（success）を待つ
 - **手動デプロイ**: `workflow_dispatch` でいつでも実行可能
 - **auto_merge はマージ成功後に deploy を直接 dispatch する**: GITHUB_TOKEN によるマージでは push イベントが発火せず CI→deploy の連鎖が起きないため、`workflow_dispatch` で deploy.yml を直接起動する
+- **自動処理が止まった理由を通知する**: 自動PR/自動マージは CI 失敗時にスキップ理由を通知し、main CI 失敗時は「デプロイ未実行」の理由を通知する
 
 ### デプロイ先
 
