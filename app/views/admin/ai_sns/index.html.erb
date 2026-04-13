@@ -137,6 +137,50 @@
   </div>
 </div>
 
+<% if @last_manual_job_status.present? %>
+  <% manual = @last_manual_job_status[:manual] %>
+  <% status = @last_manual_job_status[:status] %>
+  <% status_text, status_color = case status
+                                 when :queued then ["QUEUED", "#63b3ed"]
+                                 when :running then ["RUNNING", "#f6ad55"]
+                                 when :success then ["SUCCESS", "#68d391"]
+                                 when :failed then ["FAILED", "#fc8181"]
+                                 when :missing then ["NOT FOUND", "#a0aec0"]
+                                 else ["UNKNOWN", "#a0aec0"]
+                                 end %>
+  <div class="card" style="border-left:3px solid <%= status_color %>; margin-top:12px;">
+    <h2 style="margin-bottom:8px;">Last Manual Job Status</h2>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:#a0aec0;">
+      <span>Job: <strong style="color:#e2e8f0;"><%= manual[:job_class] || "-" %></strong></span>
+      <span>Status: <strong style="color:<%= status_color %>;"><%= status_text %></strong></span>
+      <span>ActiveJob ID: <code style="color:#e2e8f0;"><%= manual[:active_job_id] || "-" %></code></span>
+      <% if manual[:triggered_at].present? %>
+        <span>Triggered: <%= jst_time.call(Time.zone.parse(manual[:triggered_at].to_s)) %></span>
+      <% end %>
+      <% if @last_manual_job_status[:job]&.finished_at.present? %>
+        <span>Finished: <%= jst_time.call(@last_manual_job_status[:job].finished_at) %></span>
+      <% end %>
+    </div>
+    <% if status == :failed %>
+      <% error = @last_manual_job_status[:error] || {} %>
+      <div style="margin-top:8px; color:#fc8181; font-family:monospace; font-size:12px; word-break:break-all;">
+        <%= "#{error['exception_class'].presence || 'Error'}: #{error['message']}".truncate(240) %>
+      </div>
+      <div style="margin-top:6px;">
+        <a href="<%= failed_jobs_admin_ai_sns_path %>" style="color:#fc8181; text-decoration:none; font-size:12px;">Failed Jobs で詳細を見る →</a>
+      </div>
+    <% elsif status == :missing %>
+      <div style="margin-top:8px; color:#718096; font-size:12px;">
+        ジョブ履歴が見つかりませんでした。既に削除済みの可能性があります。
+      </div>
+    <% else %>
+      <div style="margin-top:8px; color:#718096; font-size:12px;">
+        この表示はページ再読み込みで最新化されます。
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
 <%# ===== SolidQueue ===== %>
 <% if @queue_stats.present? %>
   <div class="card">
