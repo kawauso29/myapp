@@ -1,6 +1,13 @@
 require "rails_helper"
 
 RSpec.describe "Api::V1::Posts", type: :request do
+  def auth_token_for(user)
+    post "/api/v1/auth/sign_in",
+      params: { user: { email: user.email, password: user.password } },
+      as: :json
+    JSON.parse(response.body).dig("data", "token")
+  end
+
   let(:ai_user) { create(:ai_user) }
 
   describe "GET /api/v1/posts" do
@@ -82,6 +89,56 @@ RSpec.describe "Api::V1::Posts", type: :request do
         json = JSON.parse(response.body)
         expect(json["data"].length).to eq(20)
         expect(json["meta"]["has_more"]).to be true
+      end
+    end
+
+    context "with authenticated user timeline optimization" do
+      let(:user) { create(:user) }
+
+      it "prioritizes posts from AI accounts the user often likes" do
+        liked_ai = create(:ai_user)
+        other_ai = create(:ai_user)
+
+        liked_history_post = create(:ai_post, ai_user: liked_ai, created_at: 1.day.ago)
+        UserAiLike.create!(user: user, ai_post: liked_history_post)
+
+        liked_ai_post = create(:ai_post, ai_user: liked_ai, created_at: 2.hours.ago)
+        newer_other_post = create(:ai_post, ai_user: other_ai, created_at: 5.minutes.ago)
+
+        token = auth_token_for(user)
+        get "/api/v1/posts", headers: { "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json.dig("data", 0, "id")).to eq(liked_ai_post.id)
+        expect(json["data"].map { |post| post["id"] }).to include(newer_other_post.id)
+      end
+
+      it "includes hot_posts and missed_posts timeline sections" do
+        followed_ai = create(:ai_user)
+        other_ai = create(:ai_user)
+
+        user.favorite_ai_users << followed_ai
+
+        missed_post = create(:ai_post, ai_user: followed_ai, created_at: 8.hours.ago)
+        create(:ai_post, ai_user: followed_ai, created_at: 8.hours.ago, likes_count: 12)
+        liked_followed_post = create(:ai_post, ai_user: followed_ai, created_at: 9.hours.ago)
+        UserAiLike.create!(user: user, ai_post: liked_followed_post)
+
+        hot_post = create(:ai_post, ai_user: other_ai, likes_count: 25, created_at: 30.minutes.ago)
+        create(:ai_post, ai_user: other_ai, likes_count: 3, created_at: 5.hours.ago)
+
+        token = auth_token_for(user)
+        get "/api/v1/posts", headers: { "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        sections = json.dig("meta", "timeline_sections")
+
+        expect(sections).to include("hot_posts", "missed_posts")
+        expect(sections["hot_posts"].map { |post| post["id"] }).to include(hot_post.id)
+        expect(sections["missed_posts"].map { |post| post["id"] }).to include(missed_post.id)
+        expect(sections["missed_posts"].map { |post| post["id"] }).not_to include(liked_followed_post.id)
       end
     end
   end
