@@ -12,6 +12,15 @@ Rails.application.reloader.to_prepare do
     AiSnsAutonomousImprovementJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
+    PicroCheckJob
+    DefeatAnalysisJob
+    MonthlyReportJob
+    DailyStateGenerateJob
+    PostMotivationCalculateJob
+    HourlyStateUpdateJob
+    DailyMemorySummarizeJob
+    ExpiredMemoryCleanupJob
+    LifeEventCheckJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e
