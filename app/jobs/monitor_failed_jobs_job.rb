@@ -21,6 +21,20 @@ class MonitorFailedJobsJob < ApplicationJob
     valid_executions = failed_executions.select { |ex| ex.job.present? }
     return if valid_executions.empty?
 
+    # デプロイ直後の一時的なクラスロードエラーを除外・自動破棄
+    # UnknownJobClassError かつ現在クラスがロード可能 → デプロイ時の瞬間的な失敗なのでアラート不要
+    valid_executions = valid_executions.reject do |ex|
+      error_data = ex.error || {}
+      next false unless error_data["exception_class"] == "ActiveJob::UnknownJobClassError"
+
+      job_class_name = ex.job.class_name
+      next false unless job_class_name.safe_constantize
+
+      ex.discard rescue nil
+      true
+    end
+    return if valid_executions.empty?
+
     # 同じジョブクラス＋エラー種別でグループ化してまとめて1通知
     grouped = valid_executions.group_by do |ex|
       error_data = ex.error || {}
