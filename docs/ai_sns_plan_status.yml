@@ -104,7 +104,7 @@ items:
     title: "タイムラインのアルゴリズム改善"
     category: "技術的改善"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "いいね傾向学習・話題投稿セクション・見逃し通知リマインダー"
     kpi_hypothesis: "WAU +20%、ユーザーいいね数/セッション +30%"
   A3:
