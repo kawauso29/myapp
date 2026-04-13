@@ -180,18 +180,20 @@ docker compose up
 
 ## Slack通知 3カテゴリ設計
 
+通知ルーティングの正本は `docs/slack-notification-routing.md`。
+
 ### カテゴリ定義と送信先
 
 | カテゴリ | 内容 | GitHub Secret | VPS .env |
 |---|---|---|---|
 | ① CI/Deploy進捗 | CI成功, デプロイ開始/成功, PR通知 | `SLACK_WEBHOOK_URL_CI` | 不要（GitHub Actionsのみ） |
 | ② エラー | CI失敗, デプロイ失敗, アプリ障害, レート制限 | `SLACK_WEBHOOK_URL_ERROR` | `SLACK_WEBHOOK_URL_ERROR` |
-| ③ ジョブ/アクション結果 | auto-fix PR作成, auto-merge結果, triage issue通知 | `SLACK_WEBHOOK_URL_JOBS` | 不要（GitHub Actionsのみ） |
+| ③ ジョブ/アクション結果 | auto-fix PR作成, auto-merge結果, triage issue通知, AI投稿運用ログ | `SLACK_WEBHOOK_URL_JOBS` | `SLACK_WEBHOOK_URL_JOBS` |
 
 ### フォールバック仕様
 
-各シークレットが未設定の場合、既存の `SLACK_WEBHOOK_URL` にフォールバックする（後方互換）。
-新しいシークレットを追加することでチャンネルを分離できる。
+GitHub Actions側は未設定時に既存の `SLACK_WEBHOOK_URL` へフォールバック可能な実装を維持する（後方互換）。
+ただし Rails の `SlackNotifierService` は誤配送防止のため `channel: :jobs` を error チャネルへはフォールバックしない。
 
 ### ワークフロー別マッピング
 
@@ -209,8 +211,9 @@ docker compose up
 
 ### アプリ側（SlackNotifierService）
 
-`SlackNotifierService` はカテゴリ② 専用。VPS `.env` に `SLACK_WEBHOOK_URL_ERROR` を設定する。
-`deploy.yml` の env sync ステップで `SLACK_WEBHOOK_URL_ERROR` を自動的にVPSへ書き込む。
+`SlackNotifierService` は `channel: :error`（カテゴリ②）と `channel: :jobs`（カテゴリ③）を使い分ける。
+`deploy.yml` の env sync ステップで `SLACK_WEBHOOK_URL_ERROR` / `SLACK_WEBHOOK_URL_JOBS` をVPSへ同期する。
+`channel: :jobs` は未設定時に error へフォールバックせず通知をスキップする。
 
 ### Slackからの自動修正ルートについて
 
