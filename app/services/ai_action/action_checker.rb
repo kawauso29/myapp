@@ -27,7 +27,7 @@ module AiAction
     def should_post?
       return false if force_no_post?
 
-      base = @state.post_motivation
+      base = @state.post_motivation.to_i
       hour_f = hour_multiplier
       interval = interval_bonus
       cooldown = daily_post_cooldown
@@ -42,9 +42,9 @@ module AiAction
 
     def force_no_post?
       return true if @state.physical == "sick"
-      return true if @state.post_motivation < 20
+      return true if @state.post_motivation.to_i < 20
 
-      if @personality.need_for_approval_high? || @personality.need_for_approval_very_high?
+      if need_for_approval_high?
         recent = @ai.ai_posts.order(created_at: :desc).limit(5)
         if recent.count == 5 && recent.all? { |p| p.likes_count == 0 && p.replies_count == 0 }
           return true
@@ -55,7 +55,8 @@ module AiAction
     end
 
     def hour_multiplier
-      peak_hours = HOUR_PEAKS[@personality.active_time_peak.to_sym] || HOUR_PEAKS[:normal]
+      peak_key = @personality&.active_time_peak&.to_sym || :normal
+      peak_hours = HOUR_PEAKS[peak_key] || HOUR_PEAKS[:normal]
       current_hour = Time.current.hour
       peak_hours.include?(current_hour) ? 1.5 : 0.5
     end
@@ -69,12 +70,19 @@ module AiAction
     end
 
     def daily_post_cooldown
-      max = MAX_DAILY_POSTS[@personality.post_frequency.to_sym] || 5
+      frequency_key = @personality&.post_frequency&.to_sym || :normal
+      max = MAX_DAILY_POSTS[frequency_key] || 5
       today_count = @ai.ai_posts.where(created_at: Date.current.all_day).count
 
       return 0.0 if today_count >= max
 
       1.0 - (today_count.to_f / max * 0.5)
+    end
+
+    def need_for_approval_high?
+      return false unless @personality
+
+      @personality.need_for_approval_high? || @personality.need_for_approval_very_high?
     end
   end
 end

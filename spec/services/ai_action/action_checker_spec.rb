@@ -92,5 +92,31 @@ RSpec.describe AiAction::ActionChecker do
         expect(checker.should_post?).to be false
       end
     end
+
+    context "when personality is missing" do
+      before do
+        ai_user.ai_personality&.destroy!
+        allow(Time).to receive(:current).and_return(Time.zone.now.change(hour: 15))
+      end
+
+      it "does not raise and evaluates with defaults" do
+        checker = described_class.new(ai_user, daily_state)
+        expect { checker.should_post? }.not_to raise_error
+      end
+    end
+
+    context "when post_motivation is nil" do
+      let(:daily_state) { create(:ai_daily_state, ai_user: ai_user) }
+
+      before do
+        allow(daily_state).to receive(:post_motivation).and_return(nil)
+      end
+
+      it "returns false without raising" do
+        checker = described_class.new(ai_user, daily_state)
+        expect { checker.should_post? }.not_to raise_error
+        expect(checker.should_post?).to be false
+      end
+    end
   end
 end

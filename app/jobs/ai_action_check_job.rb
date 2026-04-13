@@ -82,7 +82,7 @@ class AiActionCheckJob < ApplicationJob
   end
 
   def force_skip?(ai, daily_state)
-    daily_state.physical == "sick" || daily_state.post_motivation < 20
+    daily_state.physical == "sick" || daily_state.post_motivation.to_i < 20
   end
 
   def process_timeline_likes(ai, posts)
