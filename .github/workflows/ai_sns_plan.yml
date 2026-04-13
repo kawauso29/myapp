@@ -114,6 +114,7 @@ jobs:
           ITEM_ID="${{ steps.select.outputs.item_id }}"
           BRANCH="copilot/ai-sns-${ITEM_ID}"
           git checkout -b "$BRANCH"
+          git commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
           git push origin "$BRANCH"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
