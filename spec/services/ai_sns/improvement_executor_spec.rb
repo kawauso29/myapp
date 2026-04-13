@@ -114,5 +114,26 @@ RSpec.describe AiSns::ImprovementExecutor do
 
       expect(result["created_pr_numbers"]).to eq([])
     end
+
+    it "includes PR links in the Slack notification when PRs are created" do
+      allow(PostMotivationCalculateJob).to receive(:perform_later)
+      allow(SlackNotifierService).to receive(:notify)
+      fake_pr = { "number" => 99, "html_url" => "https://github.com/kawauso29/myapp/pull/99", "title" => "[AI SNS自動提案] 会話スレッド改善" }
+      allow(GithubPrService).to receive(:create_pr).and_return(fake_pr)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
+
+      described_class.call(analysis_result: analysis_result)
+
+      expect(SlackNotifierService).to have_received(:notify).with(
+        text: ":bulb: AI SNS 自動改善ループの提案を作成しました",
+        color: :info,
+        fields: a_collection_including(
+          a_hash_including(title: "作成されたPR", value: a_string_including("#99"))
+        ),
+        channel: :jobs
+      )
+    end
   end
 end
