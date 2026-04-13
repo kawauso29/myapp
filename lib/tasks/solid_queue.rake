@@ -21,8 +21,6 @@ namespace :solid_queue do
 
   desc "Delete stale unfinished MonitorFailedJobsJob records from all queues"
   task cleanup_stale_monitor_failed_jobs: :environment do
-    stale_job_ids = []
-
     extract_wrapper_job_class = lambda do |raw_arguments|
       payload = raw_arguments
       payload = JSON.parse(payload) if payload.is_a?(String)
@@ -37,19 +35,21 @@ namespace :solid_queue do
       nil
     end
 
-    target_classes = [ "MonitorFailedJobsJob", "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper" ]
-    SolidQueue::Job.where(finished_at: nil, class_name: target_classes).find_each do |job|
-      job_class = if job.class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
-        extract_wrapper_job_class.call(job.arguments)
-      else
-        job.class_name
-      end
+    deleted_count = SolidQueue::Job.where(finished_at: nil, class_name: "MonitorFailedJobsJob").delete_all
+    wrapper_job_ids = []
+
+    SolidQueue::Job.where(finished_at: nil, class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper").find_each do |job|
+      job_class = extract_wrapper_job_class.call(job.arguments)
       next unless job_class == "MonitorFailedJobsJob"
 
-      stale_job_ids << job.id
+      wrapper_job_ids << job.id
+      next unless wrapper_job_ids.size >= 500
+
+      deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all
+      wrapper_job_ids.clear
     end
 
-    deleted_count = SolidQueue::Job.where(id: stale_job_ids).delete_all
+    deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all
     puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from all queues"
   end
 
