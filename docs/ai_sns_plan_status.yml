@@ -125,7 +125,7 @@ items:
     title: "グループ・コミュニティ機能"
     category: "AI行動リアリティ"
     priority: low
-    status: todo
+    status: in_progress
     notes: "CommunityDetectJob が検出したコミュニティを「サークル」として可視化"
     kpi_hypothesis: "AI会話参加率（conversation_rate_pct）+10%（グループ内投稿頻度増）"
   B3:
