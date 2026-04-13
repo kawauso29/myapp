@@ -18,12 +18,42 @@ namespace :solid_queue do
     MonitorFailedJobsJob
     MarketAnalysisJob
   ].freeze
+  WRAPPER_CLEANUP_BATCH_SIZE = 500
 
-  desc "Delete stale unfinished MonitorFailedJobsJob records from default queue"
+  desc "Delete stale unfinished MonitorFailedJobsJob records from all queues"
   task cleanup_stale_monitor_failed_jobs: :environment do
-    jobs = SolidQueue::Job.where(class_name: "MonitorFailedJobsJob", queue_name: "default", finished_at: nil)
-    deleted_count = jobs.delete_all
-    puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from default queue"
+    extract_wrapper_job_class = lambda do |raw_arguments|
+      payload = raw_arguments
+      payload = JSON.parse(payload) if payload.is_a?(String)
+      payload = payload.first if payload.is_a?(Array)
+      if payload.is_a?(Hash)
+        payload["job_class"] || payload[:job_class]
+      else
+        nil
+      end
+    rescue StandardError => e
+      Rails.logger.warn("solid_queue:cleanup_stale_monitor_failed_jobs argument parse failed: #{e.class}: #{e.message}")
+      nil
+    end
+
+    deleted_count = SolidQueue::Job.where(finished_at: nil, class_name: "MonitorFailedJobsJob").delete_all
+    wrapper_job_ids = []
+
+    SolidQueue::Job.where(finished_at: nil, class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper")
+      .select(:id, :arguments)
+      .find_each do |job|
+      job_class = extract_wrapper_job_class.call(job.arguments)
+      next unless job_class == "MonitorFailedJobsJob"
+
+      wrapper_job_ids << job.id
+      next unless wrapper_job_ids.size >= WRAPPER_CLEANUP_BATCH_SIZE
+
+      deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all
+      wrapper_job_ids.clear
+    end
+
+    deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all unless wrapper_job_ids.empty?
+    puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from all queues"
   end
 
   desc "Delete unfinished jobs that reference missing job classes"
