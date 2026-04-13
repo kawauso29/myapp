@@ -23,7 +23,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       allow(SlackNotifierService).to receive(:notify)
       allow(GithubPrService).to receive(:create_pr).and_return(nil)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
@@ -40,7 +40,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       allow(SlackNotifierService).to receive(:notify)
       allow(GithubPrService).to receive(:create_pr).and_return(nil)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: unsupported)
@@ -55,7 +55,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       fake_pr = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/pull/42" }
       allow(GithubPrService).to receive(:create_pr).and_return(fake_pr)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
@@ -70,13 +70,14 @@ RSpec.describe AiSns::ImprovementExecutor do
     it "skips duplicate feature proposals already in recent logs" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
+      allow(GithubPrService).to receive(:create_pr)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new(["会話スレッド改善"]))
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
 
-      expect(GithubPrService).not_to receive(:create_pr)
+      expect(GithubPrService).not_to have_received(:create_pr)
       expect(result["created_pr_numbers"]).to eq([])
     end
 
@@ -86,7 +87,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       allow(SlackNotifierService).to receive(:notify)
       allow(GithubPrService).to receive(:create_pr).and_return(nil)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       update_relation = double("update_relation")
@@ -106,7 +107,7 @@ RSpec.describe AiSns::ImprovementExecutor do
       allow(SlackNotifierService).to receive(:notify)
       allow(GithubPrService).to receive(:create_pr).and_return(nil)
       allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
-      allow(ImprovementLog).to receive(:where).and_return(double(sum: 0))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
       allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)

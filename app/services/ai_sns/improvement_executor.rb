@@ -67,7 +67,7 @@ module AiSns
       updated = AiDailyState.where(date: Date.current)
                              .joins(ai_user: {})
                              .merge(AiUser.active)
-                             .update_all("post_motivation = LEAST(post_motivation + #{boost}, 100)")
+                             .update_all([ "post_motivation = LEAST(post_motivation + ?, 100)", boost ])
       quick_win_result(quick_win, status: "applied", reason: "post_motivation_boosted_by_#{boost} (#{updated} AIs)")
     end
 
@@ -100,7 +100,10 @@ module AiSns
     def create_feature_proposal_prs
       # 日次 PR 作成上限チェック
       today_pr_count = ImprovementLog.where(created_at: Date.current.all_day)
-                                     .sum { |log| Array(log.created_pr_numbers).size }
+                                     .pluck(:created_pr_numbers)
+                                     .flatten
+                                     .compact
+                                     .size
       remaining_quota = [ DAILY_PR_LIMIT - today_pr_count, 0 ].max
       return [] if remaining_quota.zero?
 
