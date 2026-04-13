@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "0 0 */2 * *"  # 2日に1回 9:00 JST (0:00 UTC)
+    - cron: "*/30 * * * *"  # 30分おき
 
 permissions:
   contents: write
@@ -68,6 +68,11 @@ jobs:
             echo "[${ITEM_ID}] は実装済みです。スキップします。"
             exit 0
           fi
+          if [ "$STATUS" = "in_progress" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "[${ITEM_ID}] は既に実装中です。スキップします。"
+            exit 0
+          fi
 
           TITLE=$(yq ".items.${ITEM_ID}.title" docs/ai_sns_plan_status.yml)
           CATEGORY=$(yq ".items.${ITEM_ID}.category" docs/ai_sns_plan_status.yml)
@@ -104,6 +109,13 @@ jobs:
         run: |
           ITEM_ID="${{ steps.select.outputs.item_id }}"
           BRANCH="copilot/ai-sns-${ITEM_ID}"
+
+          # リモートブランチが既に存在する場合は削除してから再作成
+          if git ls-remote --exit-code origin "refs/heads/${BRANCH}" > /dev/null 2>&1; then
+            echo "既存のリモートブランチ ${BRANCH} を削除します"
+            git push origin --delete "$BRANCH" || true
+          fi
+
           git checkout -b "$BRANCH"
           git commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
           git push origin "$BRANCH"
@@ -122,6 +134,24 @@ jobs:
             const notes = '${{ steps.select.outputs.item_notes }}'
             const kpiHypothesis = '${{ steps.select.outputs.item_kpi_hypothesis }}'
             const branch = '${{ steps.create_branch.outputs.branch }}'
+
+            // 既存のオープンPRがあるか確認
+            const { data: existingPrs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              base: 'main',
+              state: 'open'
+            })
+
+            if (existingPrs.length > 0) {
+              const existing = existingPrs[0]
+              console.log(`既存のPRが見つかりました: #${existing.number} ${existing.html_url}`)
+              core.setOutput('pr_number', existing.number)
+              core.setOutput('pr_url', existing.html_url)
+              core.setOutput('pr_existed', 'true')
+              return
+            }
 
             const priorityLabel = { high: '★★★ 高', medium: '★★☆ 中', low: '★☆☆ 低' }[priority] || priority
 
@@ -163,6 +193,7 @@ jobs:
             console.log(`PR created: #${pr.number} ${pr.html_url}`)
             core.setOutput('pr_number', pr.number)
             core.setOutput('pr_url', pr.html_url)
+            core.setOutput('pr_existed', 'false')
 
       - name: Slack 通知
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
