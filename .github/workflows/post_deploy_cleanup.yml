@@ -238,6 +238,6 @@ jobs:
             --arg log_url "${{ github.event.workflow_run.html_url }}" \
             --arg pr_url "${{ steps.create_pr.outputs.pr_url }}" \
             '{attachments:[{color:"#b60205",text:":fire: *デプロイ失敗 — PRが自動起票されました*",fields:[{title:"SHA",value:$sha,short:true},{title:"デプロイログ",value:$log_url,short:false},{title:"PR",value:$pr_url,short:false}],footer:"GitHub Actions Post Deploy",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

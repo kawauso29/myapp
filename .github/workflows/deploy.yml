@@ -77,7 +77,7 @@ jobs:
             --arg msg "${COMMIT_MSG}" \
             --arg actor "${{ github.actor }}" \
             '{attachments:[{color:"#36c5f0",text:":rocket: *デプロイ開始* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -108,9 +108,7 @@ jobs:
             }
             set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
             set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
-            set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
-            set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}'
-            set_env SLACK_ERROR_CHANNEL_ID '${{ secrets.SLACK_ERROR_CHANNEL_ID }}'
+            set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR }}'
             set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
             set_env SOLID_QUEUE_IN_PUMA '1'
 
@@ -282,7 +280,7 @@ jobs:
             --arg msg "${COMMIT_MSG}" \
             --arg actor "${{ github.actor }}" \
             '{attachments:[{color:"#2eb886",text:":white_check_mark: *デプロイ成功* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"サーバー",value:"133.167.124.112",short:true}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -301,6 +299,6 @@ jobs:
             --arg actor "${{ github.actor }}" \
             --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{attachments:[{color:"#e01e5a",text:":x: *デプロイ失敗* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"原因",value:$status,short:false},{title:"次のアクション",value:"ログを確認してください: \($log_url)",short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

@@ -2,10 +2,10 @@ require "net/http"
 require "json"
 
 class SlackNotifierService
-  # カテゴリ②: アプリエラー通知専用 Webhook（未設定時は SLACK_WEBHOOK_URL にフォールバック）
+  # カテゴリ②: アプリエラー通知専用 Webhook
   WEBHOOK_URLS = {
-    error: ENV["SLACK_WEBHOOK_URL_ERROR"] || ENV["SLACK_WEBHOOK_URL"],
-    jobs:  ENV["SLACK_WEBHOOK_URL_JOBS"]  || ENV["SLACK_WEBHOOK_URL"]
+    error: ENV["SLACK_WEBHOOK_URL_ERROR"],
+    jobs:  ENV["SLACK_WEBHOOK_URL_JOBS"]
   }.freeze
 
   COLORS = {

@@ -69,7 +69,7 @@ jobs:
       - name: Slack KPI レポート
         env:
           KPI_JSON: ${{ steps.kpi.outputs.kpi_json }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
           WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
@@ -161,7 +161,7 @@ jobs:
       - name: WIP 上限通知（スキップ時）
         if: steps.wip.outputs.advance == 'false'
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
           WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
