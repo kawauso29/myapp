@@ -22,8 +22,8 @@ module AiSns
 
     def call
       quick_win_results = execute_quick_wins
-      notify_feature_proposals(quick_win_results)
       created_prs = create_feature_proposal_prs
+      notify_feature_proposals(quick_win_results, created_prs)
 
       {
         "applied_quick_wins" => quick_win_results.count { |item| item["status"] == "applied" },
@@ -71,7 +71,7 @@ module AiSns
       quick_win_result(quick_win, status: "applied", reason: "post_motivation_boosted_by_#{boost} (#{updated} AIs)")
     end
 
-    def notify_feature_proposals(quick_win_results)
+    def notify_feature_proposals(quick_win_results, created_prs)
       return if feature_proposals.empty? && quick_win_results.none? { |result| result["status"] == "applied" }
 
       fields = [
@@ -87,6 +87,11 @@ module AiSns
           value: "#{proposal['title']} - #{proposal['rationale']}",
           short: false
         }
+      end
+
+      if created_prs.any?
+        pr_links = created_prs.map { |pr| "<#{pr['html_url']}|##{pr['number']} #{pr['title']}>" }.join("\n")
+        fields << { title: "作成されたPR", value: pr_links, short: false }
       end
 
       SlackNotifierService.notify(
