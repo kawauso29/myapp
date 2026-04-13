@@ -198,8 +198,8 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   def trigger_ai_sns_plan
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
-    return redirect_to admin_ai_sns_path, alert: "GITHUB_DEPLOY_TOKEN が設定されていません" unless token.present?
+    token = ENV["DEPLOY_TOKEN"]
+    return redirect_to admin_ai_sns_path, alert: "DEPLOY_TOKEN が設定されていません" unless token.present?
 
     item_id = params[:item_id].presence || ""
     res = github_dispatch_request(
