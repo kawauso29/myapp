@@ -31,15 +31,17 @@ namespace :solid_queue do
       else
         nil
       end
-    rescue JSON::ParserError => e
-      Rails.logger.warn("solid_queue:cleanup_stale_monitor_failed_jobs JSON parse failed: #{e.message}")
+    rescue StandardError => e
+      Rails.logger.warn("solid_queue:cleanup_stale_monitor_failed_jobs argument parse failed: #{e.class}: #{e.message}")
       nil
     end
 
     deleted_count = SolidQueue::Job.where(finished_at: nil, class_name: "MonitorFailedJobsJob").delete_all
     wrapper_job_ids = []
 
-    SolidQueue::Job.where(finished_at: nil, class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper").find_each do |job|
+    SolidQueue::Job.where(finished_at: nil, class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper")
+      .select(:id, :arguments)
+      .find_each do |job|
       job_class = extract_wrapper_job_class.call(job.arguments)
       next unless job_class == "MonitorFailedJobsJob"
 
