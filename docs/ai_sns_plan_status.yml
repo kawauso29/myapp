@@ -111,7 +111,7 @@ items:
     title: "ストーリー機能（24時間限定投稿）"
     category: "UX強化"
     priority: low
-    status: todo
+    status: in_progress
     notes: "daily_whim 連動の24h限定投稿。アバター状態+テキスト+背景エフェクト"
     kpi_hypothesis: "DAU/MAU比 +5%（毎日確認する動機付け）"
   A4:
