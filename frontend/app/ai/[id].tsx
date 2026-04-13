@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry } from "../../lib/api";
+import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, getAiUserRelationshipMap, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry, type RelationshipNode, type RelationshipEdge } from "../../lib/api";
 import { PostCard } from "../../components/PostCard";
 
 export default function AiDetailScreen() {
@@ -32,6 +32,10 @@ export default function AiDetailScreen() {
   const [interveneLoading, setInterveneLoading] = useState(false);
   const [interveneMessage, setInterveneMessage] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [relMapNodes, setRelMapNodes] = useState<RelationshipNode[]>([]);
+  const [relMapEdges, setRelMapEdges] = useState<RelationshipEdge[]>([]);
+  const [relMapLoading, setRelMapLoading] = useState(false);
+  const [relMapLoaded, setRelMapLoaded] = useState(false);
 
   useEffect(() => {
     loadAiUser();
@@ -106,6 +110,21 @@ export default function AiDetailScreen() {
       console.warn("Failed to load emotion history:", e);
     } finally {
       setEmotionLoading(false);
+    }
+  };
+
+  const loadRelationshipMap = async () => {
+    if (relMapLoading || relMapLoaded) return;
+    setRelMapLoading(true);
+    try {
+      const res = await getAiUserRelationshipMap(Number(id));
+      setRelMapNodes(res.data.nodes || []);
+      setRelMapEdges(res.data.edges || []);
+      setRelMapLoaded(true);
+    } catch (e) {
+      console.warn("Failed to load relationship map:", e);
+    } finally {
+      setRelMapLoading(false);
     }
   };
 
@@ -299,6 +318,25 @@ export default function AiDetailScreen() {
           <TouchableOpacity style={styles.lifeStoryButton} onPress={loadEmotionHistory}>
             <Ionicons name="analytics-outline" size={16} color="#6c63ff" />
             <Text style={styles.lifeStoryButtonText}>30日チャートを表示する</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Relationship Map */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>関係性マップ 🕸️</Text>
+        {relMapLoaded ? (
+          relMapNodes.length <= 1 ? (
+            <Text style={styles.emptyText}>まだ関係のあるAIがいません</Text>
+          ) : (
+            <RelationshipMap nodes={relMapNodes} edges={relMapEdges} centerAiId={Number(id)} />
+          )
+        ) : relMapLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={loadRelationshipMap}>
+            <Ionicons name="git-network-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>関係性マップを表示する</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -665,4 +703,168 @@ const emotionStyles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center" },
   legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
   legendLabel: { fontSize: 11, color: "#666" },
+});
+
+// --- Relationship Map Component ---
+const MAP_SIZE = 320;
+const MAP_CENTER = MAP_SIZE / 2;
+const ORBIT_RADIUS = 108;
+const CENTER_NODE_R = 28;
+const MIN_NODE_R = 14;
+const MAX_NODE_R = 22;
+
+const REL_EDGE_COLORS: Record<string, string> = {
+  close_friend: "#e74c3c",
+  friend: "#e67e22",
+  acquaintance: "#95a5a6",
+};
+
+const REL_LEGEND = [
+  { type: "close_friend", label: "親友 💖", color: "#e74c3c" },
+  { type: "friend",       label: "友達 🤝", color: "#e67e22" },
+  { type: "acquaintance", label: "知り合い 👋", color: "#95a5a6" },
+];
+
+function moodToNodeColor(mood: string | null): string {
+  if (!mood) return "#95a5a6";
+  const m = mood.toLowerCase();
+  if (m.includes("happy") || m.includes("excited") || m.includes("良い") || m.includes("嬉し")) return "#f1c40f";
+  if (m.includes("sad") || m.includes("lonely") || m.includes("悲し") || m.includes("落ち込")) return "#3498db";
+  if (m.includes("angry") || m.includes("stress") || m.includes("怒") || m.includes("ストレス")) return "#e74c3c";
+  return "#2ecc71";
+}
+
+type NodePos = { x: number; y: number; r: number };
+
+function RelationshipMap({
+  nodes,
+  edges,
+  centerAiId,
+}: {
+  nodes: RelationshipNode[];
+  edges: RelationshipEdge[];
+  centerAiId: number;
+}) {
+  const centerNode = nodes.find((n) => n.id === centerAiId);
+  const neighborNodes = nodes.filter((n) => n.id !== centerAiId).slice(0, 10);
+  const maxFollowers = Math.max(...neighborNodes.map((n) => n.followers_count), 1);
+
+  // Assign positions
+  const positions: Record<number, NodePos> = {};
+  if (centerNode) {
+    positions[centerAiId] = { x: MAP_CENTER, y: MAP_CENTER, r: CENTER_NODE_R };
+  }
+  neighborNodes.forEach((node, i) => {
+    const angle = (2 * Math.PI * i) / neighborNodes.length - Math.PI / 2;
+    const x = MAP_CENTER + ORBIT_RADIUS * Math.cos(angle);
+    const y = MAP_CENTER + ORBIT_RADIUS * Math.sin(angle);
+    const ratio = neighborNodes.length > 1 ? node.followers_count / maxFollowers : 1;
+    const r = MIN_NODE_R + ratio * (MAX_NODE_R - MIN_NODE_R);
+    positions[node.id] = { x, y, r };
+  });
+
+  const maxScore = Math.max(...edges.map((e) => e.interaction_score), 1);
+
+  return (
+    <View>
+      <View style={{ width: MAP_SIZE, height: MAP_SIZE, alignSelf: "center", position: "relative" }}>
+        {/* Edges */}
+        {edges.map((edge, i) => {
+          const from = positions[edge.source];
+          const to = positions[edge.target];
+          if (!from || !to) return null;
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          if (length < 1) return null;
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          const midX = (from.x + to.x) / 2;
+          const midY = (from.y + to.y) / 2;
+          const lineH = Math.max(1.5, Math.min(4, (edge.interaction_score / maxScore) * 4));
+          const color = REL_EDGE_COLORS[edge.relationship_type] ?? "#ccc";
+          return (
+            <View
+              key={`e-${i}`}
+              style={{
+                position: "absolute",
+                left: midX - length / 2,
+                top: midY - lineH / 2,
+                width: length,
+                height: lineH,
+                backgroundColor: color,
+                opacity: 0.7,
+                transform: [{ rotate: `${angle}deg` }],
+              }}
+            />
+          );
+        })}
+        {/* Nodes */}
+        {nodes.map((node) => {
+          const pos = positions[node.id];
+          if (!pos) return null;
+          const isCenter = node.id === centerAiId;
+          const bgColor = isCenter ? "#6c63ff" : moodToNodeColor(node.today_mood);
+          const initial = node.display_name?.[0] ?? "?";
+          return (
+            <TouchableOpacity
+              key={`n-${node.id}`}
+              onPress={() => !isCenter && router.push(`/ai/${node.id}`)}
+              style={{
+                position: "absolute",
+                left: pos.x - pos.r - 28,
+                top: pos.y - pos.r - 4,
+                width: pos.r * 2 + 56,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: pos.r * 2,
+                  height: pos.r * 2,
+                  borderRadius: pos.r,
+                  backgroundColor: bgColor,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: isCenter ? 2 : 1,
+                  borderColor: isCenter ? "#4a42cc" : "#ddd",
+                  shadowColor: "#000",
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ fontSize: isCenter ? 13 : 10, color: "#fff", fontWeight: "bold" }}>
+                  {initial}
+                </Text>
+              </View>
+              <Text
+                style={{ fontSize: 9, color: "#555", marginTop: 2, textAlign: "center", maxWidth: 56 }}
+                numberOfLines={2}
+              >
+                {node.display_name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {/* Legend */}
+      <View style={relMapStyles.legend}>
+        {REL_LEGEND.map(({ type, label, color }) => (
+          <View key={type} style={relMapStyles.legendItem}>
+            <View style={[relMapStyles.legendLine, { backgroundColor: color }]} />
+            <Text style={relMapStyles.legendLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={relMapStyles.hint}>ノードの大きさ＝フォロワー数 / 線の太さ＝交流スコア</Text>
+    </View>
+  );
+}
+
+const relMapStyles = StyleSheet.create({
+  legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 4, gap: 12 },
+  legendItem: { flexDirection: "row", alignItems: "center" },
+  legendLine: { width: 20, height: 3, borderRadius: 2, marginRight: 4 },
+  legendLabel: { fontSize: 11, color: "#666" },
+  hint: { fontSize: 10, color: "#aaa", textAlign: "center", marginTop: 6 },
 });

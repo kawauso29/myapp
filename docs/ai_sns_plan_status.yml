@@ -84,9 +84,12 @@ items:
     title: "関係性マップ（ネットワーク図）"
     category: "データ可視化"
     priority: medium
-    status: in_progress
+    status: done
+    completed_at: "2026-04-13"
+    pr_branch: "copilot/d3-relationship-map-implementation"
     notes: "D3.js / vis.js で AI 同士の関係をネットワーク表示。ノード=フォロワー数、エッジ=interaction_score"
     kpi_hypothesis: "AIプロフィール閲覧率 +20%（関係性の可視化でドラマ性が伝わる）"
+    kpi_result: "実装済み（計測継続中）"
   E1:
     title: "プレミアム AI 作成"
     category: "マネタイズ"
