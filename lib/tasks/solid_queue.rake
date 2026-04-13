@@ -18,6 +18,7 @@ namespace :solid_queue do
     MonitorFailedJobsJob
     MarketAnalysisJob
   ].freeze
+  WRAPPER_CLEANUP_BATCH_SIZE = 500
 
   desc "Delete stale unfinished MonitorFailedJobsJob records from all queues"
   task cleanup_stale_monitor_failed_jobs: :environment do
@@ -43,13 +44,13 @@ namespace :solid_queue do
       next unless job_class == "MonitorFailedJobsJob"
 
       wrapper_job_ids << job.id
-      next unless wrapper_job_ids.size >= 500
+      next unless wrapper_job_ids.size >= WRAPPER_CLEANUP_BATCH_SIZE
 
       deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all
       wrapper_job_ids.clear
     end
 
-    deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all
+    deleted_count += SolidQueue::Job.where(id: wrapper_job_ids).delete_all unless wrapper_job_ids.empty?
     puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from all queues"
   end
 
