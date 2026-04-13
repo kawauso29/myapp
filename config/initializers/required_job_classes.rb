@@ -11,6 +11,7 @@ Rails.application.reloader.to_prepare do
     DynamicParamsUpdateJob
     AiSnsAutonomousImprovementJob
     MilestoneCheckJob
+    WeeklyKpiSnapshotJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

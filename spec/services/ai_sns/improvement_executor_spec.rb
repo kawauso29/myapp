@@ -21,7 +21,10 @@ RSpec.describe AiSns::ImprovementExecutor do
     it "enqueues allowed quick-win jobs and sends Slack notification" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
 
@@ -35,7 +38,10 @@ RSpec.describe AiSns::ImprovementExecutor do
       unsupported = analysis_result.deep_dup
       unsupported["quick_wins"][0]["action"]["job_class"] = "UnknownJobClass"
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: unsupported)
 
@@ -43,29 +49,70 @@ RSpec.describe AiSns::ImprovementExecutor do
       expect(result["quick_win_results"].first["status"]).to eq("skipped")
     end
 
-    it "creates GitHub Issues for each feature proposal" do
+    it "creates GitHub PRs for each new (non-duplicate) feature proposal" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      fake_issue = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/issues/42" }
-      allow(GithubIssueService).to receive(:create_issue).and_return(fake_issue)
+      fake_pr = { "number" => 42, "html_url" => "https://github.com/kawauso29/myapp/pull/42" }
+      allow(GithubPrService).to receive(:create_pr).and_return(fake_pr)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
 
-      expect(GithubIssueService).to have_received(:create_issue).with(
+      expect(GithubPrService).to have_received(:create_pr).with(
         title: "[AI SNS自動提案] 会話スレッド改善",
         body: a_string_including("返信率を上げるため")
       )
-      expect(result["created_issue_numbers"]).to eq([42])
+      expect(result["created_pr_numbers"]).to eq([42])
     end
 
-    it "returns empty created_issue_numbers when GithubIssueService returns nil" do
+    it "skips duplicate feature proposals already in recent logs" do
       allow(PostMotivationCalculateJob).to receive(:perform_later)
       allow(SlackNotifierService).to receive(:notify)
-      allow(GithubIssueService).to receive(:create_issue).and_return(nil)
+      allow(GithubPrService).to receive(:create_pr)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new(["会話スレッド改善"]))
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
 
       result = described_class.call(analysis_result: analysis_result)
 
-      expect(result["created_issue_numbers"]).to eq([])
+      expect(GithubPrService).not_to have_received(:create_pr)
+      expect(result["created_pr_numbers"]).to eq([])
+    end
+
+    it "handles adjust_post_motivation quick win" do
+      motivation_result = analysis_result.deep_dup
+      motivation_result["quick_wins"][0]["action"] = { "type" => "adjust_post_motivation", "boost" => 20 }
+      allow(SlackNotifierService).to receive(:notify)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
+
+      update_relation = double("update_relation")
+      allow(AiDailyState).to receive(:where).and_return(update_relation)
+      allow(update_relation).to receive(:joins).and_return(update_relation)
+      allow(update_relation).to receive(:merge).and_return(update_relation)
+      allow(update_relation).to receive(:update_all).and_return(5)
+
+      result = described_class.call(analysis_result: motivation_result)
+
+      expect(result["applied_quick_wins"]).to eq(1)
+      expect(result["quick_win_results"].first["reason"]).to match(/post_motivation_boosted/)
+    end
+
+    it "returns empty created_pr_numbers when GithubPrService returns nil" do
+      allow(PostMotivationCalculateJob).to receive(:perform_later)
+      allow(SlackNotifierService).to receive(:notify)
+      allow(GithubPrService).to receive(:create_pr).and_return(nil)
+      allow(ImprovementLog).to receive(:recent_feature_titles).and_return(Set.new)
+      allow(ImprovementLog).to receive(:where).and_return(double(pluck: []))
+      allow(Admin::AiSnsPlanService).to receive(:items).and_return({})
+
+      result = described_class.call(analysis_result: analysis_result)
+
+      expect(result["created_pr_numbers"]).to eq([])
     end
   end
 end

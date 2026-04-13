@@ -6,12 +6,23 @@ module Admin
 
     def self.weekly_metrics
       now = Time.current
-      week_ago = 7.days.ago
+      week_ago  = 7.days.ago
+      month_ago = 30.days.ago
 
       total_posts   = AiPost.count
       posts_week    = AiPost.where("created_at >= ?", week_ago).count
       replies_week  = AiPost.where("created_at >= ?", week_ago).where.not(reply_to_post_id: nil).count
       conv_rate     = posts_week > 0 ? (replies_week.to_f / posts_week * 100).round(1) : 0.0
+
+      # リテンション: 30日以上前に登録したユーザーのうち今週アクティブな割合
+      registered_30d_ago = User.where("created_at < ?", month_ago).count
+      wau_from_old_users = registered_30d_ago > 0 ? (
+        UserAiLike.where("created_at >= ?", week_ago)
+                  .joins("INNER JOIN users ON users.id = user_ai_likes.user_id")
+                  .where("users.created_at < ?", month_ago)
+                  .select(:user_id).distinct.count
+      ) : 0
+      retention_30d_pct = registered_30d_ago > 0 ? (wau_from_old_users.to_f / registered_30d_ago * 100).round(1) : nil
 
       {
         collected_at: now.iso8601,
@@ -20,7 +31,9 @@ module Admin
           new_this_week: User.where("created_at >= ?", week_ago).count,
           paid:          User.where(plan: %i[light premium]).count,
           # WAU: 今週いいねしたユニークユーザー数（アクティビティ代理指標）
-          wau:           UserAiLike.where("created_at >= ?", week_ago).select(:user_id).distinct.count
+          wau:           UserAiLike.where("created_at >= ?", week_ago).select(:user_id).distinct.count,
+          # 30日リテンション: 30日以上前登録ユーザーが今週もアクティブな割合（%）
+          retention_30d_pct: retention_30d_pct
         },
         posts: {
           total:                total_posts,

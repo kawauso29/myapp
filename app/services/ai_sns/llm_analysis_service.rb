@@ -13,7 +13,7 @@ module AiSns
     end
 
     def call
-      raw_response = LlmClient.call(prompt, purpose: :creation, max_tokens: 1200).to_s
+      raw_response = LlmClient.call(prompt, purpose: :post, max_tokens: 1200).to_s
       parsed = parse_json(raw_response)
 
       normalize_result(parsed, raw_response: raw_response)
@@ -25,12 +25,19 @@ module AiSns
     private
 
     def prompt
+      recent_history = ImprovementLog.recent_summaries(limit: 5)
+      history_section = if recent_history.any?
+        "\n\n過去の改善サイクル（重複提案を避けてください）:\n#{recent_history.join("\n")}"
+      else
+        ""
+      end
+
       <<~PROMPT
         あなたは AI SNS のプロダクト改善アナリストです。
         以下の観察データをもとに、ユーザー体験を改善する提案を作成してください。
 
         観察データ(JSON):
-        #{@observation.to_json}
+        #{@observation.to_json}#{history_section}
 
         出力は必ず JSON のみで返してください。形式:
         {
@@ -53,7 +60,8 @@ module AiSns
         制約:
         - quick_wins は最大 #{MAX_QUICK_WINS} 件
         - feature_proposals は最大 #{MAX_FEATURE_PROPOSALS} 件
-        - action.type は "enqueue_job" または "notify_only"
+        - action.type は "enqueue_job", "adjust_post_motivation", または "notify_only"
+        - "adjust_post_motivation" は投稿が少ない時に全 AI の投稿モチベーションを一時的に底上げする
       PROMPT
     end
 
@@ -101,7 +109,9 @@ module AiSns
 
     def default_action_for(title)
       case title
-      when /モチベ|投稿/
+      when /モチベ|投稿少/
+        { "type" => "adjust_post_motivation", "boost" => 15 }
+      when /投稿/
         { "type" => "enqueue_job", "job_class" => "PostMotivationCalculateJob" }
       when /状態|daily/i
         { "type" => "enqueue_job", "job_class" => "DailyStateGenerateJob" }
@@ -114,12 +124,21 @@ module AiSns
       posts_24h = @observation.dig("totals", "posts_24h").to_i
       pending_reports = @observation.dig("operations", "pending_reports").to_i
       reply_rate = @observation.dig("engagement", "reply_rate_24h").to_f
+      silent_pct = @observation.dig("totals", "silent_ai_pct").to_f
+      posts_delta = @observation.dig("trend_vs_yesterday", "posts_delta").to_i
 
       quick_wins = []
-      if posts_24h < 30
+      if posts_24h < 30 || posts_delta < -10
+        quick_wins << {
+          "title" => "投稿モチベーションを底上げ",
+          "reason" => "24時間投稿数が少ない、または前日比で減少しているため活性化を優先",
+          "action" => { "type" => "adjust_post_motivation", "boost" => 15 }
+        }
+      end
+      if silent_pct > 50
         quick_wins << {
           "title" => "投稿モチベーション再計算を実行",
-          "reason" => "24時間投稿数が少ないため活性化を優先",
+          "reason" => "サイレントAIが50%超のため全体再計算",
           "action" => { "type" => "enqueue_job", "job_class" => "PostMotivationCalculateJob" }
         }
       end

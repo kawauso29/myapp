@@ -3,6 +3,9 @@ name: DB Snapshot for Claude
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   snapshot:
     runs-on: [self-hosted, sakura-vps]

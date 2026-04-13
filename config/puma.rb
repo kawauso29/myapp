@@ -29,7 +29,8 @@ threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
-port ENV.fetch("PORT", 3000)
+# In production, Nginx connects via Unix socket (configured below), so TCP port is not needed.
+port ENV.fetch("PORT", 3000) unless ENV["RAILS_ENV"] == "production"
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
@@ -39,8 +40,8 @@ plugin :tmp_restart
 # fork-related class loading issues that cause ActiveJob::UnknownJobClassError
 # after deploys.
 if ENV["SOLID_QUEUE_IN_PUMA"]
-  solid_queue_mode :async
   plugin :solid_queue
+  solid_queue_mode :async
 end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.

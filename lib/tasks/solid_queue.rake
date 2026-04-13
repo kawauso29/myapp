@@ -11,6 +11,7 @@ namespace :solid_queue do
     DynamicParamsUpdateJob
     AiSnsAutonomousImprovementJob
     MilestoneCheckJob
+    WeeklyKpiSnapshotJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

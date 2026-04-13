@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "0 * * * *"  # 毎時00分（WIP上限チェック込み）
+    - cron: "0 0 */2 * *"  # 2日に1回 9:00 JST (0:00 UTC)
 
 permissions:
   contents: write
@@ -25,7 +25,8 @@ jobs:
       - name: WIP 上限チェック
         id: wip_check
         run: |
-          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || echo 0)
+          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          WIP_COUNT=${WIP_COUNT:-0}
           WIP_LIMIT=2
           INPUT_ID="${{ github.event.inputs.item_id }}"
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
@@ -141,7 +142,9 @@ jobs:
               '',
               '---',
               '',
-              `@github-copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`
+              `@github-copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`,
+              '',
+              '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n')
 
             const issue = await github.rest.issues.create({
