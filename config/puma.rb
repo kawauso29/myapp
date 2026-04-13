@@ -40,8 +40,8 @@ plugin :tmp_restart
 # fork-related class loading issues that cause ActiveJob::UnknownJobClassError
 # after deploys.
 if ENV["SOLID_QUEUE_IN_PUMA"]
-  solid_queue_mode :async
   plugin :solid_queue
+  solid_queue_mode :async
 end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
