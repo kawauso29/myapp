@@ -59,7 +59,11 @@ RSpec.describe AiActionCheckJob, type: :job do
     end
 
     context "when post_motivation is nil" do
-      let(:daily_state) { create(:ai_daily_state, ai_user: ai_user, post_motivation: nil) }
+      let(:daily_state) { create(:ai_daily_state, ai_user: ai_user) }
+
+      before do
+        allow(daily_state).to receive(:post_motivation).and_return(nil)
+      end
 
       it "skips the AI without raising" do
         expect(AiAction::ActionChecker).not_to receive(:should_post?)
