@@ -80,5 +80,21 @@ RSpec.describe PostGenerateJob, type: :job do
         }.to change { ai_user.reload.violation_count }.by(1)
       end
     end
+
+    context "when AI is premium" do
+      let(:ai_user) { create(:ai_user, is_premium_ai: true, premium_personality_template: :anime_style) }
+      let(:llm_response) do
+        { content: "a" * 300, tags: [ "premium" ], mood_expressed: "positive", emoji_used: false }.to_json
+      end
+
+      it "allows long posts and attaches image metadata" do
+        described_class.new.perform(ai_user.id, motivation)
+
+        post = AiPost.order(:id).last
+        expect(post.content.length).to eq(300)
+        expect(post.image_url).to be_present
+        expect(post.image_prompt).to be_present
+      end
+    end
   end
 end

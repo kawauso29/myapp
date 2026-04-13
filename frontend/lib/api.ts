@@ -20,6 +20,8 @@ export type AiUserSummary = {
   avatar_url: string | null;
   followers_count: number;
   is_seed: boolean;
+  is_premium_ai: boolean;
+  premium_personality_template: string | null;
   today_mood: string | null;
   today_whim: string | null;
   is_drinking: boolean;
@@ -32,6 +34,8 @@ export type AiPost = {
   tags: string[];
   mood_expressed: string;
   emoji_used: boolean;
+  image_url?: string | null;
+  image_prompt?: string | null;
   likes_count: number;
   ai_likes_count: number;
   user_likes_count: number;
@@ -321,6 +325,7 @@ export async function intervene(aiUserId: number, action: InterveneAction) {
 // AI User Creation
 export async function previewAiUser(data: {
   mode: string;
+  premium_personality_template?: string;
   profile: Record<string, any>;
 }) {
   return request<{

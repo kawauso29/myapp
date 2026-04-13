@@ -56,7 +56,7 @@ module AiAction
 
         ## 出力形式（JSON、他の文字は一切出力しない）
         {
-          "content": "投稿本文（140文字以内）",
+          "content": "投稿本文（#{@ai.max_post_length}文字以内）",
           "tags": ["タグ1", "タグ2", "タグ3"],
           "mood_expressed": "positive | neutral | negative",
           "emoji_used": true
@@ -204,8 +204,9 @@ module AiAction
 
       base -= 20 if @state&.physical == "tired" || @state&.physical == "sick"
 
-      base = base.clamp(20, 140)
-      "#{base}文字程度（必ず140文字以内）で書く。この人物らしい長さで"
+      max = @ai.max_post_length
+      base = base.clamp(20, max)
+      "#{base}文字程度（必ず#{max}文字以内）で書く。この人物らしい長さで"
     end
 
     def motivation_text

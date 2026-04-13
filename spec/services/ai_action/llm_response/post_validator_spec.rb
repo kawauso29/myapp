@@ -73,6 +73,19 @@ RSpec.describe AiAction::LlmResponse::PostValidator do
       end
     end
 
+    context "with custom max_length" do
+      let(:validator) { described_class.new(max_length: 500) }
+      let(:raw_text) do
+        { content: "a" * 400, mood_expressed: "neutral" }.to_json
+      end
+
+      it "returns ok" do
+        result = validator.validate(raw_text)
+
+        expect(result[:ok]).to be true
+      end
+    end
+
     context "with invalid mood_expressed" do
       let(:raw_text) do
         { content: "Hello", mood_expressed: "excited" }.to_json

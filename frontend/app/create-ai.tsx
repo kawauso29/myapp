@@ -21,8 +21,10 @@ export default function CreateAiScreen() {
   const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
   const [planLimitReached, setPlanLimitReached] = useState(false);
-  const [planInfo, setPlanInfo] = useState<{ ai_count: number; max_ai_count: number | string } | null>(null);
+  const [planInfo, setPlanInfo] = useState<{ ai_count: number; max_ai_count: number | string; plan: string } | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [premiumMode, setPremiumMode] = useState(false);
+  const [premiumTemplate, setPremiumTemplate] = useState<"celebrity_style" | "anime_style">("celebrity_style");
 
   // Form fields
   const [name, setName] = useState("");
@@ -50,9 +52,12 @@ export default function CreateAiScreen() {
         return;
       }
       const res = await getMe();
-      const { ai_count, plan_limits } = res.data;
+      const { ai_count, plan_limits, plan } = res.data;
       const maxAi = plan_limits?.max_ai_count ?? 1;
-      setPlanInfo({ ai_count, max_ai_count: maxAi });
+      setPlanInfo({ ai_count, max_ai_count: maxAi, plan: plan || "free" });
+      if (plan !== "premium") {
+        setPremiumMode(false);
+      }
       if (maxAi !== "unlimited" && ai_count >= maxAi) {
         setPlanLimitReached(true);
       }
@@ -81,7 +86,8 @@ export default function CreateAiScreen() {
         .filter(Boolean);
 
       const res = await previewAiUser({
-        mode: "simple",
+        mode: premiumMode ? "premium" : "simple",
+        premium_personality_template: premiumMode ? premiumTemplate : undefined,
         profile: {
           name: name.trim(),
           personality_note: personalityNote.trim(),
@@ -245,6 +251,45 @@ export default function CreateAiScreen() {
         </View>
 
         <View style={styles.formSection}>
+          {planInfo?.plan === "premium" && (
+            <View style={styles.premiumSection}>
+              <Text style={styles.label}>プレミアムAI作成</Text>
+              <View style={styles.premiumToggleRow}>
+                <TouchableOpacity
+                  style={[styles.premiumToggleButton, !premiumMode && styles.premiumToggleButtonActive]}
+                  onPress={() => setPremiumMode(false)}
+                >
+                  <Text style={[styles.premiumToggleText, !premiumMode && styles.premiumToggleTextActive]}>通常</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.premiumToggleButton, premiumMode && styles.premiumToggleButtonActive]}
+                  onPress={() => setPremiumMode(true)}
+                >
+                  <Text style={[styles.premiumToggleText, premiumMode && styles.premiumToggleTextActive]}>プレミアム</Text>
+                </TouchableOpacity>
+              </View>
+              {premiumMode && (
+                <>
+                  <Text style={styles.premiumHint}>500文字投稿・画像付き投稿・限定テンプレートが有効になります</Text>
+                  <View style={styles.premiumToggleRow}>
+                    <TouchableOpacity
+                      style={[styles.premiumToggleButton, premiumTemplate === "celebrity_style" && styles.premiumToggleButtonActive]}
+                      onPress={() => setPremiumTemplate("celebrity_style")}
+                    >
+                      <Text style={[styles.premiumToggleText, premiumTemplate === "celebrity_style" && styles.premiumToggleTextActive]}>有名人風</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.premiumToggleButton, premiumTemplate === "anime_style" && styles.premiumToggleButtonActive]}
+                      onPress={() => setPremiumTemplate("anime_style")}
+                    >
+                      <Text style={[styles.premiumToggleText, premiumTemplate === "anime_style" && styles.premiumToggleTextActive]}>アニメ風</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+
           <Text style={styles.label}>
             名前 <Text style={styles.required}>*</Text>
           </Text>
@@ -369,6 +414,45 @@ const styles = StyleSheet.create({
 
   // Form
   formSection: { paddingHorizontal: 20 },
+  premiumSection: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fdba74",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  premiumToggleRow: {
+    flexDirection: "row",
+    marginTop: 8,
+    gap: 8,
+  },
+  premiumToggleButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  premiumToggleButtonActive: {
+    backgroundColor: "#ea580c",
+    borderColor: "#ea580c",
+  },
+  premiumToggleText: {
+    color: "#9a3412",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  premiumToggleTextActive: {
+    color: "#fff",
+  },
+  premiumHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#9a3412",
+  },
   label: {
     fontSize: 14,
     fontWeight: "600",

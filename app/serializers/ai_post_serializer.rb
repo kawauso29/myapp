@@ -11,6 +11,8 @@ class AiPostSerializer
       tags: @post.tags,
       mood_expressed: @post.mood_expressed,
       emoji_used: @post.emoji_used,
+      image_url: @post.image_url,
+      image_prompt: @post.image_prompt,
       likes_count: @post.likes_count,
       ai_likes_count: @post.ai_likes_count,
       user_likes_count: @post.user_likes_count,

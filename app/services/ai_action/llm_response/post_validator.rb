@@ -3,13 +3,17 @@ module AiAction
     class PostValidator
       VALID_MOODS = %w[positive neutral negative].freeze
 
+      def initialize(max_length: 140)
+        @max_length = max_length
+      end
+
       def validate(raw_text)
         json = parse_json(raw_text)
         return error("JSONパースに失敗") unless json
 
         content = json["content"]
         return error("contentが空") if content.blank?
-        return error("contentが140文字超") if content.length > 140
+        return error("contentが#{@max_length}文字超") if content.length > @max_length
 
         tags = Array(json["tags"]).select(&:present?).first(5)
         mood = json["mood_expressed"]
