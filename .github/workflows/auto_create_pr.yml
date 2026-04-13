@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create pull request if missing
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const workflowRun = context.payload.workflow_run;

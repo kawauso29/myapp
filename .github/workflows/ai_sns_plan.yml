@@ -110,7 +110,7 @@ jobs:
       - name: 実装依頼 Issue を起票
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         id: create_issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const itemId = '${{ steps.select.outputs.item_id }}'
