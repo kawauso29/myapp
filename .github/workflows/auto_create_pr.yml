@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   create_pr_on_ci_pass:
@@ -66,6 +67,22 @@ jobs:
                 body
               });
               core.info(`Created PR #${created.number} for branch ${headBranch}`);
+              // session-hold ラベルを付与（会話中の自動マージを防止）
+              try {
+                try {
+                  await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name: 'session-hold' });
+                } catch (labelGetError) {
+                  if (labelGetError.status === 404) {
+                    await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name: 'session-hold', color: 'e4e669', description: 'Conversation in progress - holds auto-merge until removed' });
+                  } else {
+                    core.warning(`Could not check session-hold label existence (status: ${labelGetError.status}): ${labelGetError.message}`);
+                  }
+                }
+                await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: created.number, labels: ['session-hold'] });
+                core.info(`Added session-hold label to PR #${created.number}`);
+              } catch (holdLabelError) {
+                core.warning(`Failed to add session-hold label to PR #${created.number}: ${holdLabelError.message}`);
+              }
             } catch (error) {
               if (error.status === 422) {
                 core.info(`Skipping PR creation for ${headBranch}: ${error.message}`);
