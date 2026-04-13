@@ -196,7 +196,7 @@ jobs:
             core.setOutput('pr_existed', 'false')
 
       - name: Slack 通知
-        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
