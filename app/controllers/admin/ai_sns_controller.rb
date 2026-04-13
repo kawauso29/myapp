@@ -114,6 +114,7 @@ class Admin::AiSnsController < Admin::BaseController
     @ai_sns_plan_stats = Admin::AiSnsPlanService.stats
     @ai_sns_plan_next = Admin::AiSnsPlanService.next_item
     @ai_sns_plan_items = Admin::AiSnsPlanService.items_by_priority
+    @last_manual_job_status = fetch_last_manual_job_status
   end
 
   def ai_users
@@ -222,6 +223,7 @@ class Admin::AiSnsController < Admin::BaseController
                            .includes(:job)
                            .order(created_at: :desc)
                            .limit(100)
+    @failed_execution_rows = @failed_executions.map { |execution| build_failed_execution_row(execution) }
   end
 
   def run_job
@@ -233,8 +235,12 @@ class Admin::AiSnsController < Admin::BaseController
 
     job_class = job_config.fetch(:klass)
     job_args = job_config.fetch(:args, [])
-    job_class.perform_later(*job_args)
-    redirect_to admin_ai_sns_path, notice: "#{job_class.name} をキューに追加しました"
+    enqueued_job = job_class.perform_later(*job_args)
+    save_last_manual_job!(job_class: job_class, job_key: job_key, active_job_id: enqueued_job.job_id)
+    redirect_to admin_ai_sns_path, notice: "#{job_class.name} をキューに追加しました（ActiveJob ID: #{enqueued_job.job_id}）"
+  rescue => e
+    Rails.logger.error "Failed to enqueue admin manual job (#{job_key}): #{e.message}"
+    redirect_to admin_ai_sns_path, alert: "ジョブ投入に失敗しました: #{e.message}"
   end
 
   def clear_failed_jobs
@@ -377,6 +383,99 @@ class Admin::AiSnsController < Admin::BaseController
   rescue => e
     Rails.logger.warn "Failed to fetch upcoming AI SNS scheduled jobs: #{e.message}"
     []
+  end
+
+  def save_last_manual_job!(job_class:, job_key:, active_job_id:)
+    session[:admin_ai_sns_last_manual_job] = {
+      job_class: job_class.name,
+      job_key: job_key,
+      active_job_id: active_job_id,
+      triggered_at: Time.current.iso8601
+    }
+  end
+
+  def fetch_last_manual_job_status
+    raw = session[:admin_ai_sns_last_manual_job]
+    return nil unless raw.respond_to?(:to_h)
+
+    manual = raw.to_h.with_indifferent_access
+    active_job_id = manual[:active_job_id]
+    return nil if active_job_id.blank?
+
+    job = SolidQueue::Job.find_by(active_job_id: active_job_id)
+    return { manual: manual, status: :missing, job: nil, failed_execution: nil, error: nil } unless job
+
+    failed_execution = SolidQueue::FailedExecution.find_by(job_id: job.id)
+    status = if failed_execution
+      :failed
+    elsif job.finished_at.present?
+      :success
+    elsif SolidQueue::ClaimedExecution.exists?(job_id: job.id)
+      :running
+    elsif SolidQueue::ReadyExecution.exists?(job_id: job.id) || SolidQueue::ScheduledExecution.exists?(job_id: job.id)
+      :queued
+    else
+      :unknown
+    end
+
+    {
+      manual: manual,
+      status: status,
+      job: job,
+      failed_execution: failed_execution,
+      error: normalized_error_data(failed_execution&.error)
+    }
+  rescue => e
+    Rails.logger.warn "Failed to fetch last manual job status: #{e.message}"
+    nil
+  end
+
+  def build_failed_execution_row(execution)
+    error_data = normalized_error_data(execution.error)
+    {
+      execution: execution,
+      job_class_name: resolved_job_class_name(execution.job, error_data),
+      exception_class: error_data["exception_class"].presence || "Unknown",
+      message: error_data["message"].to_s,
+      backtrace: Array(error_data["backtrace"]).first(5)
+    }
+  end
+
+  def normalized_error_data(error)
+    case error
+    when Hash
+      error.stringify_keys
+    when String
+      parsed = JSON.parse(error)
+      parsed.is_a?(Hash) ? parsed.stringify_keys : { "message" => error }
+    else
+      if error.respond_to?(:to_h)
+        error.to_h.stringify_keys
+      else
+        { "message" => error.to_s }
+      end
+    end
+  rescue JSON::ParserError
+    { "message" => error.to_s }
+  end
+
+  def resolved_job_class_name(job, error_data = {})
+    return "unknown" unless job
+
+    job_class_name = job.class_name
+    return job_class_name unless job_class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
+
+    payload = job.arguments
+    payload = JSON.parse(payload) if payload.is_a?(String)
+    payload = payload.first if payload.is_a?(Array)
+    wrapper_job_class = payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)
+    wrapper_job_class.presence || extract_missing_class_name(error_data["message"].to_s) || job_class_name
+  rescue JSON::ParserError
+    extract_missing_class_name(error_data["message"].to_s) || job_class_name
+  end
+
+  def extract_missing_class_name(message)
+    message.match(/class [`"]([^`"]+)[`"] doesn't exist/)&.captures&.first
   end
 
   def github_dispatch_request(token:, workflow:, body:)

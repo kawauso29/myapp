@@ -20,15 +20,15 @@
     <p style="color:#718096; text-align:center; padding:24px;">失敗ジョブはありません ✓</p>
   </div>
 <% else %>
-  <% @failed_executions.each do |fe| %>
-    <% error = fe.error || {} %>
-    <% exc_class   = error["exception_class"] || "Unknown" %>
-    <% exc_message = error["message"] || "" %>
-    <% backtrace   = Array(error["backtrace"]).first(5) %>
+  <% @failed_execution_rows.each do |row| %>
+    <% fe = row[:execution] %>
+    <% exc_class = row[:exception_class] %>
+    <% exc_message = row[:message] %>
+    <% backtrace = row[:backtrace] %>
     <div class="card" style="margin-bottom:8px; border-left:3px solid #fc8181;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
         <div>
-          <span style="font-weight:600; color:#e2e8f0; font-size:13px;"><%= fe.job.class_name %></span>
+          <span style="font-weight:600; color:#e2e8f0; font-size:13px;"><%= row[:job_class_name] %></span>
           <span style="margin-left:8px; font-size:11px; color:#fc8181; font-family:monospace;"><%= exc_class %></span>
         </div>
         <span style="color:#4a5568; font-size:11px; white-space:nowrap;">
@@ -44,7 +44,7 @@
           <pre style="margin-top:6px; font-size:11px; color:#718096; overflow-x:auto; white-space:pre-wrap;"><%= backtrace.join("\n") %></pre>
         </details>
       <% end %>
-      <% if fe.job.arguments.present? %>
+      <% if fe.job&.arguments.present? %>
         <div style="margin-top:4px; font-size:11px; color:#4a5568;">
           args: <span style="font-family:monospace; color:#718096;"><%= fe.job.arguments.to_s.truncate(100) %></span>
         </div>

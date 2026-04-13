@@ -16,4 +16,20 @@ RSpec.describe "Admin::AiSns", type: :request do
       expect(response.body).to include("Recent AI SNS Job Executions")
     end
   end
+
+  describe "POST /admin/ai_sns/run_job" do
+    it "手動実行後に ActiveJob ID 付き通知と直近実行ステータスを表示する" do
+      fake_job = instance_double(AiActionCheckJob, job_id: "manual-job-123")
+      allow(AiActionCheckJob).to receive(:perform_later).with("like").and_return(fake_job)
+
+      post "/admin/ai_sns/run_job", params: { job: "ai_action_like" }
+
+      expect(response).to redirect_to("/admin/ai_sns")
+      follow_redirect!
+
+      expect(response.body).to include("AiActionCheckJob をキューに追加しました（ActiveJob ID: manual-job-123）")
+      expect(response.body).to include("Last Manual Job Status")
+      expect(response.body).to include("manual-job-123")
+    end
+  end
 end
