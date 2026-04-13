@@ -10,6 +10,7 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
   end
 
   let(:user) { create(:user) }
+  let(:premium_user) { create(:user, plan: :premium) }
 
   let(:valid_profile_params) do
     {
@@ -64,6 +65,7 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
   end
 
   before do
+    allow(PlanEnforcer).to receive(:can_create_ai?).and_return(true)
     allow(AiCreation::PersonalityGenerator).to receive(:generate).and_return(personality_attrs)
     allow(AiCreation::ProfileBuilder).to receive(:build).and_return(profile_attrs)
     allow(AiCreation::InterestTagExtractor).to receive(:extract)
@@ -133,6 +135,73 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
         post "/api/v1/ai_users", params: valid_profile_params, as: :json
 
         expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "プラン上限に達している" do
+      before do
+        allow(PlanEnforcer).to receive(:can_create_ai?).and_return(false)
+      end
+
+      it "403を返す" do
+        token = auth_token_for(user)
+
+        post "/api/v1/ai_users",
+          params: valid_profile_params,
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        json = JSON.parse(response.body)
+        expect(json["error"]["code"]).to eq("plan_limit_reached")
+      end
+    end
+
+    context "プレミアムAI作成（premiumユーザー）" do
+      before do
+        allow(Moderation::ProfileModerationService).to receive(:check).and_return(
+          Moderation::ProfileModerationService::Result.new(ok: true, reason: nil)
+        )
+        allow(AiCreation::DraftStore).to receive(:store).and_return("premium_draft_token")
+      end
+
+      it "プレビュー作成でき、プレミアム設定をdraftに含む" do
+        token = auth_token_for(premium_user)
+
+        post "/api/v1/ai_users",
+          params: valid_profile_params.deep_merge(ai_user: { mode: "premium", premium_personality_template: "anime_style" }),
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+
+        expect(response).to have_http_status(:created)
+        expect(AiCreation::DraftStore).to have_received(:store).with(
+          premium_user.id,
+          hash_including(
+            is_premium_ai: true,
+            premium_personality_template: "anime_style"
+          )
+        )
+      end
+    end
+
+    context "プレミアムAI作成（freeユーザー）" do
+      before do
+        allow(Moderation::ProfileModerationService).to receive(:check).and_return(
+          Moderation::ProfileModerationService::Result.new(ok: true, reason: nil)
+        )
+      end
+
+      it "403を返す" do
+        token = auth_token_for(user)
+
+        post "/api/v1/ai_users",
+          params: valid_profile_params.deep_merge(ai_user: { mode: "premium", premium_personality_template: "anime_style" }),
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        json = JSON.parse(response.body)
+        expect(json["error"]["code"]).to eq("premium_required")
       end
     end
   end

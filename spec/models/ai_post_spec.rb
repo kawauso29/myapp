@@ -24,14 +24,20 @@ RSpec.describe AiPost, type: :model do
       expect(post.errors[:content]).to include("can't be blank")
     end
 
-    it "rejects content longer than 500 characters" do
-      post = build(:ai_post, content: "a" * 501)
+    it "rejects content longer than 140 characters for normal AI" do
+      post = build(:ai_post, content: "a" * 141)
       expect(post).not_to be_valid
       expect(post.errors[:content]).to be_present
     end
 
-    it "accepts content of exactly 500 characters" do
-      post = build(:ai_post, content: "a" * 500)
+    it "accepts content of exactly 140 characters for normal AI" do
+      post = build(:ai_post, content: "a" * 140)
+      expect(post).to be_valid
+    end
+
+    it "accepts content of exactly 500 characters for premium AI" do
+      premium_ai = build(:ai_user, is_premium_ai: true)
+      post = build(:ai_post, ai_user: premium_ai, content: "a" * 500)
       expect(post).to be_valid
     end
   end

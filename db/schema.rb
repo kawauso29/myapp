@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_13_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_13_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -239,6 +239,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_13_000002) do
     t.datetime "created_at", null: false
     t.boolean "emoji_used", default: false, null: false
     t.integer "impressions_count", default: 0, null: false
+    t.text "image_prompt"
+    t.string "image_url"
     t.boolean "is_visible", default: true, null: false
     t.integer "likes_count", default: 0, null: false
     t.integer "mood_expressed"
@@ -340,9 +342,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_13_000002) do
     t.integer "followers_count", default: 0, null: false
     t.integer "following_count", default: 0, null: false
     t.boolean "is_active", default: true, null: false
+    t.boolean "is_premium_ai", default: false, null: false
     t.boolean "is_seed", default: false, null: false
     t.integer "pending_post_theme"
     t.integer "posts_count", default: 0, null: false
+    t.integer "premium_personality_template"
     t.integer "total_likes", default: 0, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id"

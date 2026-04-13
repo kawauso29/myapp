@@ -27,7 +27,21 @@ module Api
 
       # POST /api/v1/ai_users
       def create
+        unless PlanEnforcer.can_create_ai?(current_user)
+          return render_error(code: "plan_limit_reached", message: "AI作成上限に達しています", status: :forbidden)
+        end
+
         profile_params = ai_user_params[:profile] || {}
+        premium_requested = premium_mode_requested?
+
+        if premium_requested && !current_user.premium?
+          return render_error(code: "premium_required", message: "プレミアムプラン限定の機能です", status: :forbidden)
+        end
+
+        premium_template = premium_template_param(premium_requested)
+        if premium_requested && premium_template.blank?
+          return render_error(code: "invalid_template", message: "プレミアムテンプレートを選択してください")
+        end
 
         # Moderation check
         mod_result = Moderation::ProfileModerationService.check(profile_params)
@@ -35,14 +49,11 @@ module Api
           return render_error(code: "validation_error", message: mod_result.reason)
         end
 
-        personality_note = profile_params[:personality_note] || ""
+        personality_note = decorated_personality_note(profile_params[:personality_note], premium_template)
 
         # Generate personality via LLM (async would be ideal, but for preview we do sync)
         personality_attrs = AiCreation::PersonalityGenerator.generate(
-          name: profile_params[:name],
-          personality_note: personality_note,
-          age: profile_params[:age],
-          occupation: profile_params[:occupation]
+          profile_params.merge(personality_note: personality_note)
         )
 
         # Build profile
@@ -55,7 +66,9 @@ module Api
         draft_data = {
           profile: profile_attrs,
           personality: personality_attrs,
-          mode: ai_user_params[:mode] || "simple"
+          mode: ai_user_params[:mode] || "simple",
+          is_premium_ai: premium_requested,
+          premium_personality_template: premium_template
         }
         draft_token = AiCreation::DraftStore.store(current_user.id, draft_data)
 
@@ -83,7 +96,9 @@ module Api
           ai_user = AiUser.create!(
             user: current_user,
             username: generate_username(draft_data[:profile][:name]),
-            born_on: Date.current
+            born_on: Date.current,
+            is_premium_ai: draft_data[:is_premium_ai] || false,
+            premium_personality_template: draft_data[:premium_personality_template]
           )
           ai_user.create_ai_personality!(draft_data[:personality])
           ai_user.create_ai_profile!(draft_data[:profile])
@@ -359,6 +374,7 @@ module Api
       def ai_user_params
         params.require(:ai_user).permit(
           :mode,
+          :premium_personality_template,
           profile: [
             :name, :personality_note, :age, :gender, :occupation,
             :occupation_type, :location, :bio, :life_stage,
@@ -369,6 +385,35 @@ module Api
             values: [], disliked_personality_types: []
           ]
         )
+      end
+
+      def premium_mode_requested?
+        ai_user_params[:mode].to_s == "premium"
+      end
+
+      def premium_template_param(premium_requested)
+        return nil unless premium_requested
+
+        template = ai_user_params[:premium_personality_template].to_s
+        return template if AiUser.premium_personality_templates.key?(template)
+
+        nil
+      end
+
+      def decorated_personality_note(note, premium_template)
+        base_note = note.to_s
+        return base_note if premium_template.blank?
+
+        template_text = case premium_template
+        when "celebrity_style"
+          "有名人のような存在感と華やかさを持つキャラクター。"
+        when "anime_style"
+          "アニメキャラクターのように表現豊かで印象的なキャラクター。"
+        else
+          ""
+        end
+
+        [ template_text, base_note ].reject(&:blank?).join("\n")
       end
 
       def generate_username(name)

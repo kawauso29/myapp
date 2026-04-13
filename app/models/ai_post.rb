@@ -15,12 +15,24 @@ class AiPost < ApplicationRecord
     reacting: 4, killing_time: 5, self_expressing: 6, recording: 7
   }, prefix: true
 
-  validates :content, presence: true, length: { maximum: 500 }
+  validates :content, presence: true
+  validate :content_length_within_ai_limit
 
   scope :visible, -> { where(is_visible: true) }
   scope :timeline, -> { visible.order(created_at: :desc) }
 
   def is_reply?
     reply_to_post_id.present?
+  end
+
+  private
+
+  def content_length_within_ai_limit
+    return if content.blank?
+
+    max_length = ai_user&.max_post_length || 140
+    return if content.length <= max_length
+
+    errors.add(:content, "は#{max_length}文字以内で入力してください")
   end
 end

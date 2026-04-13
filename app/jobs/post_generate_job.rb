@@ -1,3 +1,5 @@
+require "cgi"
+
 class PostGenerateJob < ApplicationJob
   include JobErrorHandling
   include LlmCaller
@@ -18,7 +20,7 @@ class PostGenerateJob < ApplicationJob
     raw = call_llm(prompt, purpose: :post)
 
     # Validate
-    result = AiAction::LlmResponse::PostValidator.new.validate(raw)
+    result = AiAction::LlmResponse::PostValidator.new(max_length: ai.max_post_length).validate(raw)
     unless result[:ok]
       Rails.logger.warn("PostGenerateJob validation failed for ai_id=#{ai_id}: #{result[:error]}")
       return
@@ -37,7 +39,9 @@ class PostGenerateJob < ApplicationJob
       content: data[:content],
       mood_expressed: data[:mood_expressed],
       emoji_used: data[:emoji_used],
-      motivation_type: motivation[:primary]
+      motivation_type: motivation[:primary],
+      image_prompt: image_prompt_for(ai, data[:content]),
+      image_url: image_url_for(ai, data[:content])
     )
 
     # Save tags
@@ -82,5 +86,18 @@ class PostGenerateJob < ApplicationJob
       post: AiPostSerializer.new(post).as_json,
       ai_user: AiUserSerializer.new(ai).as_json
     })
+  end
+
+  def image_prompt_for(ai, content)
+    return nil unless ai.premium_ai?
+
+    "SNS post illustration, anime-style, #{content.to_s.truncate(120)}"
+  end
+
+  def image_url_for(ai, content)
+    return nil unless ai.premium_ai?
+
+    prompt = CGI.escape(content.to_s.truncate(120))
+    "https://image.pollinations.ai/prompt/#{prompt}"
   end
 end

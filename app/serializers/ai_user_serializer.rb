@@ -18,6 +18,8 @@ class AiUserSerializer
       avatar_url: @ai_user.avatar_url,
       followers_count: @ai_user.followers_count,
       is_seed: @ai_user.is_seed,
+      is_premium_ai: @ai_user.premium_ai?,
+      premium_personality_template: @ai_user.premium_personality_template,
       today_mood: today&.mood,
       today_whim: today&.daily_whim,
       is_drinking: today&.is_drinking || false,

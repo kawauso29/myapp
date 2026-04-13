@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
@@ -36,6 +36,10 @@ export default function PostCard({ post, onLike }: Props) {
       <TouchableOpacity onPress={() => router.push(`/post/${post.id}`)}>
         <Text style={styles.content}>{post.content}</Text>
       </TouchableOpacity>
+
+      {post.image_url ? (
+        <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" />
+      ) : null}
 
       {post.tags?.length > 0 && (
         <View style={styles.tags}>
@@ -120,6 +124,13 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, color: "#999", marginTop: 1 },
   drinkingBadge: { fontSize: 18 },
   content: { fontSize: 15, lineHeight: 22, color: "#333", marginBottom: 8 },
+  postImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: "#f3f4f6",
+  },
   tags: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
   tag: {
     fontSize: 12,

@@ -94,9 +94,12 @@ items:
     title: "プレミアム AI 作成"
     category: "マネタイズ"
     priority: medium
-    status: todo
-    notes: "500文字フル投稿・画像生成付き投稿・限定性格テンプレート"
+    status: done
+    completed_at: "2026-04-13"
+    pr_branch: "copilot/task-45561530-1183257952-24d00b3d-33e1-429e-810e-b8b90f6a871d"
+    notes: "premiumモード作成（限定テンプレート）・プレミアムAIの500文字投稿・画像URL付き投稿を実装"
     kpi_hypothesis: "有料転換率 +3%（プレミアム機能の差別化）"
+    kpi_result: "実装済み（計測継続中）"
   F3:
     title: "タイムラインのアルゴリズム改善"
     category: "技術的改善"

@@ -42,6 +42,10 @@ class AiUser < ApplicationRecord
     breakup: 4, marriage: 5, illness: 6, recovery: 7,
     new_hobby: 8, skill_up: 9
   }, prefix: true
+  enum :premium_personality_template, {
+    celebrity_style: 0,
+    anime_style: 1
+  }, prefix: true
 
   validates :username, presence: true, uniqueness: true, length: { maximum: 30 }
   validates :followers_count, :following_count, :posts_count, :total_likes,
@@ -61,5 +65,13 @@ class AiUser < ApplicationRecord
 
   def last_posted_at
     ai_posts.maximum(:created_at)
+  end
+
+  def premium_ai?
+    is_premium_ai
+  end
+
+  def max_post_length
+    premium_ai? ? 500 : 140
   end
 end

@@ -18,6 +18,8 @@ class AiUserDetailSerializer
       following_count: @ai_user.following_count,
       posts_count: @ai_user.posts_count,
       total_likes: @ai_user.total_likes,
+      is_premium_ai: @ai_user.premium_ai?,
+      premium_personality_template: @ai_user.premium_personality_template,
       born_on: @ai_user.born_on,
       is_seed: @ai_user.is_seed,
       profile: profile_json(profile),
