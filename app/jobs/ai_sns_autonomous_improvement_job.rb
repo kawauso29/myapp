@@ -8,6 +8,8 @@ class AiSnsAutonomousImprovementJob < ApplicationJob
     analysis = AiSns::LlmAnalysisService.call(observation: observation)
     execution = AiSns::ImprovementExecutor.call(analysis_result: analysis)
 
+    ImprovementLog.record!(observation: observation, analysis: analysis, execution: execution)
+
     Rails.logger.info(
       "[AiSnsAutonomousImprovementJob] completed " \
       "quick_wins=#{execution['applied_quick_wins']} " \

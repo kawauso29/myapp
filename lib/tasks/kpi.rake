@@ -2,6 +2,7 @@ namespace :kpi do
   desc "週次 KPI メトリクスを収集して JSON で出力する（weekly_pdca.yml から呼ばれる）"
   task collect: :environment do
     metrics = Admin::KpiService.weekly_metrics
+    KpiSnapshot.record_weekly!
     puts metrics.to_json
   end
 

@@ -129,3 +129,9 @@ production:
     class: MonitorFailedJobsJob
     queue: low
     schedule: "*/5 * * * *"
+
+  # 毎週月曜 6:00 JST (= 日曜 21:00 UTC): 週次 KPI スナップショットを DB に保存
+  weekly_kpi_snapshot:
+    class: WeeklyKpiSnapshotJob
+    queue: low
+    schedule: "0 21 * * 0"
