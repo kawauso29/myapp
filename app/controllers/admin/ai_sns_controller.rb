@@ -105,6 +105,9 @@ class Admin::AiSnsController < Admin::BaseController
     @recent_posts = AiPost.includes(ai_user: :ai_profile)
                           .order(created_at: :desc)
                           .limit(20)
+
+    @kpi_trend = KpiSnapshot.weekly_trend(periods: 8)
+    @recent_improvement_logs = ImprovementLog.recent.limit(10)
   end
 
   def ai_users

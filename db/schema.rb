@@ -368,6 +368,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_11_000001) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "improvement_logs", force: :cascade do |t|
+    t.json     "observation",        null: false
+    t.text     "summary"
+    t.json     "quick_win_results"
+    t.json     "feature_proposals"
+    t.integer  "applied_quick_wins", default: 0, null: false
+    t.json     "created_pr_numbers"
+    t.datetime "created_at",         null: false
+    t.datetime "updated_at",         null: false
+    t.index ["created_at"], name: "index_improvement_logs_on_created_at"
+  end
+
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
@@ -384,6 +396,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_11_000001) do
     t.string "jti", null: false
     t.index ["exp"], name: "index_jwt_denylists_on_exp"
     t.index ["jti"], name: "index_jwt_denylists_on_jti", unique: true
+  end
+
+  create_table "kpi_snapshots", force: :cascade do |t|
+    t.string   "period",      null: false
+    t.date     "recorded_on", null: false
+    t.json     "metrics",     null: false
+    t.datetime "created_at",  null: false
+    t.datetime "updated_at",  null: false
+    t.index %w[period recorded_on], name: "index_kpi_snapshots_on_period_and_recorded_on", unique: true
   end
 
   create_table "market_snapshots", force: :cascade do |t|

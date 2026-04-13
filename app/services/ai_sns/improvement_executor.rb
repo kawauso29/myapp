@@ -9,6 +9,9 @@ module AiSns
       "HourlyStateUpdateJob" => HourlyStateUpdateJob
     }.freeze
 
+    # 1日あたりの Feature Proposal PR 作成上限
+    DAILY_PR_LIMIT = 2
+
     def self.call(analysis_result:)
       new(analysis_result: analysis_result).call
     end
@@ -35,20 +38,37 @@ module AiSns
     def execute_quick_wins
       quick_wins.map do |quick_win|
         action = quick_win["action"] || {}
-        if action["type"] != "enqueue_job"
-          next quick_win_result(quick_win, status: "skipped", reason: "notify_only")
+        case action["type"]
+        when "enqueue_job"
+          execute_enqueue_job(quick_win, action)
+        when "adjust_post_motivation"
+          execute_adjust_post_motivation(quick_win, action)
+        else
+          quick_win_result(quick_win, status: "skipped", reason: "notify_only")
         end
-
-        job_class = RUNNABLE_JOB_CLASSES[action["job_class"]]
-        unless job_class
-          next quick_win_result(quick_win, status: "skipped", reason: "unsupported_job_class")
-        end
-
-        job_class.perform_later
-        quick_win_result(quick_win, status: "applied", reason: "job_enqueued")
       rescue => e
         quick_win_result(quick_win, status: "failed", reason: "#{e.class}: #{e.message}")
       end
+    end
+
+    def execute_enqueue_job(quick_win, action)
+      job_class = RUNNABLE_JOB_CLASSES[action["job_class"]]
+      unless job_class
+        return quick_win_result(quick_win, status: "skipped", reason: "unsupported_job_class")
+      end
+
+      job_class.perform_later
+      quick_win_result(quick_win, status: "applied", reason: "job_enqueued")
+    end
+
+    # 全アクティブ AI の post_motivation を一時的に底上げする
+    def execute_adjust_post_motivation(quick_win, action)
+      boost = [ action["boost"].to_i, 5 ].max
+      updated = AiDailyState.where(date: Date.current)
+                             .joins(ai_user: {})
+                             .merge(AiUser.active)
+                             .update_all("post_motivation = LEAST(post_motivation + #{boost}, 100)")
+      quick_win_result(quick_win, status: "applied", reason: "post_motivation_boosted_by_#{boost} (#{updated} AIs)")
     end
 
     def notify_feature_proposals(quick_win_results)
@@ -78,7 +98,23 @@ module AiSns
     end
 
     def create_feature_proposal_prs
-      feature_proposals.filter_map do |proposal|
+      # 日次 PR 作成上限チェック
+      today_pr_count = ImprovementLog.where(created_at: Date.current.all_day)
+                                     .sum { |log| Array(log.created_pr_numbers).size }
+      remaining_quota = [ DAILY_PR_LIMIT - today_pr_count, 0 ].max
+      return [] if remaining_quota.zero?
+
+      # 直近の提案済みタイトルで重複排除
+      recent_titles = ImprovementLog.recent_feature_titles(limit: 10)
+      # plan_status.yml の既存タイトルでも重複排除
+      plan_titles = Admin::AiSnsPlanService.items.values.map { |v| v["title"] }.compact.to_set
+
+      deduped = feature_proposals.reject do |proposal|
+        title = proposal["title"].to_s
+        recent_titles.any? { |t| t.to_s == title } || plan_titles.any? { |t| t.to_s == title }
+      end
+
+      deduped.first(remaining_quota).filter_map do |proposal|
         title = proposal["title"]
         rationale = proposal["rationale"]
 
