@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   create_pr:
@@ -50,6 +51,22 @@ jobs:
                   draft: false
                 });
                 core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+                // session-hold ラベルを付与（会話中の自動マージを防止）
+                try {
+                  try {
+                    await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name: 'session-hold' });
+                  } catch (labelGetError) {
+                    if (labelGetError.status === 404) {
+                      await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name: 'session-hold', color: 'e4e669', description: 'Conversation in progress - holds auto-merge until removed' });
+                    } else {
+                      core.warning(`Could not check session-hold label existence (status: ${labelGetError.status}): ${labelGetError.message}`);
+                    }
+                  }
+                  await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, labels: ['session-hold'] });
+                  core.info(`Added session-hold label to PR #${pr.number}`);
+                } catch (holdLabelError) {
+                  core.warning(`Failed to add session-hold label to PR #${pr.number}: ${holdLabelError.message}`);
+                }
                 return;
               } catch (error) {
                 if (error.status === 422) {
