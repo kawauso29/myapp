@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: write
-  issues: write
+  pull-requests: write
 
 jobs:
   advance_plan:
@@ -107,9 +107,19 @@ jobs:
           git diff --staged --quiet || git commit -m "plan: [${ITEM_ID}] ステータスを in_progress に更新"
           git push origin HEAD
 
-      - name: 実装依頼 Issue を起票
+      - name: 実装用ブランチを作成して push
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
-        id: create_issue
+        id: create_branch
+        run: |
+          ITEM_ID="${{ steps.select.outputs.item_id }}"
+          BRANCH="copilot/ai-sns-${ITEM_ID}"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: 実装依頼 PR を作成
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
+        id: create_pr
         uses: actions/github-script@v9
         with:
           script: |
@@ -119,6 +129,7 @@ jobs:
             const priority = '${{ steps.select.outputs.item_priority }}'
             const notes = '${{ steps.select.outputs.item_notes }}'
             const kpiHypothesis = '${{ steps.select.outputs.item_kpi_hypothesis }}'
+            const branch = '${{ steps.create_branch.outputs.branch }}'
 
             const priorityLabel = { high: '★★★ 高', medium: '★★☆ 中', low: '★☆☆ 低' }[priority] || priority
 
@@ -138,7 +149,7 @@ jobs:
               '- `docs/ai_sns_plan_status.yml` — 進捗管理ファイル',
               '',
               '### 実装完了後の手順',
-              `実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新して PR に含めてください。`,
+              `実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してこのPRに含めてください。`,
               '',
               '---',
               '',
@@ -147,16 +158,19 @@ jobs:
               '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n')
 
-            const issue = await github.rest.issues.create({
+            const { data: pr } = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `[AI SNS計画] [${itemId}] ${title}`,
-              body
+              body,
+              head: branch,
+              base: 'main',
+              draft: false
             })
 
-            console.log(`Issue created: #${issue.data.number} ${issue.data.html_url}`)
-            core.setOutput('issue_number', issue.data.number)
-            core.setOutput('issue_url', issue.data.html_url)
+            console.log(`PR created: #${pr.number} ${pr.html_url}`)
+            core.setOutput('pr_number', pr.number)
+            core.setOutput('pr_url', pr.html_url)
 
       - name: Slack 通知
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
@@ -171,12 +185,12 @@ jobs:
           PAYLOAD=$(jq -n \
             --arg item_id "${{ steps.select.outputs.item_id }}" \
             --arg title "${{ steps.select.outputs.item_title }}" \
-            --arg issue_url "${{ steps.create_issue.outputs.issue_url }}" \
-            --arg issue_num "${{ steps.create_issue.outputs.issue_number }}" \
+            --arg pr_url "${{ steps.create_pr.outputs.pr_url }}" \
+            --arg pr_num "${{ steps.create_pr.outputs.pr_number }}" \
             '{
               text: ("🤖 AI SNS計画 次の実装を Copilot に依頼しました\n" +
                      "*[" + $item_id + "]* " + $title + "\n" +
-                     "Issue #" + $issue_num + ": " + $issue_url)
+                     "PR #" + $pr_num + ": " + $pr_url)
             }')
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
