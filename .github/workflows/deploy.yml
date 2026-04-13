@@ -159,21 +159,26 @@ jobs:
             mkdir -p ~/myapp/tmp/sockets
             # Restart Puma (also restarts SolidQueue since SOLID_QUEUE_IN_PUMA=1)
             sudo systemctl restart puma
-            # Wait for puma socket to appear (up to 30s)
-            for i in $(seq 1 30); do
-              if [ -S ~/myapp/tmp/sockets/puma.sock ]; then
-                echo "Puma socket ready after ${i}s"
+            # Wait for Puma to actually accept HTTP connections (up to 60s)
+            # NOTE: checking socket file existence is not enough - Puma creates the socket
+            # when it binds, but may not accept connections until after booting.
+            echo "Waiting for Puma to accept HTTP connections..."
+            PUMA_READY=0
+            for i in $(seq 1 60); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "Puma ready after ${i}s (status=$STATUS)"
+                PUMA_READY=1
                 break
               fi
               sleep 1
             done
-            if [ ! -S ~/myapp/tmp/sockets/puma.sock ]; then
-              echo "ERROR: puma.sock not found after 30s - puma may have failed to start"
+            if [ "$PUMA_READY" != "1" ]; then
+              echo "ERROR: Puma did not become ready after 60s"
               sudo systemctl status puma --no-pager || true
+              journalctl -u puma --no-pager -n 50 || true
               exit 1
             fi
-            echo "Puma status:"
-            sudo systemctl is-active puma || true
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
             RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
             # Post-restart cleanup: discard any transient UnknownJobClassError failures
@@ -192,16 +197,22 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            for i in 1 2 3; do
+            for i in 1 2 3 4 5; do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost/up 2>/dev/null || echo "000")
               if [ "$STATUS" = "200" ]; then
                 echo "Health check passed (attempt $i, status=$STATUS)"
                 exit 0
               fi
-              echo "Health check failed (attempt $i, status=$STATUS), retrying in 5s..."
-              sleep 5
+              echo "Health check failed (attempt $i, status=$STATUS), retrying in 10s..."
+              if [ "$i" = "5" ]; then
+                echo "=== Puma status ==="
+                sudo systemctl status puma --no-pager || true
+                echo "=== Puma journal (last 30 lines) ==="
+                journalctl -u puma --no-pager -n 30 || true
+              fi
+              sleep 10
             done
-            echo "Health check failed after 3 attempts"
+            echo "Health check failed after 5 attempts"
             exit 1
 
       - name: Rollback on failure
@@ -239,7 +250,23 @@ jobs:
             fi
             RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
             sudo systemctl restart puma
-            sleep 10
+            # Wait for Puma to accept HTTP connections (up to 60s)
+            echo "Waiting for Puma to accept HTTP connections after rollback..."
+            PUMA_READY=0
+            for i in $(seq 1 60); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "Puma ready after ${i}s (status=$STATUS)"
+                PUMA_READY=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$PUMA_READY" != "1" ]; then
+              echo "WARNING: Puma did not respond after 60s rollback wait"
+              sudo systemctl status puma --no-pager || true
+              journalctl -u puma --no-pager -n 30 || true
+            fi
             RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
             RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
