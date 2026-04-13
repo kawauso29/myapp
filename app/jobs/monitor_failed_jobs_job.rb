@@ -70,7 +70,17 @@ class MonitorFailedJobsJob < ApplicationJob
     return false if job_class_name.blank?
     return false unless job_class_name.safe_constantize
 
-    execution.discard
+    # Class is loadable now → transient failure (e.g. deploy-time fork race condition).
+    # Discard the record; if it was already removed (boot_cleanup ran concurrently) that's fine.
+    begin
+      execution.discard
+    rescue ActiveRecord::RecordNotFound
+      # Already discarded by boot_cleanup or another concurrent run — still suppress notification.
+      Rails.logger.info("[MonitorFailedJobsJob] Transient UnknownJobClassError for #{job_class_name} already discarded")
+    rescue StandardError => e
+      Rails.logger.warn("[MonitorFailedJobsJob] Failed to discard transient failure for #{job_class_name}: #{e.message}")
+      return false
+    end
     true
   rescue StandardError
     false
