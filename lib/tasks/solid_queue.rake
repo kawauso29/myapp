@@ -19,11 +19,34 @@ namespace :solid_queue do
     MarketAnalysisJob
   ].freeze
 
-  desc "Delete stale unfinished MonitorFailedJobsJob records from default queue"
+  desc "Delete stale unfinished MonitorFailedJobsJob records from all queues"
   task cleanup_stale_monitor_failed_jobs: :environment do
-    jobs = SolidQueue::Job.where(class_name: "MonitorFailedJobsJob", queue_name: "default", finished_at: nil)
-    deleted_count = jobs.delete_all
-    puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from default queue"
+    stale_job_ids = []
+
+    extract_wrapper_job_class = lambda do |raw_arguments|
+      payload = raw_arguments
+      payload = JSON.parse(payload) if payload.is_a?(String)
+      payload = payload.first if payload.is_a?(Array)
+      payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)
+    rescue JSON::ParserError => e
+      Rails.logger.warn("solid_queue:cleanup_stale_monitor_failed_jobs JSON parse failed: #{e.message}")
+      nil
+    end
+
+    cleanup_target_class_names = [ "MonitorFailedJobsJob", "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper" ]
+    SolidQueue::Job.where(finished_at: nil, class_name: cleanup_target_class_names).find_each do |job|
+      job_class = if job.class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
+        extract_wrapper_job_class.call(job.arguments)
+      else
+        job.class_name
+      end
+      next unless job_class == "MonitorFailedJobsJob"
+
+      stale_job_ids << job.id
+    end
+
+    deleted_count = stale_job_ids.empty? ? 0 : SolidQueue::Job.where(id: stale_job_ids).delete_all
+    puts "Deleted #{deleted_count} stale MonitorFailedJobsJob jobs from all queues"
   end
 
   desc "Delete unfinished jobs that reference missing job classes"
