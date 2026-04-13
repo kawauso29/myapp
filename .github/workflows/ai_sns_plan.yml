@@ -27,18 +27,9 @@ jobs:
         run: |
           WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
           WIP_COUNT=${WIP_COUNT:-0}
-          WIP_LIMIT=2
-          INPUT_ID="${{ github.event.inputs.item_id }}"
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
-
-          if [ "${WIP_COUNT}" -ge "${WIP_LIMIT}" ]; then
-            # 手動指定項目が既に in_progress の場合は重複起票防止のためスキップ
-            echo "wip_exceeded=true" >> "$GITHUB_OUTPUT"
-            echo "WIP上限 (${WIP_COUNT}/${WIP_LIMIT}) に達しているため起票をスキップします"
-          else
-            echo "wip_exceeded=false" >> "$GITHUB_OUTPUT"
-            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 起票可能"
-          fi
+          echo "wip_exceeded=false" >> "$GITHUB_OUTPUT"
+          echo "WIP: ${WIP_COUNT} → WIP制限なし、起票可能"
 
       - name: 次の実装項目を選択
         id: select
