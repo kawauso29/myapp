@@ -108,5 +108,62 @@ RSpec.describe AiActionCheckJob, type: :job do
         expect(AiAction::TimelineSelector).to have_received(:select).twice
       end
     end
+
+    context "when action scope is like only" do
+      before do
+        allow(AiAction::ActionChecker).to receive(:should_post?).and_return(true)
+      end
+
+      it "only runs timeline like check" do
+        described_class.new.perform("like")
+        expect(AiAction::TimelineSelector).to have_received(:select).with(ai_user, limit: 15)
+        expect(AiAction::ActionChecker).not_to have_received(:should_post?)
+      end
+    end
+
+    context "when action scope is reply only" do
+      let(:target_ai) { create(:ai_user) }
+      let(:target_post) { create(:ai_post, ai_user: target_ai, likes_count: 20) }
+
+      before do
+        allow(AiAction::TimelineSelector).to receive(:select).and_return([ target_post ])
+        allow_any_instance_of(described_class).to receive(:should_reply?).and_return(true)
+        allow(ReplyGenerateJob).to receive(:perform_later)
+        allow(AiAction::ActionChecker).to receive(:should_post?).and_return(true)
+      end
+
+      it "enqueues only reply job" do
+        described_class.new.perform("reply")
+        expect(ReplyGenerateJob).to have_received(:perform_later).with(ai_user.id, target_post.id)
+        expect(AiAction::ActionChecker).not_to have_received(:should_post?)
+      end
+    end
+
+    context "when action scope is post only" do
+      before do
+        allow(AiAction::ActionChecker).to receive(:should_post?).and_return(true)
+        allow(AiAction::MotivationSelector).to receive(:select).and_return({ primary: :sharing })
+        allow(PostGenerateJob).to receive(:perform_later)
+      end
+
+      it "enqueues post generation without timeline read" do
+        described_class.new.perform("post")
+        expect(AiAction::TimelineSelector).not_to have_received(:select)
+        expect(PostGenerateJob).to have_received(:perform_later).with(ai_user.id, { primary: :sharing })
+      end
+    end
+
+    context "when action scope is dm only" do
+      before do
+        allow_any_instance_of(described_class).to receive(:should_dm?).and_return(true)
+        allow(DmCheckJob).to receive(:perform_later)
+      end
+
+      it "enqueues dm check job" do
+        described_class.new.perform("dm")
+        expect(DmCheckJob).to have_received(:perform_later).with(ai_user.id)
+        expect(AiAction::TimelineSelector).not_to have_received(:select)
+      end
+    end
   end
 end

@@ -5,8 +5,10 @@ class AiActionCheckJob < ApplicationJob
 
   LOCK_KEY = "lock:ai_action_check"
   LOCK_TTL = 14.minutes.to_i
+  ACTION_SCOPES = %w[all like reply post dm].freeze
 
-  def perform
+  def perform(action_scope = "all")
+    action_scope = normalize_action_scope(action_scope)
     redis = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
     acquired = redis.set(LOCK_KEY, 1, nx: true, ex: LOCK_TTL)
     unless acquired
@@ -15,7 +17,7 @@ class AiActionCheckJob < ApplicationJob
     end
 
     begin
-      run_action_check
+      run_action_check(action_scope)
     ensure
       redis.del(LOCK_KEY)
     end
@@ -23,36 +25,60 @@ class AiActionCheckJob < ApplicationJob
 
   private
 
-  def run_action_check
+  def run_action_check(action_scope)
     AiUser.where(is_active: true).find_each(batch_size: 100) do |ai|
-      process_ai(ai)
+      process_ai(ai, action_scope)
     rescue => e
       Rails.logger.error("AiActionCheckJob failed for ai_id=#{ai.id}: #{e.message}")
       next
     end
   end
 
-  def process_ai(ai)
+  def process_ai(ai, action_scope)
     daily_state = ai.today_state
     return unless daily_state
     return if force_skip?(ai, daily_state)
 
-    # 1. Read timeline & maybe like posts
-    posts_to_read = AiAction::TimelineSelector.select(ai, limit: 15)
-    process_timeline_likes(ai, posts_to_read)
+    case action_scope
+    when "like"
+      posts_to_read = AiAction::TimelineSelector.select(ai, limit: 15)
+      process_timeline_likes(ai, posts_to_read)
+    when "reply"
+      posts_to_read = AiAction::TimelineSelector.select(ai, limit: 15)
+      interesting_post = find_interesting_post(ai, posts_to_read)
+      ReplyGenerateJob.perform_later(ai.id, interesting_post.id) if interesting_post && should_reply?(ai, daily_state)
+    when "post"
+      return unless AiAction::ActionChecker.should_post?(ai, daily_state)
 
-    # 2. Find interesting post for reply
-    interesting_post = find_interesting_post(ai, posts_to_read)
-
-    # 3. Decide action: reply > post > DM > nothing
-    if interesting_post && should_reply?(ai, daily_state)
-      ReplyGenerateJob.perform_later(ai.id, interesting_post.id)
-    elsif AiAction::ActionChecker.should_post?(ai, daily_state)
       motivation = AiAction::MotivationSelector.select(ai, daily_state)
       PostGenerateJob.perform_later(ai.id, motivation)
-    elsif should_dm?(ai)
-      DmCheckJob.perform_later(ai.id)
+    when "dm"
+      DmCheckJob.perform_later(ai.id) if should_dm?(ai)
+    else
+      # 1. Read timeline & maybe like posts
+      posts_to_read = AiAction::TimelineSelector.select(ai, limit: 15)
+      process_timeline_likes(ai, posts_to_read)
+
+      # 2. Find interesting post for reply
+      interesting_post = find_interesting_post(ai, posts_to_read)
+
+      # 3. Decide action: reply > post > DM > nothing
+      if interesting_post && should_reply?(ai, daily_state)
+        ReplyGenerateJob.perform_later(ai.id, interesting_post.id)
+      elsif AiAction::ActionChecker.should_post?(ai, daily_state)
+        motivation = AiAction::MotivationSelector.select(ai, daily_state)
+        PostGenerateJob.perform_later(ai.id, motivation)
+      elsif should_dm?(ai)
+        DmCheckJob.perform_later(ai.id)
+      end
     end
+  end
+
+  def normalize_action_scope(action_scope)
+    scope = action_scope.to_s
+    return scope if ACTION_SCOPES.include?(scope)
+
+    "all"
   end
 
   def force_skip?(ai, daily_state)

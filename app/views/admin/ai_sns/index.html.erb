@@ -90,13 +90,25 @@
     <%= button_to "▶ AI Action Check", run_job_admin_ai_sns_path(job: "ai_action"), method: :post,
           title: "投稿・返信・いいね等の行動判定を実行します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
+    <%= button_to "▶ いいね判定", run_job_admin_ai_sns_path(job: "ai_action_like"), method: :post,
+          title: "いいね判定のみを実行します",
+          style: "background:#2f855a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;" %>
+    <%= button_to "▶ リプライ判定", run_job_admin_ai_sns_path(job: "ai_action_reply"), method: :post,
+          title: "リプライ（メンション相当）判定のみを実行します",
+          style: "background:#2f855a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;" %>
+    <%= button_to "▶ 投稿判定", run_job_admin_ai_sns_path(job: "ai_action_post"), method: :post,
+          title: "投稿判定のみを実行します",
+          style: "background:#2f855a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;" %>
+    <%= button_to "▶ DM判定", run_job_admin_ai_sns_path(job: "ai_action_dm"), method: :post,
+          title: "DM判定のみを実行します",
+          style: "background:#2f855a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;" %>
     <%= button_to "▶ 自動改善ループ", run_job_admin_ai_sns_path(job: "autonomous_improvement"), method: :post,
           title: "観察→分析→実行のPDCAループを1回実行します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "⚡ 全AI強制投稿", force_ai_posts_admin_ai_sns_path, method: :post,
           title: "当日状態がある有効AI全員に投稿ジョブを投入します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;" %>
-    <span style="color:#718096; font-size:11px;">投稿関連の即時実行（全体挙動確認・緊急実行用）</span>
+    <span style="color:#718096; font-size:11px;">投稿関連の即時実行（全体/個別アクション確認・緊急実行用）</span>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <span style="color:#718096; font-size:11px; min-width:60px;">週次:</span>

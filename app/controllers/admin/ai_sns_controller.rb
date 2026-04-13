@@ -174,18 +174,22 @@ class Admin::AiSnsController < Admin::BaseController
   end
 
   RUNNABLE_JOBS = {
-    "daily_state"      => DailyStateGenerateJob,
-    "weather"          => WeatherFetchJob,
-    "post_motivation"  => PostMotivationCalculateJob,
-    "ai_action"        => AiActionCheckJob,
-    "life_event"       => LifeEventCheckJob,
-    "dynamic_params"   => DynamicParamsUpdateJob,
-    "memory_summarize" => DailyMemorySummarizeJob,
-    "relationship_decay" => RelationshipDecayJob,
-    "daily_schedule"   => DailyScheduleGenerateJob,
-    "hourly_state"     => HourlyStateUpdateJob,
-    "autonomous_improvement" => AiSnsAutonomousImprovementJob,
-    "milestone_check"  => MilestoneCheckJob
+    "daily_state"      => { klass: DailyStateGenerateJob },
+    "weather"          => { klass: WeatherFetchJob },
+    "post_motivation"  => { klass: PostMotivationCalculateJob },
+    "ai_action"        => { klass: AiActionCheckJob },
+    "ai_action_like"   => { klass: AiActionCheckJob, args: [ "like" ] },
+    "ai_action_reply"  => { klass: AiActionCheckJob, args: [ "reply" ] },
+    "ai_action_post"   => { klass: AiActionCheckJob, args: [ "post" ] },
+    "ai_action_dm"     => { klass: AiActionCheckJob, args: [ "dm" ] },
+    "life_event"       => { klass: LifeEventCheckJob },
+    "dynamic_params"   => { klass: DynamicParamsUpdateJob },
+    "memory_summarize" => { klass: DailyMemorySummarizeJob },
+    "relationship_decay" => { klass: RelationshipDecayJob },
+    "daily_schedule"   => { klass: DailyScheduleGenerateJob },
+    "hourly_state"     => { klass: HourlyStateUpdateJob },
+    "autonomous_improvement" => { klass: AiSnsAutonomousImprovementJob },
+    "milestone_check"  => { klass: MilestoneCheckJob }
   }.freeze
 
   def picro_messages
@@ -222,11 +226,14 @@ class Admin::AiSnsController < Admin::BaseController
 
   def run_job
     job_key = params[:job]
-    job_class = RUNNABLE_JOBS[job_key]
-    unless job_class
+    job_config = RUNNABLE_JOBS[job_key]
+    unless job_config
       return redirect_to admin_ai_sns_path, alert: "不正なジョブ名です"
     end
-    job_class.perform_later
+
+    job_class = job_config.fetch(:klass)
+    job_args = job_config.fetch(:args, [])
+    job_class.perform_later(*job_args)
     redirect_to admin_ai_sns_path, notice: "#{job_class.name} をキューに追加しました"
   end
 
