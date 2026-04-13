@@ -16,10 +16,12 @@ Rails.application.routes.draw do
 
   # 管理画面
   namespace :admin do
-    root to: "dashboard#index"
-    post "sync_env", to: "dashboard#sync_env"
-    post "trigger_db_snapshot", to: "dashboard#trigger_db_snapshot"
-    post "trigger_ai_sns_plan", to: "dashboard#trigger_ai_sns_plan"
+    root to: "repository#index"
+    get "trading", to: "dashboard#index"
+    get "picro_notifications", to: "picro_notifications#index"
+    post "sync_env", to: "repository#sync_env"
+    post "trigger_db_snapshot", to: "repository#trigger_db_snapshot"
+    post "trigger_ai_sns_plan", to: "ai_sns#trigger_ai_sns_plan"
 
     resources :ai_sns, only: [ :index ] do
       collection do
