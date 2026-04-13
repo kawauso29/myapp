@@ -1,0 +1,68 @@
+<% content_for :title, "Picro 通知管理" %>
+
+<div class="card">
+  <h2>Picro通知専用ページ</h2>
+  <div class="stats-grid">
+    <div class="stat blue">
+      <div class="value"><%= @stats[:total] %></div>
+      <div class="label">累計メッセージ</div>
+    </div>
+    <div class="stat green">
+      <div class="value"><%= @stats[:today] %></div>
+      <div class="label">本日受信</div>
+    </div>
+    <div class="stat green">
+      <div class="value"><%= @stats[:notified] %></div>
+      <div class="label">通知済み</div>
+    </div>
+    <div class="stat yellow">
+      <div class="value"><%= @stats[:unnotified] %></div>
+      <div class="label">未通知</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Picro 送信履歴 (直近100件)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>受信日時</th>
+        <th>送信者</th>
+        <th>件名</th>
+        <th>プレビュー</th>
+        <th>LINE通知</th>
+        <th>登録日時</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @messages.each do |msg| %>
+        <tr>
+          <td style="color:#a0aec0; white-space:nowrap;">
+            <%= msg.received_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "--" %>
+          </td>
+          <td style="white-space:nowrap;"><%= msg.sender_name.presence || "(不明)" %></td>
+          <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= msg.title %>">
+            <%= msg.title.presence || "(件名なし)" %>
+          </td>
+          <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#a0aec0;" title="<%= msg.preview %>">
+            <%= msg.preview.presence || "--" %>
+          </td>
+          <td>
+            <% if msg.notified? %>
+              <span class="badge visible">送信済</span>
+            <% else %>
+              <span class="badge hidden">未送信</span>
+            <% end %>
+          </td>
+          <td style="color:#4a5568; white-space:nowrap;">
+            <%= msg.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @messages.empty? %>
+        <tr><td colspan="6" style="color:#4a5568; text-align:center;">履歴なし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

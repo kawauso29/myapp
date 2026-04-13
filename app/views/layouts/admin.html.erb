@@ -153,15 +153,11 @@
 <body>
   <nav>
     <span class="logo">Admin Dashboard</span>
-    <a href="/admin" class="<%= 'active' if controller_path == 'admin/dashboard' %>">Trading</a>
-    <a href="/admin/ai_sns" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
-    <a href="/admin/users" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
-    <%= form_with url: admin_sync_env_path, method: :post, style: "margin-left: auto;" do |f| %>
-      <%= f.submit "環境変数を同期", class: "btn btn-success btn-sm" %>
-    <% end %>
-    <%= form_with url: admin_trigger_db_snapshot_path, method: :post do |f| %>
-      <%= f.submit "DBスナップショット取得", class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
-    <% end %>
+    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
+    <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path == 'admin/dashboard' %>">Trading</a>
+    <a href="<%= admin_ai_sns_path %>" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
+    <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
+    <a href="<%= admin_users_path %>" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
   </nav>
   <main>
     <% if flash[:notice] %>
@@ -179,8 +175,10 @@
       <div class="url-section">
         <h3>管理画面</h3>
         <ul class="url-list">
-          <li><a href="/admin">/admin</a> <span class="note">Trading Dashboard</span></li>
+          <li><a href="/admin">/admin</a> <span class="note">Repository Dashboard</span></li>
+          <li><a href="/admin/trading">/admin/trading</a> <span class="note">Trading Dashboard</span></li>
           <li><a href="/admin/ai_sns">/admin/ai_sns</a> <span class="note">AI SNS Overview</span></li>
+          <li><a href="/admin/picro_notifications">/admin/picro_notifications</a> <span class="note">Picro通知管理</span></li>
           <li><a href="/admin/ai_sns/ai_users">/admin/ai_sns/ai_users</a> <span class="note">AI一覧</span></li>
           <li><a href="/admin/ai_sns/posts">/admin/ai_sns/posts</a> <span class="note">投稿一覧</span></li>
           <li><a href="/admin/ai_sns/moderation">/admin/ai_sns/moderation</a> <span class="note">モデレーション</span></li>

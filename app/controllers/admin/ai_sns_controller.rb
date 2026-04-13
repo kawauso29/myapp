@@ -1,3 +1,5 @@
+require "net/http"
+
 class Admin::AiSnsController < Admin::BaseController
   PER_PAGE = 30
   AI_SNS_JOB_CLASS_NAMES = %w[
@@ -108,6 +110,10 @@ class Admin::AiSnsController < Admin::BaseController
 
     @kpi_trend = KpiSnapshot.weekly_trend(periods: 8)
     @recent_improvement_logs = ImprovementLog.recent.limit(10)
+    @kpi_metrics = Admin::KpiService.weekly_metrics
+    @ai_sns_plan_stats = Admin::AiSnsPlanService.stats
+    @ai_sns_plan_next = Admin::AiSnsPlanService.next_item
+    @ai_sns_plan_items = Admin::AiSnsPlanService.items_by_priority
   end
 
   def ai_users
@@ -183,7 +189,28 @@ class Admin::AiSnsController < Admin::BaseController
   }.freeze
 
   def picro_messages
-    @messages = PicroMessage.order(received_at: :desc).limit(100)
+    redirect_to admin_picro_notifications_path
+  end
+
+  def trigger_ai_sns_plan
+    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    return redirect_to admin_ai_sns_path, alert: "GITHUB_DEPLOY_TOKEN が設定されていません" unless token.present?
+
+    item_id = params[:item_id].presence || ""
+    res = github_dispatch_request(
+      token: token,
+      workflow: "ai_sns_plan.yml",
+      body: { ref: "main", inputs: { item_id: item_id } }.to_json
+    )
+
+    if res.code == "204"
+      msg = item_id.present? ? "[#{item_id}] の実装依頼を Copilot に送りました。" : "次の優先項目の実装依頼を Copilot に送りました。"
+      redirect_to admin_ai_sns_path, notice: "#{msg} GitHub Actions を確認してください。"
+    else
+      redirect_to admin_ai_sns_path, alert: "ワークフロー起動失敗 (#{res.code}): #{res.body}"
+    end
+  rescue => e
+    redirect_to admin_ai_sns_path, alert: "エラー: #{e.message}"
   end
 
   def failed_jobs
@@ -343,5 +370,22 @@ class Admin::AiSnsController < Admin::BaseController
   rescue => e
     Rails.logger.warn "Failed to fetch upcoming AI SNS scheduled jobs: #{e.message}"
     []
+  end
+
+  def github_dispatch_request(token:, workflow:, body:)
+    uri = URI("https://api.github.com/repos/kawauso29/myapp/actions/workflows/#{workflow}/dispatches")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 15
+
+    req = Net::HTTP::Post.new(uri.request_uri)
+    req["Authorization"] = "Bearer #{token}"
+    req["Accept"] = "application/vnd.github+json"
+    req["X-GitHub-Api-Version"] = "2022-11-28"
+    req["Content-Type"] = "application/json"
+    req.body = body
+
+    http.request(req)
   end
 end
