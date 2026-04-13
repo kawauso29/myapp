@@ -45,7 +45,7 @@ jobs:
             echo "KPI収集失敗 (exit=$EXIT_CODE). フォールバック値を使用"
             KPI_JSON='{"error":"collect failed","collected_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
           fi
-          echo "$KPI_JSON" | jq . || true
+          echo "$KPI_JSON" | python3 -m json.tool 2>/dev/null || echo "$KPI_JSON"
           echo "kpi_json<<KPIDELIM" >> "$GITHUB_OUTPUT"
           echo "$KPI_JSON" >> "$GITHUB_OUTPUT"
           echo "KPIDELIM" >> "$GITHUB_OUTPUT"
@@ -53,7 +53,8 @@ jobs:
       - name: WIP チェック
         id: wip
         run: |
-          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || echo 0)
+          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          WIP_COUNT=${WIP_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
@@ -75,75 +76,55 @@ jobs:
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
           ADVANCE="${{ steps.wip.outputs.advance }}"
 
-          TOTAL_USERS=$(echo "$KPI_JSON" | jq -r '.users.total // "?"')
-          NEW_USERS=$(echo "$KPI_JSON" | jq -r '.users.new_this_week // "?"')
-          WAU=$(echo "$KPI_JSON" | jq -r '.users.wau // "?"')
-          PAID=$(echo "$KPI_JSON" | jq -r '.users.paid // "?"')
-          POSTS_WEEK=$(echo "$KPI_JSON" | jq -r '.posts.this_week // "?"')
-          CONV_RATE=$(echo "$KPI_JSON" | jq -r '.posts.conversation_rate_pct // "?"')
-          LIKES_WEEK=$(echo "$KPI_JSON" | jq -r '.engagement.user_likes_this_week // "?"')
-          FAVORITES=$(echo "$KPI_JSON" | jq -r '.engagement.total_favorites // "?"')
-          FRIENDS=$(echo "$KPI_JSON" | jq -r '.ai_social.friend_plus_relationships // "?"')
-          ACTIVE_AIS=$(echo "$KPI_JSON" | jq -r '.ai_social.active_ais // "?"')
+          PAYLOAD=$(python3 -c "
+import json, sys, time, os
 
-          if [ "$ADVANCE" = "true" ]; then
-            WIP_STATUS=":green_circle: WIP ${WIP_COUNT}/${WIP_LIMIT} → 次の施策を自動起票"
-          else
-            WIP_STATUS=":yellow_circle: WIP ${WIP_COUNT}/${WIP_LIMIT} → 上限のため起票スキップ"
+raw = os.environ.get('KPI_JSON', '{}')
+try:
+    d = json.loads(raw)
+except Exception:
+    d = {}
+
+def g(path, default='?'):
+    parts = path.split('.')
+    v = d
+    for p in parts:
+        if not isinstance(v, dict):
+            return default
+        v = v.get(p)
+        if v is None:
+            return default
+    return str(v)
+
+wip_count = os.environ.get('WIP_COUNT', '0')
+wip_limit = os.environ.get('WIP_LIMIT', '2')
+advance   = os.environ.get('ADVANCE', 'false')
+wip_status = (':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票') if advance == 'true' else (':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ')
+
+payload = {
+    'attachments': [{
+        'color': '#4299e1',
+        'title': '📊 日次 PDCA レポート（Check フェーズ）',
+        'fields': [
+            {'title': '👥 ユーザー', 'value': '総数: ' + g('users.total') + ' | 新規(週): ' + g('users.new_this_week') + ' | 有料: ' + g('users.paid') + ' | WAU: ' + g('users.wau'), 'short': False},
+            {'title': '📝 AI投稿（今週）', 'value': g('posts.this_week') + '件 | 会話率: ' + g('posts.conversation_rate_pct') + '%', 'short': True},
+            {'title': '❤️ エンゲージメント', 'value': 'いいね: ' + g('engagement.user_likes_this_week') + ' | お気に入り: ' + g('engagement.total_favorites'), 'short': True},
+            {'title': '🤝 AI社会', 'value': '友人以上: ' + g('ai_social.friend_plus_relationships') + ' | 稼働AI: ' + g('ai_social.active_ais'), 'short': True},
+            {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
+        ],
+        'footer': 'weekly_pdca.yml (毎30分実行)',
+        'ts': int(time.time()),
+    }]
+}
+print(json.dumps(payload))
+")
+
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST \
+              -H "Content-Type: application/json" \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK"
           fi
-
-          PAYLOAD=$(jq -n \
-            --arg total_users "$TOTAL_USERS" \
-            --arg new_users "$NEW_USERS" \
-            --arg wau "$WAU" \
-            --arg paid "$PAID" \
-            --arg posts_week "$POSTS_WEEK" \
-            --arg conv_rate "$CONV_RATE" \
-            --arg likes_week "$LIKES_WEEK" \
-            --arg favorites "$FAVORITES" \
-            --arg friends "$FRIENDS" \
-            --arg active_ais "$ACTIVE_AIS" \
-            --arg wip_status "$WIP_STATUS" \
-            '{
-              attachments: [{
-                color: "#4299e1",
-                title: "📊 日次 PDCA レポート（Check フェーズ）",
-                fields: [
-                  {
-                    title: "👥 ユーザー",
-                    value: ("総数: " + $total_users + " | 新規(週): " + $new_users + " | 有料: " + $paid + " | WAU: " + $wau),
-                    short: false
-                  },
-                  {
-                    title: "📝 AI投稿（今週）",
-                    value: ($posts_week + "件 | 会話率: " + $conv_rate + "%"),
-                    short: true
-                  },
-                  {
-                    title: "❤️ エンゲージメント",
-                    value: ("いいね: " + $likes_week + " | お気に入り: " + $favorites),
-                    short: true
-                  },
-                  {
-                    title: "🤝 AI社会",
-                    value: ("友人以上: " + $friends + " | 稼働AI: " + $active_ais),
-                    short: true
-                  },
-                  {
-                    title: "🔄 Act（次アクション）",
-                    value: $wip_status,
-                    short: true
-                  }
-                ],
-                footer: "weekly_pdca.yml (毎30分実行)",
-                ts: now | floor
-              }]
-            }')
-
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            --data "$PAYLOAD" \
-            "$SLACK_WEBHOOK"
 
       - name: 次の施策を自動起票（Copilot への Do 指示）
         if: steps.wip.outputs.advance == 'true'
@@ -165,13 +146,15 @@ jobs:
         run: |
           WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
-          PAYLOAD=$(jq -n \
-            --arg wip_count "$WIP_COUNT" \
-            --arg wip_limit "$WIP_LIMIT" \
-            '{
-              text: (":yellow_circle: 週次 PDCA: WIP上限 (" + $wip_count + "/" + $wip_limit + ") に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。")
-            }')
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            --data "$PAYLOAD" \
-            "$SLACK_WEBHOOK"
+          PAYLOAD=$(python3 -c "
+import json, os
+wip_count = os.environ.get('WIP_COUNT', '0')
+wip_limit = os.environ.get('WIP_LIMIT', '2')
+print(json.dumps({'text': ':yellow_circle: 週次 PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'}))
+")
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST \
+              -H "Content-Type: application/json" \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK"
+          fi
