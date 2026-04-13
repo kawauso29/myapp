@@ -27,8 +27,7 @@ class ImprovementLog < ApplicationRecord
 
   # 直近で提案済みのfeature_proposalタイトルセット（重複 PR 防止）
   def self.recent_feature_titles(limit: 10)
-    pluck(:feature_proposals)
-      .first(limit)
+    recent.limit(limit).pluck(:feature_proposals)
       .flat_map { |proposals| Array(proposals).map { |p| p.is_a?(Hash) ? p["title"] : nil } }
       .compact
       .to_set

@@ -65,7 +65,7 @@ module AiSns
     def execute_adjust_post_motivation(quick_win, action)
       boost = [ action["boost"].to_i, 5 ].max
       updated = AiDailyState.where(date: Date.current)
-                             .joins(ai_user: {})
+                             .joins(:ai_user)
                              .merge(AiUser.active)
                              .update_all([ "post_motivation = LEAST(post_motivation + ?, 100)", boost ])
       quick_win_result(quick_win, status: "applied", reason: "post_motivation_boosted_by_#{boost} (#{updated} AIs)")
