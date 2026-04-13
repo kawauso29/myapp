@@ -15,7 +15,6 @@ class Admin::AiSnsController < Admin::BaseController
     HourlyStateUpdateJob
     PostGenerateJob
     MonitorFailedJobsJob
-    AiSnsAutonomousImprovementJob
     MilestoneCheckJob
   ].freeze
   AI_SNS_RECURRING_TASK_KEYS = %w[
@@ -33,7 +32,6 @@ class Admin::AiSnsController < Admin::BaseController
     daily_schedule_generate
     hourly_state_update
     monitor_failed_jobs
-    ai_sns_autonomous_improvement
   ].freeze
   PERSONALITY_DEFAULTS = {
     sociability: 3,
@@ -109,7 +107,6 @@ class Admin::AiSnsController < Admin::BaseController
                           .limit(20)
 
     @kpi_trend = KpiSnapshot.weekly_trend(periods: 8)
-    @recent_improvement_logs = ImprovementLog.recent.limit(10)
     @kpi_metrics = Admin::KpiService.weekly_metrics
     @ai_sns_plan_stats = Admin::AiSnsPlanService.stats
     @ai_sns_plan_next = Admin::AiSnsPlanService.next_item
@@ -189,7 +186,6 @@ class Admin::AiSnsController < Admin::BaseController
     "relationship_decay" => { klass: RelationshipDecayJob },
     "daily_schedule"   => { klass: DailyScheduleGenerateJob },
     "hourly_state"     => { klass: HourlyStateUpdateJob },
-    "autonomous_improvement" => { klass: AiSnsAutonomousImprovementJob },
     "milestone_check"  => { klass: MilestoneCheckJob }
   }.freeze
 

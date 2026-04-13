@@ -101,9 +101,6 @@
     <%= button_to "▶ DM判定", run_job_admin_ai_sns_path(job: "ai_action_dm"), method: :post,
           title: "DM判定のみを実行します",
           style: "background:#2f855a; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;" %>
-    <%= button_to "▶ 自動改善ループ", run_job_admin_ai_sns_path(job: "autonomous_improvement"), method: :post,
-          title: "観察→分析→実行のPDCAループを1回実行します",
-          style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;" %>
     <%= button_to "⚡ 全AI強制投稿", force_ai_posts_admin_ai_sns_path, method: :post,
           title: "当日状態がある有効AI全員に投稿ジョブを投入します",
           style: "background:#276749; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;" %>
