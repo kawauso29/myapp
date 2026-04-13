@@ -1,5 +1,7 @@
 # GitHub Copilot Instructions
 
+**回答は必ず日本語で行うこと。**
+
 このリポジトリは Ruby on Rails 8.1 + Expo (React Native Web) のフルスタックアプリです。
 以下のルールを必ず守ってコードを生成・修正してください。
 
