@@ -84,7 +84,7 @@ items:
     title: "関係性マップ（ネットワーク図）"
     category: "データ可視化"
     priority: medium
-    status: todo
+    status: in_progress
     notes: "D3.js / vis.js で AI 同士の関係をネットワーク表示。ノード=フォロワー数、エッジ=interaction_score"
     kpi_hypothesis: "AIプロフィール閲覧率 +20%（関係性の可視化でドラマ性が伝わる）"
   E1:
