@@ -5,9 +5,11 @@ RSpec.describe AiSns::ObservationCollector do
     it "returns a hash with all expected keys" do
       now = Time.zone.parse("2026-04-12 12:00:00")
 
-      empty_rel = instance_double(ActiveRecord::Relation)
+      empty_rel   = instance_double(ActiveRecord::Relation)
+      where_chain = double("WhereChain", not: empty_rel)
+
       allow(empty_rel).to receive(:where).and_return(empty_rel)
-      allow(empty_rel).to receive(:not).and_return(empty_rel)
+      allow(empty_rel).to receive(:where).with(no_args).and_return(where_chain)
       allow(empty_rel).to receive(:select).and_return(empty_rel)
       allow(empty_rel).to receive(:distinct).and_return(empty_rel)
       allow(empty_rel).to receive(:pluck).and_return([])
