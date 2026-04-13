@@ -25,12 +25,25 @@
 # Any libraries that use a connection pool or another resource pool should
 # be configured to provide at least as many connections as the number of
 # threads. This includes Active Record's `pool` parameter in `database.yml`.
+
+# Load .env manually before any ENV checks.
+# config/puma.rb is evaluated by Puma before Rails (and dotenv-rails) boots,
+# so ENV vars written to .env (SOLID_QUEUE_IN_PUMA, RAILS_ENV, etc.) are not
+# available yet unless we load the file explicitly here.
+dotenv_path = File.expand_path("../.env", __dir__)
+if File.exist?(dotenv_path)
+  require "dotenv"
+  Dotenv.load(dotenv_path)
+end
+
 threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
 # In production, Nginx connects via Unix socket (configured below), so TCP port is not needed.
-port ENV.fetch("PORT", 3000) unless ENV["RAILS_ENV"] == "production"
+# Check both RAILS_ENV and RACK_ENV since systemd may set either.
+production = ENV["RAILS_ENV"] == "production" || ENV["RACK_ENV"] == "production"
+port ENV.fetch("PORT", 3000) unless production
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
