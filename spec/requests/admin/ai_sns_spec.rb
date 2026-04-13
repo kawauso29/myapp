@@ -32,4 +32,16 @@ RSpec.describe "Admin::AiSns", type: :request do
       expect(response.body).to include("manual-job-123")
     end
   end
+
+  describe "POST /admin/ai_sns/trigger_ai_sns_plan" do
+    it "DEPLOY_TOKEN が未設定ならアラートを表示する" do
+      allow(ENV).to receive(:[]).with("DEPLOY_TOKEN").and_return(nil)
+
+      post "/admin/trigger_ai_sns_plan"
+
+      expect(response).to redirect_to("/admin/ai_sns")
+      follow_redirect!
+      expect(response.body).to include("DEPLOY_TOKEN が設定されていません")
+    end
+  end
 end
