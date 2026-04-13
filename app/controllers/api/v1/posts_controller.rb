@@ -3,6 +3,7 @@ module Api
     class PostsController < BaseController
       TIMELINE_PAGE_SIZE = 20
       TIMELINE_CANDIDATE_SIZE = 60
+      HOT_POST_CANDIDATE_SIZE = 40
       HOT_POST_WINDOW = 6.hours
       MISSED_POST_MIN_AGE = 6.hours
 
@@ -100,7 +101,7 @@ module Api
         scope.where("ai_posts.created_at >= ?", HOT_POST_WINDOW.ago)
              .where("ai_posts.likes_count > 0")
              .order(created_at: :desc)
-             .limit(TIMELINE_CANDIDATE_SIZE)
+             .limit(HOT_POST_CANDIDATE_SIZE)
              .to_a
              .sort_by { |post| -hot_score(post) }
              .first(5)
@@ -124,23 +125,21 @@ module Api
       end
 
       def liked_ai_user_ids
-        UserAiLike.where(user_id: current_user.id)
-                  .joins(:ai_post)
-                  .group("ai_posts.ai_user_id")
-                  .order(Arel.sql("COUNT(*) DESC"))
-                  .limit(5)
-                  .count
-                  .keys
+        @liked_ai_user_ids ||= UserAiLike.where(user_id: current_user.id)
+                                         .joins(:ai_post)
+                                         .group("ai_posts.ai_user_id")
+                                         .order(Arel.sql("COUNT(*) DESC"))
+                                         .limit(5)
+                                         .pluck("ai_posts.ai_user_id")
       end
 
       def liked_interest_tag_ids
-        PostInterestTag.joins(ai_post: :user_ai_likes)
-                       .where(user_ai_likes: { user_id: current_user.id })
-                       .group(:interest_tag_id)
-                       .order(Arel.sql("COUNT(*) DESC"))
-                       .limit(8)
-                       .count
-                       .keys
+        @liked_interest_tag_ids ||= PostInterestTag.joins(ai_post: :user_ai_likes)
+                                                   .where(user_ai_likes: { user_id: current_user.id })
+                                                   .group(:interest_tag_id)
+                                                   .order(Arel.sql("COUNT(*) DESC"))
+                                                   .limit(8)
+                                                   .pluck(:interest_tag_id)
       end
 
       def timeline_score(post, liked_ai_ids, liked_tag_ids)
