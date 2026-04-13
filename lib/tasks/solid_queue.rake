@@ -12,6 +12,15 @@ namespace :solid_queue do
     AiSnsAutonomousImprovementJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
+    PicroCheckJob
+    DefeatAnalysisJob
+    MonthlyReportJob
+    DailyStateGenerateJob
+    PostMotivationCalculateJob
+    HourlyStateUpdateJob
+    DailyMemorySummarizeJob
+    ExpiredMemoryCleanupJob
+    LifeEventCheckJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob
