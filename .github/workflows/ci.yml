@@ -259,7 +259,7 @@ jobs:
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         run: |
-          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_CI != '' && secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}"
+          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_CI }}"
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping success notification"
             exit 0
@@ -282,7 +282,7 @@ jobs:
       - name: Notify Slack (failure)
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_ERROR != '' && secrets.SLACK_WEBHOOK_URL_ERROR || secrets.SLACK_WEBHOOK_URL }}"
+          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_ERROR }}"
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping failure notification"
             exit 0

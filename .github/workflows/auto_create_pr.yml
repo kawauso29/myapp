@@ -82,7 +82,7 @@ jobs:
            startsWith(github.event.workflow_run.head_branch, 'auto-fix/')) }}
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS != '' && secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
     steps:
       - name: Notify Slack (auto PR skipped)
         env:

@@ -158,7 +158,7 @@ jobs:
       - name: Slack 通知
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "SLACK_WEBHOOK_URL が未設定のためスキップ"
@@ -181,7 +181,7 @@ jobs:
       - name: 全項目完了通知
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'true'
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI || secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
           echo "🎉 AI SNS 改良計画の全項目が完了済みです"
           if [ -n "$SLACK_WEBHOOK_URL" ]; then

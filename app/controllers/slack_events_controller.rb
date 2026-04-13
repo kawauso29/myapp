@@ -9,24 +9,11 @@ class SlackEventsController < ApplicationController
     results = {
       env: {
         SLACK_BOT_TOKEN: ENV["SLACK_BOT_TOKEN"].present? ? "set (#{ENV['SLACK_BOT_TOKEN'].to_s[0..10]}...)" : "NOT SET",
-        SLACK_SIGNING_SECRET: ENV["SLACK_SIGNING_SECRET"].present? ? "set" : "NOT SET",
-        SLACK_ERROR_CHANNEL_ID: ENV["SLACK_ERROR_CHANNEL_ID"].presence || "NOT SET",
-        SLACK_GITHUB_MEMBER_ID: ENV["SLACK_GITHUB_MEMBER_ID"].presence || "NOT SET"
+        SLACK_SIGNING_SECRET: ENV["SLACK_SIGNING_SECRET"].present? ? "set" : "NOT SET"
       }
     }
 
-    if ENV["SLACK_BOT_TOKEN"].present? && ENV["SLACK_GITHUB_MEMBER_ID"].present?
-      job = SlackForwardToClaudeJob.new
-      job.perform(
-        text: "🔧 テスト送信: Slack転送システムの動作確認",
-        channel: ENV["SLACK_ERROR_CHANNEL_ID"] || "test",
-        user: "test",
-        ts: Time.current.to_f.to_s
-      )
-      results[:test_message] = "GitHubアプリへの送信を試みました"
-    else
-      results[:test_message] = "環境変数が不足しているため送信できません"
-    end
+    results[:test_message] = "転送機能は廃止されました（SLACK_GITHUB_MEMBER_ID 削除済み）"
 
     render json: results
   end
@@ -119,8 +106,7 @@ class SlackEventsController < ApplicationController
     # 編集・削除・参加退出イベントは無視（bot_messageは通す）
     ignored = %w[message_changed message_deleted channel_join channel_leave]
     return false if ignored.include?(event["subtype"])
-    # エラー監視チャネルのメッセージのみ対象
-    return false unless event["channel"] == ENV["SLACK_ERROR_CHANNEL_ID"]
+    # エラー監視チャネルのメッセージのみ対象（チャンネル ID による絞り込みは廃止）
     # デプロイ通知は除外（「デプロイ」テキストでフィルタ）
     full_text = extract_full_text(event)
     return false if full_text.include?("デプロイ")
