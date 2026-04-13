@@ -2,7 +2,8 @@ require "net/http"
 require "json"
 
 class SlackNotifierService
-  # カテゴリ②: アプリエラー通知専用 Webhook
+  LEGACY_WEBHOOK_URL = ENV["SLACK_WEBHOOK_URL"]
+
   WEBHOOK_URLS = {
     error: ENV["SLACK_WEBHOOK_URL_ERROR"],
     jobs:  ENV["SLACK_WEBHOOK_URL_JOBS"]
@@ -16,8 +17,10 @@ class SlackNotifierService
   }.freeze
 
   def self.notify(text:, color: :info, fields: [], channel: :error)
-    webhook_url = WEBHOOK_URLS[channel.to_sym] || WEBHOOK_URLS[:error]
+    channel_key = channel.to_sym
+    webhook_url = resolve_webhook_url(channel_key)
     return unless webhook_url.present?
+
     new(webhook_url).send_message(text: text, color: color, fields: fields)
   rescue => e
     Rails.logger.error("[Slack] 通知の送信に失敗しました: #{e.message}")
@@ -33,6 +36,16 @@ class SlackNotifierService
   end
 
   private
+
+  def self.resolve_webhook_url(channel_key)
+    return WEBHOOK_URLS[:error].presence || LEGACY_WEBHOOK_URL if channel_key == :error
+
+    webhook_url = WEBHOOK_URLS[channel_key].presence
+    return webhook_url if webhook_url.present?
+
+    Rails.logger.warn("[Slack] channel=#{channel_key} のWebhookが未設定のため通知をスキップしました")
+    nil
+  end
 
   def build_payload(text:, color:, fields:)
     color_code = COLORS.fetch(color.to_sym, color.to_s)
