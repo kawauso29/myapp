@@ -25,13 +25,16 @@ jobs:
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+          cp db_snapshot.json /tmp/db_snapshot.json.bak
           if git ls-remote --exit-code --heads origin db-snapshots > /dev/null 2>&1; then
             git fetch origin db-snapshots
+            rm -f db_snapshot.json
             git checkout -B db-snapshots FETCH_HEAD
           else
             git checkout --orphan db-snapshots
             git rm -rf . --quiet 2>/dev/null || true
           fi
+          cp /tmp/db_snapshot.json.bak db_snapshot.json
           git add db_snapshot.json
           git diff --staged --quiet || git commit -m "snapshot: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push origin db-snapshots
