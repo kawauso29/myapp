@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "*/30 * * * *"  # 30分おき
+    - cron: "*/10 * * * *"  # 10分おき
 
 permissions:
   contents: write
