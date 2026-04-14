@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,9 +46,58 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.index ["ai_user_id"], name: "index_ai_avatar_states_on_ai_user_id", unique: true
   end
 
-  create_table "ai_daily_states", force: :cascade do |t|
-    t.integer "appetite", default: 1, null: false
+  create_table "ai_close_people", force: :cascade do |t|
+    t.integer "age"
+    t.date "age_base_date"
     t.bigint "ai_user_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "gender"
+    t.string "name", null: false
+    t.text "notes"
+    t.integer "relation", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_user_id", "relation"], name: "index_ai_close_people_on_ai_user_id_and_relation"
+    t.index ["ai_user_id"], name: "index_ai_close_people_on_ai_user_id"
+  end
+
+  create_table "ai_communities", force: :cascade do |t|
+    t.string "category"
+    t.datetime "created_at", null: false
+    t.string "description"
+    t.string "emoji", default: "👥"
+    t.integer "members_count", default: 0, null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["members_count"], name: "index_ai_communities_on_members_count"
+    t.index ["name"], name: "index_ai_communities_on_name", unique: true
+  end
+
+  create_table "ai_community_memberships", force: :cascade do |t|
+    t.bigint "ai_community_id", null: false
+    t.bigint "ai_user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_community_id", "ai_user_id"], name: "index_community_memberships_unique", unique: true
+    t.index ["ai_community_id"], name: "index_ai_community_memberships_on_ai_community_id"
+    t.index ["ai_user_id"], name: "index_ai_community_memberships_on_ai_user_id"
+  end
+
+  create_table "ai_daily_schedules", force: :cascade do |t|
+    t.bigint "ai_user_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "items", default: [], null: false
+    t.date "scheduled_date", null: false
+    t.text "tomorrow_note"
+    t.datetime "updated_at", null: false
+    t.text "week_context"
+    t.index ["ai_user_id", "scheduled_date"], name: "index_ai_daily_schedules_on_ai_user_id_and_scheduled_date", unique: true
+    t.index ["ai_user_id"], name: "index_ai_daily_schedules_on_ai_user_id"
+    t.index ["scheduled_date"], name: "index_ai_daily_schedules_on_scheduled_date"
+  end
+
+  create_table "ai_daily_states", force: :cascade do |t|
+    t.bigint "ai_user_id", null: false
+    t.integer "appetite", default: 1, null: false
     t.integer "busyness", default: 1, null: false
     t.integer "concentration", default: 1, null: false
     t.datetime "created_at", null: false
@@ -75,33 +124,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.index ["ai_user_id", "date"], name: "index_ai_daily_states_on_ai_user_id_and_date", unique: true
     t.index ["ai_user_id"], name: "index_ai_daily_states_on_ai_user_id"
     t.index ["date"], name: "index_ai_daily_states_on_date"
-  end
-
-  create_table "ai_close_people", force: :cascade do |t|
-    t.bigint "ai_user_id", null: false
-    t.date "age_base_date"
-    t.integer "age"
-    t.datetime "created_at", null: false
-    t.integer "gender"
-    t.string "name", null: false
-    t.text "notes"
-    t.integer "relation", null: false
-    t.datetime "updated_at", null: false
-    t.index ["ai_user_id", "relation"], name: "index_ai_close_people_on_ai_user_id_and_relation"
-    t.index ["ai_user_id"], name: "index_ai_close_people_on_ai_user_id"
-  end
-
-  create_table "ai_daily_schedules", force: :cascade do |t|
-    t.bigint "ai_user_id", null: false
-    t.datetime "created_at", null: false
-    t.jsonb "items", default: [], null: false
-    t.date "scheduled_date", null: false
-    t.text "tomorrow_note"
-    t.datetime "updated_at", null: false
-    t.text "week_context"
-    t.index ["ai_user_id", "scheduled_date"], name: "index_ai_daily_schedules_on_ai_user_id_and_scheduled_date", unique: true
-    t.index ["ai_user_id"], name: "index_ai_daily_schedules_on_ai_user_id"
-    t.index ["scheduled_date"], name: "index_ai_daily_schedules_on_scheduled_date"
   end
 
   create_table "ai_dm_messages", force: :cascade do |t|
@@ -192,8 +214,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.integer "active_time_peak", default: 3, null: false
     t.bigint "ai_user_id", null: false
     t.integer "competitiveness", default: 3, null: false
-    t.integer "creativity", default: 3, null: false
     t.datetime "created_at", null: false
+    t.integer "creativity", default: 3, null: false
     t.integer "curiosity", default: 3, null: false
     t.integer "drinking_frequency", default: 2, null: false
     t.integer "emotional_range", default: 3, null: false
@@ -238,9 +260,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.boolean "emoji_used", default: false, null: false
-    t.integer "impressions_count", default: 0, null: false
     t.text "image_prompt"
     t.string "image_url"
+    t.integer "impressions_count", default: 0, null: false
     t.boolean "is_visible", default: true, null: false
     t.integer "likes_count", default: 0, null: false
     t.integer "mood_expressed"
@@ -372,6 +394,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.datetime "updated_at", null: false
   end
 
+
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
@@ -391,12 +414,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
   end
 
   create_table "kpi_snapshots", force: :cascade do |t|
-    t.string   "period",      null: false
-    t.date     "recorded_on", null: false
-    t.json     "metrics",     null: false
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
-    t.index %w[period recorded_on], name: "index_kpi_snapshots_on_period_and_recorded_on", unique: true
+    t.datetime "created_at", null: false
+    t.json "metrics", null: false
+    t.string "period", null: false
+    t.date "recorded_on", null: false
+    t.datetime "updated_at", null: false
+    t.index ["period", "recorded_on"], name: "index_kpi_snapshots_on_period_and_recorded_on", unique: true
   end
 
   create_table "market_snapshots", force: :cascade do |t|
@@ -424,12 +447,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.bigint "target_ai_user_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
+    t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
+    t.index ["target_ai_user_id"], name: "index_notifications_on_target_ai_user_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id", "is_read"], name: "index_notifications_on_user_id_and_is_read"
     t.index ["user_id"], name: "index_notifications_on_user_id"
-    t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
-    t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
-    t.index ["target_ai_user_id"], name: "index_notifications_on_target_ai_user_id"
   end
 
   create_table "picro_messages", force: :cascade do |t|
@@ -502,6 +525,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.index ["user_id"], name: "index_user_ai_likes_on_user_id"
   end
 
+  create_table "user_community_follows", force: :cascade do |t|
+    t.bigint "ai_community_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["ai_community_id"], name: "index_user_community_follows_on_ai_community_id"
+    t.index ["user_id", "ai_community_id"], name: "index_user_community_follows_unique", unique: true
+    t.index ["user_id"], name: "index_user_community_follows_on_user_id"
+  end
+
   create_table "user_favorite_ais", force: :cascade do |t|
     t.bigint "ai_user_id", null: false
     t.datetime "created_at", null: false
@@ -540,6 +573,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
   add_foreign_key "agent_judgments", "market_snapshots"
   add_foreign_key "ai_avatar_states", "ai_users"
   add_foreign_key "ai_close_people", "ai_users"
+  add_foreign_key "ai_community_memberships", "ai_communities"
+  add_foreign_key "ai_community_memberships", "ai_users"
   add_foreign_key "ai_daily_schedules", "ai_users"
   add_foreign_key "ai_daily_states", "ai_users"
   add_foreign_key "ai_dm_messages", "ai_dm_threads", column: "thread_id"
@@ -576,6 +611,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
   add_foreign_key "trade_results", "trade_decisions"
   add_foreign_key "user_ai_likes", "ai_posts"
   add_foreign_key "user_ai_likes", "users"
+  add_foreign_key "user_community_follows", "ai_communities"
+  add_foreign_key "user_community_follows", "users"
   add_foreign_key "user_favorite_ais", "ai_users"
   add_foreign_key "user_favorite_ais", "users"
 end

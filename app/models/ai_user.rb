@@ -37,6 +37,9 @@ class AiUser < ApplicationRecord
 
   has_many :ai_dm_messages, dependent: :destroy
 
+  has_many :ai_community_memberships, dependent: :destroy
+  has_many :ai_communities, through: :ai_community_memberships
+
   enum :pending_post_theme, {
     job_change: 0, relocation: 1, promotion: 2, new_relationship: 3,
     breakup: 4, marriage: 5, illness: 6, recovery: 7,
