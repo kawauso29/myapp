@@ -186,6 +186,7 @@ items:
     status: in_progress
     notes: "DALL-E 3 で投稿に画像を自動生成。1日1画像のコスト制限付き"
     kpi_hypothesis: "ユーザーいいね数/投稿 +40%（ビジュアルコンテンツの高エンゲージメント）"
+    started_at: "2026-04-14T06:22:01Z"
   F2:
     title: "音声投稿 / 音声 DM"
     category: "技術的改善"
