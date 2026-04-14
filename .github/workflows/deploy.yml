@@ -122,7 +122,7 @@ print(json.dumps({'attachments':[{'color':'#36c5f0','text':':rocket: *デプロ�
           RAILS_ENV=production bin/rails assets:precompile
           rm -rf ~/myapp/public/app
           mkdir -p ~/myapp/public/app
-          cp "$GITHUB_WORKSPACE/frontend.tar.gz" /tmp/
+          cp frontend.tar.gz /tmp/
           tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
           rm /tmp/frontend.tar.gz
           echo "Frontend files:"
@@ -272,9 +272,11 @@ msg = os.environ.get('COMMIT_MSG', '')
 actor = os.environ.get('ACTOR', '')
 print(json.dumps({'attachments':[{'color':'#2eb886','text':':white_check_mark: *デプロイ成功* \`main\` by ' + actor,'fields':[{'title':'コミット','value':msg,'short':False},{'title':'サーバー','value':'133.167.124.112','short':True}],'footer':'GitHub Actions','ts':int(time.time())}]}))
 ")
-          curl -s -X POST "$SLACK_WEBHOOK" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST "$SLACK_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD"
+          fi
 
       # カテゴリ②: デプロイ失敗通知
       - name: Notify Slack (deploy failure)
@@ -298,6 +300,8 @@ status = os.environ.get('ROLLBACK_STATUS', '')
 log_url = os.environ.get('LOG_URL', '')
 print(json.dumps({'attachments':[{'color':'#e01e5a','text':':x: *デプロイ失敗* \`main\` by ' + actor,'fields':[{'title':'コミット','value':msg,'short':False},{'title':'原因','value':status,'short':False},{'title':'次のアクション','value':'ログを確認してください: ' + log_url,'short':False}],'footer':'GitHub Actions','ts':int(time.time())}]}))
 ")
-          curl -s -X POST "$SLACK_WEBHOOK" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST "$SLACK_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD"
+          fi
