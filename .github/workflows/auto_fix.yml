@@ -16,7 +16,7 @@ jobs:
   auto_fix_lint:
     # lint ジョブを含む CI が失敗した場合のみ実行
     if: github.event.workflow_run.conclusion == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     env:
       RUBOCOP_CACHE_ROOT: tmp/rubocop
       LINT_JOB_NAME: lint
@@ -55,11 +55,15 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Ruby
+      - name: Setup Ruby via rbenv
         if: steps.lint_check.outputs.lint_failed == 'true'
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        if: steps.lint_check.outputs.lint_failed == 'true'
+        run: bundle install --jobs 4 --retry 3
 
       - name: Run RuboCop autocorrect
         if: steps.lint_check.outputs.lint_failed == 'true'
@@ -75,15 +79,14 @@ jobs:
             git diff --stat
           fi
 
-      - name: Create auto-fix PR
+      - name: Create auto-fix branch and push
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
+        id: auto_fix_branch
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          HEAD_MSG: ${{ github.event.workflow_run.head_commit.message }}
-          CI_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           BRANCH="auto-fix/rubocop-$(date +%Y%m%d-%H%M%S)"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
@@ -93,28 +96,61 @@ jobs:
           Automatically fixed RuboCop violations after CI lint failure.
           Triggered by commit: ${HEAD_SHA}"
           git push origin "$BRANCH"
-          # PR本文をファイルに書き出して特殊文字を安全に扱う
-          PR_BODY=$(jq -n \
-            --arg sha "${HEAD_SHA}" \
-            --arg msg "${HEAD_MSG}" \
-            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${CI_RUN_ID}" \
-            '"## 自動修正PR\n\nCIの **lint** ジョブが失敗したため、`rubocop --autocorrect` で自動修正しました。\n\n**トリガーコミット**: `\($sha)`\n**コミットメッセージ**: `\($msg)`\n**CIログ**: \($log_url)\n\n### レビュー時の確認事項\n- [ ] 自動修正の内容を確認済み（意図しない変更がないか）\n- [ ] 今回のCI失敗原因を `CLAUDE.md` の「CIエラーの原因になったこと」に追記した\n- [ ] 同じ問題が再発しないようにコーディングルールを更新した（必要な場合）"' \
-            -r)
-          echo "$PR_BODY" > /tmp/pr_body.md
-          gh pr create \
-            --title "🤖 auto-fix: RuboCop lint errors ($(date +%Y-%m-%d))" \
-            --body-file /tmp/pr_body.md \
-            --base main \
-            --head "$BRANCH"
+
+      - name: Create auto-fix PR
+        if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
+        id: create_pr
+        uses: actions/github-script@v9
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+          BRANCH: ${{ steps.auto_fix_branch.outputs.branch }}
+        with:
+          script: |
+            const branch = process.env.BRANCH;
+            const headSha = process.env.HEAD_SHA;
+            const headMsg = process.env.HEAD_MSG;
+            const logUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.CI_RUN_ID}`;
+            
+            const body = [
+              '## 自動修正PR',
+              '',
+              'CIの **lint** ジョブが失敗したため、`rubocop --autocorrect` で自動修正しました。',
+              '',
+              `**トリガーコミット**: \`${headSha}\``,
+              `**コミットメッセージ**: \`${headMsg}\``,
+              `**CIログ**: ${logUrl}`,
+              '',
+              '### レビュー時の確認事項',
+              '- [ ] 自動修正の内容を確認済み（意図しない変更がないか）',
+              '- [ ] 今回のCI失敗原因を `CLAUDE.md` の「CIエラーの原因になったこと」に追記した',
+              '- [ ] 同じ問題が再発しないようにコーディングルールを更新した（必要な場合）'
+            ].join('\n');
+            
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🤖 auto-fix: RuboCop lint errors (${new Date().toISOString().split('T')[0]})`,
+              body: body,
+              head: branch,
+              base: 'main'
+            });
+            core.info(`Created auto-fix PR: ${pr.html_url}`);
 
       # カテゴリ③: 自動修正ジョブ結果通知
       - name: Notify Slack (auto-fix PR created)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
+        env:
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pulls
         run: |
-          PAYLOAD=$(jq -n \
-            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
-            --arg pr_url "${{ github.server_url }}/${{ github.repository }}/pulls" \
-            '{attachments:[{color:"#f0a500",text:":wrench: *CI lint 失敗 → 自動修正PR作成* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"自動修正PRを確認・マージしてください: \($pr_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          msg = os.environ.get('COMMIT_MSG', '')
+          pr_url = os.environ.get('PR_URL', '')
+          print(json.dumps({'attachments': [{'color': '#f0a500', 'text': ':wrench: *CI lint 失敗 → 自動修正PR作成* \`main\`', 'fields': [{'title': 'トリガーコミット', 'value': msg, 'short': False}, {'title': '次のアクション', 'value': f'自動修正PRを確認・マージしてください: {pr_url}', 'short': False}], 'footer': 'GitHub Actions Auto Fix', 'ts': int(time.time())}]}))
+          ")
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -122,11 +158,16 @@ jobs:
       # カテゴリ③: 手動修正が必要な場合の通知
       - name: Notify Slack (lint failure, no auto-fix available)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'false'
+        env:
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
         run: |
-          PAYLOAD=$(jq -n \
-            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
-            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *CI失敗（自動修正不可）* `main`",fields:[{title:"トリガーコミット",value:$msg,short:false},{title:"次のアクション",value:"手動で修正が必要です: \($log_url)",short:false}],footer:"GitHub Actions Auto Fix",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          msg = os.environ.get('COMMIT_MSG', '')
+          log_url = os.environ.get('LOG_URL', '')
+          print(json.dumps({'attachments': [{'color': '#e01e5a', 'text': ':x: *CI失敗（自動修正不可）* \`main\`', 'fields': [{'title': 'トリガーコミット', 'value': msg, 'short': False}, {'title': '次のアクション', 'value': f'手動で修正が必要です: {log_url}', 'short': False}], 'footer': 'GitHub Actions Auto Fix', 'ts': int(time.time())}]}))
+          ")
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -138,7 +179,7 @@ jobs:
   # lint 以外のジョブ（test / job-check / route-check）が失敗した場合に Issue を起票する
   triage_ci_failures:
     if: github.event.workflow_run.conclusion == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Collect failed jobs and create triage issue
         uses: actions/github-script@v9
@@ -256,14 +297,22 @@ jobs:
 
       # カテゴリ③: test/check系 CI失敗通知
       - name: Notify Slack (non-lint CI failure)
+        env:
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+          ISSUES_URL: ${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure
         run: |
-          PAYLOAD=$(jq -n \
-            --arg msg "${{ github.event.workflow_run.head_commit.message }}" \
-            --arg sha "${{ github.event.workflow_run.head_sha }}" \
-            --arg branch "${{ github.event.workflow_run.head_branch }}" \
-            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}" \
-            --arg issues_url "${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure" \
-            '{attachments:[{color:"#e01e5a",text:(":x: *CI失敗（test/check系）* `" + $branch + "` — Issueを確認してください"),fields:[{title:"コミット",value:$msg,short:false},{title:"SHA",value:$sha,short:true},{title:"CIログ",value:$log_url,short:false},{title:"Issue一覧",value:$issues_url,short:false}],footer:"GitHub Actions Auto Triage",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          msg = os.environ.get('COMMIT_MSG', '')
+          sha = os.environ.get('SHA', '')
+          branch = os.environ.get('BRANCH', '')
+          log_url = os.environ.get('LOG_URL', '')
+          issues_url = os.environ.get('ISSUES_URL', '')
+          print(json.dumps({'attachments': [{'color': '#e01e5a', 'text': f':x: *CI失敗（test/check系）* \`{branch}\` — Issueを確認してください', 'fields': [{'title': 'コミット', 'value': msg, 'short': False}, {'title': 'SHA', 'value': sha, 'short': True}, {'title': 'CIログ', 'value': log_url, 'short': False}, {'title': 'Issue一覧', 'value': issues_url, 'short': False}], 'footer': 'GitHub Actions Auto Triage', 'ts': int(time.time())}]}))
+          ")
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
