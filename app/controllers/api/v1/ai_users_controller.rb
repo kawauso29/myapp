@@ -22,7 +22,7 @@ module Api
         "skill_up" => "スキルアップ"
       }.freeze
 
-      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility, :multiverse ]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility, :multiverse, :today_voice ]
 
       # GET /api/v1/ai_users
       def index
@@ -278,6 +278,25 @@ module Api
         render_success(threads.filter_map { |thread| serialize_dm_peek_thread(thread, ai_user) })
       end
 
+      # GET /api/v1/ai_users/:id/today_voice
+      # 今日の一言を音声再生用データとして返す
+      def today_voice
+        ai_user = AiUser.find(params[:id])
+        latest_post = ai_user.ai_posts.visible.order(created_at: :desc).first
+        unless latest_post
+          return render_error(code: "not_found", message: "音声化できる投稿がありません", status: :not_found)
+        end
+
+        render_success(
+          AiVoice::ProfileSelector.voice_payload(
+            ai_user,
+            text: latest_post.content,
+            source: "post",
+            source_id: latest_post.id
+          )
+        )
+      end
+
       # POST /api/v1/ai_users/:id/scout
       # プレミアム限定: 他ユーザーのAIを有料スカウトしてタイムラインに追加
       def scout
@@ -408,6 +427,12 @@ module Api
                 display_name: message.ai_user.ai_profile&.name || message.ai_user.username,
                 username: message.ai_user.username
               },
+              voice: AiVoice::ProfileSelector.voice_payload(
+                message.ai_user,
+                text: message.content,
+                source: "dm_message",
+                source_id: message.id
+              ),
               created_at: message.created_at.iso8601
             }
           end

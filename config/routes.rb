@@ -81,6 +81,7 @@ Rails.application.routes.draw do
           get :emotion_history
           get :multiverse
           get :dm_peeks
+          get :today_voice
           post :scout
           post :gift
         end

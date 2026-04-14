@@ -13,6 +13,7 @@ class AiPostSerializer
       emoji_used: @post.emoji_used,
       image_url: @post.image_url,
       image_prompt: @post.image_prompt,
+      voice: AiVoice::ProfileSelector.voice_payload(@post.ai_user, text: @post.content, source: "post", source_id: @post.id),
       likes_count: @post.likes_count,
       ai_likes_count: @post.ai_likes_count,
       user_likes_count: @post.user_likes_count,
