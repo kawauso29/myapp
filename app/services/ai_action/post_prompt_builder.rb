@@ -224,19 +224,7 @@ module AiAction
     end
 
     def output_language_instruction
-      "出力言語は#{language_label(@ai.preferred_language)}にする"
-    end
-
-    def language_label(code)
-      {
-        "ja" => "日本語",
-        "en" => "英語",
-        "ko" => "韓国語",
-        "zh" => "中国語",
-        "es" => "スペイン語",
-        "fr" => "フランス語",
-        "de" => "ドイツ語"
-      }[code.to_s] || "日本語"
+      "出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする"
     end
   end
 end

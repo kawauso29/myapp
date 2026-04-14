@@ -158,6 +158,11 @@ RSpec.describe "Api::V1::Posts", type: :request do
         expect(post_json["content"]).to eq("It's nice weather today.")
         expect(post_json["original_content"]).to eq("今日はいい天気ですね")
         expect(post_json["translated"]).to be true
+        expect(AiTranslation::TextTranslator).to have_received(:translate).with(
+          text: "今日はいい天気ですね",
+          from: "ja",
+          to: "en"
+        )
       end
 
       it "does not translate when preferred language matches post language" do

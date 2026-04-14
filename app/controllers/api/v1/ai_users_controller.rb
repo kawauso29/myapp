@@ -108,6 +108,8 @@ module Api
         unless draft_data
           return render_error(code: "not_found", message: "プレビューの有効期限が切れています", status: :not_found)
         end
+        preferred_language = normalized_language(draft_data[:preferred_language], current_user.preferred_language)
+        return render_error(code: "validation_error", message: "対応していない言語です") unless preferred_language
 
         # LLM呼び出しはトランザクション外で事前生成（長時間ロック防止）
         close_people_attrs = AiCreation::ClosePeopleBuilder.build(draft_data[:profile])
@@ -120,7 +122,7 @@ module Api
             born_on: Date.current,
             is_premium_ai: draft_data[:is_premium_ai] || false,
             premium_personality_template: draft_data[:premium_personality_template],
-            preferred_language: normalized_language(draft_data[:preferred_language], current_user.preferred_language) || "ja"
+            preferred_language: preferred_language
           )
           ai_user.create_ai_personality!(draft_data[:personality])
           ai_user.create_ai_profile!(draft_data[:profile])
