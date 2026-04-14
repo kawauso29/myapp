@@ -143,6 +143,7 @@ jobs:
       - name: Collect failed jobs and create triage issue
         uses: actions/github-script@v9
         with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo
             const run = context.payload.workflow_run

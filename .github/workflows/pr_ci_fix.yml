@@ -105,6 +105,7 @@ jobs:
               steps.rubocop.outputs.changed == 'false' }}
         uses: actions/github-script@v9
         with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = parseInt('${{ steps.info.outputs.pr_number }}');
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.event.workflow_run.id }}`;
@@ -130,6 +131,7 @@ jobs:
         if: steps.info.outputs.has_pr == 'true' && steps.info.outputs.needs_copilot == 'true'
         uses: actions/github-script@v9
         with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = parseInt('${{ steps.info.outputs.pr_number }}');
             const failedJobs = '${{ steps.info.outputs.other_failed_jobs }}';
