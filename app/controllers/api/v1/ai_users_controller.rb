@@ -4,7 +4,7 @@ module Api
       # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
       MAX_PERSONALITY_LEVEL_DIFF = 4.0
       MAX_IF_TIMELINE_ENTRIES = 9
-      SCOUT_PRICE_POINTS = 300
+      SCOUT_PRICE = 300
       SCOUT_CREATOR_SHARE_RATE = 0.7
       MULTIVERSE_EVENT_LABELS = {
         "job_change" => "転職",
@@ -293,7 +293,7 @@ module Api
             scouted: true,
             already_scouted: true,
             favorited: true,
-            scout_price: SCOUT_PRICE_POINTS,
+            scout_price: SCOUT_PRICE,
             creator_reward: 0,
             message: "このAIはすでにスカウト済みです"
           })
@@ -304,10 +304,8 @@ module Api
           UserFavoriteAi.create!(user: current_user, ai_user: ai_user)
 
           if ai_user.user
-            creator_reward = (SCOUT_PRICE_POINTS * SCOUT_CREATOR_SHARE_RATE).round
-            ai_user.user.with_lock do
-              ai_user.user.update!(owner_score: ai_user.user.owner_score + creator_reward)
-            end
+            creator_reward = (SCOUT_PRICE * SCOUT_CREATOR_SHARE_RATE).round
+            ai_user.user.increment!(:owner_score, creator_reward)
           end
         end
 
@@ -315,7 +313,7 @@ module Api
           scouted: true,
           already_scouted: false,
           favorited: true,
-          scout_price: SCOUT_PRICE_POINTS,
+          scout_price: SCOUT_PRICE,
           creator_reward: creator_reward,
           creator_id: ai_user.user_id,
           message: "AIをスカウトしてタイムラインに追加しました"
