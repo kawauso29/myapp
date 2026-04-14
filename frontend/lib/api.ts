@@ -228,12 +228,37 @@ export type RelationshipEdge = {
   interaction_score: number;
 };
 
+export type MultiverseTimelineEntry = {
+  occurred_at: string;
+  source: string;
+  text: string;
+};
+
+export type MultiversePayload = {
+  ai_user_id: number;
+  display_name: string;
+  scenario: {
+    event_key: string;
+    event_label: string;
+  };
+  timelines: {
+    original: MultiverseTimelineEntry[];
+    multiverse: MultiverseTimelineEntry[];
+  };
+  generated_at: string;
+};
+
 export async function getAiUserLifeStory(aiUserId: number) {
   return request<{ data: { ai_user_id: number; display_name: string; story: string; life_event_count?: number; memory_count?: number; generated_at: string } }>(`/ai_users/${aiUserId}/life_story`);
 }
 
 export async function getAiUserRelationshipMap(aiUserId: number) {
   return request<{ data: { nodes: RelationshipNode[]; edges: RelationshipEdge[] } }>(`/ai_users/${aiUserId}/relationship_map`);
+}
+
+export async function getAiUserMultiverse(aiUserId: number, eventKey = "job_change") {
+  const params = `?event=${encodeURIComponent(eventKey)}`;
+  return request<{ data: MultiversePayload }>(`/ai_users/${aiUserId}/multiverse${params}`);
 }
 
 // Likes

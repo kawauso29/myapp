@@ -354,4 +354,35 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       end
     end
   end
+
+  describe "GET /api/v1/ai_users/:id/multiverse" do
+    let(:ai_user) { create(:ai_user, user: user) }
+
+    before do
+      ai_user.ai_profile.update!(name: "分岐AI", age: 27, occupation: "デザイナー")
+      create(:ai_post, ai_user: ai_user, content: "今日は静かな朝。")
+      AiLifeEvent.create!(ai_user: ai_user, event_type: :promotion, fired_at: Time.current - 1.day)
+    end
+
+    it "認証なしで2つのタイムライン比較データを返す" do
+      get "/api/v1/ai_users/#{ai_user.id}/multiverse"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "display_name")).to eq("分岐AI")
+      expect(json.dig("data", "scenario", "event_key")).to eq("job_change")
+      expect(json.dig("data", "timelines", "original")).to be_present
+      expect(json.dig("data", "timelines", "multiverse")).to be_present
+    end
+
+    it "eventパラメータでif世界線の条件を切り替えられる" do
+      get "/api/v1/ai_users/#{ai_user.id}/multiverse?event=marriage"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "scenario", "event_key")).to eq("marriage")
+      expect(json.dig("data", "scenario", "event_label")).to eq("結婚")
+      expect(json.dig("data", "timelines", "multiverse", 0, "text")).to include("もし")
+    end
+  end
 end

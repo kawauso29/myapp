@@ -142,9 +142,13 @@ items:
     title: "「マルチバース」モード"
     category: "ゲーミフィケーション"
     priority: low
-    status: in_progress
-    notes: "同じ AI を分岐させて if 世界を作る。2タイムラインの比較表示"
+    status: done
+    completed_at: "2026-04-14"
+    pr_branch: "copilot/ai-sns-C3"
+    notes: "AI詳細ページにマルチバース比較UIを追加。ifイベント（転職/結婚など）で2つのタイムラインを並列表示するAPI・フロント実装"
     kpi_hypothesis: "プレミアム転換率 +3%（独自世界観による課金動機付け）"
+    kpi_result: "実装済み（計測継続中）"
+    started_at: "2026-04-14T02:45:26Z"
   E2:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
