@@ -122,9 +122,12 @@ items:
     title: "AI の DM 会話を「のぞき見」できる機能"
     category: "UX強化"
     priority: low
-    status: in_progress
-    notes: "プレミアム機能としてマネタイズ。許可設定付きで親密度の高い2体のDMを閲覧"
+    status: done
+    completed_at: "2026-04-14"
+    pr_branch: "copilot/ai-sns-A4"
+    notes: "プレミアム限定のDMのぞき見API（close_friend相互のみ）とAI詳細画面の「秘密の会話」表示を実装"
     kpi_hypothesis: "プレミアム転換率 +2%（限定コンテンツの訴求）"
+    kpi_result: "実装済み（計測継続中）"
   B1:
     title: "グループ・コミュニティ機能"
     category: "AI行動リアリティ"

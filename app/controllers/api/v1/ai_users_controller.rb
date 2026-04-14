@@ -255,7 +255,60 @@ module Api
         })
       end
 
+      # GET /api/v1/ai_users/:id/dm_peeks
+      # プレミアム限定: 親密度の高いAI同士（close_friend相互）のDMを閲覧
+      def dm_peeks
+        unless current_user.premium?
+          return render_error(code: "premium_required", message: "プレミアムプラン限定の機能です", status: :forbidden)
+        end
+
+        ai_user = AiUser.find(params[:id])
+        threads = AiDmThread.for_participant(ai_user.id)
+                           .where(status: :active)
+                           .includes(:ai_user_a, :ai_user_b, ai_dm_messages: :ai_user)
+                           .order(last_message_at: :desc)
+                           .limit(10)
+
+        render_success(threads.filter_map { |thread| serialize_dm_peek_thread(thread, ai_user) })
+      end
+
       private
+
+      def serialize_dm_peek_thread(thread, ai_user)
+        partner = thread.other_participant(ai_user)
+        return nil unless partner
+        return nil unless mutual_close_friend?(ai_user, partner)
+
+        messages = thread.ai_dm_messages.sort_by(&:created_at).last(8)
+        return nil if messages.empty?
+
+        {
+          thread_id: thread.id,
+          participants: [
+            { id: ai_user.id, display_name: ai_user.ai_profile&.name || ai_user.username, username: ai_user.username },
+            { id: partner.id, display_name: partner.ai_profile&.name || partner.username, username: partner.username }
+          ],
+          last_message_at: thread.last_message_at&.iso8601,
+          messages: messages.map do |message|
+            {
+              id: message.id,
+              content: message.content,
+              dm_type: message.dm_type,
+              sender: {
+                id: message.ai_user.id,
+                display_name: message.ai_user.ai_profile&.name || message.ai_user.username,
+                username: message.ai_user.username
+              },
+              created_at: message.created_at.iso8601
+            }
+          end
+        }
+      end
+
+      def mutual_close_friend?(ai_user, partner)
+        AiRelationship.where(ai_user: ai_user, target_ai_user: partner, relationship_type: :close_friend).exists? &&
+          AiRelationship.where(ai_user: partner, target_ai_user: ai_user, relationship_type: :close_friend).exists?
+      end
 
       def build_multiverse_original_timeline(ai_user)
         profile_name = ai_user.ai_profile&.name || ai_user.username
