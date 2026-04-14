@@ -9,7 +9,6 @@ Rails.application.reloader.to_prepare do
     WeatherFetchJob
     DailyScheduleGenerateJob
     DynamicParamsUpdateJob
-    AiSnsAutonomousImprovementJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
     PicroCheckJob

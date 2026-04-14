@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -394,17 +394,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000001) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "improvement_logs", force: :cascade do |t|
-    t.integer "applied_quick_wins", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.json "created_pr_numbers"
-    t.json "feature_proposals"
-    t.json "observation", null: false
-    t.json "quick_win_results"
-    t.text "summary"
-    t.datetime "updated_at", null: false
-    t.index ["created_at"], name: "index_improvement_logs_on_created_at"
-  end
 
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"

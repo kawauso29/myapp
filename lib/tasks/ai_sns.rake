@@ -64,11 +64,4 @@ namespace :ai_sns do
     load Rails.root.join("db/seeds.rb")
     puts "Seed complete."
   end
-
-  desc "Run AI SNS autonomous improvement cycle (observe -> analyze -> execute)"
-  task run_autonomous_improvement_cycle: :environment do
-    puts "Triggering AiSnsAutonomousImprovementJob..."
-    AiSnsAutonomousImprovementJob.perform_later
-    puts "Job enqueued."
-  end
 end

@@ -9,7 +9,6 @@ namespace :solid_queue do
     WeatherFetchJob
     DailyScheduleGenerateJob
     DynamicParamsUpdateJob
-    AiSnsAutonomousImprovementJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
     PicroCheckJob
