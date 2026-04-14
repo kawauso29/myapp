@@ -367,8 +367,8 @@ jobs:
               );
             }
 
-            // pr_branch を記録
-            const prBranch = '${{ github.event.workflow_run.head_branch }}' || '';
+            // pr_branch を記録（pr オブジェクトから直接取得）
+            const prBranch = pr?.head?.ref || '';
             if (prBranch) {
               const prBranchRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    pr_branch: .+)`);
               if (prBranchRegex.test(updated)) {
