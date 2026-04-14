@@ -7,8 +7,6 @@ on:
         description: "実装する項目ID（空の場合は次の高優先度項目を自動選択）"
         required: false
         default: ""
-  schedule:
-    - cron: "*/5 * * * *"  # 5分おき（GitHub schedule遅延対策で10分から短縮）
 
 concurrency:
   group: ai-sns-plan
