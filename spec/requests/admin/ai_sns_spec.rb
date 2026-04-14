@@ -59,12 +59,11 @@ RSpec.describe "Admin::AiSns", type: :request do
       expect(response.body).to include("Last Manual Job Status")
       expect(response.body).not_to include("Failed to instantiate job, class `AiActionCheckJob` doesn't exist")
 
-      persisted = SolidQueue::FailedExecution.find_by(id: failed_execution.id)
-      if persisted&.respond_to?(:discarded_at)
-        expect(persisted.discarded_at).to be_present
-      else
-        expect(persisted).to be_nil
+      active_failure_scope = SolidQueue::FailedExecution.where(id: failed_execution.id)
+      if SolidQueue::FailedExecution.column_names.include?("discarded_at")
+        active_failure_scope = active_failure_scope.where(discarded_at: nil)
       end
+      expect(active_failure_scope).to be_empty
     end
   end
 

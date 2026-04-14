@@ -418,7 +418,7 @@ class Admin::AiSnsController < Admin::BaseController
     job = SolidQueue::Job.find_by(active_job_id: active_job_id)
     return { manual: manual, status: :missing, job: nil, failed_execution: nil, error: nil } unless job
 
-    failed_execution = SolidQueue::FailedExecution.find_by(job_id: job.id)
+    failed_execution = find_active_failed_execution(job.id)
     failed_execution = discard_transient_unknown_class_failure_for_manual_status(failed_execution)
     status = if failed_execution
       :failed
@@ -529,7 +529,15 @@ class Admin::AiSnsController < Admin::BaseController
       return failed_execution
     end
 
-    SolidQueue::FailedExecution.find_by(job_id: failed_execution.job_id)
+    find_active_failed_execution(failed_execution.job_id)
+  end
+
+  def find_active_failed_execution(job_id)
+    scope = SolidQueue::FailedExecution.where(job_id: job_id)
+    if SolidQueue::FailedExecution.column_names.include?("discarded_at")
+      scope = scope.where(discarded_at: nil)
+    end
+    scope.first
   end
 
   def github_dispatch_request(token:, workflow:, body:)
