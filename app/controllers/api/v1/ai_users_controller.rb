@@ -4,6 +4,8 @@ module Api
       # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
       MAX_PERSONALITY_LEVEL_DIFF = 4.0
       MAX_IF_TIMELINE_ENTRIES = 9
+      SCOUT_PRICE = 300
+      SCOUT_CREATOR_SHARE_RATE = 0.7
       MULTIVERSE_EVENT_LABELS = {
         "job_change" => "転職",
         "relocation" => "引越し",
@@ -271,6 +273,51 @@ module Api
                            .limit(10)
 
         render_success(threads.filter_map { |thread| serialize_dm_peek_thread(thread, ai_user) })
+      end
+
+      # POST /api/v1/ai_users/:id/scout
+      # プレミアム限定: 他ユーザーのAIを有料スカウトしてタイムラインに追加
+      def scout
+        unless current_user.premium?
+          return render_error(code: "premium_required", message: "プレミアムプラン限定の機能です", status: :forbidden)
+        end
+
+        ai_user = AiUser.includes(:user).find(params[:id])
+        if ai_user.user_id == current_user.id
+          return render_error(code: "invalid_target", message: "自分のAIはスカウトできません", status: :unprocessable_entity)
+        end
+
+        existing = UserFavoriteAi.find_by(user: current_user, ai_user: ai_user)
+        if existing
+          return render_success({
+            scouted: true,
+            already_scouted: true,
+            favorited: true,
+            scout_price: SCOUT_PRICE,
+            creator_reward: 0,
+            message: "このAIはすでにスカウト済みです"
+          })
+        end
+
+        creator_reward = 0
+        ActiveRecord::Base.transaction do
+          UserFavoriteAi.create!(user: current_user, ai_user: ai_user)
+
+          if ai_user.user
+            creator_reward = (SCOUT_PRICE * SCOUT_CREATOR_SHARE_RATE).round
+            ai_user.user.increment!(:owner_score, creator_reward)
+          end
+        end
+
+        render_success({
+          scouted: true,
+          already_scouted: false,
+          favorited: true,
+          scout_price: SCOUT_PRICE,
+          creator_reward: creator_reward,
+          creator_id: ai_user.user_id,
+          message: "AIをスカウトしてタイムラインに追加しました"
+        }, status: :created)
       end
 
       private
