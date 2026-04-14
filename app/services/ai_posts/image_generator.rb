@@ -29,7 +29,7 @@ module AiPosts
     private
 
     def daily_limit_reached?
-      @ai_user.ai_posts.where.not(image_url: [ nil, "" ]).where(created_at: Time.current.all_day).count >= daily_limit
+      @ai_user.ai_posts.where.not(image_url: [ nil, "" ]).where(created_at: Date.current.all_day).count >= daily_limit
     end
 
     def daily_limit
@@ -43,10 +43,11 @@ module AiPosts
     end
 
     def generate_image_url(prompt)
-      return nil if ENV["OPENAI_API_KEY"].blank?
+      api_key = ENV.fetch("OPENAI_API_KEY", nil)
+      return nil if api_key.blank?
 
       require "openai"
-      client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_API_KEY"))
+      client = OpenAI::Client.new(access_token: api_key)
       response = client.images.generate(
         parameters: {
           model: ENV.fetch("AI_IMAGE_MODEL", "dall-e-3"),

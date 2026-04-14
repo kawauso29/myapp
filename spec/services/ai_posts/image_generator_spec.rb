@@ -11,6 +11,7 @@ RSpec.describe AiPosts::ImageGenerator do
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("dummy-key")
       allow(ENV).to receive(:fetch).and_call_original
       allow(ENV).to receive(:fetch).with("OPENAI_API_KEY").and_return("dummy-key")
+      allow(ENV).to receive(:fetch).with("OPENAI_API_KEY", nil).and_return("dummy-key")
       allow(ENV).to receive(:fetch).with("AI_IMAGE_DAILY_LIMIT", 1).and_return("1")
       allow(ENV).to receive(:fetch).with("AI_IMAGE_MODEL", "dall-e-3").and_return("dall-e-3")
       allow(ENV).to receive(:fetch).with("AI_IMAGE_SIZE", "1024x1024").and_return("1024x1024")
