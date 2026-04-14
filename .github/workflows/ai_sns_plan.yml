@@ -8,7 +8,11 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "*/10 * * * *"  # 10分おき
+    - cron: "*/5 * * * *"  # 5分おき（GitHub schedule遅延対策で10分から短縮）
+
+concurrency:
+  group: ai-sns-plan
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -28,9 +32,15 @@ jobs:
         run: |
           WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
           WIP_COUNT=${WIP_COUNT:-0}
+          WIP_LIMIT=2
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
-          echo "wip_exceeded=false" >> "$GITHUB_OUTPUT"
-          echo "WIP: ${WIP_COUNT} → WIP制限なし、起票可能"
+          if [ "${WIP_COUNT}" -ge "${WIP_LIMIT}" ]; then
+            echo "wip_exceeded=true" >> "$GITHUB_OUTPUT"
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 上限に達しているためスキップ"
+          else
+            echo "wip_exceeded=false" >> "$GITHUB_OUTPUT"
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → WIP制限内、起票可能"
+          fi
 
       - name: 次の実装項目を選択
         id: select
