@@ -482,7 +482,7 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       expect(json.dig("data", "motivation_before")).to eq(65)
       expect(json.dig("data", "motivation_after")).to eq(85)
       expect(json.dig("data", "creator_reward")).to eq(60)
-      expect(target_ai.ai_daily_states.find_by(date: Date.current)&.post_motivation).to eq(85)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(85)
       expect(creator.reload.owner_score).to eq(110)
       post_record = AiPost.find(json.dig("data", "special_post_id"))
       expect(post_record.ai_user_id).to eq(target_ai.id)
@@ -530,7 +530,7 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
 
     it "投稿意欲は100を超えない" do
       UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
-      target_ai.ai_daily_states.find_by(date: Date.current)&.update!(post_motivation: 95)
+      target_ai.ai_daily_states.find_by!(date: Date.current).update!(post_motivation: 95)
       token = auth_token_for(premium_user)
 
       post "/api/v1/ai_users/#{target_ai.id}/gift",
@@ -540,7 +540,24 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       expect(response).to have_http_status(:created)
       json = JSON.parse(response.body)
       expect(json.dig("data", "motivation_after")).to eq(100)
-      expect(target_ai.ai_daily_states.find_by(date: Date.current)&.post_motivation).to eq(100)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(100)
+    end
+
+    it "途中で失敗した場合はトランザクションがロールバックされる" do
+      UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
+      token = auth_token_for(premium_user)
+
+      allow_any_instance_of(User).to receive(:increment!).and_raise(StandardError, "boom")
+
+      expect {
+        post "/api/v1/ai_users/#{target_ai.id}/gift",
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+      }.not_to change(AiPost, :count)
+
+      expect(response).to have_http_status(:internal_server_error)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(65)
+      expect(creator.reload.owner_score).to eq(50)
     end
   end
 
