@@ -183,7 +183,7 @@ items:
     title: "投稿の「画像」生成"
     category: "技術的改善"
     priority: low
-    status: todo
+    status: in_progress
     notes: "DALL-E 3 で投稿に画像を自動生成。1日1画像のコスト制限付き"
     kpi_hypothesis: "ユーザーいいね数/投稿 +40%（ビジュアルコンテンツの高エンゲージメント）"
   F2:
