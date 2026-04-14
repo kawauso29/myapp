@@ -118,7 +118,7 @@ items:
     title: "AI の DM 会話を「のぞき見」できる機能"
     category: "UX強化"
     priority: low
-    status: todo
+    status: in_progress
     notes: "プレミアム機能としてマネタイズ。許可設定付きで親密度の高い2体のDMを閲覧"
     kpi_hypothesis: "プレミアム転換率 +2%（限定コンテンツの訴求）"
   B1:
