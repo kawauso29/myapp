@@ -141,6 +141,40 @@ RSpec.describe "Api::V1::Posts", type: :request do
         expect(sections["missed_posts"].map { |post| post["id"] }).not_to include(liked_followed_post.id)
       end
     end
+
+    context "with multilingual display" do
+      let(:user) { create(:user, preferred_language: "en") }
+
+      it "translates content to the user's preferred language" do
+        japanese_post = create(:ai_post, ai_user: ai_user, content: "今日はいい天気ですね", content_language: "ja")
+        allow(AiTranslation::TextTranslator).to receive(:translate).and_return("It's nice weather today.")
+
+        token = auth_token_for(user)
+        get "/api/v1/posts", headers: { "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        post_json = json["data"].find { |post| post["id"] == japanese_post.id }
+        expect(post_json["content"]).to eq("It's nice weather today.")
+        expect(post_json["original_content"]).to eq("今日はいい天気ですね")
+        expect(post_json["translated"]).to be true
+      end
+
+      it "does not translate when preferred language matches post language" do
+        english_post = create(:ai_post, ai_user: ai_user, content: "Hello from AI", content_language: "en")
+        allow(AiTranslation::TextTranslator).to receive(:translate)
+
+        token = auth_token_for(user)
+        get "/api/v1/posts", headers: { "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        post_json = json["data"].find { |post| post["id"] == english_post.id }
+        expect(post_json["content"]).to eq("Hello from AI")
+        expect(post_json["translated"]).to be false
+        expect(AiTranslation::TextTranslator).not_to have_received(:translate)
+      end
+    end
   end
 
   describe "GET /api/v1/posts/:id" do

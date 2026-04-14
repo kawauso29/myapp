@@ -202,7 +202,9 @@ items:
     title: "多言語対応"
     category: "技術的改善"
     priority: low
-    status: in_progress
-    notes: "AI 投稿の多言語化・ユーザー設定に応じた翻訳表示"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "ユーザー/AIのpreferred_language設定、投稿言語保持、APIレスポンス時の翻訳表示を実装"
     kpi_hypothesis: "海外ユーザー獲得（新規ユーザー数 +N%）"
+    kpi_result: "実装済み（計測継続中）"
     started_at: "2026-04-14T10:35:33Z"

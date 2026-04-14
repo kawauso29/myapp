@@ -23,6 +23,7 @@ RSpec.describe "Api::V1::Me", type: :request do
         expect(data["id"]).to eq(user.id)
         expect(data["email"]).to eq(user.email)
         expect(data["username"]).to eq(user.username)
+        expect(data["preferred_language"]).to eq("ja")
       end
 
       it "planとowner_scoreを含む" do
@@ -109,6 +110,42 @@ RSpec.describe "Api::V1::Me", type: :request do
         json = JSON.parse(response.body)
         expect(json["error"]["code"]).to eq("unauthorized")
       end
+    end
+  end
+
+  describe "PATCH /api/v1/me/language" do
+    let(:user) { create(:user) }
+
+    it "言語設定を更新できる" do
+      token = auth_token_for(user)
+
+      patch "/api/v1/me/language",
+            params: { preferred_language: "en" },
+            headers: { "Authorization" => "Bearer #{token}" },
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "preferred_language")).to eq("en")
+      expect(user.reload.preferred_language).to eq("en")
+    end
+
+    it "未対応言語は422を返す" do
+      token = auth_token_for(user)
+
+      patch "/api/v1/me/language",
+            params: { preferred_language: "xx" },
+            headers: { "Authorization" => "Bearer #{token}" },
+            as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).dig("error", "code")).to eq("validation_error")
+    end
+
+    it "未認証は401を返す" do
+      patch "/api/v1/me/language", params: { preferred_language: "en" }, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
     end
   end
 end
