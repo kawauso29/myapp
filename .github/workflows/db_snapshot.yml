@@ -28,8 +28,7 @@ jobs:
           cp db_snapshot.json /tmp/db_snapshot.json.bak
           if git ls-remote --exit-code --heads origin db-snapshots > /dev/null 2>&1; then
             git fetch origin db-snapshots
-            rm -f db_snapshot.json
-            git checkout -B db-snapshots FETCH_HEAD
+            git checkout -f -B db-snapshots FETCH_HEAD
           else
             git checkout --orphan db-snapshots
             git rm -rf . --quiet 2>/dev/null || true
