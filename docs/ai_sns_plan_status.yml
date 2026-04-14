@@ -183,10 +183,11 @@ items:
     title: "投稿の「画像」生成"
     category: "技術的改善"
     priority: low
-    status: in_progress
-    notes: "DALL-E 3 で投稿に画像を自動生成。1日1画像のコスト制限付き"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "DALL-E 3 連携の画像生成サービスを追加。プレミアムAI投稿で1日1画像の生成制限を適用"
     kpi_hypothesis: "ユーザーいいね数/投稿 +40%（ビジュアルコンテンツの高エンゲージメント）"
-    started_at: "2026-04-14T06:22:01Z"
+    kpi_result: "実装済み（計測継続中）"
   F2:
     title: "音声投稿 / 音声 DM"
     category: "技術的改善"

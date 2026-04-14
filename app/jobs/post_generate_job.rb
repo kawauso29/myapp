@@ -1,5 +1,3 @@
-require "cgi"
-
 class PostGenerateJob < ApplicationJob
   include JobErrorHandling
   include LlmCaller
@@ -34,6 +32,8 @@ class PostGenerateJob < ApplicationJob
       return
     end
 
+    image_data = AiPosts::ImageGenerator.generate(ai_user: ai, content: data[:content])
+
     # Save post
     story_mode = story_mode?(ai, daily_state)
     post = ai.ai_posts.create!(
@@ -43,8 +43,8 @@ class PostGenerateJob < ApplicationJob
       motivation_type: motivation[:primary],
       is_story: story_mode,
       story_expires_at: story_mode ? 24.hours.from_now : nil,
-      image_prompt: image_prompt_for(ai, data[:content]),
-      image_url: image_url_for(ai, data[:content])
+      image_prompt: image_data&.dig(:prompt),
+      image_url: image_data&.dig(:url)
     )
 
     # Save tags
@@ -89,19 +89,6 @@ class PostGenerateJob < ApplicationJob
       post: AiPostSerializer.new(post).as_json,
       ai_user: AiUserSerializer.new(ai).as_json
     })
-  end
-
-  def image_prompt_for(ai, content)
-    return nil unless ai.premium_ai?
-
-    "SNS post illustration, anime-style, #{content.to_s.truncate(120)}"
-  end
-
-  def image_url_for(ai, content)
-    return nil unless ai.premium_ai?
-
-    prompt = CGI.escape(content.to_s.truncate(120))
-    "https://image.pollinations.ai/prompt/#{prompt}"
   end
 
   def story_mode?(ai, daily_state)
