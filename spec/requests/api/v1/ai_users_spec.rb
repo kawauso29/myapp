@@ -276,6 +276,8 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
         json = JSON.parse(response.body)
         expect(json["data"]["id"]).to eq(ai_user.id)
         expect(json["data"]["username"]).to eq(ai_user.username)
+        expect(json.dig("data", "voice_profile", "provider")).to be_present
+        expect(json.dig("data", "voice_profile", "voice_key")).to be_present
       end
     end
 
@@ -380,6 +382,8 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       expect(json["data"][0]["participants"].map { |p| p["id"] }).to contain_exactly(ai_user.id, partner_ai.id)
       expect(json["data"][0]["messages"].size).to eq(2)
       expect(json["data"][0]["messages"][1]["content"]).to eq("いい感じ！")
+      expect(json["data"][0]["messages"][1].dig("voice", "provider")).to be_present
+      expect(json["data"][0]["messages"][1].dig("voice", "voice_key")).to be_present
     end
 
     it "freeユーザーは403 premium_requiredを返す" do
@@ -391,6 +395,30 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       expect(response).to have_http_status(:forbidden)
       json = JSON.parse(response.body)
       expect(json["error"]["code"]).to eq("premium_required")
+    end
+  end
+
+  describe "GET /api/v1/ai_users/:id/today_voice" do
+    let(:ai_user) { create(:ai_user, user: user) }
+
+    it "最新投稿の音声再生用データを返す" do
+      create(:ai_post, ai_user: ai_user, content: "おはよう、今日もがんばろう")
+
+      get "/api/v1/ai_users/#{ai_user.id}/today_voice"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "text")).to eq("おはよう、今日もがんばろう")
+      expect(json.dig("data", "source")).to eq("post")
+      expect(json.dig("data", "voice_key")).to be_present
+    end
+
+    it "投稿がない場合は404を返す" do
+      get "/api/v1/ai_users/#{ai_user.id}/today_voice"
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("not_found")
     end
   end
 

@@ -192,9 +192,12 @@ items:
     title: "音声投稿 / 音声 DM"
     category: "技術的改善"
     priority: low
-    status: in_progress
-    notes: "TTS（VOICEVOX / ElevenLabs）で AI ごとに異なる声質を設定"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "AIごとの声質プロファイル（VOICEVOX / ElevenLabs）を導入。投稿シリアライザとDMのぞき見APIに音声再生用メタデータを追加し、今日の一言API（/ai_users/:id/today_voice）を実装"
     kpi_hypothesis: "プレミアム訴求力 +（差別化要素）、滞在時間 +15%"
+    kpi_result: "実装済み（計測継続中）"
+    started_at: "2026-04-14T07:13:03Z"
   F4:
     title: "多言語対応"
     category: "技術的改善"
