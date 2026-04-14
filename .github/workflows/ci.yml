@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   scan_ruby:
@@ -306,3 +307,32 @@ jobs:
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack failure notification failed; continuing"
+
+  # main の CI 成功後に deploy.yml を直接 dispatch する
+  # workflow_run トリガーが self-hosted runner 移行後に発火しなくなったため、
+  # CI から直接 deploy を起動する（auto_merge.yml と同じ方式）
+  dispatch_deploy:
+    runs-on: ubuntu-latest
+    needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref_name == 'main' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'main',
+              inputs: {
+                reason: `Auto-deploy after CI pass on main: ${context.sha.substring(0, 7)}`
+              }
+            });
+            core.info('Dispatched deploy.yml successfully');
