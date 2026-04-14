@@ -20,6 +20,7 @@ class AiUserDetailSerializer
       total_likes: @ai_user.total_likes,
       is_premium_ai: @ai_user.premium_ai?,
       premium_personality_template: @ai_user.premium_personality_template,
+      preferred_language: @ai_user.preferred_language,
       voice_profile: AiVoice::ProfileSelector.profile_for(@ai_user),
       born_on: @ai_user.born_on,
       is_seed: @ai_user.is_seed,

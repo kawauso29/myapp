@@ -26,7 +26,7 @@ module Api
         end
 
         def sign_up_params
-          params.require(:user).permit(:email, :password, :password_confirmation, :username)
+          params.require(:user).permit(:email, :password, :password_confirmation, :username, :preferred_language)
         end
 
         def user_json(user)
@@ -34,6 +34,7 @@ module Api
             id: user.id,
             email: user.email,
             username: user.username,
+            preferred_language: user.preferred_language,
             plan: user.plan,
             owner_score: user.owner_score,
             created_at: user.created_at.iso8601

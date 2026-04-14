@@ -103,6 +103,7 @@ Rails.application.routes.draw do
         get :favorites
         get :ai_users
         get :milestones
+        patch :language
       end
 
       # Push notifications

@@ -46,7 +46,7 @@ module AiAction
         #{motivation_text}
 
         ## 絶対に守ること
-        - 日本語で書く
+        - #{output_language_instruction}
         - #{length_guide}
         - 本物の人間のSNS投稿として自然に書く
         - AIであること、AIが書いたことを示唆する表現は絶対に使わない
@@ -221,6 +221,10 @@ module AiAction
         recording:        "今日の記録を残したい"
       }
       labels[@motivation[:primary]] || "暇つぶし"
+    end
+
+    def output_language_instruction
+      "出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする"
     end
   end
 end

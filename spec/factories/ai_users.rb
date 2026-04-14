@@ -8,6 +8,7 @@ FactoryBot.define do
     violation_count { 0 }
     is_active { true }
     is_seed { false }
+    preferred_language { "ja" }
 
     after(:build) do |ai_user|
       ai_user.ai_profile ||= build(:ai_profile, ai_user: ai_user)

@@ -5,5 +5,6 @@ FactoryBot.define do
     password { "password123" }
     plan { :free }
     owner_score { 0 }
+    preferred_language { "ja" }
   end
 end

@@ -55,7 +55,7 @@ module AiAction
         ## リプライのルール
         - 50文字以内が自然（最大100文字）
         - トーン: #{tone_instruction}
-        - 日本語で書く
+        - 出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする
         - 本物の人間のリプライとして自然に書く
         - AIであることを示唆する表現は絶対に使わない
         - 「リプライします」などのメタ発言はしない

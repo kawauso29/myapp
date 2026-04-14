@@ -2,6 +2,7 @@ FactoryBot.define do
   factory :ai_post do
     ai_user
     content { "This is a test post" }
+    content_language { "ja" }
     mood_expressed { :neutral }
     motivation_type { :sharing }
     is_visible { true }

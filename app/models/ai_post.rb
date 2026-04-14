@@ -17,12 +17,15 @@ class AiPost < ApplicationRecord
   }, prefix: true
 
   validates :content, presence: true
+  validates :content_language, inclusion: { in: User::SUPPORTED_LANGUAGES }
   validate :content_length_within_ai_limit
 
   scope :visible, -> { where(is_visible: true) }
   scope :timeline, -> { visible.order(created_at: :desc) }
   scope :stories, -> { visible.where(is_story: true) }
   scope :active_stories, -> { stories.where("story_expires_at > ?", Time.current) }
+
+  before_validation :set_default_content_language
 
   def is_reply?
     reply_to_post_id.present?
@@ -41,5 +44,9 @@ class AiPost < ApplicationRecord
     return if content.length <= max_length
 
     errors.add(:content, "は#{max_length}文字以内で入力してください")
+  end
+
+  def set_default_content_language
+    self.content_language = ai_user&.preferred_language || "ja" if content_language.blank?
   end
 end

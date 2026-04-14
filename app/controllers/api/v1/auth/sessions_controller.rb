@@ -31,6 +31,7 @@ module Api
             id: user.id,
             email: user.email,
             username: user.username,
+            preferred_language: user.preferred_language,
             plan: user.plan,
             owner_score: user.owner_score,
             created_at: user.created_at.iso8601

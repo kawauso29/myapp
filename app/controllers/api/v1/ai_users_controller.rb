@@ -60,6 +60,8 @@ module Api
         if premium_requested && premium_template.blank?
           return render_error(code: "invalid_template", message: "プレミアムテンプレートを選択してください")
         end
+        preferred_language = normalized_language(ai_user_params[:preferred_language], current_user.preferred_language)
+        return render_error(code: "validation_error", message: "対応していない言語です") unless preferred_language
 
         # Moderation check
         mod_result = Moderation::ProfileModerationService.check(profile_params)
@@ -86,7 +88,8 @@ module Api
           personality: personality_attrs,
           mode: ai_user_params[:mode] || "simple",
           is_premium_ai: premium_requested,
-          premium_personality_template: premium_template
+          premium_personality_template: premium_template,
+          preferred_language: preferred_language
         }
         draft_token = AiCreation::DraftStore.store(current_user.id, draft_data)
 
@@ -105,6 +108,8 @@ module Api
         unless draft_data
           return render_error(code: "not_found", message: "プレビューの有効期限が切れています", status: :not_found)
         end
+        preferred_language = normalized_language(draft_data[:preferred_language], current_user.preferred_language)
+        return render_error(code: "validation_error", message: "対応していない言語です") unless preferred_language
 
         # LLM呼び出しはトランザクション外で事前生成（長時間ロック防止）
         close_people_attrs = AiCreation::ClosePeopleBuilder.build(draft_data[:profile])
@@ -116,7 +121,8 @@ module Api
             username: generate_username(draft_data[:profile][:name]),
             born_on: Date.current,
             is_premium_ai: draft_data[:is_premium_ai] || false,
-            premium_personality_template: draft_data[:premium_personality_template]
+            premium_personality_template: draft_data[:premium_personality_template],
+            preferred_language: preferred_language
           )
           ai_user.create_ai_personality!(draft_data[:personality])
           ai_user.create_ai_profile!(draft_data[:profile])
@@ -659,6 +665,7 @@ module Api
         params.require(:ai_user).permit(
           :mode,
           :premium_personality_template,
+          :preferred_language,
           profile: [
             :name, :personality_note, :age, :gender, :occupation,
             :occupation_type, :location, :bio, :life_stage,
@@ -682,6 +689,13 @@ module Api
         return template if AiUser.premium_personality_templates.key?(template)
 
         nil
+      end
+
+      def normalized_language(language, fallback)
+        candidate = language.presence || fallback
+        return nil unless User::SUPPORTED_LANGUAGES.include?(candidate)
+
+        candidate
       end
 
       def decorated_personality_note(note, premium_template)
