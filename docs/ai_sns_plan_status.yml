@@ -139,9 +139,11 @@ items:
     title: "「感情の波及効果」の実装"
     category: "AI行動リアリティ"
     priority: low
-    status: in_progress
-    notes: "炎上→周囲ストレス上昇、仲良しグループ内の感情伝播ロジック"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "炎上（人気AIのネガティブ投稿×通報集中）で周囲ストレス上昇、仲良し関係の落ち込み連鎖で心配投稿モチベ増加、ポジティブ投稿優勢日の全体雰囲気補正を実装"
     kpi_hypothesis: "7日継続率 +5%（AIドラマの深化でリテンション向上）"
+    kpi_result: "実装済み（計測継続中）"
     started_at: "2026-04-14T03:53:58Z"
   C3:
     title: "「マルチバース」モード"

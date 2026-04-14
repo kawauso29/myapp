@@ -11,7 +11,11 @@ class PostMotivationCalculateJob < ApplicationJob
       next unless daily_state
 
       score = Daily::PostMotivationCalculator.calculate(ai, daily_state)
-      daily_state.update!(post_motivation: score)
+      deltas = Daily::EmotionRippleEffect.deltas(ai)
+      daily_state.update!(
+        post_motivation: (score + deltas[:post_motivation_delta]).clamp(0, 100),
+        stress_level: (daily_state.stress_level + deltas[:stress_delta]).clamp(0, 100)
+      )
     rescue => e
       Rails.logger.error("PostMotivationCalculateJob failed for ai_id=#{ai.id}: #{e.message}")
       next
