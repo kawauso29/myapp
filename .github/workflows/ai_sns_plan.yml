@@ -194,10 +194,10 @@ jobs:
             core.setOutput('pr_url', pr.html_url)
             core.setOutput('pr_existed', 'false')
 
-      - name: Copilot に実装を依頼（PRコメント / DEPLOY_TOKEN）
-        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true' && secrets.DEPLOY_TOKEN != ''
-        id: copilot_comment_pat
-        continue-on-error: true
+      - name: Copilot に実装を依頼（PRコメント）
+        # DEPLOY_TOKEN は fine-grained PAT で Issues: Read and Write スコープが必要
+        # GITHUB_TOKEN では Copilot coding agent の Webhook がトリガーされないため PAT を使う
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
@@ -222,33 +222,6 @@ jobs:
             })
 
             console.log(`Copilot 実装依頼コメントを PR #${prNumber} に投稿しました`)
-
-      - name: Copilot に実装を依頼（PRコメント / GITHUB_TOKEN fallback）
-        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true' && (secrets.DEPLOY_TOKEN == '' || steps.copilot_comment_pat.outcome == 'failure')
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = parseInt('${{ steps.create_pr.outputs.pr_number }}', 10)
-            const itemId = '${{ steps.select.outputs.item_id }}'
-            const title = '${{ steps.select.outputs.item_title }}'
-
-            const comment = [
-              `@copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。`,
-              '',
-              `実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`,
-              '',
-              '<!-- copilot:model claude-opus-4.6 -->'
-            ].join('\n')
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: comment
-            })
-
-            console.log(`Copilot 実装依頼コメントを PR #${prNumber} に投稿しました（fallback）`)
 
       - name: Slack 通知
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
