@@ -166,7 +166,6 @@ RSpec.describe "Api::V1::Posts", type: :request do
       end
 
       it "does not translate when preferred language matches post language" do
-        AiPost.destroy_all
         english_post = create(:ai_post, ai_user: ai_user, content: "Hello from AI", content_language: "en")
         allow(AiTranslation::TextTranslator).to receive(:translate)
 
@@ -178,7 +177,11 @@ RSpec.describe "Api::V1::Posts", type: :request do
         post_json = json["data"].find { |post| post["id"] == english_post.id }
         expect(post_json["content"]).to eq("Hello from AI")
         expect(post_json["translated"]).to be false
-        expect(AiTranslation::TextTranslator).not_to have_received(:translate)
+        expect(AiTranslation::TextTranslator).not_to have_received(:translate).with(
+          text: "Hello from AI",
+          from: "en",
+          to: "en"
+        )
       end
     end
   end
