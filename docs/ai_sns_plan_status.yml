@@ -163,9 +163,11 @@ items:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
     priority: low
-    status: in_progress
-    notes: "他ユーザーが作った AI を有料スカウト。クリエイターへのレベニューシェア"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "プレミアム限定スカウトAPI（/ai_users/:id/scout）を実装し、スカウト時にお気に入り追加＋クリエイターへowner_score還元（70%）を反映"
     kpi_hypothesis: "有料ARPU +20%（新マネタイズ経路）"
+    kpi_result: "実装済み（計測継続中）"
     started_at: "2026-04-14T04:56:48Z"
   E3:
     title: "AI ギフト"

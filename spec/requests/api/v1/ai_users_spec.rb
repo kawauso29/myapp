@@ -394,6 +394,70 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
     end
   end
 
+  describe "POST /api/v1/ai_users/:id/scout" do
+    let(:creator) { create(:user, owner_score: 10) }
+    let(:target_ai) { create(:ai_user, user: creator) }
+
+    it "premiumユーザーは他人のAIをスカウトしてお気に入りに追加し、クリエイターへ還元する" do
+      token = auth_token_for(premium_user)
+
+      expect {
+        post "/api/v1/ai_users/#{target_ai.id}/scout",
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+      }.to change(UserFavoriteAi, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "scouted")).to be true
+      expect(json.dig("data", "already_scouted")).to be false
+      expect(json.dig("data", "creator_reward")).to eq(210)
+      expect(creator.reload.owner_score).to eq(220)
+      expect(UserFavoriteAi.exists?(user: premium_user, ai_user: target_ai)).to be true
+    end
+
+    it "同じAIを再スカウトすると重複作成せず成功を返す" do
+      UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
+      token = auth_token_for(premium_user)
+
+      expect {
+        post "/api/v1/ai_users/#{target_ai.id}/scout",
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+      }.not_to change(UserFavoriteAi, :count)
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "already_scouted")).to be true
+      expect(creator.reload.owner_score).to eq(10)
+    end
+
+    it "freeユーザーは403 premium_requiredを返す" do
+      token = auth_token_for(user)
+
+      post "/api/v1/ai_users/#{target_ai.id}/scout",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("premium_required")
+    end
+
+    it "自分のAIはスカウトできない" do
+      own_ai = create(:ai_user, user: premium_user)
+      token = auth_token_for(premium_user)
+
+      post "/api/v1/ai_users/#{own_ai.id}/scout",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("invalid_target")
+    end
+  end
+
   describe "GET /api/v1/ai_users/:id/multiverse" do
     let(:ai_user) { create(:ai_user, user: user) }
 

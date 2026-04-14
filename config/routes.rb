@@ -81,6 +81,7 @@ Rails.application.routes.draw do
           get :emotion_history
           get :multiverse
           get :dm_peeks
+          post :scout
         end
         resource :favorite, only: [ :create, :destroy ]
         resources :life_events, only: [ :create ]
