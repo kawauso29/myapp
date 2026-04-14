@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -84,6 +84,99 @@ jobs:
             echo "📋 todo残数: ${TODO_COUNT}件 → 計画レビューをディスパッチします"
           else
             echo "needs_plan_review=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # in_progress 項目が started_at から7日以上経過していたら todo にリセット
+      - name: 滞留 in_progress 検知 & 自動リセット
+        id: stale_check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+        run: |
+          STALE_ITEMS=$(python3 -c "
+          import yaml, json
+          from datetime import datetime, timezone, timedelta
+
+          with open('docs/ai_sns_plan_status.yml') as f:
+              data = yaml.safe_load(f)
+
+          stale = []
+          now = datetime.now(timezone.utc)
+          stale_threshold = timedelta(days=7)
+
+          for item_id, item in data.get('items', {}).items():
+              if item.get('status') != 'in_progress':
+                  continue
+              started = item.get('started_at', '')
+              if not started:
+                  continue
+              try:
+                  started_dt = datetime.fromisoformat(started.replace('Z', '+00:00'))
+                  age = now - started_dt
+                  if age > stale_threshold:
+                      stale.append({
+                          'id': item_id,
+                          'title': item.get('title', ''),
+                          'started_at': started,
+                          'age_days': age.days
+                      })
+              except Exception:
+                  pass
+
+          print(json.dumps(stale, ensure_ascii=False))
+          ")
+
+          STALE_COUNT=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+          echo "stale_count=${STALE_COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [ "$STALE_COUNT" -gt 0 ]; then
+            echo "⚠️ ${STALE_COUNT} 件の滞留項目を検出。todo にリセットします"
+
+            # plan_status.yml を更新（started_at を削除して status を todo に戻す）
+            python3 -c "
+          import yaml, json, sys
+          from datetime import datetime, timezone, timedelta
+
+          stale_items = json.loads('''$STALE_ITEMS''')
+          stale_ids = {item['id'] for item in stale_items}
+
+          with open('docs/ai_sns_plan_status.yml') as f:
+              data = yaml.safe_load(f)
+
+          for item_id in stale_ids:
+              if item_id in data.get('items', {}):
+                  data['items'][item_id]['status'] = 'todo'
+                  data['items'][item_id].pop('started_at', None)
+
+          with open('docs/ai_sns_plan_status.yml', 'w') as f:
+              yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+          "
+
+            # 変更をコミット・プッシュ
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git add docs/ai_sns_plan_status.yml
+            if ! git diff --staged --quiet; then
+              RESET_IDS=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; items=json.load(sys.stdin); print(', '.join(i['id'] for i in items))")
+              git commit -m "plan: 滞留項目をリセット [${RESET_IDS}]（7日超過）"
+              git push origin HEAD
+            fi
+
+            # Slack 通知（エラーカテゴリ）
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              PAYLOAD=$(python3 -c "
+          import json
+          stale = json.loads('''$STALE_ITEMS''')
+          lines = []
+          for s in stale:
+              lines.append('  • [' + s['id'] + '] ' + s['title'] + ' (' + str(s['age_days']) + '日滞留)')
+          text = ':warning: *PDCA: 滞留項目を自動リセット*\n以下の in_progress 項目が7日以上滞留していたため todo に戻しました:\n' + chr(10).join(lines) + '\n\n放置されたブランチ/PRがあれば手動でクローズしてください。'
+          print(json.dumps({'text': text}))
+          ")
+              curl -s -X POST -H "Content-Type: application/json" --data "$PAYLOAD" "$SLACK_WEBHOOK"
+            fi
+          else
+            echo "✅ 滞留項目はありません"
           fi
 
       - name: Slack KPI レポート

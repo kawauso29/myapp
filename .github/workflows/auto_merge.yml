@@ -21,6 +21,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  issues: write
 
 jobs:
   # PRが開かれたときに条件を満たせば automerge ラベルを付与する
@@ -417,6 +418,80 @@ jobs:
             '{text: ("✅ *AI SNS計画 完了* [" + $item_id + "] " + $pr_title + "\nステータスを自動的に done に更新しました。")}')
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
+
+      # ② plan-review Issue の自動クローズ:
+      # Copilot が plan-review Issue に対応して作成した PR（計画追加PR）がマージされたら、
+      # 関連する open な plan-review Issue を自動クローズする。
+      # PRのbodyに "plan-review" が含まれるか、PRが plan_status.yml を変更している場合に対応。
+      - name: Close resolved plan-review Issues
+        if: ${{ steps.merge_pr.outputs.merged == 'true' }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prTitle = `${{ steps.merge_pr.outputs.pr_title }}`;
+            const prNumber = parseInt('${{ steps.merge_pr.outputs.pr_number }}', 10);
+
+            // plan-review Issue からの PR かどうかを判定:
+            // 1. PRタイトルに「計画」「plan」を含む（Copilot が計画追加PRを作成したケース）
+            // 2. PRの linked issues をチェック（plan-review ラベル付き）
+            // 3. PR body に plan-review への参照がある
+            let shouldClose = false;
+
+            // PRのファイルを確認 — plan_status.yml に新規 todo が追加されていれば計画追加PR
+            try {
+              const { data: files } = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                per_page: 100
+              });
+              const modifiedPlanFiles = files.some(f =>
+                f.filename === 'docs/ai_sns_plan_status.yml' ||
+                f.filename === 'docs/ai_sns_improvement_plan.md'
+              );
+              // 計画ファイルを変更していて、かつ AI SNS計画（実装PR）ではない場合
+              if (modifiedPlanFiles && !prTitle.match(/\[AI SNS計画\]/)) {
+                shouldClose = true;
+              }
+            } catch (e) {
+              core.info(`Could not check PR files: ${e.message}`);
+            }
+
+            // PRタイトルに「計画レビュー」「plan review」を含む場合
+            if (/計画レビュー|計画.*提案|plan.?review/i.test(prTitle)) {
+              shouldClose = true;
+            }
+
+            if (!shouldClose) {
+              core.info('This PR is not a plan-review response. Skipping plan-review Issue closure.');
+              return;
+            }
+
+            // open な plan-review Issue を検索してクローズ
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'plan-review',
+              state: 'open',
+              per_page: 10
+            });
+
+            for (const issue of openIssues) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ 関連する計画追加 PR #${prNumber} がマージされたため自動クローズしました。`
+              });
+              core.info(`Closed plan-review Issue #${issue.number} (resolved by PR #${prNumber})`);
+            }
 
       - name: Notify Slack (skipped due to protected files)
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.skip_reason != '' }}
