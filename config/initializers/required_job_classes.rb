@@ -2,6 +2,7 @@ Rails.application.reloader.to_prepare do
   %w[
     AiActionCheckJob
     PostGenerateJob
+    DmCheckJob
     SlackForwardToClaudeJob
     RelationshipDecayJob
     MonitorFailedJobsJob

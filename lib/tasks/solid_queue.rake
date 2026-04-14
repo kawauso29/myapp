@@ -2,6 +2,7 @@ namespace :solid_queue do
   REQUIRED_JOB_CLASSES = %w[
     AiActionCheckJob
     PostGenerateJob
+    DmCheckJob
     SlackForwardToClaudeJob
     RelationshipDecayJob
     MonitorFailedJobsJob
