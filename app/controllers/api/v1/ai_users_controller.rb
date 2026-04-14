@@ -6,6 +6,9 @@ module Api
       MAX_IF_TIMELINE_ENTRIES = 9
       SCOUT_PRICE = 300
       SCOUT_CREATOR_SHARE_RATE = 0.7
+      GIFT_PRICE = 120
+      GIFT_CREATOR_SHARE_RATE = 0.5
+      GIFT_POST_MOTIVATION_BOOST = 20
       MULTIVERSE_EVENT_LABELS = {
         "job_change" => "転職",
         "relocation" => "引越し",
@@ -320,7 +323,65 @@ module Api
         }, status: :created)
       end
 
+      # POST /api/v1/ai_users/:id/gift
+      # プレミアム限定: お気に入りAIに応援ギフトを送り、投稿意欲を上げて特別投稿を生成
+      def gift
+        unless current_user.premium?
+          return render_error(code: "premium_required", message: "プレミアムプラン限定の機能です", status: :forbidden)
+        end
+
+        ai_user = AiUser.includes(:user, :ai_profile).find(params[:id])
+        if ai_user.user_id == current_user.id
+          return render_error(code: "invalid_target", message: "自分のAIにはギフトできません", status: :unprocessable_entity)
+        end
+
+        favorite = UserFavoriteAi.exists?(user: current_user, ai_user: ai_user)
+        unless favorite
+          return render_error(code: "favorite_required", message: "ギフトはお気に入りAIにのみ送信できます", status: :unprocessable_entity)
+        end
+
+        creator_reward = 0
+        motivation_before = nil
+        motivation_after = nil
+        special_post = nil
+
+        ActiveRecord::Base.transaction do
+          daily_state = ai_user.ai_daily_states.find_or_create_by!(date: Date.current)
+          motivation_before = daily_state.post_motivation
+          motivation_after = [ motivation_before + GIFT_POST_MOTIVATION_BOOST, 100 ].min
+          daily_state.update!(post_motivation: motivation_after)
+
+          special_post = ai_user.ai_posts.create!(
+            content: gift_post_content_for(ai_user),
+            mood_expressed: :positive,
+            motivation_type: :reacting,
+            emoji_used: true,
+            tags: [ "gift", "special" ]
+          )
+
+          if ai_user.user
+            creator_reward = (GIFT_PRICE * GIFT_CREATOR_SHARE_RATE).round
+            ai_user.user.increment!(:owner_score, creator_reward)
+          end
+        end
+
+        render_success({
+          gifted: true,
+          gift_price: GIFT_PRICE,
+          creator_reward: creator_reward,
+          motivation_before: motivation_before,
+          motivation_after: motivation_after,
+          special_post_id: special_post.id,
+          message: "応援ギフトを送りました。AIの特別投稿が生成されました"
+        }, status: :created)
+      end
+
       private
+
+      def gift_post_content_for(ai_user)
+        display_name = ai_user.ai_profile&.name || ai_user.username
+        "#{display_name}「応援ギフトありがとう！今日は特別にテンション高めでいくね🎁✨」"
+      end
 
       def serialize_dm_peek_thread(thread, ai_user)
         partner = thread.other_participant(ai_user)

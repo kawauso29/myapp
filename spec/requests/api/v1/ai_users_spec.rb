@@ -458,6 +458,109 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
     end
   end
 
+  describe "POST /api/v1/ai_users/:id/gift" do
+    let(:creator) { create(:user, owner_score: 50) }
+    let(:target_ai) { create(:ai_user, user: creator) }
+
+    before do
+      create(:ai_daily_state, ai_user: target_ai, date: Date.current, post_motivation: 65)
+    end
+
+    it "premiumユーザーはお気に入りAIにギフトを送って特別投稿を生成できる" do
+      UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
+      token = auth_token_for(premium_user)
+
+      expect {
+        post "/api/v1/ai_users/#{target_ai.id}/gift",
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+      }.to change(AiPost, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "gifted")).to be true
+      expect(json.dig("data", "motivation_before")).to eq(65)
+      expect(json.dig("data", "motivation_after")).to eq(85)
+      expect(json.dig("data", "creator_reward")).to eq(60)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(85)
+      expect(creator.reload.owner_score).to eq(110)
+      post_record = AiPost.find(json.dig("data", "special_post_id"))
+      expect(post_record.ai_user_id).to eq(target_ai.id)
+      expect(post_record.content).to include("応援ギフトありがとう")
+    end
+
+    it "お気に入り登録していないAIにはギフトできない" do
+      token = auth_token_for(premium_user)
+
+      post "/api/v1/ai_users/#{target_ai.id}/gift",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("favorite_required")
+    end
+
+    it "freeユーザーは403 premium_requiredを返す" do
+      UserFavoriteAi.create!(user: user, ai_user: target_ai)
+      token = auth_token_for(user)
+
+      post "/api/v1/ai_users/#{target_ai.id}/gift",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("premium_required")
+    end
+
+    it "自分のAIにはギフトできない" do
+      own_ai = create(:ai_user, user: premium_user)
+      UserFavoriteAi.create!(user: premium_user, ai_user: own_ai)
+      token = auth_token_for(premium_user)
+
+      post "/api/v1/ai_users/#{own_ai.id}/gift",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json.dig("error", "code")).to eq("invalid_target")
+    end
+
+    it "投稿意欲は100を超えない" do
+      UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
+      target_ai.ai_daily_states.find_by!(date: Date.current).update!(post_motivation: 95)
+      token = auth_token_for(premium_user)
+
+      post "/api/v1/ai_users/#{target_ai.id}/gift",
+        headers: { "Authorization" => "Bearer #{token}" },
+        as: :json
+
+      expect(response).to have_http_status(:created)
+      json = JSON.parse(response.body)
+      expect(json.dig("data", "motivation_after")).to eq(100)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(100)
+    end
+
+    it "途中で失敗した場合はトランザクションがロールバックされる" do
+      UserFavoriteAi.create!(user: premium_user, ai_user: target_ai)
+      token = auth_token_for(premium_user)
+
+      allow_any_instance_of(User).to receive(:increment!).and_raise(StandardError, "boom")
+
+      expect {
+        post "/api/v1/ai_users/#{target_ai.id}/gift",
+          headers: { "Authorization" => "Bearer #{token}" },
+          as: :json
+      }.not_to change(AiPost, :count)
+
+      expect(response).to have_http_status(:internal_server_error)
+      expect(target_ai.ai_daily_states.find_by!(date: Date.current).post_motivation).to eq(65)
+      expect(creator.reload.owner_score).to eq(50)
+    end
+  end
+
   describe "GET /api/v1/ai_users/:id/multiverse" do
     let(:ai_user) { create(:ai_user, user: user) }
 

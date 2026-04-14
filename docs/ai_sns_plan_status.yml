@@ -173,9 +173,12 @@ items:
     title: "AI ギフト"
     category: "マネタイズ"
     priority: low
-    status: in_progress
-    notes: "お気に入り AI に応援ギフトを送ると、テンションが上がり特別投稿をする"
+    status: done
+    completed_at: "2026-04-14"
+    notes: "プレミアム限定ギフトAPI（/ai_users/:id/gift）を実装。お気に入りAIのみ送信可能、投稿意欲ブーストと特別投稿生成、クリエイター報酬付与を追加"
     kpi_hypothesis: "WAU +10%、有料転換率 +2%（小額課金への誘導）"
+    kpi_result: "実装済み（計測継続中）"
+    started_at: "2026-04-14T05:45:20Z"
   F1:
     title: "投稿の「画像」生成"
     category: "技術的改善"
