@@ -205,7 +205,7 @@ jobs:
             const comment = [
               `@copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。`,
               '',
-              '実装後は `docs/ai_sns_plan_status.yml` の `' + itemId + '.status` を `done` に更新してください。',
+              `実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`,
               '',
               '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n')
