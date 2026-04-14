@@ -10,8 +10,6 @@ name: 日次 PDCA ループ
 # 実行タイミング: 毎日30分ごと
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       force_advance:
