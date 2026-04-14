@@ -117,7 +117,11 @@ jobs:
           fi
 
           git checkout -b "$BRANCH"
-          git commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
+          # 空コミット(--allow-empty)ではなく、started_atタイムスタンプを追加して
+          # ブランチがmainと実ファイル差分を持つようにする（空PRマージ防止）
+          yq -i ".items.${ITEM_ID}.started_at = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" docs/ai_sns_plan_status.yml
+          git add docs/ai_sns_plan_status.yml
+          git commit -m "chore: [${ITEM_ID}] 実装PR開始"
           git push origin "$BRANCH"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
@@ -187,7 +191,7 @@ jobs:
               body,
               head: branch,
               base: 'main',
-              draft: false
+              draft: true
             })
 
             console.log(`PR created: #${pr.number} ${pr.html_url}`)

@@ -85,6 +85,14 @@ Rails.application.routes.draw do
         resource :intervention, only: [ :create ], controller: "interventions"
       end
 
+      # Communities (Circles)
+      resources :communities, only: [ :index, :show ] do
+        member do
+          get :members
+          post :follow
+        end
+      end
+
       # Me
       resource :me, only: [ :show ], controller: "me" do
         get :favorites

@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import type { HotThread, TrendingData, AiRankingEntry } from "../../lib/api";
-import { getHotThreads, getTrending, getAiRanking } from "../../lib/api";
+import type { HotThread, TrendingData, AiRankingEntry, CommunityData } from "../../lib/api";
+import { getHotThreads, getTrending, getAiRanking, toggleCommunityFollow } from "../../lib/api";
 
 const RANK_BY_OPTIONS = [
   { key: "followers" as const, label: "フォロワー", icon: "people" as const },
@@ -91,6 +91,31 @@ export default function DiscoverScreen() {
   const todayEvents = data.today_events || [];
   const growingAis = data.growing_ai_users || [];
   const todayMood = data.today_mood_summary || {};
+  const communities: CommunityData[] = data.communities || [];
+
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const ids = new Set(communities.filter(c => c.is_followed).map(c => c.id));
+    setFollowingIds(ids);
+  }, [data]);
+
+  const handleFollowCommunity = async (communityId: number) => {
+    try {
+      const res = await toggleCommunityFollow(communityId);
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        if (res.data.followed) {
+          next.add(communityId);
+        } else {
+          next.delete(communityId);
+        }
+        return next;
+      });
+    } catch (e) {
+      console.warn("Failed to toggle community follow:", e);
+    }
+  };
 
   const rankMedal = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -143,6 +168,56 @@ export default function DiscoverScreen() {
           {todayMood.dominant_whim && (
             <Text style={styles.moodWeather}>主なきまぐれ: {todayMood.dominant_whim}</Text>
           )}
+        </View>
+      )}
+
+      {/* Circles / Communities */}
+      {communities.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>サークル 🏘️</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalList}
+          >
+            {communities.map((community) => (
+              <TouchableOpacity
+                key={community.id}
+                style={styles.communityCard}
+                onPress={() => router.push(`/community/${community.id}` as any)}
+              >
+                <Text style={styles.communityEmoji}>{community.emoji}</Text>
+                <Text style={styles.communityName} numberOfLines={1}>
+                  {community.name}
+                </Text>
+                <Text style={styles.communityDesc} numberOfLines={2}>
+                  {community.description || ""}
+                </Text>
+                <Text style={styles.communityMembers}>
+                  {community.members_count}人のメンバー
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.communityFollowBtn,
+                    followingIds.has(community.id) && styles.communityFollowBtnActive,
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleFollowCommunity(community.id);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.communityFollowText,
+                      followingIds.has(community.id) && styles.communityFollowTextActive,
+                    ]}
+                  >
+                    {followingIds.has(community.id) ? "フォロー中" : "フォロー"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -533,5 +608,34 @@ const styles = StyleSheet.create({
   featuredName: { fontSize: 15, fontWeight: "bold", color: "#1a1a2e" },
   featuredUsername: { fontSize: 12, color: "#999", marginTop: 1 },
   featuredBio: { fontSize: 13, color: "#666", marginTop: 4, lineHeight: 18 },
+
+  // Community / Circle cards
+  communityCard: {
+    width: 160,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  communityEmoji: { fontSize: 28, marginBottom: 6 },
+  communityName: { fontSize: 14, fontWeight: "bold", color: "#1a1a2e", marginBottom: 4 },
+  communityDesc: { fontSize: 11, color: "#888", marginBottom: 6, lineHeight: 16 },
+  communityMembers: { fontSize: 11, color: "#6c63ff", marginBottom: 8 },
+  communityFollowBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#6c63ff",
+    alignItems: "center",
+  },
+  communityFollowBtnActive: {
+    backgroundColor: "#6c63ff",
+    borderColor: "#6c63ff",
+  },
+  communityFollowText: { fontSize: 12, color: "#6c63ff", fontWeight: "600" },
+  communityFollowTextActive: { color: "#fff" },
 });
 
