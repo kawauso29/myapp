@@ -14,16 +14,13 @@ if File.exist?(dotenv_path)
   Dotenv.load(dotenv_path)
 end
 
-# Worker count for cluster mode
-workers ENV.fetch("WEB_CONCURRENCY", 2)
-
 # Thread pool
-max_threads_count = 5
-min_threads_count = 5
+# Single-process mode (no cluster/fork) for single-server deployment.
+# Cluster mode (workers > 0) causes ActiveJob::UnknownJobClassError because
+# SolidQueue async threads in forked workers fail to resolve job classes.
+max_threads_count = ENV.fetch("RAILS_MAX_THREADS", 5).to_i
+min_threads_count = max_threads_count
 threads min_threads_count, max_threads_count
-
-# Preload app for copy-on-write memory savings
-preload_app!
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
@@ -47,8 +44,3 @@ pidfile "/home/ubuntu/myapp/tmp/pids/puma.pid"
 stdout_redirect "/home/ubuntu/myapp/log/puma.stdout.log",
                 "/home/ubuntu/myapp/log/puma.stderr.log",
                 true
-
-# Allow workers to reload bundler context
-on_worker_boot do
-  ActiveRecord::Base.establish_connection if defined?(ActiveRecord)
-end
