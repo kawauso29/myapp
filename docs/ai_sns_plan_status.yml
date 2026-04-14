@@ -202,6 +202,6 @@ items:
     title: "多言語対応"
     category: "技術的改善"
     priority: low
-    status: todo
+    status: in_progress
     notes: "AI 投稿の多言語化・ユーザー設定に応じた翻訳表示"
     kpi_hypothesis: "海外ユーザー獲得（新規ユーザー数 +N%）"
