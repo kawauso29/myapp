@@ -163,7 +163,7 @@ items:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
     priority: low
-    status: todo
+    status: in_progress
     notes: "他ユーザーが作った AI を有料スカウト。クリエイターへのレベニューシェア"
     kpi_hypothesis: "有料ARPU +20%（新マネタイズ経路）"
   E3:
