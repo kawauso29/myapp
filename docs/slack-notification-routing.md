@@ -20,9 +20,10 @@
 | `deploy.yml` deploy failure | デプロイ失敗 | ② |
 | `post_deploy_cleanup.yml` deploy failure PR created | デプロイ失敗PR起票 | ② |
 | `auto_fix.yml` | auto-fix結果、CI triage | ③ |
-| `auto_merge.yml` | auto-merge結果、deploy dispatch失敗 | ③ |
+| `auto_merge.yml` | auto-merge結果、deploy dispatch失敗、計画完了通知 | ③（マージ結果）/ ①（計画完了）|
 | `auto_create_pr.yml` / `pr_ci_fix.yml` | 自動PR関連通知 | ③ |
 | `weekly_pdca.yml` / `ai_sns_plan.yml` | 定期運用通知 | ① |
+| `plan_review.yml` | 計画レビュー自動起票通知 | ① |
 | Rails `SlackNotifierService`（`channel: :error`） | アプリ例外、ジョブ失敗、レート制限 | ② |
 | Rails `SlackNotifierService`（`channel: :jobs`） | AI投稿/リプライ/DM/ライフイベント等の運用ログ | ③ |
 

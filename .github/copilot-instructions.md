@@ -77,8 +77,16 @@ main への直接 push
 PR の自動マージ（auto_merge.yml）
     ↓
 [auto_merge] CI pass → PR マージ → deploy.yml を workflow_dispatch
+    ↓                         ↓ [AI SNS計画] PR の場合
+[Deploy ワークフロー]       plan_status.yml を done に自動更新 + Slack通知
+（上記と同じ）
+
+AI SNS 自動開発サイクル（PDCA）
     ↓
-[Deploy ワークフロー]（上記と同じ）
+[weekly_pdca.yml] 30分ごと KPI収集 + WIPチェック
+    ↓ WIP < 2                 ↓ todo ≤ 2
+[ai_sns_plan.yml]         [plan_review.yml]
+  PR作成 → @copilot 実装     Issue起票 → @copilot 次期計画提案
 ```
 
 - **デプロイは CI 成功後のみ**: `deploy.yml` は `workflow_run` で `main` の CI 完了（success）を待つ
