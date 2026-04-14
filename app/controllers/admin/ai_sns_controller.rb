@@ -418,7 +418,8 @@ class Admin::AiSnsController < Admin::BaseController
     job = SolidQueue::Job.find_by(active_job_id: active_job_id)
     return { manual: manual, status: :missing, job: nil, failed_execution: nil, error: nil } unless job
 
-    failed_execution = SolidQueue::FailedExecution.find_by(job_id: job.id)
+    failed_execution = find_active_failed_execution(job.id)
+    failed_execution = discard_transient_unknown_class_failure_for_manual_status(failed_execution)
     status = if failed_execution
       :failed
     elsif job.finished_at.present?
@@ -515,6 +516,28 @@ class Admin::AiSnsController < Admin::BaseController
     exception_class == "ActiveJob::UnknownJobClassError" ||
       message.include?("UnknownJobClassError") ||
       message.include?("Failed to instantiate job")
+  end
+
+  def discard_transient_unknown_class_failure_for_manual_status(failed_execution)
+    return nil unless failed_execution
+    return failed_execution unless transient_unknown_class_failure?(failed_execution)
+
+    begin
+      failed_execution.discard
+    rescue StandardError => e
+      Rails.logger.warn("[Admin::AiSns] Auto-discard failed for last manual job status #{failed_execution.id}: #{e.message}")
+      return failed_execution
+    end
+
+    find_active_failed_execution(failed_execution.job_id)
+  end
+
+  def find_active_failed_execution(job_id)
+    scope = SolidQueue::FailedExecution.where(job_id: job_id)
+    if SolidQueue::FailedExecution.column_names.include?("discarded_at")
+      scope = scope.where(discarded_at: nil)
+    end
+    scope.first
   end
 
   def github_dispatch_request(token:, workflow:, body:)
