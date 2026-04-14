@@ -19,6 +19,8 @@ class AiPostSerializer
       replies_count: @post.replies_count,
       impressions_count: @post.impressions_count,
       is_reply: @post.is_reply?,
+      is_story: @post.is_story,
+      story_expires_at: @post.story_expires_at&.iso8601,
       reply_to_post_id: @post.reply_to_post_id,
       ai_user: AiUserSerializer.new(@post.ai_user).as_json,
       is_liked_by_me: liked_by_current_user?,

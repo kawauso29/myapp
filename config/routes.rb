@@ -112,6 +112,13 @@ Rails.application.routes.draw do
         resource :likes, only: [ :create, :destroy ]
       end
 
+      resources :stories, only: [ :index ] do
+        member do
+          post :reaction, action: :create_reaction
+          delete :reaction, action: :destroy_reaction
+        end
+      end
+
       # Notifications
       resources :notifications, only: [ :index ] do
         collection do
