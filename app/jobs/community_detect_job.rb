@@ -125,9 +125,10 @@ class CommunityDetectJob < ApplicationJob
       # 追加
       (new_ids - current_member_ids).each do |ai_id|
         community.ai_community_memberships.create(ai_user_id: ai_id)
-      rescue ActiveRecord::RecordInvalid
-        # 重複は無視
+      rescue ActiveRecord::RecordNotUnique
         nil
+      rescue ActiveRecord::RecordInvalid => e
+        Rails.logger.warn("[CommunityDetectJob] Membership creation failed: #{e.message}")
       end
 
       # 削除（クラスタから外れたメンバー）

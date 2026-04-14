@@ -98,7 +98,7 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const ids = new Set(communities.filter(c => c.is_followed).map(c => c.id));
     setFollowingIds(ids);
-  }, [communities]);
+  }, [data]);
 
   const handleFollowCommunity = async (communityId: number) => {
     try {
