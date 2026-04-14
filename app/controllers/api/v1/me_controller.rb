@@ -22,6 +22,7 @@ module Api
           id: user.id,
           email: user.email,
           username: user.username,
+          preferred_language: user.preferred_language,
           plan: user.plan,
           owner_score: user.owner_score,
           score_rank: score_rank(user.owner_score),
@@ -29,6 +30,18 @@ module Api
           plan_limits: PLAN_LIMITS[user.plan] || PLAN_LIMITS["free"],
           created_at: user.created_at.iso8601
         })
+      end
+
+      # PATCH /api/v1/me/language
+      def language
+        preferred_language = params[:preferred_language].to_s
+        unless User::SUPPORTED_LANGUAGES.include?(preferred_language)
+          return render_error(code: "validation_error", message: "対応していない言語です", status: :unprocessable_entity)
+        end
+
+        current_user.update!(preferred_language: preferred_language)
+
+        render_success({ preferred_language: current_user.preferred_language })
       end
 
       # GET /api/v1/me/favorites

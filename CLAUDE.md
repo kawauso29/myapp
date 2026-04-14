@@ -233,10 +233,12 @@ main への push（直接 push）
     ↓
 [CI ワークフロー] （scan_ruby / scan_js / lint / test / system-test）
     ↓ 成功                        ↓ 失敗
-[Deploy ワークフロー]          [Auto Fix ワークフロー]
-  ↓ ヘルスチェック               ↓ rubocop --autocorrect
-  ↓ 失敗                         ↓ 自動修正PRを作成 + Slack通知
-  ↓ ロールバック実行
+[dispatch_deploy ジョブ]       [Auto Fix ワークフロー]
+  → deploy.yml を dispatch       ↓ rubocop --autocorrect
+    ↓                            ↓ 自動修正PRを作成 + Slack通知
+[Deploy ワークフロー]
+  ↓ ヘルスチェック（5回）
+  ↓ 失敗 → ロールバック実行
   ↓ Slack通知（原因・次アクション付き）
 
 PR の自動マージ（auto_merge.yml）
@@ -261,7 +263,8 @@ AI SNS 自動開発サイクル（PDCA）
 ### デプロイゲート（deploy.yml）
 
 - `main` push だけでデプロイが走らない。**CI が全ジョブ成功した後にのみ** deploy.yml が起動する
-- トリガー: `workflow_run: workflows: ["CI"], types: [completed], branches: [main]`
+- トリガー: `ci.yml` の `dispatch_deploy` ジョブが CI 全成功後に `deploy.yml` を `workflow_dispatch` で直接起動する
+- `deploy.yml` には `workflow_run` トリガーもフォールバックとして残っている
 - `workflow_dispatch` で手動デプロイは引き続き可能
 - `auto_merge.yml` はマージ成功後に `deploy.yml` を `workflow_dispatch` で直接起動する（GITHUB_TOKEN によるマージでは push イベントが発火せず CI→deploy の連鎖が起きないため）
 - 自動PR/自動マージは CI 失敗時に「なぜスキップされたか」を Slack 通知する。main CI 失敗時は「自動デプロイ未実行」の理由も通知する。
@@ -414,3 +417,4 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - Puma 8.x は `config/puma/{environment}.rb` が存在すると `config/puma.rb` を**読み込まない**（`find` で最初に見つかったファイルだけを使う）→ **正しい対処**: `config/puma/production.rb` に SolidQueue プラグイン設定（`plugin :solid_queue`, `solid_queue_mode :async`）と `.env` ロードを必ず含める。`config/puma.rb` にだけ書いても本番では効かない
 - `config/puma/production.rb` で `workers N`（N>0）+ `preload_app!` を設定するとクラスターモード（fork）になり、SolidQueue async スレッドがfork後のワーカープロセスでジョブクラス解決に失敗して `ActiveJob::UnknownJobClassError` が繰り返し発生する → **正しい対処**: 単一VPSデプロイでは `workers` と `preload_app!` を削除してシングルプロセスモード（スレッドのみ）で動作させる
 - デプロイ中の Puma 再起動時に SolidQueue recurring task が `ActiveJob::UnknownJobClassError` で一時的に失敗する → **正しい対処**: `config/initializers/active_job_unknown_class_retry.rb` で `ActiveJob::Base.deserialize` を prepend し、失敗時に `eager_load!` → リトライする。さらに管理画面の Failed Jobs 表示時にクラスがロード可能な一時的失敗は自動 discard する。deploy.yml では最終クリーンアップを 10 秒遅延で追加実行する
+- `deploy.yml` の `workflow_run` トリガーが self-hosted runner 移行後に発火しなくなった（GitHub が push 時に全ワークフローの check suite を作成し、同コミットに対する workflow_run 実行がスキップされる）→ **正しい対処**: `ci.yml` に `dispatch_deploy` ジョブを追加し、main の CI 成功後に `deploy.yml` を `workflow_dispatch` で直接起動する（auto_merge.yml と同じ方式）。`deploy.yml` の `workflow_run` トリガーはフォールバックとして残す

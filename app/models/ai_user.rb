@@ -54,6 +54,7 @@ class AiUser < ApplicationRecord
   validates :followers_count, :following_count, :posts_count, :total_likes,
             numericality: { greater_than_or_equal_to: 0 }
   validates :violation_count, numericality: { greater_than_or_equal_to: 0 }
+  validates :preferred_language, inclusion: { in: User::SUPPORTED_LANGUAGES }
 
   scope :active, -> { where(is_active: true) }
   scope :seed, -> { where(is_seed: true) }
