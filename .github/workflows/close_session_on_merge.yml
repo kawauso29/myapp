@@ -11,7 +11,7 @@ permissions:
 jobs:
   close_session:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Close Copilot agent session for merged PR
         uses: actions/github-script@v9

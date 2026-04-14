@@ -29,7 +29,7 @@ jobs:
       ${{ github.event_name == 'pull_request_target' &&
           !github.event.pull_request.draft &&
           github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Ensure automerge label exists and conditionally add to PR
         uses: actions/github-script@v9
@@ -81,7 +81,7 @@ jobs:
           github.event.workflow_run.conclusion == 'success' &&
           (github.event.workflow_run.event == 'pull_request' ||
            github.event.workflow_run.event == 'push') }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
     steps:
@@ -407,14 +407,19 @@ jobs:
         if: ${{ steps.update_plan.outputs.updated == 'true' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          ITEM_ID: ${{ steps.update_plan.outputs.item_id }}
+          PR_TITLE: ${{ steps.merge_pr.outputs.pr_title }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg item_id "${{ steps.update_plan.outputs.item_id }}" \
-            --arg pr_title "${{ steps.merge_pr.outputs.pr_title }}" \
-            '{text: ("✅ *AI SNS計画 完了* [" + $item_id + "] " + $pr_title + "\nステータスを自動的に done に更新しました。")}')
+          PAYLOAD=$(python3 -c '
+          import json, os
+          item_id = os.environ.get("ITEM_ID", "")
+          pr_title = os.environ.get("PR_TITLE", "")
+          text = f"✅ *AI SNS計画 完了* [{item_id}] {pr_title}\nステータスを自動的に done に更新しました。"
+          print(json.dumps({"text": text}))
+          ')
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
@@ -422,6 +427,8 @@ jobs:
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.skip_reason != '' }}
         env:
           PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_pr.outputs.pr_number }}
+          PR_NUMBER: ${{ steps.merge_pr.outputs.pr_number }}
+          REASON: ${{ steps.merge_pr.outputs.skip_reason }}
         run: |
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping notification"
@@ -431,11 +438,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
-            --arg reason "${{ steps.merge_pr.outputs.skip_reason }}" \
-            --arg pr_url "${PR_URL}" \
-            '{attachments:[{color:"#f0a500",text:":warning: *CI通過後も自動マージをスキップしました*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"理由",value:$reason,short:false},{title:"対応",value:("手動でマージするか、保護ファイルの変更が意図的か確認してください: " + $pr_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          reason = os.environ.get("REASON", "")
+          pr_url = os.environ.get("PR_URL", "")
+          print(json.dumps({"attachments": [{"color": "#f0a500", "text": ":warning: *CI通過後も自動マージをスキップしました*", "fields": [{"title": "PR", "value": f"#{pr_number}", "short": True}, {"title": "理由", "value": reason, "short": False}, {"title": "対応", "value": f"手動でマージするか、保護ファイルの変更が意図的か確認してください: {pr_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -444,6 +453,8 @@ jobs:
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.deploy_dispatch_error != '' }}
         env:
           DEPLOY_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/deploy.yml
+          PR_NUMBER: ${{ steps.merge_pr.outputs.pr_number }}
+          ERROR_MSG: ${{ steps.merge_pr.outputs.deploy_dispatch_error }}
         run: |
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping notification"
@@ -453,11 +464,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
-            --arg error "${{ steps.merge_pr.outputs.deploy_dispatch_error }}" \
-            --arg deploy_url "${DEPLOY_WORKFLOW_URL}" \
-            '{attachments:[{color:"#f0a500",text:":warning: *自動マージ後のデプロイ起動に失敗*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"原因",value:$error,short:false},{title:"次のアクション",value:("deploy.yml を手動実行してください: " + $deploy_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          error = os.environ.get("ERROR_MSG", "")
+          deploy_url = os.environ.get("DEPLOY_WORKFLOW_URL", "")
+          print(json.dumps({"attachments": [{"color": "#f0a500", "text": ":warning: *自動マージ後のデプロイ起動に失敗*", "fields": [{"title": "PR", "value": f"#{pr_number}", "short": True}, {"title": "原因", "value": error, "short": False}, {"title": "次のアクション", "value": f"deploy.yml を手動実行してください: {deploy_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -466,6 +479,8 @@ jobs:
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.merge_error != '' }}
         env:
           PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_pr.outputs.pr_number }}
+          PR_NUMBER: ${{ steps.merge_pr.outputs.pr_number }}
+          ERROR_MSG: ${{ steps.merge_pr.outputs.merge_error }}
         run: |
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping notification"
@@ -475,11 +490,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg pr_number "${{ steps.merge_pr.outputs.pr_number }}" \
-            --arg error "${{ steps.merge_pr.outputs.merge_error }}" \
-            --arg pr_url "${PR_URL}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *自動マージに失敗しました*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"エラー",value:$error,short:false},{title:"次のアクション",value:("PRを確認して手動マージしてください: " + $pr_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          error = os.environ.get("ERROR_MSG", "")
+          pr_url = os.environ.get("PR_URL", "")
+          print(json.dumps({"attachments": [{"color": "#e01e5a", "text": ":x: *自動マージに失敗しました*", "fields": [{"title": "PR", "value": f"#{pr_number}", "short": True}, {"title": "エラー", "value": error, "short": False}, {"title": "次のアクション", "value": f"PRを確認して手動マージしてください: {pr_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -494,7 +511,7 @@ jobs:
           github.event.workflow_run.conclusion != 'success' &&
           (github.event.workflow_run.event == 'pull_request' ||
            github.event.workflow_run.event == 'push') }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
     steps:
@@ -512,11 +529,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg branch "${HEAD_BRANCH}" \
-            --arg conclusion "${RUN_CONCLUSION}" \
-            --arg run_url "${RUN_URL}" \
-            '{attachments:[{color:"#f0a500",text:":warning: *自動マージをスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("CI の結果が `" + $conclusion + "` のため自動マージ条件を満たしていません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          branch = os.environ.get("HEAD_BRANCH", "")
+          conclusion = os.environ.get("RUN_CONCLUSION", "")
+          run_url = os.environ.get("RUN_URL", "")
+          print(json.dumps({"attachments": [{"color": "#f0a500", "text": ":warning: *自動マージをスキップしました*", "fields": [{"title": "ブランチ", "value": branch, "short": True}, {"title": "原因", "value": f"CI の結果が `{conclusion}` のため自動マージ条件を満たしていません", "short": False}, {"title": "CIログ", "value": run_url, "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
@@ -530,7 +549,7 @@ jobs:
           !github.event.pull_request.draft &&
           github.event.pull_request.state == 'open' &&
           github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
     steps:
@@ -712,14 +731,19 @@ jobs:
         if: ${{ steps.update_plan_hold.outputs.updated == 'true' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          ITEM_ID: ${{ steps.update_plan_hold.outputs.item_id }}
+          PR_TITLE: ${{ steps.merge_on_release.outputs.pr_title }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg item_id "${{ steps.update_plan_hold.outputs.item_id }}" \
-            --arg pr_title "${{ steps.merge_on_release.outputs.pr_title }}" \
-            '{text: ("✅ *AI SNS計画 完了* [" + $item_id + "] " + $pr_title + "\nステータスを自動的に done に更新しました。")}')
+          PAYLOAD=$(python3 -c '
+          import json, os
+          item_id = os.environ.get("ITEM_ID", "")
+          pr_title = os.environ.get("PR_TITLE", "")
+          text = f"✅ *AI SNS計画 完了* [{item_id}] {pr_title}\nステータスを自動的に done に更新しました。"
+          print(json.dumps({"text": text}))
+          ')
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
@@ -727,6 +751,8 @@ jobs:
         if: ${{ steps.merge_on_release.outputs.merge_error != '' }}
         env:
           PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_on_release.outputs.pr_number }}
+          PR_NUMBER: ${{ steps.merge_on_release.outputs.pr_number }}
+          ERROR_MSG: ${{ steps.merge_on_release.outputs.merge_error }}
         run: |
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping notification"
@@ -736,11 +762,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg pr_number "${{ steps.merge_on_release.outputs.pr_number }}" \
-            --arg error "${{ steps.merge_on_release.outputs.merge_error }}" \
-            --arg pr_url "${PR_URL}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *session-hold解除後の自動マージに失敗*",fields:[{title:"PR",value:("#" + $pr_number),short:true},{title:"エラー",value:$error,short:false},{title:"次のアクション",value:("PRを確認して手動マージしてください: " + $pr_url),short:false}],footer:"GitHub Actions Auto Merge",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          error = os.environ.get("ERROR_MSG", "")
+          pr_url = os.environ.get("PR_URL", "")
+          print(json.dumps({"attachments": [{"color": "#e01e5a", "text": ":x: *session-hold解除後の自動マージに失敗*", "fields": [{"title": "PR", "value": f"#{pr_number}", "short": True}, {"title": "エラー", "value": error, "short": False}, {"title": "次のアクション", "value": f"PRを確認して手動マージしてください: {pr_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

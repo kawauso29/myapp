@@ -14,7 +14,7 @@ permissions:
 jobs:
   mark_deployed_and_cleanup:
     if: github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Mark deployed PR and cleanup branch
         uses: actions/github-script@v9
@@ -143,7 +143,7 @@ jobs:
   # デプロイ失敗時に修正用PRを自動起票する
   create_deploy_failure_pr:
     if: github.event.workflow_run.conclusion == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -165,26 +165,19 @@ jobs:
               }
             }
 
-      - name: Create deploy failure PR
-        id: create_pr
+      - name: Create deploy failure branch
+        id: create_branch
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
           COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:7}"
-
-          # 重複チェック：同じSHAのデプロイ失敗PRが既にあれば終了
-          EXISTING=$(gh pr list --state open --search "🚨 デプロイ失敗 [${SHORT_SHA}]" --json number --jq 'length')
-          if [ "${EXISTING}" -gt "0" ]; then
-            echo "Deploy failure PR already exists for ${SHORT_SHA}"
-            echo "pr_url=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
           BRANCH="deploy-failure/fix-${SHORT_SHA}"
           DATE=$(date +%Y-%m-%d)
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -211,33 +204,90 @@ jobs:
           git commit -m "deploy-failure: record failure for ${SHORT_SHA}"
           git push origin "$BRANCH"
 
-          PR_BODY=$(jq -n \
-            --arg sha "${HEAD_SHA}" \
-            --arg short "${SHORT_SHA}" \
-            --arg msg "${COMMIT_MSG}" \
-            --arg log_url "${RUN_URL}" \
-            '"## デプロイ失敗レポート\n\n**コミット**: `\($short)` (`\($sha)`)\n**コミットメッセージ**: \($msg)\n**デプロイログ**: \($log_url)\n\n## 対応手順\n\n1. [デプロイログ](\($log_url)) でエラー原因を確認する\n2. VPS上で確認: `cd ~/myapp && RAILS_ENV=production rails runner \"puts '"'"'OK'"'"'\" 2>&1 | head -5`\n3. このブランチに修正コミットを追加する\n4. 修正後にPRをマージして再デプロイする\n5. 修正完了後に `CLAUDE.md` の「過去の障害記録」に追記する\n\n---\n*このPRはデプロイ失敗時に自動生成されました*"' \
-            -r)
-          echo "$PR_BODY" > /tmp/pr_body.md
+      - name: Create deploy failure PR
+        id: create_pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const shortSha = '${{ steps.create_branch.outputs.short_sha }}';
+            const branch = '${{ steps.create_branch.outputs.branch }}';
+            const headSha = '${{ github.event.workflow_run.head_sha }}';
+            const runUrl = '${{ github.event.workflow_run.html_url }}';
+            const commitMsg = `${{ github.event.workflow_run.head_commit.message }}`.split('\n')[0];
 
-          PR_URL=$(gh pr create \
-            --title "🚨 デプロイ失敗 [${SHORT_SHA}]" \
-            --body-file /tmp/pr_body.md \
-            --base main \
-            --head "$BRANCH" \
-            --label "deploy-failure")
-          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
-          echo "Created deploy failure PR: ${PR_URL}"
+            // 重複チェック
+            const { data: existingPrs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`,
+              per_page: 10
+            });
+            if (existingPrs.length > 0) {
+              core.info(`Deploy failure PR already exists for ${shortSha}`);
+              core.setOutput('pr_url', '');
+              return;
+            }
+
+            const body = [
+              '## デプロイ失敗レポート',
+              '',
+              `**コミット**: \`${shortSha}\` (\`${headSha}\`)`,
+              `**コミットメッセージ**: ${commitMsg}`,
+              `**デプロイログ**: ${runUrl}`,
+              '',
+              '## 対応手順',
+              '',
+              `1. [デプロイログ](${runUrl}) でエラー原因を確認する`,
+              "2. VPS上で確認: `cd ~/myapp && RAILS_ENV=production rails runner \"puts 'OK'\" 2>&1 | head -5`",
+              '3. このブランチに修正コミットを追加する',
+              '4. 修正後にPRをマージして再デプロイする',
+              '5. 修正完了後に `CLAUDE.md` の「過去の障害記録」に追記する',
+              '',
+              '---',
+              '*このPRはデプロイ失敗時に自動生成されました*'
+            ].join('\n');
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 デプロイ失敗 [${shortSha}]`,
+              body: body,
+              head: branch,
+              base: 'main'
+            });
+
+            // Add deploy-failure label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['deploy-failure']
+            });
+
+            core.setOutput('pr_url', pr.html_url);
+            core.info(`Created deploy failure PR: ${pr.html_url}`);
 
       # カテゴリ②: デプロイ失敗PR起票通知
       - name: Notify Slack (deploy failure PR created)
         if: steps.create_pr.outputs.pr_url != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          LOG_URL: ${{ github.event.workflow_run.html_url }}
+          PR_URL: ${{ steps.create_pr.outputs.pr_url }}
         run: |
-          PAYLOAD=$(jq -n \
-            --arg sha "${{ github.event.workflow_run.head_sha }}" \
-            --arg log_url "${{ github.event.workflow_run.html_url }}" \
-            --arg pr_url "${{ steps.create_pr.outputs.pr_url }}" \
-            '{attachments:[{color:"#b60205",text:":fire: *デプロイ失敗 — PRが自動起票されました*",fields:[{title:"SHA",value:$sha,short:true},{title:"デプロイログ",value:$log_url,short:false},{title:"PR",value:$pr_url,short:false}],footer:"GitHub Actions Post Deploy",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR }}" \
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          sha = os.environ.get('SHA', '')
+          log_url = os.environ.get('LOG_URL', '')
+          pr_url = os.environ.get('PR_URL', '')
+          print(json.dumps({'attachments': [{'color': '#b60205', 'text': ':fire: *デプロイ失敗 — PRが自動起票されました*', 'fields': [{'title': 'SHA', 'value': sha, 'short': True}, {'title': 'デプロイログ', 'value': log_url, 'short': False}, {'title': 'PR', 'value': pr_url, 'short': False}], 'footer': 'GitHub Actions Post Deploy', 'ts': int(time.time())}]}))
+          ")
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

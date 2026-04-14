@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   create_pr:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Create PR if not exists
         uses: actions/github-script@v9

@@ -17,7 +17,7 @@ jobs:
           (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
            startsWith(github.event.workflow_run.head_branch, 'copilot/') ||
            startsWith(github.event.workflow_run.head_branch, 'auto-fix/')) }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Create pull request if missing
         uses: actions/github-script@v9
@@ -98,7 +98,7 @@ jobs:
           (startsWith(github.event.workflow_run.head_branch, 'claude/') ||
            startsWith(github.event.workflow_run.head_branch, 'copilot/') ||
            startsWith(github.event.workflow_run.head_branch, 'auto-fix/')) }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
     steps:
@@ -116,11 +116,13 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg branch "${HEAD_BRANCH}" \
-            --arg conclusion "${RUN_CONCLUSION}" \
-            --arg run_url "${RUN_URL}" \
-            '{attachments:[{color:"#f0a500",text:":warning: *自動PR作成をスキップしました*",fields:[{title:"ブランチ",value:$branch,short:true},{title:"原因",value:("CI結果が `" + $conclusion + "` のため自動PR作成は実行されません"),short:false},{title:"CIログ",value:$run_url,short:false}],footer:"GitHub Actions Auto Create PR",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          branch = os.environ.get('HEAD_BRANCH', '')
+          conclusion = os.environ.get('RUN_CONCLUSION', '')
+          run_url = os.environ.get('RUN_URL', '')
+          print(json.dumps({'attachments': [{'color': '#f0a500', 'text': ':warning: *自動PR作成をスキップしました*', 'fields': [{'title': 'ブランチ', 'value': branch, 'short': True}, {'title': '原因', 'value': f'CI結果が \`{conclusion}\` のため自動PR作成は実行されません', 'short': False}, {'title': 'CIログ', 'value': run_url, 'short': False}], 'footer': 'GitHub Actions Auto Create PR', 'ts': int(time.time())}]}))
+          ")
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
