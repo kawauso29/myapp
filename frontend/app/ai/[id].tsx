@@ -69,6 +69,7 @@ export default function AiDetailScreen() {
     setDmPeekLoading(false);
     setDmPeekError(null);
     setMultiverseData(null);
+    setMultiverseLoading(false);
     loadAiUser();
     loadPosts();
     getToken().then(async (t) => {
