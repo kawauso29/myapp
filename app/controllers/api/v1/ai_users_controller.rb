@@ -3,8 +3,20 @@ module Api
     class AiUsersController < BaseController
       # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
       MAX_PERSONALITY_LEVEL_DIFF = 4.0
+      MULTIVERSE_EVENT_LABELS = {
+        "job_change" => "転職",
+        "relocation" => "引越し",
+        "promotion" => "昇進",
+        "new_relationship" => "新しい恋",
+        "breakup" => "失恋",
+        "marriage" => "結婚",
+        "illness" => "体調不良",
+        "recovery" => "回復",
+        "new_hobby" => "新しい趣味",
+        "skill_up" => "スキルアップ"
+      }.freeze
 
-      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility ]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility, :multiverse ]
 
       # GET /api/v1/ai_users
       def index
@@ -218,7 +230,92 @@ module Api
         render_success(states.map { |s| serialize_emotion_state(s) })
       end
 
+      # GET /api/v1/ai_users/:id/multiverse?event=job_change
+      def multiverse
+        ai_user = AiUser.find(params[:id])
+        requested_event_key = params[:event].to_s.presence || "job_change"
+        event_key = MULTIVERSE_EVENT_LABELS.key?(requested_event_key) ? requested_event_key : "job_change"
+        event_label = MULTIVERSE_EVENT_LABELS[event_key]
+
+        base_timeline = build_multiverse_original_timeline(ai_user)
+        multiverse_timeline = build_multiverse_if_timeline(ai_user, base_timeline, event_label)
+
+        render_success({
+          ai_user_id: ai_user.id,
+          display_name: ai_user.ai_profile&.name || ai_user.username,
+          scenario: {
+            event_key: event_key,
+            event_label: event_label
+          },
+          timelines: {
+            original: base_timeline,
+            multiverse: multiverse_timeline
+          },
+          generated_at: Time.current.iso8601
+        })
+      end
+
       private
+
+      def build_multiverse_original_timeline(ai_user)
+        profile_name = ai_user.ai_profile&.name || ai_user.username
+
+        post_entries = ai_user.ai_posts.visible
+                              .order(created_at: :desc)
+                              .limit(8)
+                              .map do |post|
+          {
+            occurred_at: post.created_at.iso8601,
+            source: "post",
+            text: post.content
+          }
+        end
+
+        event_entries = ai_user.ai_life_events
+                               .order(fired_at: :desc)
+                               .limit(4)
+                               .map do |event|
+          {
+            occurred_at: event.fired_at.iso8601,
+            source: "life_event",
+            text: "#{event.fired_at.strftime('%Y/%m/%d')} #{event.event_type}"
+          }
+        end
+
+        timeline = (post_entries + event_entries)
+                   .sort_by { |entry| entry[:occurred_at] }
+                   .reverse
+                   .first(10)
+
+        return timeline if timeline.present?
+
+        [
+          {
+            occurred_at: Time.current.iso8601,
+            source: "seed",
+            text: "#{profile_name}の物語はこれから始まります。"
+          }
+        ]
+      end
+
+      def build_multiverse_if_timeline(ai_user, base_timeline, event_label)
+        profile_name = ai_user.ai_profile&.name || ai_user.username
+        intro_entry = {
+          occurred_at: Time.current.iso8601,
+          source: "if_event",
+          text: "もし#{profile_name}が「#{event_label}」を選んでいたら…"
+        }
+
+        remixed_entries = base_timeline.first(9).map.with_index do |entry, index|
+          {
+            occurred_at: entry[:occurred_at],
+            source: entry[:source],
+            text: index.zero? ? "【if世界線】#{entry[:text]}" : "if世界では: #{entry[:text]}"
+          }
+        end
+
+        [ intro_entry, *remixed_entries ]
+      end
 
       def serialize_emotion_state(state)
         # mood enum: positive=0, neutral=1, negative=2, very_negative=3
