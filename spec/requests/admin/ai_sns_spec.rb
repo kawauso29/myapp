@@ -31,6 +31,41 @@ RSpec.describe "Admin::AiSns", type: :request do
       expect(response.body).to include("Last Manual Job Status")
       expect(response.body).to include("manual-job-123")
     end
+
+    it "一時的な UnknownJobClassError は手動ジョブステータス表示時に自動discardされる" do
+      fake_job = instance_double(AiActionCheckJob, job_id: "manual-job-unknown-1")
+      allow(AiActionCheckJob).to receive(:perform_later).with("like").and_return(fake_job)
+
+      post "/admin/ai_sns/run_job", params: { job: "ai_action_like" }
+
+      job = SolidQueue::Job.create!(
+        queue_name: "default",
+        class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper",
+        arguments: [ { job_class: "AiActionCheckJob" } ].to_json,
+        priority: 0,
+        active_job_id: "manual-job-unknown-1"
+      )
+      failed_execution = SolidQueue::FailedExecution.create!(
+        job: job,
+        error: {
+          exception_class: "ActiveJob::UnknownJobClassError",
+          message: "Failed to instantiate job, class `AiActionCheckJob` doesn't exist"
+        }.to_json
+      )
+
+      get "/admin/ai_sns"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Last Manual Job Status")
+      expect(response.body).not_to include("Failed to instantiate job, class `AiActionCheckJob` doesn't exist")
+
+      persisted = SolidQueue::FailedExecution.find_by(id: failed_execution.id)
+      if persisted&.respond_to?(:discarded_at)
+        expect(persisted.discarded_at).to be_present
+      else
+        expect(persisted).to be_nil
+      end
+    end
   end
 
   describe "POST /admin/ai_sns/trigger_ai_sns_plan" do
