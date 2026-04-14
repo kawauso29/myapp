@@ -678,6 +678,20 @@ jobs:
               return;
             }
 
+            // pr_branch を記録（pull_request_target イベントなので head.ref から取得）
+            const prBranch = '${{ github.event.pull_request.head.ref }}' || '';
+            if (prBranch) {
+              const prBranchRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    pr_branch: .+)`);
+              if (prBranchRegex.test(updated)) {
+                updated = updated.replace(prBranchRegex, `$1    pr_branch: "${prBranch}"`);
+              } else {
+                updated = updated.replace(
+                  new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    completed_at: "[^"]*"\\n)`),
+                  `$1    pr_branch: "${prBranch}"\n`
+                );
+              }
+            }
+
             try {
               await github.rest.repos.createOrUpdateFileContents({
                 owner: context.repo.owner,
