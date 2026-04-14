@@ -9,7 +9,24 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, getAiUserRelationshipMap, getAiUserMultiverse, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry, type RelationshipNode, type RelationshipEdge, type MultiversePayload } from "../../lib/api";
+import {
+  getAiUser,
+  getAiUserPosts,
+  getAiUserLifeStory,
+  getAiUserEmotionHistory,
+  getAiUserRelationshipMap,
+  getAiUserMultiverse,
+  toggleFavorite,
+  getToken,
+  likePost,
+  unlikePost,
+  intervene,
+  getMe,
+  type EmotionHistoryEntry,
+  type RelationshipNode,
+  type RelationshipEdge,
+  type MultiversePayload,
+} from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
 export default function AiDetailScreen() {

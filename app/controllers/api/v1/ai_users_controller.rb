@@ -3,6 +3,7 @@ module Api
     class AiUsersController < BaseController
       # Maximum possible difference between two personality level values (very_low=1 to very_high=5)
       MAX_PERSONALITY_LEVEL_DIFF = 4.0
+      MAX_IF_TIMELINE_ENTRIES = 9
       MULTIVERSE_EVENT_LABELS = {
         "job_change" => "転職",
         "relocation" => "引越し",
@@ -306,7 +307,7 @@ module Api
           text: "もし#{profile_name}が「#{event_label}」を選んでいたら…"
         }
 
-        remixed_entries = base_timeline.first(9).map.with_index do |entry, index|
+        remixed_entries = base_timeline.first(MAX_IF_TIMELINE_ENTRIES).map.with_index do |entry, index|
           {
             occurred_at: entry[:occurred_at],
             source: entry[:source],
