@@ -122,7 +122,7 @@ jobs:
                owner: context.repo.owner,
                repo: context.repo.repo,
                issue_number: prNumber,
-               body: `🤖 lint CI が失敗しましたが、RuboCop では自動修正できませんでした。\n\n@github-copilot このPRで修正コミットを追加してください。\n\n**CIログ**: ${runUrl}`
+               body: `🤖 lint CI が失敗しましたが、RuboCop では自動修正できませんでした。\n\n@copilot このPRで修正コミットを追加してください。\n\n**CIログ**: ${runUrl}`
              });
 
       # test / route-check 等の失敗 → Copilotをassignしてコメント
@@ -148,7 +148,7 @@ jobs:
                owner: context.repo.owner,
                repo: context.repo.repo,
                issue_number: prNumber,
-               body: `🤖 CI が失敗しました。\n\n@github-copilot このPRで修正コミットを追加してください。\n\n**失敗したジョブ**: \`${failedJobs}\`\n**CIログ**: ${runUrl}`
+               body: `🤖 CI が失敗しました。\n\n@copilot このPRで修正コミットを追加してください。\n\n**失敗したジョブ**: \`${failedJobs}\`\n**CIログ**: ${runUrl}`
              });
 
       - name: Notify Slack

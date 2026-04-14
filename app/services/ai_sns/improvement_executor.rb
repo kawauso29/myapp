@@ -136,7 +136,7 @@ module AiSns
 
           ---
 
-          @github-copilot `docs/ai_sns_improvement_plan.md` の計画書を参照し、既存コードとの整合性を保ちながら **#{title}** を実装してください。
+          @copilot `docs/ai_sns_improvement_plan.md` の計画書を参照し、既存コードとの整合性を保ちながら **#{title}** を実装してください。
 
           <!-- copilot:model claude-opus-4.6 -->
         BODY
