@@ -102,7 +102,7 @@ jobs:
           echo "$SUMMARY" >> "$GITHUB_OUTPUT"
           echo "SUMMARYDELIM" >> "$GITHUB_OUTPUT"
 
-      - name: 計画レビュー Issue を作成して Copilot に依頼
+      - name: 計画レビュー Issue を作成
         if: steps.analyze.outputs.needs_review == 'true'
         uses: actions/github-script@v9
         id: create_issue
@@ -168,7 +168,7 @@ jobs:
               '',
               '### 依頼内容',
               '',
-              '@copilot 以下の手順で次期改善計画を作成してください:',
+              '以下の手順で次期改善計画を作成してください:',
               '',
               '1. **現在のKPI** と **完了施策の効果** を分析する',
               '2. サービスの弱点・伸びしろを特定する',
@@ -184,8 +184,6 @@ jobs:
               '6. `docs/ai_sns_improvement_plan.md` にも対応する詳細説明を追記する',
               '',
               '**注意**: 既存の todo/in_progress 項目は変更しないでください。新規追加のみ行ってください。',
-              '',
-              '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n');
 
             const { data: issue } = await github.rest.issues.create({
@@ -200,6 +198,34 @@ jobs:
             core.setOutput('issue_number', String(issue.number));
             core.setOutput('issue_url', issue.html_url);
             core.setOutput('skipped', 'false');
+
+      # Issue 本文の @copilot メンションでは Copilot coding agent が起動しないため、
+      # 別コメントとして @copilot メンションを投稿する（PRコメントと同じパターン）
+      - name: Copilot に計画策定を依頼（Issueコメント）
+        if: steps.analyze.outputs.needs_review == 'true' && steps.create_issue.outputs.skipped != 'true'
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const issueNumber = parseInt('${{ steps.create_issue.outputs.issue_number }}', 10);
+
+            const comment = [
+              '@copilot このIssueの依頼内容に従って、次期 AI SNS 改善計画を作成してください。',
+              '',
+              '`docs/ai_sns_plan_status.yml` と `docs/ai_sns_improvement_plan.md` を更新し、',
+              '新しい改善施策を追加するPRを作成してください。',
+              '',
+              '<!-- copilot:model claude-opus-4.6 -->'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: comment
+            });
+
+            core.info(`Copilot 計画策定依頼コメントを Issue #${issueNumber} に投稿しました`);
 
       - name: Slack 通知（計画レビュー起票）
         if: steps.analyze.outputs.needs_review == 'true' && steps.create_issue.outputs.skipped != 'true'

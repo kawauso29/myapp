@@ -248,10 +248,14 @@ PR の自動マージ（auto_merge.yml）
 
 AI SNS 自動開発サイクル（PDCA）
     ↓
-[weekly_pdca.yml] 30分ごと KPI収集 + WIPチェック
-    ↓ WIP < 2                 ↓ todo ≤ 2
+[weekly_pdca.yml] 3時間ごと KPI収集 + WIPチェック（schedule自動実行）
+    ↓ WIP < 2 & todo > 0      ↓ todo ≤ 2
 [ai_sns_plan.yml]         [plan_review.yml]
-  PR作成 → @copilot 実装     Issue起票 → @copilot 次期計画提案
+  PR作成 → @copilot 実装     Issue起票 → Issueコメントで @copilot 次期計画提案
+    ↓ CI通過                      ↓ Copilot がPR作成
+[auto_merge.yml]              [auto_merge.yml]
+  マージ → plan_status done     マージ → 新todo追加 → 次のPDCAサイクルへ
+  → deploy.yml 起動
 ```
 
 ### デプロイゲート（deploy.yml）
@@ -403,6 +407,7 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - `GITHUB_TOKEN` で作成したコメント/Issueは GitHub Apps（Copilot coding agent）の Webhook をトリガーしない（GitHub のループ防止仕様）。`@copilot` メンションを含むコメントは必ず `DEPLOY_TOKEN`（fine-grained PAT）で投稿する。**`DEPLOY_TOKEN` には `Issues: Read and Write` スコープが必須**。403 が出る場合は GitHub Settings → Developer settings → Personal access tokens → DEPLOY_TOKEN を `Issues: Read and Write` スコープで再発行すること（デプロイ用途の PAT とスコープが分離されている場合は注意）
 - `ai_sns_plan.yml` で `git commit --allow-empty` を使うと空PRが作成され、auto_mergeがCopilot実装前に空PRをマージしてしまう → **正しい対処**: ①`auto_merge.yml` にマージ前の変更ファイル数チェック（空PRガード）を追加、②PRは `draft: true` で作成、③`--allow-empty` の代わりに `started_at` タイムスタンプ等の実ファイル変更をコミットする
 - `ai_sns_plan.yml` で `@copilot` をPR本文（body）に書いても Copilot coding agent は起動しない → **正しい対処**: PR作成後に `issues.createComment` で別途PRコメントとして `@copilot` メンションを投稿する
+- `plan_review.yml` でも同様に `@copilot` をIssue本文（body）に書いても起動しない → **正しい対処**: Issue作成後に `issues.createComment` で別途Issueコメントとして `@copilot` メンションを投稿する（DEPLOY_TOKEN使用）
 - Puma 8.x は `config/puma/{environment}.rb` が存在すると `config/puma.rb` を**読み込まない**（`find` で最初に見つかったファイルだけを使う）→ **正しい対処**: `config/puma/production.rb` に SolidQueue プラグイン設定（`plugin :solid_queue`, `solid_queue_mode :async`）と `.env` ロードを必ず含める。`config/puma.rb` にだけ書いても本番では効かない
 - `config/puma/production.rb` で `workers N`（N>0）+ `preload_app!` を設定するとクラスターモード（fork）になり、SolidQueue async スレッドがfork後のワーカープロセスでジョブクラス解決に失敗して `ActiveJob::UnknownJobClassError` が繰り返し発生する → **正しい対処**: 単一VPSデプロイでは `workers` と `preload_app!` を削除してシングルプロセスモード（スレッドのみ）で動作させる
 - デプロイ中の Puma 再起動時に SolidQueue recurring task が `ActiveJob::UnknownJobClassError` で一時的に失敗する → **正しい対処**: `config/initializers/active_job_unknown_class_retry.rb` で `ActiveJob::Base.deserialize` を prepend し、失敗時に `eager_load!` → リトライする。さらに管理画面の Failed Jobs 表示時にクラスがロード可能な一時的失敗は自動 discard する。deploy.yml では最終クリーンアップを 10 秒遅延で追加実行する
