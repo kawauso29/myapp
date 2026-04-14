@@ -189,6 +189,10 @@ jobs:
             RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
             RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
             RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+            # Final delayed cleanup: catch any failures created during post-restart processing
+            echo "Waiting 10s for any remaining transient failures to settle..."
+            sleep 10
+            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
 
       - name: Health check after deploy
         id: health_check

@@ -219,7 +219,22 @@ class Admin::AiSnsController < Admin::BaseController
                            .includes(:job)
                            .order(created_at: :desc)
                            .limit(100)
-    @failed_execution_rows = @failed_executions.map { |execution| build_failed_execution_row(execution) }
+
+    # Auto-discard transient UnknownJobClassError failures where the class is now loadable
+    kept = []
+    @failed_executions.each do |execution|
+      if transient_unknown_class_failure?(execution)
+        begin
+          execution.discard
+        rescue StandardError => e
+          Rails.logger.warn("[Admin::AiSns] Auto-discard failed for execution #{execution.id}: #{e.message}")
+        end
+      else
+        kept << execution
+      end
+    end
+
+    @failed_execution_rows = kept.map { |execution| build_failed_execution_row(execution) }
   end
 
   def run_job
@@ -472,6 +487,29 @@ class Admin::AiSnsController < Admin::BaseController
 
   def extract_missing_class_name(message)
     message.match(/class [`"]([^`"]+)[`"] doesn't exist/)&.captures&.first
+  end
+
+  # Check if a FailedExecution is a transient UnknownJobClassError
+  # (e.g. from a deploy restart) where the class is now loadable.
+  def transient_unknown_class_failure?(execution)
+    error_data = normalized_error_data(execution.error)
+    return false unless unknown_class_error?(error_data)
+
+    job_class_name = resolved_job_class_name(execution.job, error_data)
+    return false if job_class_name.blank? || job_class_name == "unknown"
+
+    # If the class is now loadable, this was a transient deploy-time failure
+    job_class_name.safe_constantize.present?
+  rescue StandardError
+    false
+  end
+
+  def unknown_class_error?(error_data)
+    exception_class = error_data["exception_class"].to_s
+    message = error_data["message"].to_s
+    exception_class == "ActiveJob::UnknownJobClassError" ||
+      message.include?("UnknownJobClassError") ||
+      message.include?("Failed to instantiate job")
   end
 
   def github_dispatch_request(token:, workflow:, body:)
