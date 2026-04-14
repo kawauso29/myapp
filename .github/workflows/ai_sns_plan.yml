@@ -19,11 +19,20 @@ permissions:
 
 jobs:
   advance_plan:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure yq is available
+        run: |
+          if ! command -v yq &> /dev/null; then
+            mkdir -p "$HOME/bin"
+            curl -sL -o "$HOME/bin/yq" https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            chmod +x "$HOME/bin/yq"
+          fi
+          echo "$HOME/bin" >> "$GITHUB_PATH"
 
       - name: WIP 上限チェック
         id: wip_check
@@ -235,22 +244,25 @@ jobs:
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          ITEM_ID: ${{ steps.select.outputs.item_id }}
+          TITLE: ${{ steps.select.outputs.item_title }}
+          PR_URL: ${{ steps.create_pr.outputs.pr_url }}
+          PR_NUM: ${{ steps.create_pr.outputs.pr_number }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "SLACK_WEBHOOK_URL が未設定のためスキップ"
             exit 0
           fi
 
-          PAYLOAD=$(jq -n \
-            --arg item_id "${{ steps.select.outputs.item_id }}" \
-            --arg title "${{ steps.select.outputs.item_title }}" \
-            --arg pr_url "${{ steps.create_pr.outputs.pr_url }}" \
-            --arg pr_num "${{ steps.create_pr.outputs.pr_number }}" \
-            '{
-              text: ("🤖 AI SNS計画 次の実装を Copilot に依頼しました\n" +
-                     "*[" + $item_id + "]* " + $title + "\n" +
-                     "PR #" + $pr_num + ": " + $pr_url)
-            }')
+          PAYLOAD=$(python3 -c "
+          import json, os
+          item_id = os.environ.get('ITEM_ID', '')
+          title = os.environ.get('TITLE', '')
+          pr_url = os.environ.get('PR_URL', '')
+          pr_num = os.environ.get('PR_NUM', '')
+          text = f'🤖 AI SNS計画 次の実装を Copilot に依頼しました\n*[{item_id}]* {title}\nPR #{pr_num}: {pr_url}'
+          print(json.dumps({'text': text}))
+          ")
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
@@ -261,7 +273,7 @@ jobs:
         run: |
           echo "🎉 AI SNS 改良計画の全項目が完了済みです"
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
-            PAYLOAD=$(jq -n '{ text: "🎉 AI SNS 改良計画の全項目が完了しました！" }')
+            PAYLOAD=$(python3 -c "import json; print(json.dumps({'text': '🎉 AI SNS 改良計画の全項目が完了しました！'}))")
             curl -s -X POST -H 'Content-type: application/json' \
               --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
           fi
