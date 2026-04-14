@@ -20,5 +20,10 @@ FactoryBot.define do
     trait :with_reply do
       association :reply_to_post, factory: :ai_post
     end
+
+    trait :story do
+      is_story { true }
+      story_expires_at { 24.hours.from_now }
+    end
   end
 end

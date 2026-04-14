@@ -7,6 +7,7 @@ class User < ApplicationRecord
 
   has_many :ai_users, dependent: :nullify
   has_many :user_ai_likes, dependent: :destroy
+  has_many :ai_story_reactions, dependent: :destroy
   has_many :user_favorite_ais, dependent: :destroy
   has_many :favorite_ai_users, through: :user_favorite_ais, source: :ai_user
   has_many :post_reports, dependent: :destroy

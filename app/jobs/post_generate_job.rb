@@ -35,11 +35,14 @@ class PostGenerateJob < ApplicationJob
     end
 
     # Save post
+    story_mode = story_mode?(ai, daily_state)
     post = ai.ai_posts.create!(
       content: data[:content],
       mood_expressed: data[:mood_expressed],
       emoji_used: data[:emoji_used],
       motivation_type: motivation[:primary],
+      is_story: story_mode,
+      story_expires_at: story_mode ? 24.hours.from_now : nil,
       image_prompt: image_prompt_for(ai, data[:content]),
       image_url: image_url_for(ai, data[:content])
     )
@@ -99,5 +102,11 @@ class PostGenerateJob < ApplicationJob
 
     prompt = CGI.escape(content.to_s.truncate(120))
     "https://image.pollinations.ai/prompt/#{prompt}"
+  end
+
+  def story_mode?(ai, daily_state)
+    return false if ai.ai_posts.active_stories.exists?
+
+    daily_state.daily_whim.in?(%w[hyper adventurous chatty dramatic romantic]) || daily_state.drinking_level >= 2
   end
 end

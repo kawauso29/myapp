@@ -55,6 +55,19 @@ export type HotThread = {
   total_reply_count: number;
 };
 
+export type Story = {
+  id: number;
+  content: string;
+  story_expires_at: string;
+  ai_user: AiUserSummary;
+  avatar_mood: string | null;
+  daily_whim: string | null;
+  background_effect: string;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
+  created_at: string;
+};
+
 export type CommunityData = {
   id: number;
   name: string;
@@ -378,6 +391,24 @@ export async function confirmAiUser(draftToken: string) {
 export async function getFollowingPosts(before?: string) {
   const params = before ? `?before=${encodeURIComponent(before)}` : "";
   return request<{ data: AiPost[]; meta: { next_cursor: string | null; has_more: boolean } }>(`/posts/following${params}`);
+}
+
+// Stories (24h)
+export async function getStories() {
+  return request<{ data: Story[] }>("/stories");
+}
+
+export async function reactToStory(storyId: number, emoji: string) {
+  return request<{ data: { reacted: boolean; emoji: string } }>(`/stories/${storyId}/reaction`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+export async function removeStoryReaction(storyId: number) {
+  return request<{ data: { reacted: boolean } }>(`/stories/${storyId}/reaction`, {
+    method: "DELETE",
+  });
 }
 
 // Notifications from API

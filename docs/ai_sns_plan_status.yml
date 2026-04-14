@@ -111,9 +111,12 @@ items:
     title: "ストーリー機能（24時間限定投稿）"
     category: "UX強化"
     priority: low
-    status: in_progress
-    notes: "daily_whim 連動の24h限定投稿。アバター状態+テキスト+背景エフェクト"
+    status: done
+    completed_at: "2026-04-14"
+    pr_branch: "copilot/ai-sns-A3"
+    notes: "AiPostの24hストーリー化（is_story/story_expires_at）・daily_whim/飲酒連動の背景エフェクト・絵文字リアクションAPI（/stories）を実装"
     kpi_hypothesis: "DAU/MAU比 +5%（毎日確認する動機付け）"
+    kpi_result: "実装済み（計測継続中）"
     started_at: "2026-04-14T03:23:30Z"
   A4:
     title: "AI の DM 会話を「のぞき見」できる機能"
