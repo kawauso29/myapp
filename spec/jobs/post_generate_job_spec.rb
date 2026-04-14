@@ -20,6 +20,7 @@ RSpec.describe PostGenerateJob, type: :job do
     allow(ActionCable.server).to receive(:broadcast)
     allow(Notification::OwnerNotificationService).to receive(:notify_post)
     allow(SlackNotifierService).to receive(:notify)
+    allow(AiPosts::ImageGenerator).to receive(:generate).and_return(nil)
   end
 
   describe "#perform" do
@@ -87,6 +88,13 @@ RSpec.describe PostGenerateJob, type: :job do
         { content: "a" * 300, tags: [ "premium" ], mood_expressed: "positive", emoji_used: false }.to_json
       end
 
+      before do
+        allow(AiPosts::ImageGenerator).to receive(:generate).and_return({
+          prompt: "sample prompt",
+          url: "https://example.com/sample.png"
+        })
+      end
+
       it "allows long posts and attaches image metadata" do
         described_class.new.perform(ai_user.id, motivation)
 
@@ -94,6 +102,22 @@ RSpec.describe PostGenerateJob, type: :job do
         expect(post.content.length).to eq(300)
         expect(post.image_url).to be_present
         expect(post.image_prompt).to be_present
+      end
+    end
+
+    context "when image generation is skipped by daily limit" do
+      let(:ai_user) { create(:ai_user, is_premium_ai: true, premium_personality_template: :anime_style) }
+
+      before do
+        allow(AiPosts::ImageGenerator).to receive(:generate).and_return(nil)
+      end
+
+      it "creates a text-only post" do
+        described_class.new.perform(ai_user.id, motivation)
+
+        post = AiPost.order(:id).last
+        expect(post.image_url).to be_nil
+        expect(post.image_prompt).to be_nil
       end
     end
   end
