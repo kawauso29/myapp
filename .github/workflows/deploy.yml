@@ -56,7 +56,7 @@ jobs:
 
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     needs: build_frontend
     timeout-minutes: 30
     permissions:
@@ -72,241 +72,232 @@ jobs:
           name: frontend-tar
 
       - name: Notify Slack (deploy start)
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          ACTOR: ${{ github.actor }}
         run: |
-          PAYLOAD=$(jq -n \
-            --arg msg "${COMMIT_MSG}" \
-            --arg actor "${{ github.actor }}" \
-            '{attachments:[{color:"#36c5f0",text:":rocket: *デプロイ開始* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI }}" \
-            -H "Content-Type: application/json" \
-            -d "${PAYLOAD}"
-
-      - name: Copy tarball to VPS
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "frontend.tar.gz"
-          target: "/tmp/"
+          PAYLOAD=$(python3 -c "
+import json, os, time
+msg = os.environ.get('COMMIT_MSG', '')
+actor = os.environ.get('ACTOR', '')
+print(json.dumps({'attachments':[{'color':'#36c5f0','text':':rocket: *デプロイ開始* \`main\` by ' + actor,'fields':[{'title':'コミット','value':msg,'short':False}],'footer':'GitHub Actions','ts':int(time.time())}]}))
+")
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST "$SLACK_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD"
+          fi
 
       - name: Sync Slack env vars to VPS
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set_env() {
-              KEY=$1; VAL=$2; FILE=~/myapp/.env
-              touch $FILE
-              if grep -q "^${KEY}=" $FILE; then
-                sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
-              else
-                echo "${KEY}=${VAL}" >> $FILE
-              fi
-            }
-            set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
-            set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
-            set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR }}'
-            set_env SLACK_WEBHOOK_URL_JOBS '${{ secrets.SLACK_WEBHOOK_URL_JOBS }}'
-            set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
-            set_env SOLID_QUEUE_IN_PUMA '1'
+        run: |
+          set_env() {
+            KEY=$1; VAL=$2; FILE=~/myapp/.env
+            touch $FILE
+            if grep -q "^${KEY}=" $FILE; then
+              sed -i "s|^${KEY}=.*|${KEY}=${VAL}|" $FILE
+            else
+              echo "${KEY}=${VAL}" >> $FILE
+            fi
+          }
+          set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
+          set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+          set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR }}'
+          set_env SLACK_WEBHOOK_URL_JOBS '${{ secrets.SLACK_WEBHOOK_URL_JOBS }}'
+          set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
+          set_env SOLID_QUEUE_IN_PUMA '1'
 
       - name: Deploy Rails + frontend
         id: deploy_rails
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -e
-            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-            cd ~/myapp
-            # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
-            git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
-            git fetch origin main
-            git reset --hard origin/main
-            bundle install
-            RAILS_ENV=production bin/rails db:migrate
-            RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
-            RAILS_ENV=production bin/rails assets:precompile
-            rm -rf ~/myapp/public/app
-            mkdir -p ~/myapp/public/app
-            tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
-            rm /tmp/frontend.tar.gz
-            echo "Frontend files:"
-            ls ~/myapp/public/app/ | head -10
-            sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
-            rm -rf tmp/cache && mkdir -p tmp/cache
-            # Kill standalone SolidQueue processes (bin/jobs or SolidQueue::Cli).
-            # SolidQueue should only run inside Puma via the plugin (SOLID_QUEUE_IN_PUMA=1).
-            # Standalone processes use fork mode and cause ActiveJob::UnknownJobClassError.
-            STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
-            if [ -n "$STANDALONE_SQ_PIDS" ]; then
-              echo "Stopping standalone SolidQueue processes: $STANDALONE_SQ_PIDS"
-              for pid in $STANDALONE_SQ_PIDS; do
-                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
-                  continue
-                fi
-                kill "$pid" || true
-                sleep 2
-                kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
-              done
-            fi
-            # Pre-restart cleanup: discard stale failures from previous deploys
-            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-            # Ensure sockets directory exists
-            mkdir -p ~/myapp/tmp/sockets
-            # Restart Puma (also restarts SolidQueue since SOLID_QUEUE_IN_PUMA=1)
-            sudo systemctl restart puma
-            # Wait for Puma to actually accept HTTP connections (up to 60s)
-            # NOTE: checking socket file existence is not enough - Puma creates the socket
-            # when it binds, but may not accept connections until after booting.
-            echo "Waiting for Puma to accept HTTP connections..."
-            PUMA_READY=0
-            for i in $(seq 1 60); do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "Puma ready after ${i}s (status=$STATUS)"
-                PUMA_READY=1
-                break
+        run: |
+          set -e
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          cd ~/myapp
+          # ロールバック用に現在の SHA を保存（run_id でファイル名を一意にする）
+          git rev-parse HEAD > /tmp/pre_deploy_sha_${{ github.run_id }}
+          git fetch origin main
+          git reset --hard origin/main
+          bundle install
+          RAILS_ENV=production bin/rails db:migrate
+          RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
+          RAILS_ENV=production bin/rails assets:precompile
+          rm -rf ~/myapp/public/app
+          mkdir -p ~/myapp/public/app
+          cp "$GITHUB_WORKSPACE/frontend.tar.gz" /tmp/
+          tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
+          rm /tmp/frontend.tar.gz
+          echo "Frontend files:"
+          ls ~/myapp/public/app/ | head -10
+          sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
+          rm -rf tmp/cache && mkdir -p tmp/cache
+          # Kill standalone SolidQueue processes (bin/jobs or SolidQueue::Cli).
+          # SolidQueue should only run inside Puma via the plugin (SOLID_QUEUE_IN_PUMA=1).
+          # Standalone processes use fork mode and cause ActiveJob::UnknownJobClassError.
+          STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
+          if [ -n "$STANDALONE_SQ_PIDS" ]; then
+            echo "Stopping standalone SolidQueue processes: $STANDALONE_SQ_PIDS"
+            for pid in $STANDALONE_SQ_PIDS; do
+              if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                continue
               fi
-              sleep 1
+              kill "$pid" || true
+              sleep 2
+              kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
             done
-            if [ "$PUMA_READY" != "1" ]; then
-              echo "ERROR: Puma did not become ready after 60s"
-              sudo systemctl status puma --no-pager || true
-              journalctl -u puma --no-pager -n 50 || true
-              exit 1
+          fi
+          # Pre-restart cleanup: discard stale failures from previous deploys
+          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+          # Ensure sockets directory exists
+          mkdir -p ~/myapp/tmp/sockets
+          # Restart Puma (also restarts SolidQueue since SOLID_QUEUE_IN_PUMA=1)
+          sudo systemctl restart puma
+          # Wait for Puma to actually accept HTTP connections (up to 60s)
+          # NOTE: checking socket file existence is not enough - Puma creates the socket
+          # when it binds, but may not accept connections until after booting.
+          echo "Waiting for Puma to accept HTTP connections..."
+          PUMA_READY=0
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Puma ready after ${i}s (status=$STATUS)"
+              PUMA_READY=1
+              break
             fi
-            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
-            # Post-restart cleanup: discard any transient UnknownJobClassError failures
-            # that appeared during SolidQueue startup (recurring tasks may fire immediately)
-            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
-            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
-            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
-            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-            # Final delayed cleanup: catch any failures created during post-restart processing
-            echo "Waiting 10s for any remaining transient failures to settle..."
-            sleep 10
-            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+            sleep 1
+          done
+          if [ "$PUMA_READY" != "1" ]; then
+            echo "ERROR: Puma did not become ready after 60s"
+            sudo systemctl status puma --no-pager || true
+            journalctl -u puma --no-pager -n 50 || true
+            exit 1
+          fi
+          RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+          RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
+          # Post-restart cleanup: discard any transient UnknownJobClassError failures
+          # that appeared during SolidQueue startup (recurring tasks may fire immediately)
+          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+          RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
+          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+          # Final delayed cleanup: catch any failures created during post-restart processing
+          echo "Waiting 10s for any remaining transient failures to settle..."
+          sleep 10
+          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
 
       - name: Health check after deploy
         id: health_check
         if: steps.deploy_rails.outcome == 'success'
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            for i in 1 2 3 4 5; do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost/up 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "Health check passed (attempt $i, status=$STATUS)"
-                exit 0
-              fi
-              echo "Health check failed (attempt $i, status=$STATUS), retrying in 10s..."
-              if [ "$i" = "5" ]; then
-                echo "=== Puma status ==="
-                sudo systemctl status puma --no-pager || true
-                echo "=== Puma journal (last 30 lines) ==="
-                journalctl -u puma --no-pager -n 30 || true
-              fi
-              sleep 10
-            done
-            echo "Health check failed after 5 attempts"
-            exit 1
+        run: |
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost/up 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (attempt $i, status=$STATUS)"
+              exit 0
+            fi
+            echo "Health check failed (attempt $i, status=$STATUS), retrying in 10s..."
+            if [ "$i" = "5" ]; then
+              echo "=== Puma status ==="
+              sudo systemctl status puma --no-pager || true
+              echo "=== Puma journal (last 30 lines) ==="
+              journalctl -u puma --no-pager -n 30 || true
+            fi
+            sleep 10
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
 
       - name: Rollback on failure
         if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -e
-            export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-            cd ~/myapp
-            PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
-            if [ -z "$PRE_SHA" ]; then
-              echo "No pre-deploy SHA found, skipping rollback"
-              exit 1
-            fi
-            echo "Rolling back to $PRE_SHA ..."
-            git reset --hard "$PRE_SHA"
-            bundle install
-            RAILS_ENV=production bin/rails db:migrate
-            rm -rf tmp/cache && mkdir -p tmp/cache
-            STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
-            if [ -n "$STANDALONE_SQ_PIDS" ]; then
-              echo "Stopping standalone SolidQueue processes during rollback: $STANDALONE_SQ_PIDS"
-              for pid in $STANDALONE_SQ_PIDS; do
-                if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
-                  continue
-                fi
-                kill "$pid" || true
-                sleep 2
-                kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
-              done
-            fi
-            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-            sudo systemctl restart puma
-            # Wait for Puma to accept HTTP connections (up to 60s)
-            echo "Waiting for Puma to accept HTTP connections after rollback..."
-            PUMA_READY=0
-            for i in $(seq 1 60); do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "Puma ready after ${i}s (status=$STATUS)"
-                PUMA_READY=1
-                break
+        run: |
+          set -e
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          cd ~/myapp
+          PRE_SHA=$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || echo "")
+          if [ -z "$PRE_SHA" ]; then
+            echo "No pre-deploy SHA found, skipping rollback"
+            exit 1
+          fi
+          echo "Rolling back to $PRE_SHA ..."
+          git reset --hard "$PRE_SHA"
+          bundle install
+          RAILS_ENV=production bin/rails db:migrate
+          rm -rf tmp/cache && mkdir -p tmp/cache
+          STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
+          if [ -n "$STANDALONE_SQ_PIDS" ]; then
+            echo "Stopping standalone SolidQueue processes during rollback: $STANDALONE_SQ_PIDS"
+            for pid in $STANDALONE_SQ_PIDS; do
+              if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+                continue
               fi
-              sleep 1
+              kill "$pid" || true
+              sleep 2
+              kill -0 "$pid" 2>/dev/null && kill -9 "$pid" || true
             done
-            if [ "$PUMA_READY" != "1" ]; then
-              echo "WARNING: Puma did not respond after 60s rollback wait"
-              sudo systemctl status puma --no-pager || true
-              journalctl -u puma --no-pager -n 30 || true
+          fi
+          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+          sudo systemctl restart puma
+          # Wait for Puma to accept HTTP connections (up to 60s)
+          echo "Waiting for Puma to accept HTTP connections after rollback..."
+          PUMA_READY=0
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost/up 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Puma ready after ${i}s (status=$STATUS)"
+              PUMA_READY=1
+              break
             fi
-            RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
-            RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
-            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
-            RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
-            RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
-            RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
-            echo "Rollback to $PRE_SHA complete"
+            sleep 1
+          done
+          if [ "$PUMA_READY" != "1" ]; then
+            echo "WARNING: Puma did not respond after 60s rollback wait"
+            sudo systemctl status puma --no-pager || true
+            journalctl -u puma --no-pager -n 30 || true
+          fi
+          RAILS_ENV=production bin/rails runner "Rails.application.eager_load!"
+          RAILS_ENV=production bin/rails solid_queue:verify_required_job_constants
+          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_monitor_failed_jobs
+          RAILS_ENV=production bin/rails solid_queue:cleanup_unknown_job_classes
+          RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
+          RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+          echo "Rollback to $PRE_SHA complete"
 
       - name: Notify Slack (deploy success)
         if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          ACTOR: ${{ github.actor }}
         run: |
-          PAYLOAD=$(jq -n \
-            --arg msg "${COMMIT_MSG}" \
-            --arg actor "${{ github.actor }}" \
-            '{attachments:[{color:"#2eb886",text:":white_check_mark: *デプロイ成功* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"サーバー",value:"133.167.124.112",short:true}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_CI }}" \
+          PAYLOAD=$(python3 -c "
+import json, os, time
+msg = os.environ.get('COMMIT_MSG', '')
+actor = os.environ.get('ACTOR', '')
+print(json.dumps({'attachments':[{'color':'#2eb886','text':':white_check_mark: *デプロイ成功* \`main\` by ' + actor,'fields':[{'title':'コミット','value':msg,'short':False},{'title':'サーバー','value':'133.167.124.112','short':True}],'footer':'GitHub Actions','ts':int(time.time())}]}))
+")
+          curl -s -X POST "$SLACK_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d "${PAYLOAD}"
+            -d "$PAYLOAD"
 
       # カテゴリ②: デプロイ失敗通知
       - name: Notify Slack (deploy failure)
         if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+          ACTOR: ${{ github.actor }}
+          LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "${{ steps.deploy_rails.outcome }}" = "failure" ]; then
             ROLLBACK_STATUS="デプロイ中に失敗"
           else
             ROLLBACK_STATUS="ヘルスチェック失敗（ロールバック実行）"
           fi
-          PAYLOAD=$(jq -n \
-            --arg msg "${COMMIT_MSG}" \
-            --arg status "${ROLLBACK_STATUS}" \
-            --arg actor "${{ github.actor }}" \
-            --arg log_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *デプロイ失敗* `main` by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"原因",value:$status,short:false},{title:"次のアクション",value:"ログを確認してください: \($log_url)",short:false}],footer:"GitHub Actions",ts:now|floor}]}')
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR }}" \
+          export ROLLBACK_STATUS
+          PAYLOAD=$(python3 -c "
+import json, os, time
+msg = os.environ.get('COMMIT_MSG', '')
+actor = os.environ.get('ACTOR', '')
+status = os.environ.get('ROLLBACK_STATUS', '')
+log_url = os.environ.get('LOG_URL', '')
+print(json.dumps({'attachments':[{'color':'#e01e5a','text':':x: *デプロイ失敗* \`main\` by ' + actor,'fields':[{'title':'コミット','value':msg,'short':False},{'title':'原因','value':status,'short':False},{'title':'次のアクション','value':'ログを確認してください: ' + log_url,'short':False}],'footer':'GitHub Actions','ts':int(time.time())}]}))
+")
+          curl -s -X POST "$SLACK_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d "${PAYLOAD}"
+            -d "$PAYLOAD"
