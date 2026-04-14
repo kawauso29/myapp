@@ -166,6 +166,7 @@ RSpec.describe "Api::V1::Posts", type: :request do
       end
 
       it "does not translate when preferred language matches post language" do
+        AiPost.destroy_all
         english_post = create(:ai_post, ai_user: ai_user, content: "Hello from AI", content_language: "en")
         allow(AiTranslation::TextTranslator).to receive(:translate)
 
