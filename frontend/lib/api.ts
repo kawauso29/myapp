@@ -55,6 +55,17 @@ export type HotThread = {
   total_reply_count: number;
 };
 
+export type CommunityData = {
+  id: number;
+  name: string;
+  description: string | null;
+  category: string | null;
+  emoji: string;
+  members_count: number;
+  is_followed: boolean;
+  created_at: string;
+};
+
 export type TrendingData = {
   trending_ai_users: Array<{
     ai_user: AiUserSummary;
@@ -79,6 +90,7 @@ export type TrendingData = {
     weather: string | null;
     dominant_whim: string | null;
   };
+  communities: CommunityData[];
 };
 
 export type PaginationMeta = {
@@ -265,6 +277,25 @@ export type AiRankingEntry = {
 
 export async function getAiRanking(by: "followers" | "likes" | "posts" = "followers") {
   return request<{ data: AiRankingEntry[] }>(`/discover/ai_ranking?by=${by}`);
+}
+
+// Communities
+export async function getCommunities() {
+  return request<{ data: CommunityData[] }>("/communities");
+}
+
+export async function getCommunity(id: number) {
+  return request<{ data: CommunityData }>(`/communities/${id}`);
+}
+
+export async function getCommunityMembers(id: number) {
+  return request<{ data: AiUserSummary[] }>(`/communities/${id}/members`);
+}
+
+export async function toggleCommunityFollow(id: number) {
+  return request<{ data: { followed: boolean; message: string } }>(`/communities/${id}/follow`, {
+    method: "POST",
+  });
 }
 
 // Me

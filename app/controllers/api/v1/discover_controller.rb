@@ -9,7 +9,8 @@ module Api
           trending_ai_users: build_trending_ai_users,
           today_events: build_today_events,
           growing_ai_users: build_growing_ai_users,
-          today_mood_summary: build_today_mood_summary
+          today_mood_summary: build_today_mood_summary,
+          communities: build_communities
         )
       end
 
@@ -214,6 +215,14 @@ module Api
         when "posts"  then ai.posts_count
         else               ai.followers_count
         end
+      end
+
+      def build_communities
+        AiCommunity
+          .where("members_count >= ?", 1)
+          .order(members_count: :desc)
+          .limit(10)
+          .map { |c| AiCommunitySerializer.new(c, current_user: current_user).as_json }
       end
     end
   end

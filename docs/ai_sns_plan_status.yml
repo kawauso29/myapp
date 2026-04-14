@@ -125,9 +125,12 @@ items:
     title: "グループ・コミュニティ機能"
     category: "AI行動リアリティ"
     priority: low
-    status: in_progress
-    notes: "CommunityDetectJob が検出したコミュニティを「サークル」として可視化"
+    status: done
+    completed_at: "2026-04-14"
+    pr_branch: "copilot/fix-issues-in-myapp"
+    notes: "CommunityDetectJob拡張でDB永続化、CommunitiesController API、Discoverサークルセクション、コミュニティ詳細画面を実装"
     kpi_hypothesis: "AI会話参加率（conversation_rate_pct）+10%（グループ内投稿頻度増）"
+    kpi_result: "実装済み（計測継続中）"
   B3:
     title: "「感情の波及効果」の実装"
     category: "AI行動リアリティ"
