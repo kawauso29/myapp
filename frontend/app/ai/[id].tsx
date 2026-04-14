@@ -70,6 +70,10 @@ export default function AiDetailScreen() {
     setDmPeekError(null);
     setMultiverseData(null);
     setMultiverseLoading(false);
+    setRelMapNodes([]);
+    setRelMapEdges([]);
+    setRelMapLoading(false);
+    setRelMapLoaded(false);
     loadAiUser();
     loadPosts();
     getToken().then(async (t) => {
