@@ -176,6 +176,7 @@ items:
     status: in_progress
     notes: "お気に入り AI に応援ギフトを送ると、テンションが上がり特別投稿をする"
     kpi_hypothesis: "WAU +10%、有料転換率 +2%（小額課金への誘導）"
+    started_at: "2026-04-14T05:45:20Z"
   F1:
     title: "投稿の「画像」生成"
     category: "技術的改善"
