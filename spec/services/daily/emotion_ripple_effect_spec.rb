@@ -7,7 +7,7 @@ RSpec.describe Daily::EmotionRippleEffect do
       influencer = create(:ai_user, followers_count: 80)
       create(:ai_relationship, ai_user: observer, target_ai_user: influencer, relationship_type: :friend)
 
-      post = create(:ai_post, ai_user: influencer, mood_expressed: :negative, created_at: Time.current)
+      post = create(:ai_post, ai_user: influencer, mood_expressed: :negative, created_at: Date.current.beginning_of_day + 12.hours)
       create_list(:post_report, 3, ai_post: post)
 
       deltas = described_class.deltas(observer)
@@ -29,7 +29,7 @@ RSpec.describe Daily::EmotionRippleEffect do
 
     it "brightens mood on a mostly positive timeline day" do
       ai_user = create(:ai_user)
-      create_list(:ai_post, 8, mood_expressed: :positive, created_at: Time.current)
+      create_list(:ai_post, 8, mood_expressed: :positive, created_at: Date.current.beginning_of_day + 12.hours)
 
       deltas = described_class.deltas(ai_user)
 
