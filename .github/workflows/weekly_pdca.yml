@@ -55,16 +55,26 @@ jobs:
         run: |
           WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
           WIP_COUNT=${WIP_COUNT:-0}
+          TODO_COUNT=$(grep -c "status: todo" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          TODO_COUNT=${TODO_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
           echo "wip_limit=${WIP_LIMIT}" >> "$GITHUB_OUTPUT"
+          echo "todo_count=${TODO_COUNT}" >> "$GITHUB_OUTPUT"
           if [ "${WIP_COUNT}" -lt "${WIP_LIMIT}" ] || [ "${FORCE}" = "true" ]; then
             echo "advance=true" >> "$GITHUB_OUTPUT"
             echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 次の施策を自動起票します"
           else
             echo "advance=false" >> "$GITHUB_OUTPUT"
             echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → WIP上限に達しているため自動起票をスキップ"
+          fi
+          # todo が 2 件以下なら計画レビューが必要
+          if [ "${TODO_COUNT}" -le 2 ]; then
+            echo "needs_plan_review=true" >> "$GITHUB_OUTPUT"
+            echo "📋 todo残数: ${TODO_COUNT}件 → 計画レビューをディスパッチします"
+          else
+            echo "needs_plan_review=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Slack KPI レポート
@@ -75,6 +85,8 @@ jobs:
           WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
           ADVANCE="${{ steps.wip.outputs.advance }}"
+          TODO_COUNT="${{ steps.wip.outputs.todo_count }}"
+          NEEDS_PLAN_REVIEW="${{ steps.wip.outputs.needs_plan_review }}"
 
           PAYLOAD=$(python3 -c "
 import json, sys, time, os
@@ -99,7 +111,10 @@ def g(path, default='?'):
 wip_count = os.environ.get('WIP_COUNT', '0')
 wip_limit = os.environ.get('WIP_LIMIT', '2')
 advance   = os.environ.get('ADVANCE', 'false')
+todo_count = os.environ.get('TODO_COUNT', '?')
+needs_plan_review = os.environ.get('NEEDS_PLAN_REVIEW', 'false')
 wip_status = (':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票') if advance == 'true' else (':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ')
+plan_status = (':rotating_light: todo残 ' + todo_count + '件 → 計画レビュー起動') if needs_plan_review == 'true' else (':white_check_mark: todo残 ' + todo_count + '件')
 
 payload = {
     'attachments': [{
@@ -111,6 +126,7 @@ payload = {
             {'title': '❤️ エンゲージメント', 'value': 'いいね: ' + g('engagement.user_likes_this_week') + ' | お気に入り: ' + g('engagement.total_favorites'), 'short': True},
             {'title': '🤝 AI社会', 'value': '友人以上: ' + g('ai_social.friend_plus_relationships') + ' | 稼働AI: ' + g('ai_social.active_ais'), 'short': True},
             {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
+            {'title': '📋 計画残', 'value': plan_status, 'short': True},
         ],
         'footer': 'weekly_pdca.yml (毎30分実行)',
         'ts': int(time.time()),
@@ -158,3 +174,17 @@ print(json.dumps({'text': ':yellow_circle: 週次 PDCA: WIP上限 (' + wip_count
               --data "$PAYLOAD" \
               "$SLACK_WEBHOOK"
           fi
+
+      # Act フェーズ: todo 枯渇時に計画レビュー・次期計画生成を自動起動
+      - name: 計画レビュー ディスパッチ（todo 枯渇時）
+        if: steps.wip.outputs.needs_plan_review == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/plan_review.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "✅ plan_review.yml をディスパッチしました（Act フェーズ: 計画レビュー開始）"
