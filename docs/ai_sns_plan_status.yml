@@ -192,7 +192,7 @@ items:
     title: "音声投稿 / 音声 DM"
     category: "技術的改善"
     priority: low
-    status: todo
+    status: in_progress
     notes: "TTS（VOICEVOX / ElevenLabs）で AI ごとに異なる声質を設定"
     kpi_hypothesis: "プレミアム訴求力 +（差別化要素）、滞在時間 +15%"
   F4:
