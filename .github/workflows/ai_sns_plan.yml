@@ -197,6 +197,7 @@ jobs:
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
         uses: actions/github-script@v9
         with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = parseInt('${{ steps.create_pr.outputs.pr_number }}', 10)
             const itemId = '${{ steps.select.outputs.item_id }}'
