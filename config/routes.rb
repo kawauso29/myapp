@@ -82,6 +82,7 @@ Rails.application.routes.draw do
           get :multiverse
           get :dm_peeks
           post :scout
+          post :gift
         end
         resource :favorite, only: [ :create, :destroy ]
         resources :life_events, only: [ :create ]
