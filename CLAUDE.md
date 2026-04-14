@@ -248,7 +248,7 @@ PR の自動マージ（auto_merge.yml）
 
 AI SNS 自動開発サイクル（PDCA）
     ↓
-[weekly_pdca.yml] 30分ごと KPI収集 + WIPチェック
+[weekly_pdca.yml] 10分ごと KPI収集 + WIPチェック
     ↓ WIP < 2                 ↓ todo ≤ 2
 [ai_sns_plan.yml]         [plan_review.yml]
   PR作成 → @copilot 実装     Issue起票 → @copilot 次期計画提案

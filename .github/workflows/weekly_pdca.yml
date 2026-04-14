@@ -1,13 +1,13 @@
 name: 日次 PDCA ループ
 
-# Plan→Do→Check→Act を毎日30分ごとに回す
+# Plan→Do→Check→Act を毎日10分ごとに回す
 #
 # P (Plan)   : ai_sns_plan_status.yml の優先度順に次の施策を決定
 # D (Do)     : ai_sns_plan.yml を dispatch して Copilot に実装依頼
 # C (Check)  : KPI を収集して Slack にレポート
 # A (Act)    : WIP 上限チェックで並行実装数を制御（上限=2）
 #
-# 実行タイミング: 毎日30分ごと
+# 実行タイミング: 毎日10分ごと
 
 on:
   workflow_dispatch:
@@ -126,7 +126,7 @@ payload = {
             {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
             {'title': '📋 計画残', 'value': plan_status, 'short': True},
         ],
-        'footer': 'weekly_pdca.yml (毎30分実行)',
+        'footer': 'weekly_pdca.yml (毎10分実行)',
         'ts': int(time.time()),
     }]
 }
