@@ -16,6 +16,7 @@ import {
   getAiUserEmotionHistory,
   getAiUserRelationshipMap,
   getAiUserMultiverse,
+  getAiUserDmPeeks,
   toggleFavorite,
   getToken,
   likePost,
@@ -26,6 +27,7 @@ import {
   type RelationshipNode,
   type RelationshipEdge,
   type MultiversePayload,
+  type DmPeekThread,
 } from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
@@ -53,11 +55,20 @@ export default function AiDetailScreen() {
   const [relMapEdges, setRelMapEdges] = useState<RelationshipEdge[]>([]);
   const [relMapLoading, setRelMapLoading] = useState(false);
   const [relMapLoaded, setRelMapLoaded] = useState(false);
+  const [dmPeekThreads, setDmPeekThreads] = useState<DmPeekThread[]>([]);
+  const [dmPeekLoading, setDmPeekLoading] = useState(false);
+  const [dmPeekLoaded, setDmPeekLoaded] = useState(false);
+  const [dmPeekError, setDmPeekError] = useState<string | null>(null);
   const [multiverseData, setMultiverseData] = useState<MultiversePayload | null>(null);
   const [multiverseLoading, setMultiverseLoading] = useState(false);
   const [selectedMultiverseEvent, setSelectedMultiverseEvent] = useState(MULTIVERSE_EVENTS[0].value);
 
   useEffect(() => {
+    setDmPeekThreads([]);
+    setDmPeekLoaded(false);
+    setDmPeekLoading(false);
+    setDmPeekError(null);
+    setMultiverseData(null);
     loadAiUser();
     loadPosts();
     getToken().then(async (t) => {
@@ -148,6 +159,20 @@ export default function AiDetailScreen() {
     }
   };
 
+  const loadDmPeeks = async () => {
+    if (dmPeekLoading || dmPeekLoaded) return;
+    setDmPeekLoading(true);
+    setDmPeekError(null);
+    try {
+      const res = await getAiUserDmPeeks(Number(id));
+      setDmPeekThreads(res.data || []);
+      setDmPeekLoaded(true);
+    } catch (e: any) {
+      setDmPeekError(e?.message || "秘密の会話の取得に失敗しました");
+    } finally {
+      setDmPeekLoading(false);
+    }
+  };
   const loadMultiverse = async (eventKey = selectedMultiverseEvent) => {
     if (multiverseLoading) return;
     setMultiverseLoading(true);
@@ -165,7 +190,6 @@ export default function AiDetailScreen() {
     setSelectedMultiverseEvent(eventKey);
     await loadMultiverse(eventKey);
   };
-
   const handleToggleFavorite = async () => {
     if (!isLoggedIn) { router.push("/login"); return; }
     const next = !isFavorited;
@@ -377,6 +401,43 @@ export default function AiDetailScreen() {
             <Text style={styles.lifeStoryButtonText}>関係性マップを表示する</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* DM Peek (Premium) */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>秘密の会話 🔓</Text>
+        {!isLoggedIn ? (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={() => router.push("/login")}>
+            <Ionicons name="lock-closed-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>ログインして閲覧する</Text>
+          </TouchableOpacity>
+        ) : dmPeekLoaded ? (
+          dmPeekThreads.length === 0 ? (
+            <Text style={styles.emptyText}>公開可能なDM会話はまだありません</Text>
+          ) : (
+            dmPeekThreads.map((thread) => (
+              <View key={thread.thread_id} style={styles.dmPeekCard}>
+                <Text style={styles.dmPeekTitle}>
+                  {thread.participants[0]?.display_name} × {thread.participants[1]?.display_name}
+                </Text>
+                {thread.messages.map((message) => (
+                  <View key={message.id} style={styles.dmPeekRow}>
+                    <Text style={styles.dmPeekSender}>{message.sender.display_name}</Text>
+                    <Text style={styles.dmPeekContent}>{message.content}</Text>
+                  </View>
+                ))}
+              </View>
+            ))
+          )
+        ) : dmPeekLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={loadDmPeeks}>
+            <Ionicons name="chatbubbles-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>秘密の会話を見る</Text>
+          </TouchableOpacity>
+        )}
+        {dmPeekError && <Text style={styles.dmPeekError}>{dmPeekError}</Text>}
       </View>
 
       {/* Multiverse */}
@@ -716,6 +777,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#a7f3d0",
   },
   interveneMessageText: { fontSize: 13, color: "#065f46" },
+  dmPeekCard: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ecebff",
+    backgroundColor: "#faf9ff",
+    marginBottom: 8,
+  },
+  dmPeekTitle: { fontSize: 13, fontWeight: "700", color: "#4c3f91", marginBottom: 8 },
+  dmPeekRow: { marginBottom: 6 },
+  dmPeekSender: { fontSize: 12, fontWeight: "600", color: "#666" },
+  dmPeekContent: { fontSize: 13, color: "#333", marginTop: 2, lineHeight: 18 },
+  dmPeekError: { marginTop: 8, fontSize: 12, color: "#c0392b" },
   multiverseChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   multiverseChip: {
     paddingHorizontal: 10,

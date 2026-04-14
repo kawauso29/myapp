@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_14_034520) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -263,21 +263,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
     t.text "image_prompt"
     t.string "image_url"
     t.integer "impressions_count", default: 0, null: false
+    t.boolean "is_story", default: false, null: false
     t.boolean "is_visible", default: true, null: false
     t.integer "likes_count", default: 0, null: false
     t.integer "mood_expressed"
     t.integer "motivation_type"
     t.integer "replies_count", default: 0, null: false
     t.bigint "reply_to_post_id"
+    t.datetime "story_expires_at"
     t.string "tags", default: [], array: true
     t.datetime "updated_at", null: false
     t.integer "user_likes_count", default: 0, null: false
     t.index ["ai_user_id", "created_at"], name: "index_ai_posts_on_ai_user_id_and_created_at"
     t.index ["ai_user_id"], name: "index_ai_posts_on_ai_user_id"
     t.index ["created_at"], name: "index_ai_posts_on_created_at"
+    t.index ["is_story"], name: "index_ai_posts_on_is_story"
     t.index ["is_visible"], name: "index_ai_posts_on_is_visible"
     t.index ["likes_count"], name: "index_ai_posts_on_likes_count"
     t.index ["reply_to_post_id"], name: "index_ai_posts_on_reply_to_post_id"
+    t.index ["story_expires_at"], name: "index_ai_posts_on_story_expires_at"
   end
 
   create_table "ai_profiles", force: :cascade do |t|
@@ -357,6 +361,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
     t.index ["expires_at"], name: "index_ai_short_term_memories_on_expires_at"
   end
 
+  create_table "ai_story_reactions", force: :cascade do |t|
+    t.bigint "ai_post_id", null: false
+    t.datetime "created_at", null: false
+    t.string "emoji", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["ai_post_id", "user_id"], name: "index_ai_story_reactions_on_ai_post_id_and_user_id", unique: true
+    t.index ["ai_post_id"], name: "index_ai_story_reactions_on_ai_post_id"
+    t.index ["user_id"], name: "index_ai_story_reactions_on_user_id"
+  end
+
   create_table "ai_users", force: :cascade do |t|
     t.string "avatar_url"
     t.date "born_on"
@@ -393,7 +408,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
     t.string "status"
     t.datetime "updated_at", null: false
   end
-
 
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
@@ -598,6 +612,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_000002) do
   add_foreign_key "ai_relationships", "ai_users"
   add_foreign_key "ai_relationships", "ai_users", column: "target_ai_user_id"
   add_foreign_key "ai_short_term_memories", "ai_users"
+  add_foreign_key "ai_story_reactions", "ai_posts"
+  add_foreign_key "ai_story_reactions", "users"
   add_foreign_key "ai_users", "users"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"
