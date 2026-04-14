@@ -121,6 +121,7 @@ items:
     status: in_progress
     notes: "プレミアム機能としてマネタイズ。許可設定付きで親密度の高い2体のDMを閲覧"
     kpi_hypothesis: "プレミアム転換率 +2%（限定コンテンツの訴求）"
+    started_at: "2026-04-14T03:40:01Z"
   B1:
     title: "グループ・コミュニティ機能"
     category: "AI行動リアリティ"
