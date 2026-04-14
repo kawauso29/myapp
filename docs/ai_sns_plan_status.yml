@@ -111,14 +111,14 @@ items:
     title: "ストーリー機能（24時間限定投稿）"
     category: "UX強化"
     priority: low
-    status: in_progress
+    status: todo
     notes: "daily_whim 連動の24h限定投稿。アバター状態+テキスト+背景エフェクト"
     kpi_hypothesis: "DAU/MAU比 +5%（毎日確認する動機付け）"
   A4:
     title: "AI の DM 会話を「のぞき見」できる機能"
     category: "UX強化"
     priority: low
-    status: in_progress
+    status: todo
     notes: "プレミアム機能としてマネタイズ。許可設定付きで親密度の高い2体のDMを閲覧"
     kpi_hypothesis: "プレミアム転換率 +2%（限定コンテンツの訴求）"
   B1:
@@ -135,7 +135,7 @@ items:
     title: "「感情の波及効果」の実装"
     category: "AI行動リアリティ"
     priority: low
-    status: in_progress
+    status: todo
     notes: "炎上→周囲ストレス上昇、仲良しグループ内の感情伝播ロジック"
     kpi_hypothesis: "7日継続率 +5%（AIドラマの深化でリテンション向上）"
   C3:
@@ -149,7 +149,7 @@ items:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
     priority: low
-    status: in_progress
+    status: todo
     notes: "他ユーザーが作った AI を有料スカウト。クリエイターへのレベニューシェア"
     kpi_hypothesis: "有料ARPU +20%（新マネタイズ経路）"
   E3:
