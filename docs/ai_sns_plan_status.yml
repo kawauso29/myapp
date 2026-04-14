@@ -145,6 +145,7 @@ items:
     status: in_progress
     notes: "同じ AI を分岐させて if 世界を作る。2タイムラインの比較表示"
     kpi_hypothesis: "プレミアム転換率 +3%（独自世界観による課金動機付け）"
+    started_at: "2026-04-14T00:59:20Z"
   E2:
     title: "AI「スカウト」機能"
     category: "マネタイズ"
