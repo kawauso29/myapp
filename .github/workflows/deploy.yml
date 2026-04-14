@@ -140,10 +140,13 @@ jobs:
             ls ~/myapp/public/app/ | head -10
             sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
             rm -rf tmp/cache && mkdir -p tmp/cache
-            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
-            if [ -n "$LEGACY_JOB_PIDS" ]; then
-              echo "Stopping legacy bin/jobs processes: $LEGACY_JOB_PIDS"
-              for pid in $LEGACY_JOB_PIDS; do
+            # Kill standalone SolidQueue processes (bin/jobs or SolidQueue::Cli).
+            # SolidQueue should only run inside Puma via the plugin (SOLID_QUEUE_IN_PUMA=1).
+            # Standalone processes use fork mode and cause ActiveJob::UnknownJobClassError.
+            STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
+            if [ -n "$STANDALONE_SQ_PIDS" ]; then
+              echo "Stopping standalone SolidQueue processes: $STANDALONE_SQ_PIDS"
+              for pid in $STANDALONE_SQ_PIDS; do
                 if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
                   continue
                 fi
@@ -235,10 +238,10 @@ jobs:
             bundle install
             RAILS_ENV=production bin/rails db:migrate
             rm -rf tmp/cache && mkdir -p tmp/cache
-            LEGACY_JOB_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && $0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ { print $1 }')
-            if [ -n "$LEGACY_JOB_PIDS" ]; then
-              echo "Stopping legacy bin/jobs processes during rollback: $LEGACY_JOB_PIDS"
-              for pid in $LEGACY_JOB_PIDS; do
+            STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
+            if [ -n "$STANDALONE_SQ_PIDS" ]; then
+              echo "Stopping standalone SolidQueue processes during rollback: $STANDALONE_SQ_PIDS"
+              for pid in $STANDALONE_SQ_PIDS; do
                 if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
                   continue
                 fi
