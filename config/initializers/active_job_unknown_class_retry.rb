@@ -19,8 +19,8 @@ module ActiveJobUnknownClassRetry
     # Prevent infinite recursion via thread-local guard
     raise if Thread.current[:active_job_unknown_class_retried]
 
-    Thread.current[:active_job_unknown_class_retried] = true
     begin
+      Thread.current[:active_job_unknown_class_retried] = true
       Rails.logger.warn(
         "[ActiveJobUnknownClassRetry] #{e.message}, forcing eager_load and retrying..."
       )

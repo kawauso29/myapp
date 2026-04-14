@@ -220,10 +220,12 @@ class Admin::AiSnsController < Admin::BaseController
                            .order(created_at: :desc)
                            .limit(100)
 
-    # Auto-discard transient UnknownJobClassError failures where the class is now loadable
+    # Auto-discard transient UnknownJobClassError failures where the class is now loadable.
+    # Cache safe_constantize results to avoid repeated lookups for the same class name.
+    loadable_cache = {}
     kept = []
     @failed_executions.each do |execution|
-      if transient_unknown_class_failure?(execution)
+      if transient_unknown_class_failure?(execution, loadable_cache)
         begin
           execution.discard
         rescue StandardError => e
@@ -491,15 +493,18 @@ class Admin::AiSnsController < Admin::BaseController
 
   # Check if a FailedExecution is a transient UnknownJobClassError
   # (e.g. from a deploy restart) where the class is now loadable.
-  def transient_unknown_class_failure?(execution)
+  def transient_unknown_class_failure?(execution, loadable_cache = {})
     error_data = normalized_error_data(execution.error)
     return false unless unknown_class_error?(error_data)
 
     job_class_name = resolved_job_class_name(execution.job, error_data)
     return false if job_class_name.blank? || job_class_name == "unknown"
 
-    # If the class is now loadable, this was a transient deploy-time failure
-    job_class_name.safe_constantize.present?
+    # Cache safe_constantize results to avoid redundant lookups
+    unless loadable_cache.key?(job_class_name)
+      loadable_cache[job_class_name] = job_class_name.safe_constantize.present?
+    end
+    loadable_cache[job_class_name]
   rescue StandardError
     false
   end
