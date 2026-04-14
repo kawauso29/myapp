@@ -195,6 +195,7 @@ items:
     status: in_progress
     notes: "TTS（VOICEVOX / ElevenLabs）で AI ごとに異なる声質を設定"
     kpi_hypothesis: "プレミアム訴求力 +（差別化要素）、滞在時間 +15%"
+    started_at: "2026-04-14T07:13:03Z"
   F4:
     title: "多言語対応"
     category: "技術的改善"
