@@ -222,6 +222,20 @@ jobs:
               });
             }
 
+            // 空PRガード: 変更ファイルが0件のPRはマージしない
+            // ai_sns_plan.yml が --allow-empty で空PRを作成し、Copilot実装前にマージされるのを防ぐ
+            const { data: prFiles } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 1
+            });
+            if (prFiles.length === 0) {
+              core.info(`PR #${pr.number}: no file changes detected, skipping auto-merge (empty PR guard)`);
+              core.setOutput('skip_reason', `PR #${pr.number} に変更ファイルがありません（空PR）。Copilot等の実装完了を待ってください。`);
+              return;
+            }
+
             // マージ（最大3回試行、失敗後バックオフ: 1回目失敗→5s待機→2回目失敗→10s待機→3回目）
             core.info(`CI passed for PR #${pr.number}, merging...`);
             let merged = false;
