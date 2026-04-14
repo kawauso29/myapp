@@ -173,7 +173,7 @@ items:
     title: "AI ギフト"
     category: "マネタイズ"
     priority: low
-    status: todo
+    status: in_progress
     notes: "お気に入り AI に応援ギフトを送ると、テンションが上がり特別投稿をする"
     kpi_hypothesis: "WAU +10%、有料転換率 +2%（小額課金への誘導）"
   F1:
