@@ -272,10 +272,15 @@ jobs:
       - name: Notify Slack (deploy failure PR created)
         if: steps.create_pr.outputs.pr_url != ''
         env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
           SHA: ${{ github.event.workflow_run.head_sha }}
           LOG_URL: ${{ github.event.workflow_run.html_url }}
           PR_URL: ${{ steps.create_pr.outputs.pr_url }}
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(python3 -c "
           import json, os, time
           sha = os.environ.get('SHA', '')
@@ -283,6 +288,6 @@ jobs:
           pr_url = os.environ.get('PR_URL', '')
           print(json.dumps({'attachments': [{'color': '#b60205', 'text': ':fire: *デプロイ失敗 — PRが自動起票されました*', 'fields': [{'title': 'SHA', 'value': sha, 'short': True}, {'title': 'デプロイログ', 'value': log_url, 'short': False}, {'title': 'PR', 'value': pr_url, 'short': False}], 'footer': 'GitHub Actions Post Deploy', 'ts': int(time.time())}]}))
           ")
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_ERROR }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"

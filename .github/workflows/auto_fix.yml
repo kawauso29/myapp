@@ -142,16 +142,21 @@ jobs:
       - name: Notify Slack (auto-fix PR created)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'true'
         env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
           COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
           PR_URL: ${{ github.server_url }}/${{ github.repository }}/pulls
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(python3 -c "
           import json, os, time
           msg = os.environ.get('COMMIT_MSG', '')
           pr_url = os.environ.get('PR_URL', '')
           print(json.dumps({'attachments': [{'color': '#f0a500', 'text': ':wrench: *CI lint 失敗 → 自動修正PR作成* \`main\`', 'fields': [{'title': 'トリガーコミット', 'value': msg, 'short': False}, {'title': '次のアクション', 'value': f'自動修正PRを確認・マージしてください: {pr_url}', 'short': False}], 'footer': 'GitHub Actions Auto Fix', 'ts': int(time.time())}]}))
           ")
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -159,16 +164,21 @@ jobs:
       - name: Notify Slack (lint failure, no auto-fix available)
         if: steps.lint_check.outputs.lint_failed == 'true' && steps.rubocop.outputs.changed == 'false'
         env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
           COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
           LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(python3 -c "
           import json, os, time
           msg = os.environ.get('COMMIT_MSG', '')
           log_url = os.environ.get('LOG_URL', '')
           print(json.dumps({'attachments': [{'color': '#e01e5a', 'text': ':x: *CI失敗（自動修正不可）* \`main\`', 'fields': [{'title': 'トリガーコミット', 'value': msg, 'short': False}, {'title': '次のアクション', 'value': f'手動で修正が必要です: {log_url}', 'short': False}], 'footer': 'GitHub Actions Auto Fix', 'ts': int(time.time())}]}))
           ")
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
@@ -298,12 +308,17 @@ jobs:
       # カテゴリ③: test/check系 CI失敗通知
       - name: Notify Slack (non-lint CI failure)
         env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
           COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
           SHA: ${{ github.event.workflow_run.head_sha }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
           ISSUES_URL: ${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure
         run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL is not set; skipping notification"
+            exit 0
+          fi
           PAYLOAD=$(python3 -c "
           import json, os, time
           msg = os.environ.get('COMMIT_MSG', '')
@@ -313,6 +328,6 @@ jobs:
           issues_url = os.environ.get('ISSUES_URL', '')
           print(json.dumps({'attachments': [{'color': '#e01e5a', 'text': f':x: *CI失敗（test/check系）* \`{branch}\` — Issueを確認してください', 'fields': [{'title': 'コミット', 'value': msg, 'short': False}, {'title': 'SHA', 'value': sha, 'short': True}, {'title': 'CIログ', 'value': log_url, 'short': False}, {'title': 'Issue一覧', 'value': issues_url, 'short': False}], 'footer': 'GitHub Actions Auto Triage', 'ts': int(time.time())}]}))
           ")
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL_JOBS }}" \
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
