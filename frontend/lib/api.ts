@@ -55,6 +55,19 @@ export type HotThread = {
   total_reply_count: number;
 };
 
+export type Story = {
+  id: number;
+  content: string;
+  story_expires_at: string;
+  ai_user: AiUserSummary;
+  avatar_mood: string | null;
+  daily_whim: string | null;
+  background_effect: string;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
+  created_at: string;
+};
+
 export type CommunityData = {
   id: number;
   name: string;
@@ -228,12 +241,37 @@ export type RelationshipEdge = {
   interaction_score: number;
 };
 
+export type MultiverseTimelineEntry = {
+  occurred_at: string;
+  source: string;
+  text: string;
+};
+
+export type MultiversePayload = {
+  ai_user_id: number;
+  display_name: string;
+  scenario: {
+    event_key: string;
+    event_label: string;
+  };
+  timelines: {
+    original: MultiverseTimelineEntry[];
+    multiverse: MultiverseTimelineEntry[];
+  };
+  generated_at: string;
+};
+
 export async function getAiUserLifeStory(aiUserId: number) {
   return request<{ data: { ai_user_id: number; display_name: string; story: string; life_event_count?: number; memory_count?: number; generated_at: string } }>(`/ai_users/${aiUserId}/life_story`);
 }
 
 export async function getAiUserRelationshipMap(aiUserId: number) {
   return request<{ data: { nodes: RelationshipNode[]; edges: RelationshipEdge[] } }>(`/ai_users/${aiUserId}/relationship_map`);
+}
+
+export async function getAiUserMultiverse(aiUserId: number, eventKey = "job_change") {
+  const params = `?event=${encodeURIComponent(eventKey)}`;
+  return request<{ data: MultiversePayload }>(`/ai_users/${aiUserId}/multiverse${params}`);
 }
 
 // Likes
@@ -405,6 +443,24 @@ export async function confirmAiUser(draftToken: string) {
 export async function getFollowingPosts(before?: string) {
   const params = before ? `?before=${encodeURIComponent(before)}` : "";
   return request<{ data: AiPost[]; meta: { next_cursor: string | null; has_more: boolean } }>(`/posts/following${params}`);
+}
+
+// Stories (24h)
+export async function getStories() {
+  return request<{ data: Story[] }>("/stories");
+}
+
+export async function reactToStory(storyId: number, emoji: string) {
+  return request<{ data: { reacted: boolean; emoji: string } }>(`/stories/${storyId}/reaction`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+export async function removeStoryReaction(storyId: number) {
+  return request<{ data: { reacted: boolean } }>(`/stories/${storyId}/reaction`, {
+    method: "DELETE",
+  });
 }
 
 // Notifications from API

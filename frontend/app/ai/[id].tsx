@@ -9,7 +9,26 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getAiUser, getAiUserPosts, getAiUserLifeStory, getAiUserEmotionHistory, getAiUserRelationshipMap, getAiUserDmPeeks, toggleFavorite, getToken, likePost, unlikePost, intervene, getMe, type EmotionHistoryEntry, type RelationshipNode, type RelationshipEdge, type DmPeekThread } from "../../lib/api";
+import {
+  getAiUser,
+  getAiUserPosts,
+  getAiUserLifeStory,
+  getAiUserEmotionHistory,
+  getAiUserRelationshipMap,
+  getAiUserMultiverse,
+  getAiUserDmPeeks,
+  toggleFavorite,
+  getToken,
+  likePost,
+  unlikePost,
+  intervene,
+  getMe,
+  type EmotionHistoryEntry,
+  type RelationshipNode,
+  type RelationshipEdge,
+  type MultiversePayload,
+  type DmPeekThread,
+} from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
 export default function AiDetailScreen() {
@@ -40,12 +59,16 @@ export default function AiDetailScreen() {
   const [dmPeekLoading, setDmPeekLoading] = useState(false);
   const [dmPeekLoaded, setDmPeekLoaded] = useState(false);
   const [dmPeekError, setDmPeekError] = useState<string | null>(null);
+  const [multiverseData, setMultiverseData] = useState<MultiversePayload | null>(null);
+  const [multiverseLoading, setMultiverseLoading] = useState(false);
+  const [selectedMultiverseEvent, setSelectedMultiverseEvent] = useState(MULTIVERSE_EVENTS[0].value);
 
   useEffect(() => {
     setDmPeekThreads([]);
     setDmPeekLoaded(false);
     setDmPeekLoading(false);
     setDmPeekError(null);
+    setMultiverseData(null);
     loadAiUser();
     loadPosts();
     getToken().then(async (t) => {
@@ -150,7 +173,23 @@ export default function AiDetailScreen() {
       setDmPeekLoading(false);
     }
   };
+  const loadMultiverse = async (eventKey = selectedMultiverseEvent) => {
+    if (multiverseLoading) return;
+    setMultiverseLoading(true);
+    try {
+      const res = await getAiUserMultiverse(Number(id), eventKey);
+      setMultiverseData(res.data);
+    } catch (e) {
+      console.warn("Failed to load multiverse timeline:", e);
+    } finally {
+      setMultiverseLoading(false);
+    }
+  };
 
+  const handleSelectMultiverseEvent = async (eventKey: string) => {
+    setSelectedMultiverseEvent(eventKey);
+    await loadMultiverse(eventKey);
+  };
   const handleToggleFavorite = async () => {
     if (!isLoggedIn) { router.push("/login"); return; }
     const next = !isFavorited;
@@ -401,6 +440,49 @@ export default function AiDetailScreen() {
         {dmPeekError && <Text style={styles.dmPeekError}>{dmPeekError}</Text>}
       </View>
 
+      {/* Multiverse */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>マルチバース比較 🪐</Text>
+        <View style={styles.multiverseChipRow}>
+          {MULTIVERSE_EVENTS.map((event) => {
+            const active = selectedMultiverseEvent === event.value;
+            return (
+              <TouchableOpacity
+                key={event.value}
+                style={[styles.multiverseChip, active && styles.multiverseChipActive]}
+                onPress={() => handleSelectMultiverseEvent(event.value)}
+                disabled={multiverseLoading}
+              >
+                <Text style={[styles.multiverseChipText, active && styles.multiverseChipTextActive]}>{event.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {multiverseLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : multiverseData ? (
+          <View style={styles.multiverseGrid}>
+            <View style={styles.multiverseColumn}>
+              <Text style={styles.multiverseHeader}>現在の世界線</Text>
+              {multiverseData.timelines.original.map((entry, index) => (
+                <Text key={`base-${index}`} style={styles.multiverseLine}>• {entry.text}</Text>
+              ))}
+            </View>
+            <View style={styles.multiverseColumn}>
+              <Text style={styles.multiverseHeader}>if世界線（{multiverseData.scenario.event_label}）</Text>
+              {multiverseData.timelines.multiverse.map((entry, index) => (
+                <Text key={`if-${index}`} style={styles.multiverseLine}>• {entry.text}</Text>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={() => loadMultiverse()}>
+            <Ionicons name="git-branch-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>2つのタイムラインを比較する</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Intervention (自分のAIのみ) */}
       {isMyAi && (
         <View style={styles.section}>
@@ -543,6 +625,7 @@ const POST_THEMES = [
 
 // AiLifeEvent.event_type values match AiUser.pending_post_theme values
 const LIFE_EVENT_TYPES = POST_THEMES;
+const MULTIVERSE_EVENTS = POST_THEMES;
 
 // Personality levels are stored as 1-5; multiply by 20 to display as 0-100 scale
 const PERSONALITY_SCALE_FACTOR = 20;
@@ -707,6 +790,31 @@ const styles = StyleSheet.create({
   dmPeekSender: { fontSize: 12, fontWeight: "600", color: "#666" },
   dmPeekContent: { fontSize: 13, color: "#333", marginTop: 2, lineHeight: 18 },
   dmPeekError: { marginTop: 8, fontSize: 12, color: "#c0392b" },
+  multiverseChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  multiverseChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d8daf5",
+    backgroundColor: "#f6f7ff",
+  },
+  multiverseChipActive: {
+    borderColor: "#6c63ff",
+    backgroundColor: "#e9e8ff",
+  },
+  multiverseChipText: { fontSize: 12, color: "#6a6a88" },
+  multiverseChipTextActive: { color: "#4f46e5", fontWeight: "600" },
+  multiverseGrid: { gap: 10 },
+  multiverseColumn: {
+    borderWidth: 1,
+    borderColor: "#ececf8",
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: "#fafbff",
+  },
+  multiverseHeader: { fontSize: 13, fontWeight: "600", color: "#4f46e5", marginBottom: 6 },
+  multiverseLine: { fontSize: 13, lineHeight: 20, color: "#333", marginBottom: 4 },
 });
 
 // --- Emotion Chart Component ---

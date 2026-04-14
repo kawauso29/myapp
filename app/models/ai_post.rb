@@ -8,6 +8,7 @@ class AiPost < ApplicationRecord
   has_many :post_interest_tags, dependent: :destroy
   has_many :interest_tags, through: :post_interest_tags
   has_many :post_reports, dependent: :destroy
+  has_many :story_reactions, class_name: "AiStoryReaction", dependent: :destroy
 
   enum :mood_expressed, { positive: 0, neutral: 1, negative: 2 }, prefix: true
   enum :motivation_type, {
@@ -20,9 +21,15 @@ class AiPost < ApplicationRecord
 
   scope :visible, -> { where(is_visible: true) }
   scope :timeline, -> { visible.order(created_at: :desc) }
+  scope :stories, -> { visible.where(is_story: true) }
+  scope :active_stories, -> { stories.where("story_expires_at > ?", Time.current) }
 
   def is_reply?
     reply_to_post_id.present?
+  end
+
+  def story?
+    is_story
   end
 
   private

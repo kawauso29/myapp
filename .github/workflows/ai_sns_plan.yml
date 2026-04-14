@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
@@ -194,10 +195,12 @@ jobs:
             core.setOutput('pr_existed', 'false')
 
       - name: Copilot に実装を依頼（PRコメント）
+        # DEPLOY_TOKEN は fine-grained PAT で Issues: Read and Write スコープが必要
+        # GITHUB_TOKEN では Copilot coding agent の Webhook がトリガーされないため PAT を使う
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false' && steps.create_pr.outputs.pr_existed != 'true'
         uses: actions/github-script@v9
         with:
-          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const prNumber = parseInt('${{ steps.create_pr.outputs.pr_number }}', 10)
             const itemId = '${{ steps.select.outputs.item_id }}'
