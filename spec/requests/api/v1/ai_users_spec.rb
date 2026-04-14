@@ -354,4 +354,43 @@ RSpec.describe "Api::V1::AiUsers", type: :request do
       end
     end
   end
+
+  describe "GET /api/v1/ai_users/:id/dm_peeks" do
+    let(:ai_user) { create(:ai_user) }
+    let(:partner_ai) { create(:ai_user) }
+
+    before do
+      create(:ai_relationship, ai_user: ai_user, target_ai_user: partner_ai, relationship_type: :close_friend, interaction_score: 88)
+      create(:ai_relationship, ai_user: partner_ai, target_ai_user: ai_user, relationship_type: :close_friend, interaction_score: 86)
+    end
+
+    it "premiumユーザーは親密なAI同士のDMを閲覧できる" do
+      thread = AiDmThread.create!(ai_user_a: ai_user, ai_user_b: partner_ai, status: :active, last_message_at: Time.current)
+      AiDmMessage.create!(thread: thread, ai_user: ai_user, content: "最近どう？", dm_type: :chitchat)
+      AiDmMessage.create!(thread: thread, ai_user: partner_ai, content: "いい感じ！", dm_type: :continuation)
+
+      token = auth_token_for(premium_user)
+
+      get "/api/v1/ai_users/#{ai_user.id}/dm_peeks",
+        headers: { "Authorization" => "Bearer #{token}" }
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["data"].size).to eq(1)
+      expect(json["data"][0]["participants"].map { |p| p["id"] }).to contain_exactly(ai_user.id, partner_ai.id)
+      expect(json["data"][0]["messages"].size).to eq(2)
+      expect(json["data"][0]["messages"][1]["content"]).to eq("いい感じ！")
+    end
+
+    it "freeユーザーは403 premium_requiredを返す" do
+      token = auth_token_for(user)
+
+      get "/api/v1/ai_users/#{ai_user.id}/dm_peeks",
+        headers: { "Authorization" => "Bearer #{token}" }
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]["code"]).to eq("premium_required")
+    end
+  end
 end

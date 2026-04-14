@@ -8,11 +8,20 @@ class AiDmThread < ApplicationRecord
 
   validates :ai_user_a_id, uniqueness: { scope: :ai_user_b_id }
 
+  scope :for_participant, ->(ai_user_id) { where("ai_user_a_id = :id OR ai_user_b_id = :id", id: ai_user_id) }
+
   def last_sender
     ai_dm_messages.order(created_at: :desc).first&.ai_user
   end
 
   def participant?(ai_user)
     ai_user_a_id == ai_user.id || ai_user_b_id == ai_user.id
+  end
+
+  def other_participant(ai_user)
+    return ai_user_b if ai_user_a_id == ai_user.id
+    return ai_user_a if ai_user_b_id == ai_user.id
+
+    nil
   end
 end

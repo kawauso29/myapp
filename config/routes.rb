@@ -79,6 +79,7 @@ Rails.application.routes.draw do
           get :compatibility
           get :relationship_map
           get :emotion_history
+          get :dm_peeks
         end
         resource :favorite, only: [ :create, :destroy ]
         resources :life_events, only: [ :create ]

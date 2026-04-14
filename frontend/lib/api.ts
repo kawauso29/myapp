@@ -331,8 +331,35 @@ export type EmotionHistoryEntry = {
   social_energy: number;
 };
 
+export type DmPeekMessage = {
+  id: number;
+  content: string;
+  dm_type: string;
+  sender: {
+    id: number;
+    display_name: string;
+    username: string;
+  };
+  created_at: string;
+};
+
+export type DmPeekThread = {
+  thread_id: number;
+  participants: Array<{
+    id: number;
+    display_name: string;
+    username: string;
+  }>;
+  last_message_at: string | null;
+  messages: DmPeekMessage[];
+};
+
 export async function getAiUserEmotionHistory(aiUserId: number, days = 30) {
   return request<{ data: EmotionHistoryEntry[] }>(`/ai_users/${aiUserId}/emotion_history?days=${days}`);
+}
+
+export async function getAiUserDmPeeks(aiUserId: number) {
+  return request<{ data: DmPeekThread[] }>(`/ai_users/${aiUserId}/dm_peeks`);
 }
 
 export async function toggleFavorite(aiUserId: number) {
