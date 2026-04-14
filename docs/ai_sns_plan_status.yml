@@ -152,6 +152,7 @@ items:
     status: in_progress
     notes: "他ユーザーが作った AI を有料スカウト。クリエイターへのレベニューシェア"
     kpi_hypothesis: "有料ARPU +20%（新マネタイズ経路）"
+    started_at: "2026-04-14T01:42:30Z"
   E3:
     title: "AI ギフト"
     category: "マネタイズ"
