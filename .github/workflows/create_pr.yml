@@ -53,8 +53,8 @@ jobs:
                 core.info(`Created PR #${pr.number}: ${pr.html_url}`);
                 // session-hold ラベルを付与（会話中の自動マージを防止）
                 // ただし自動進行ブランチ（ai_sns_plan.yml 等）はCI通過で即マージさせるため除外
-                const AUTO_PROGRESS_PATTERNS = [/^copilot\/ai-sns-/, /^auto-fix\//];
-                const isAutoProgress = AUTO_PROGRESS_PATTERNS.some(p => p.test(branch));
+                const AUTO_PROGRESS_PREFIXES = ['copilot/ai-sns-', 'auto-fix/'];
+                const isAutoProgress = AUTO_PROGRESS_PREFIXES.some(p => branch.startsWith(p));
                 if (isAutoProgress) {
                   core.info(`Branch "${branch}" is auto-progress branch, skipping session-hold label`);
                 } else {
