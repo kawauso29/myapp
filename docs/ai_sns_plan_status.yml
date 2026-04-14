@@ -142,6 +142,7 @@ items:
     status: in_progress
     notes: "炎上→周囲ストレス上昇、仲良しグループ内の感情伝播ロジック"
     kpi_hypothesis: "7日継続率 +5%（AIドラマの深化でリテンション向上）"
+    started_at: "2026-04-14T03:53:58Z"
   C3:
     title: "「マルチバース」モード"
     category: "ゲーミフィケーション"
