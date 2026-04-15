@@ -102,7 +102,7 @@ jobs:
           echo "$SUMMARY" >> "$GITHUB_OUTPUT"
           echo "SUMMARYDELIM" >> "$GITHUB_OUTPUT"
 
-      - name: 計画レビュー Issue を作成して Copilot に依頼
+      - name: 計画レビュー Issue を作成
         if: steps.analyze.outputs.needs_review == 'true'
         uses: actions/github-script@v9
         id: create_issue
@@ -115,7 +115,7 @@ jobs:
             const kpiJson = `${{ steps.kpi.outputs.kpi_json }}`;
             const doneSummary = `${{ steps.done_summary.outputs.summary }}`;
 
-            // 既存の未完了レビューIssueがあればスキップ
+            // 既存の未完了レビューIssueを確認
             const { data: existingIssues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -123,10 +123,34 @@ jobs:
               state: 'open',
               per_page: 5
             });
-            if (existingIssues.length > 0) {
-              core.info(`既存の計画レビュー Issue #${existingIssues[0].number} が未完了です。スキップします。`);
-              core.setOutput('skipped', 'true');
-              return;
+
+            const STALE_DAYS = 7;
+            const now = new Date();
+            for (const issue of existingIssues) {
+              const createdAt = new Date(issue.created_at);
+              const ageDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+              if (ageDays > STALE_DAYS) {
+                // 7日以上経過した plan-review Issue は自動クローズ（Copilot 無反応とみなす）
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'not_planned'
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `⏰ ${STALE_DAYS}日以上経過したため自動クローズしました。新しい計画レビュー Issue を作成します。`
+                });
+                core.info(`Stale plan-review Issue #${issue.number} を自動クローズしました（${Math.floor(ageDays)}日経過）`);
+              } else {
+                // 7日以内の既存Issueがあればスキップ
+                core.info(`既存の計画レビュー Issue #${issue.number} が未完了です（${Math.floor(ageDays)}日経過）。スキップします。`);
+                core.setOutput('skipped', 'true');
+                return;
+              }
             }
 
             let kpiFormatted;
@@ -168,7 +192,7 @@ jobs:
               '',
               '### 依頼内容',
               '',
-              '@copilot 以下の手順で次期改善計画を作成してください:',
+              '以下の手順で次期改善計画を作成してください:',
               '',
               '1. **現在のKPI** と **完了施策の効果** を分析する',
               '2. サービスの弱点・伸びしろを特定する',
@@ -184,8 +208,6 @@ jobs:
               '6. `docs/ai_sns_improvement_plan.md` にも対応する詳細説明を追記する',
               '',
               '**注意**: 既存の todo/in_progress 項目は変更しないでください。新規追加のみ行ってください。',
-              '',
-              '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n');
 
             const { data: issue } = await github.rest.issues.create({
@@ -200,6 +222,34 @@ jobs:
             core.setOutput('issue_number', String(issue.number));
             core.setOutput('issue_url', issue.html_url);
             core.setOutput('skipped', 'false');
+
+      # Issue 本文の @copilot メンションでは Copilot coding agent が起動しないため、
+      # 別コメントとして @copilot メンションを投稿する（PRコメントと同じパターン）
+      - name: Copilot に計画策定を依頼（Issueコメント）
+        if: steps.analyze.outputs.needs_review == 'true' && steps.create_issue.outputs.skipped != 'true'
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const issueNumber = parseInt('${{ steps.create_issue.outputs.issue_number }}', 10);
+
+            const comment = [
+              '@copilot このIssueの依頼内容に従って、次期 AI SNS 改善計画を作成してください。',
+              '',
+              '`docs/ai_sns_plan_status.yml` と `docs/ai_sns_improvement_plan.md` を更新し、',
+              '新しい改善施策を追加するPRを作成してください。',
+              '',
+              '<!-- copilot:model claude-opus-4.6 -->'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: comment
+            });
+
+            core.info(`Copilot 計画策定依頼コメントを Issue #${issueNumber} に投稿しました`);
 
       - name: Slack 通知（計画レビュー起票）
         if: steps.analyze.outputs.needs_review == 'true' && steps.create_issue.outputs.skipped != 'true'

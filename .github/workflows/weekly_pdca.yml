@@ -1,15 +1,20 @@
 name: 日次 PDCA ループ
 
-# Plan→Do→Check→Act を毎日10分ごとに回す
+# Plan→Do→Check→Act を3時間ごとに回す
 #
 # P (Plan)   : ai_sns_plan_status.yml の優先度順に次の施策を決定
 # D (Do)     : ai_sns_plan.yml を dispatch して Copilot に実装依頼
 # C (Check)  : KPI を収集して Slack にレポート
 # A (Act)    : WIP 上限チェックで並行実装数を制御（上限=2）
+#              todo 枯渇時は plan_review.yml を dispatch して次期計画を Copilot に依頼
 #
-# 実行タイミング: 毎日10分ごと
+# 実行タイミング: 3時間ごと（schedule）+ 手動（workflow_dispatch）
 
 on:
+  schedule:
+    # 3時間ごとに自動実行（1日8回）
+    # Copilot の実装サイクル（30分〜数時間）に対して十分な頻度
+    - cron: '0 */3 * * *'
   workflow_dispatch:
     inputs:
       force_advance:
@@ -22,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -60,12 +65,18 @@ jobs:
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
           echo "wip_limit=${WIP_LIMIT}" >> "$GITHUB_OUTPUT"
           echo "todo_count=${TODO_COUNT}" >> "$GITHUB_OUTPUT"
-          if [ "${WIP_COUNT}" -lt "${WIP_LIMIT}" ] || [ "${FORCE}" = "true" ]; then
+          if [ "${FORCE}" = "true" ]; then
             echo "advance=true" >> "$GITHUB_OUTPUT"
-            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 次の施策を自動起票します"
-          else
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → 強制起票モード"
+          elif [ "${WIP_COUNT}" -lt "${WIP_LIMIT}" ] && [ "${TODO_COUNT}" -gt 0 ]; then
+            echo "advance=true" >> "$GITHUB_OUTPUT"
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT}, todo: ${TODO_COUNT} → 次の施策を自動起票します"
+          elif [ "${WIP_COUNT}" -ge "${WIP_LIMIT}" ]; then
             echo "advance=false" >> "$GITHUB_OUTPUT"
             echo "WIP: ${WIP_COUNT}/${WIP_LIMIT} → WIP上限に達しているため自動起票をスキップ"
+          else
+            echo "advance=false" >> "$GITHUB_OUTPUT"
+            echo "WIP: ${WIP_COUNT}/${WIP_LIMIT}, todo: ${TODO_COUNT} → 未着手項目なし（計画レビュー待ち）"
           fi
           # todo が 2 件以下なら計画レビューが必要
           if [ "${TODO_COUNT}" -le 2 ]; then
@@ -73,6 +84,99 @@ jobs:
             echo "📋 todo残数: ${TODO_COUNT}件 → 計画レビューをディスパッチします"
           else
             echo "needs_plan_review=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # in_progress 項目が started_at から7日以上経過していたら todo にリセット
+      - name: 滞留 in_progress 検知 & 自動リセット
+        id: stale_check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+        run: |
+          STALE_ITEMS=$(python3 -c "
+          import yaml, json
+          from datetime import datetime, timezone, timedelta
+
+          with open('docs/ai_sns_plan_status.yml') as f:
+              data = yaml.safe_load(f)
+
+          stale = []
+          now = datetime.now(timezone.utc)
+          stale_threshold = timedelta(days=7)
+
+          for item_id, item in data.get('items', {}).items():
+              if item.get('status') != 'in_progress':
+                  continue
+              started = item.get('started_at', '')
+              if not started:
+                  continue
+              try:
+                  started_dt = datetime.fromisoformat(started.replace('Z', '+00:00'))
+                  age = now - started_dt
+                  if age > stale_threshold:
+                      stale.append({
+                          'id': item_id,
+                          'title': item.get('title', ''),
+                          'started_at': started,
+                          'age_days': age.days
+                      })
+              except Exception:
+                  pass
+
+          print(json.dumps(stale, ensure_ascii=False))
+          ")
+
+          STALE_COUNT=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+          echo "stale_count=${STALE_COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [ "$STALE_COUNT" -gt 0 ]; then
+            echo "⚠️ ${STALE_COUNT} 件の滞留項目を検出。todo にリセットします"
+
+            # plan_status.yml を更新（started_at を削除して status を todo に戻す）
+            python3 -c "
+          import yaml, json, sys
+          from datetime import datetime, timezone, timedelta
+
+          stale_items = json.loads('''$STALE_ITEMS''')
+          stale_ids = {item['id'] for item in stale_items}
+
+          with open('docs/ai_sns_plan_status.yml') as f:
+              data = yaml.safe_load(f)
+
+          for item_id in stale_ids:
+              if item_id in data.get('items', {}):
+                  data['items'][item_id]['status'] = 'todo'
+                  data['items'][item_id].pop('started_at', None)
+
+          with open('docs/ai_sns_plan_status.yml', 'w') as f:
+              yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+          "
+
+            # 変更をコミット・プッシュ
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git add docs/ai_sns_plan_status.yml
+            if ! git diff --staged --quiet; then
+              RESET_IDS=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; items=json.load(sys.stdin); print(', '.join(i['id'] for i in items))")
+              git commit -m "plan: 滞留項目をリセット [${RESET_IDS}]（7日超過）"
+              git push origin HEAD
+            fi
+
+            # Slack 通知（エラーカテゴリ）
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              PAYLOAD=$(python3 -c "
+          import json
+          stale = json.loads('''$STALE_ITEMS''')
+          lines = []
+          for s in stale:
+              lines.append('  • [' + s['id'] + '] ' + s['title'] + ' (' + str(s['age_days']) + '日滞留)')
+          text = ':warning: *PDCA: 滞留項目を自動リセット*\n以下の in_progress 項目が7日以上滞留していたため todo に戻しました:\n' + chr(10).join(lines) + '\n\n放置されたブランチ/PRがあれば手動でクローズしてください。'
+          print(json.dumps({'text': text}))
+          ")
+              curl -s -X POST -H "Content-Type: application/json" --data "$PAYLOAD" "$SLACK_WEBHOOK"
+            fi
+          else
+            echo "✅ 滞留項目はありません"
           fi
 
       - name: Slack KPI レポート
@@ -111,7 +215,12 @@ wip_limit = os.environ.get('WIP_LIMIT', '2')
 advance   = os.environ.get('ADVANCE', 'false')
 todo_count = os.environ.get('TODO_COUNT', '?')
 needs_plan_review = os.environ.get('NEEDS_PLAN_REVIEW', 'false')
-wip_status = (':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票') if advance == 'true' else (':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ')
+if advance == 'true':
+    wip_status = ':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票'
+elif todo_count == '0':
+    wip_status = ':blue_circle: WIP ' + wip_count + '/' + wip_limit + ' → 未着手項目なし（計画レビュー待ち）'
+else:
+    wip_status = ':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ'
 plan_status = (':rotating_light: todo残 ' + todo_count + '件 → 計画レビュー起動') if needs_plan_review == 'true' else (':white_check_mark: todo残 ' + todo_count + '件')
 
 payload = {
@@ -126,7 +235,7 @@ payload = {
             {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
             {'title': '📋 計画残', 'value': plan_status, 'short': True},
         ],
-        'footer': 'weekly_pdca.yml (毎10分実行)',
+        'footer': 'weekly_pdca.yml (3時間ごと自動実行)',
         'ts': int(time.time()),
     }]
 }
@@ -153,18 +262,24 @@ print(json.dumps(payload))
             -d '{"ref":"main"}'
           echo "✅ ai_sns_plan.yml をディスパッチしました（Do フェーズ開始）"
 
-      - name: WIP 上限通知（スキップ時）
+      - name: 起票スキップ通知
         if: steps.wip.outputs.advance == 'false'
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
         run: |
           WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
+          TODO_COUNT="${{ steps.wip.outputs.todo_count }}"
           PAYLOAD=$(python3 -c "
 import json, os
 wip_count = os.environ.get('WIP_COUNT', '0')
 wip_limit = os.environ.get('WIP_LIMIT', '2')
-print(json.dumps({'text': ':yellow_circle: 週次 PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'}))
+todo_count = os.environ.get('TODO_COUNT', '0')
+if todo_count == '0':
+    msg = ':blue_circle: PDCA: 未着手(todo)項目がありません。計画レビューで次期施策が追加されるのを待っています。'
+else:
+    msg = ':yellow_circle: PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'
+print(json.dumps({'text': msg}))
 ")
           if [ -n "$SLACK_WEBHOOK" ]; then
             curl -s -X POST \

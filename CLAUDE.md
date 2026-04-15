@@ -250,10 +250,14 @@ PR の自動マージ（auto_merge.yml）
 
 AI SNS 自動開発サイクル（PDCA）
     ↓
-[weekly_pdca.yml] 10分ごと KPI収集 + WIPチェック
-    ↓ WIP < 2                 ↓ todo ≤ 2
-[ai_sns_plan.yml]         [plan_review.yml]
-  PR作成 → @copilot 実装     Issue起票 → @copilot 次期計画提案
+[weekly_pdca.yml] 3時間ごと KPI収集 + WIPチェック + 滞留検知（schedule自動実行）
+    ↓ WIP < 2 & todo > 0      ↓ todo ≤ 2             ↓ in_progress > 7日
+[ai_sns_plan.yml]         [plan_review.yml]         自動リセット → todo に戻す
+  PR作成 → @copilot 実装     Issue起票 → @copilot      + Slack通知
+    ↓ CI通過                      ↓ Copilot がPR作成
+[auto_merge.yml]              [auto_merge.yml]
+  マージ → plan_status done     マージ → 新todo追加 → plan-review Issue 自動クローズ
+  → deploy.yml 起動               → 次のPDCAサイクルへ
 ```
 
 ### デプロイゲート（deploy.yml）
@@ -318,12 +322,27 @@ AI SNS 自動開発サイクル（PDCA）
 - **CI通過→自動マージ→自動デプロイ** が基本動作（デフォルト）
 - 対話セッション中のブランチのみ `session-hold` ラベルで一時停止する
 
+### セッションモードの判定
+
+セッション開始時に、ユーザーの指示からモードを判定してブランチ名を決める:
+
+| ユーザーの指示例 | モード | ブランチ命名 |
+|---|---|---|
+| 「デプロイまで進めて」「自動でやって」「おまかせ」「そのままマージして」 | 自動完走 | `copilot/auto-{内容}` |
+| 「相談したい」「確認しながら進めて」（または特に指定なし） | 対話hold | `copilot/{内容}` |
+
+- **自動完走モード**: 作業完了後にユーザーの確認を待たず、CI通過で自動マージ・デプロイまで進む
+- **対話holdモード（デフォルト）**: PRに `session-hold` ラベルが付き、ユーザーがラベルを外すまでマージされない
+- 明示的に自動完走を指示されない限り、デフォルトは安全側（hold）にする
+- 途中で気が変わった場合は、手動で `session-hold` ラベルを付け外しすれば対応可能
+
 ### session-hold の付与ルール
 
 `create_pr.yml` でPR自動作成時に、ブランチ名で判定:
 
 | ブランチパターン | session-hold | 理由 |
 |---|---|---|
+| `copilot/auto-*` | **付けない** | ユーザーが自動完走を指示。CI通過で即マージ |
 | `copilot/ai-sns-*` | **付けない** | AI SNS自動進行。CI通過で即マージ |
 | `auto-fix/*` | **付けない** | CI自動修正。CI通過で即マージ |
 | `claude/*`, `copilot/*`（上記以外） | **付ける** | 対話セッション中。会話完了後にラベルを外す |
@@ -354,7 +373,7 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - `session-hold` ラベルは会話完了後に必ず外す（外さないとデプロイされない）
 - CI未通過のままラベルを外した場合、次のCI成功時に自動マージされる
 - 手動でマージしたい場合はラベルを外さずにGitHub UIから直接マージ可能（その場合デプロイは手動 dispatch が必要）
-- 自動進行ブランチ（`copilot/ai-sns-*`, `auto-fix/*`）は `session-hold` が付かないため、CI通過で自動マージされる
+- 自動進行ブランチ（`copilot/auto-*`, `copilot/ai-sns-*`, `auto-fix/*`）は `session-hold` が付かないため、CI通過で自動マージされる
 
 ## CI・デプロイのルール
 
@@ -406,6 +425,10 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - `GITHUB_TOKEN` で作成したコメント/Issueは GitHub Apps（Copilot coding agent）の Webhook をトリガーしない（GitHub のループ防止仕様）。`@copilot` メンションを含むコメントは必ず `DEPLOY_TOKEN`（fine-grained PAT）で投稿する。**`DEPLOY_TOKEN` には `Issues: Read and Write` スコープが必須**。403 が出る場合は GitHub Settings → Developer settings → Personal access tokens → DEPLOY_TOKEN を `Issues: Read and Write` スコープで再発行すること（デプロイ用途の PAT とスコープが分離されている場合は注意）
 - `ai_sns_plan.yml` で `git commit --allow-empty` を使うと空PRが作成され、auto_mergeがCopilot実装前に空PRをマージしてしまう → **正しい対処**: ①`auto_merge.yml` にマージ前の変更ファイル数チェック（空PRガード）を追加、②PRは `draft: true` で作成、③`--allow-empty` の代わりに `started_at` タイムスタンプ等の実ファイル変更をコミットする
 - `ai_sns_plan.yml` で `@copilot` をPR本文（body）に書いても Copilot coding agent は起動しない → **正しい対処**: PR作成後に `issues.createComment` で別途PRコメントとして `@copilot` メンションを投稿する
+- `plan_review.yml` でも同様に `@copilot` をIssue本文（body）に書いても起動しない → **正しい対処**: Issue作成後に `issues.createComment` で別途Issueコメントとして `@copilot` メンションを投稿する（DEPLOY_TOKEN使用）
+- `plan_review.yml` の open Issue 重複チェックは7日超の古い Issue を自動クローズしてから新規作成する。Copilot 無反応で Issue が永久に open になり計画レビューがブロックされるのを防止する
+- `weekly_pdca.yml` は `in_progress` 項目の `started_at` が7日以上前なら自動で `todo` にリセットする。Copilot 実装失敗やPR放置で WIP 上限に永久に達してしまうのを防止する
+- `auto_merge.yml` は計画追加PRマージ後に `plan-review` ラベル付き open Issue を自動クローズする。plan_review → Copilot PR → auto_merge → Issue クローズ → 次の plan_review が起動可能になる
 - Puma 8.x は `config/puma/{environment}.rb` が存在すると `config/puma.rb` を**読み込まない**（`find` で最初に見つかったファイルだけを使う）→ **正しい対処**: `config/puma/production.rb` に SolidQueue プラグイン設定（`plugin :solid_queue`, `solid_queue_mode :async`）と `.env` ロードを必ず含める。`config/puma.rb` にだけ書いても本番では効かない
 - `config/puma/production.rb` で `workers N`（N>0）+ `preload_app!` を設定するとクラスターモード（fork）になり、SolidQueue async スレッドがfork後のワーカープロセスでジョブクラス解決に失敗して `ActiveJob::UnknownJobClassError` が繰り返し発生する → **正しい対処**: 単一VPSデプロイでは `workers` と `preload_app!` を削除してシングルプロセスモード（スレッドのみ）で動作させる
 - デプロイ中の Puma 再起動時に SolidQueue recurring task が `ActiveJob::UnknownJobClassError` で一時的に失敗する → **正しい対処**: `config/initializers/active_job_unknown_class_retry.rb` で `ActiveJob::Base.deserialize` を prepend し、失敗時に `eager_load!` → リトライする。さらに管理画面の Failed Jobs 表示時にクラスがロード可能な一時的失敗は自動 discard する。deploy.yml では最終クリーンアップを 10 秒遅延で追加実行する
