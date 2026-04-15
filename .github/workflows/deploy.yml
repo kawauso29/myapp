@@ -127,6 +127,10 @@ jobs:
           if [ ! -f "$FRONTEND_TARBALL_PATH" ]; then
             FRONTEND_TARBALL_PATH="frontend.tar.gz"
           fi
+          if [ ! -f "$FRONTEND_TARBALL_PATH" ]; then
+            echo "Error: frontend.tar.gz not found in $GITHUB_WORKSPACE or current directory"
+            exit 1
+          fi
           cp "$FRONTEND_TARBALL_PATH" /tmp/frontend.tar.gz
           tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
           rm /tmp/frontend.tar.gz
