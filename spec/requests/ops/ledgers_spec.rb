@@ -44,7 +44,8 @@ RSpec.describe "Ops::Ledgers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Ops Ledger Viewer (Read Only)")
       expect(response.body).to include("weekly_dept")
-      expect(response.body).to include(weekly_ticket.title)
+      expect(response.body).to include(weekly_ticket.id.to_s)
+      expect(response.body).to include(weekly_ticket.status)
     end
 
     it "service_id と meeting_key で絞り込みできる" do
@@ -55,8 +56,8 @@ RSpec.describe "Ops::Ledgers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("weekly_dept")
       expect(response.body).not_to include("monthly_ops")
-      expect(response.body).to include(weekly_ticket.title)
-      expect(response.body).not_to include(monthly_ticket.title)
+      expect(response.body).to include(weekly_ticket.id.to_s)
+      expect(response.body).not_to include(monthly_ticket.id.to_s)
     end
   end
 
