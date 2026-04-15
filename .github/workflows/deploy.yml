@@ -123,7 +123,11 @@ jobs:
           RAILS_ENV=production bin/rails assets:precompile
           rm -rf ~/myapp/public/app
           mkdir -p ~/myapp/public/app
-          cp frontend.tar.gz /tmp/
+          FRONTEND_TARBALL_PATH="${GITHUB_WORKSPACE}/frontend.tar.gz"
+          if [ ! -f "$FRONTEND_TARBALL_PATH" ]; then
+            FRONTEND_TARBALL_PATH="frontend.tar.gz"
+          fi
+          cp "$FRONTEND_TARBALL_PATH" /tmp/frontend.tar.gz
           tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
           rm /tmp/frontend.tar.gz
           echo "Frontend files:"
