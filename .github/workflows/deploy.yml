@@ -104,7 +104,7 @@ jobs:
           chmod +x ~/myapp/bin/dispatch_weekly_pdca
           chmod +x ~/myapp/bin/check_runner_health
           # 既存のエントリを削除してから追加（重複防止）
-          (crontab -l 2>/dev/null | grep -v "dispatch_weekly_pdca" | grep -v "check_runner_health") | crontab - || true
+          (crontab -l 2>/dev/null | grep -Ev "dispatch_weekly_pdca|check_runner_health") | crontab - || true
           (crontab -l 2>/dev/null; echo "*/10 * * * * \$HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1") | crontab -
           (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
           echo "✅ VPS cron 設定完了:"

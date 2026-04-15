@@ -126,6 +126,7 @@ error: The following untracked working tree files would be overwritten by checko
 **追加**: `bin/check_runner_health` スクリプトを作成。
 
 - runner サービスが停止していたら Slack（`SLACK_WEBHOOK_URL_ERROR`）に自動通知
+  - 前提: VPS の `.env` に `SLACK_WEBHOOK_URL_ERROR` が設定済みであること（`deploy.yml` が自動同期）
 - 5分おきの cron で実行（`deploy.yml` の Setup VPS cron jobs で自動登録）
 - ログ: `/tmp/runner_health.log`
 - runner が正常時はログ出力なし（最小限のディスク使用）
