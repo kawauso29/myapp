@@ -119,8 +119,18 @@ module Ledgers
     end
 
     def missing_kpi_keys(linked_kpis)
-      defined_keys = KpiLedger.where(kpi_key: linked_kpis).pluck(:kpi_key)
-      linked_kpis - defined_keys
+      linked_kpis - existing_kpi_keys
+    end
+
+    def existing_kpi_keys
+      @existing_kpi_keys ||= begin
+        requested_kpi_keys = ticket_inputs.flat_map { |input| Array(input.symbolize_keys[:linked_kpis]).compact }.uniq
+        if requested_kpi_keys.blank?
+          []
+        else
+          KpiLedger.where(kpi_key: requested_kpi_keys).pluck(:kpi_key)
+        end
+      end
     end
   end
 end

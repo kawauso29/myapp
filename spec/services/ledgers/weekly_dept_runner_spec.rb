@@ -28,6 +28,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       ticket = TicketLedger.last
       expect(ticket).to be_status_waiting_review
       expect(ticket).to be_escalation_to_monthly
+      expect(ticket.linked_kpis).to eq([ "kpi:risk" ])
       expect(ticket.source_meeting).to eq(meeting)
       expect(meeting.escalations.size).to eq(1)
     end
