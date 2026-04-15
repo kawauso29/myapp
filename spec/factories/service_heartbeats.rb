@@ -4,6 +4,6 @@ FactoryBot.define do
     service_id { "ai_sns" }
     due_cycle { :weekly }
     status { :active }
-    next_run_at { 1.week.from_now }
+    next_run_at { Time.current + 1.week }
   end
 end
