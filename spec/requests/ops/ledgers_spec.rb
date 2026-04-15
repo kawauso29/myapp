@@ -57,7 +57,8 @@ RSpec.describe "Ops::Ledgers", type: :request do
       expect(response.body).to include("weekly_dept")
       expect(response.body).not_to include("monthly_ops")
       expect(response.body).to include(weekly_ticket.id.to_s)
-      expect(response.body).not_to include(monthly_ticket.id.to_s)
+      expect(response.body).to include(weekly_ticket.service_id)
+      expect(response.body).not_to include(monthly_ticket.service_id)
     end
   end
 
