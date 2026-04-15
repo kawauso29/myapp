@@ -102,11 +102,17 @@ jobs:
         # runner ヘルスチェックを5分おきに実行し、停止時は Slack 通知
         run: |
           chmod +x ~/myapp/bin/dispatch_weekly_pdca
-          chmod +x ~/myapp/bin/check_runner_health
+          if [ -f ~/myapp/bin/check_runner_health ]; then
+            chmod +x ~/myapp/bin/check_runner_health
+          else
+            echo "check_runner_health not found; skipping"
+          fi
           # 既存のエントリを削除してから追加（重複防止）
           (crontab -l 2>/dev/null | grep -Ev "dispatch_weekly_pdca|check_runner_health") | crontab - || true
           (crontab -l 2>/dev/null; echo "*/10 * * * * \$HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1") | crontab -
-          (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
+          if [ -f ~/myapp/bin/check_runner_health ]; then
+            (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
+          fi
           echo "✅ VPS cron 設定完了:"
           crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health"
 
