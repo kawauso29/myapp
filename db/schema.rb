@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_104000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_15_173001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -452,6 +452,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_104000) do
     t.index ["captured_at"], name: "index_market_snapshots_on_captured_at"
   end
 
+  create_table "meeting_definitions", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.string "chair_role", null: false
+    t.datetime "created_at", null: false
+    t.string "meeting_key", null: false
+    t.integer "meeting_type", null: false
+    t.jsonb "participant_roles", default: [], null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.datetime "updated_at", null: false
+    t.jsonb "writes_ledgers", default: [], null: false
+    t.index ["meeting_key"], name: "index_meeting_definitions_on_meeting_key", unique: true
+    t.index ["meeting_type", "scope_level"], name: "index_meeting_definitions_on_meeting_type_and_scope_level"
+  end
+
+  create_table "meeting_ledgers", force: :cascade do |t|
+    t.string "chair", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "decisions", default: [], null: false
+    t.jsonb "directives", default: [], null: false
+    t.jsonb "escalations", default: [], null: false
+    t.datetime "held_at", null: false
+    t.jsonb "hold_items", default: [], null: false
+    t.jsonb "input_materials", default: [], null: false
+    t.bigint "meeting_definition_id", null: false
+    t.string "meeting_key", null: false
+    t.integer "meeting_type", null: false
+    t.jsonb "participants", default: [], null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.integer "status", default: 0, null: false
+    t.jsonb "tickets_to_create", default: [], null: false
+    t.datetime "updated_at", null: false
+    t.index ["meeting_definition_id"], name: "index_meeting_ledgers_on_meeting_definition_id"
+    t.index ["meeting_key", "held_at"], name: "index_meeting_ledgers_on_meeting_key_and_held_at"
+  end
+
   create_table "notifications", force: :cascade do |t|
     t.bigint "ai_post_id"
     t.bigint "ai_user_id"
@@ -505,6 +542,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_104000) do
     t.index ["ai_post_id"], name: "index_post_reports_on_ai_post_id"
     t.index ["status"], name: "index_post_reports_on_status"
     t.index ["user_id"], name: "index_post_reports_on_user_id"
+  end
+
+  create_table "service_heartbeats", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "due_cycle", null: false
+    t.datetime "last_run_at"
+    t.bigint "meeting_definition_id", null: false
+    t.datetime "next_run_at"
+    t.string "service_id"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["meeting_definition_id", "service_id"], name: "idx_on_meeting_definition_id_service_id_4057f53616", unique: true
+    t.index ["meeting_definition_id"], name: "index_service_heartbeats_on_meeting_definition_id"
+    t.index ["status", "next_run_at"], name: "index_service_heartbeats_on_status_and_next_run_at"
+  end
+
+  create_table "ticket_ledgers", force: :cascade do |t|
+    t.string "business_owner"
+    t.datetime "created_at", null: false
+    t.integer "due_cycle"
+    t.integer "escalation_to"
+    t.jsonb "linked_artifacts", default: [], null: false
+    t.jsonb "linked_kpis", default: [], null: false
+    t.string "owner_agent"
+    t.string "owner_dept"
+    t.integer "priority", default: 1, null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.integer "source_meeting_type"
+    t.integer "status", default: 0, null: false
+    t.string "ticket_type", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["service_id"], name: "index_ticket_ledgers_on_service_id"
+    t.index ["source_meeting_id"], name: "index_ticket_ledgers_on_source_meeting_id"
+    t.index ["status", "escalation_to"], name: "index_ticket_ledgers_on_status_and_escalation_to"
   end
 
   create_table "trade_decisions", force: :cascade do |t|
@@ -618,6 +692,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_104000) do
   add_foreign_key "ai_story_reactions", "ai_posts"
   add_foreign_key "ai_story_reactions", "users"
   add_foreign_key "ai_users", "users"
+  add_foreign_key "meeting_ledgers", "meeting_definitions"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"
   add_foreign_key "notifications", "ai_users", column: "target_ai_user_id"
@@ -626,6 +701,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_104000) do
   add_foreign_key "post_interest_tags", "interest_tags"
   add_foreign_key "post_reports", "ai_posts"
   add_foreign_key "post_reports", "users"
+  add_foreign_key "service_heartbeats", "meeting_definitions"
+  add_foreign_key "ticket_ledgers", "meeting_ledgers", column: "source_meeting_id"
   add_foreign_key "trade_decisions", "market_snapshots"
   add_foreign_key "trade_results", "trade_decisions"
   add_foreign_key "user_ai_likes", "ai_posts"

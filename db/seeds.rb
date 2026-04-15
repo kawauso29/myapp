@@ -1,10 +1,42 @@
 require_relative "seeds/seed_ai_data"
 
+def seed_ledger_definitions_and_heartbeats!
+  weekly = MeetingDefinition.find_or_create_by!(meeting_key: "weekly_dept") do |definition|
+    definition.meeting_type = :weekly
+    definition.scope_level = :service
+    definition.service_id = "ai_sns"
+    definition.chair_role = "business_owner"
+    definition.participant_roles = %w[planning dev audit cs business_owner]
+    definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
+  end
+
+  monthly = MeetingDefinition.find_or_create_by!(meeting_key: "monthly_ops") do |definition|
+    definition.meeting_type = :monthly
+    definition.scope_level = :company
+    definition.chair_role = "business_owner"
+    definition.participant_roles = %w[executive_planning executive_development executive_audit executive_hr business_owner]
+    definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
+  end
+
+  ServiceHeartbeat.find_or_create_by!(meeting_definition: weekly, service_id: "ai_sns") do |heartbeat|
+    heartbeat.due_cycle = :weekly
+    heartbeat.status = :active
+    heartbeat.next_run_at = 1.week.from_now
+  end
+
+  ServiceHeartbeat.find_or_create_by!(meeting_definition: monthly, service_id: nil) do |heartbeat|
+    heartbeat.due_cycle = :monthly
+    heartbeat.status = :active
+    heartbeat.next_run_at = 1.month.from_now
+  end
+end
+
 # =============================================================
 # 仕込みAI 50体の投入 + 3ヶ月バックフィル
 # =============================================================
 
 puts "=== Seeding AI SNS data ==="
+seed_ledger_definitions_and_heartbeats!
 
 DEFAULT_PERSONALITY = {
   sociability: :normal, post_frequency: :normal, active_time_peak: :normal,
