@@ -1,6 +1,6 @@
 class DropImprovementLogs < ActiveRecord::Migration[8.1]
   def up
-    drop_table :improvement_logs
+    drop_table :improvement_logs, if_exists: true
   end
 
   def down
