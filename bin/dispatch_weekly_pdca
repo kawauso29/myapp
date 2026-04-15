@@ -2,10 +2,13 @@
 # VPS cron から weekly_pdca.yml を workflow_dispatch で起動するスクリプト
 # GitHub schedule トリガーの遅延・スキップ対策として VPS cron から直接 dispatch する
 #
-# crontab 設定例 (crontab -e):
+# crontab 設定例 (deploy.yml の Setup VPS cron jobs で自動登録):
 #   */10 * * * * $HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1
 #
 # 必要な権限: DEPLOY_TOKEN に Actions: Read and Write スコープが必要
+#
+# ログ: /tmp/weekly_pdca_cron.log に出力
+#   - ログローテーション: 1000行を超えたら古い行を自動削除
 
 set -a
 # shellcheck source=/dev/null
@@ -14,6 +17,12 @@ set +a
 
 REPO="kawauso29/myapp"
 WORKFLOW="weekly_pdca.yml"
+LOG_FILE="/tmp/weekly_pdca_cron.log"
+
+# ログローテーション（1000行を超えたら最新500行のみ残す）
+if [ -f "$LOG_FILE" ] && [ "$(wc -l < "$LOG_FILE")" -gt 1000 ]; then
+  tail -500 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+fi
 
 if [ -z "$DEPLOY_TOKEN" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: DEPLOY_TOKEN が未設定です"

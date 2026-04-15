@@ -1,0 +1,51 @@
+#!/bin/bash
+# self-hosted runner のヘルスチェックスクリプト
+# runner サービスが停止していたら Slack に通知する
+#
+# crontab 設定例 (deploy.yml の Setup VPS cron jobs で自動登録):
+#   */5 * * * * $HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1
+#
+# 環境変数:
+#   SLACK_WEBHOOK_URL_ERROR - エラー通知用 Slack Webhook URL（.env から読み込み）
+
+set -a
+# shellcheck source=/dev/null
+source "$HOME/myapp/.env" 2>/dev/null || true
+set +a
+
+RUNNER_SERVICE="actions.runner.kawauso29-myapp.sakura-vps.service"
+export RUNNER_SERVICE
+LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
+
+# runner サービスの状態を確認
+if systemctl is-active --quiet "$RUNNER_SERVICE"; then
+  # 正常時は何も出力しない（ログを最小限に）
+  exit 0
+fi
+
+# runner が停止している場合
+echo "${LOG_PREFIX} WARN: ${RUNNER_SERVICE} is not active"
+STATUS=$(systemctl status "$RUNNER_SERVICE" 2>&1 | head -5)
+echo "${LOG_PREFIX} Status: ${STATUS}"
+
+# Slack 通知
+WEBHOOK_URL="${SLACK_WEBHOOK_URL_ERROR}"
+if [ -z "$WEBHOOK_URL" ]; then
+  echo "${LOG_PREFIX} ERROR: SLACK_WEBHOOK_URL_ERROR が未設定のため通知をスキップ"
+  exit 1
+fi
+
+# python3 で JSON を安全に生成（jq が self-hosted runner に入っていないため）
+PAYLOAD=$(python3 -c "
+import json, sys, os
+status_text = sys.stdin.read()[:500]
+service = os.environ.get('RUNNER_SERVICE', 'unknown')
+text = f':warning: *Self-hosted runner offline*\nサービス \`{service}\` が停止しています。\n\`\`\`{status_text}\`\`\`\n確認: \`sudo systemctl restart {service}\`'
+print(json.dumps({'text': text}))
+" <<< "$STATUS")
+
+curl -s -X POST -H 'Content-type: application/json' \
+  --data "$PAYLOAD" \
+  "$WEBHOOK_URL" > /dev/null 2>&1
+
+echo "${LOG_PREFIX} Slack 通知送信完了"
