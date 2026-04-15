@@ -56,9 +56,10 @@ RSpec.describe "Ops::Ledgers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("weekly_dept")
       expect(response.body).not_to include("monthly_ops")
-      expect(response.body).to include(weekly_ticket.id.to_s)
-      expect(response.body).to include(weekly_ticket.service_id)
-      expect(response.body).not_to include(monthly_ticket.service_id)
+
+      ticket_ids = extract_ticket_table_ids(response.body)
+      expect(ticket_ids).to include(weekly_ticket.id.to_s)
+      expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
     end
   end
 
@@ -66,5 +67,10 @@ RSpec.describe "Ops::Ledgers", type: :request do
     {
       "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("ops", "secret")
     }
+  end
+
+  def extract_ticket_table_ids(html)
+    document = Nokogiri::HTML(html)
+    document.css("div.card table tbody").last.css("tr td:first-child").map { |cell| cell.text.strip }
   end
 end
