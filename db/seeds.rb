@@ -31,12 +31,36 @@ def seed_ledger_definitions_and_heartbeats!
   end
 end
 
+def seed_service_and_kpi_ledgers!
+  ServiceLedger.find_or_create_by!(service_id: "ai_sns") do |service_ledger|
+    service_ledger.scope_level = :service
+    service_ledger.business_owner = "unassigned_business_owner"
+    service_ledger.status = :active
+  end
+
+  [
+    { kpi_key: "kpi:service_health", name: "Service Health", scope_level: :service, service_id: "ai_sns" },
+    { kpi_key: "kpi:ai_sns_wau", name: "AI SNS WAU", scope_level: :service, service_id: "ai_sns" },
+    { kpi_key: "kpi:ai_sns_retention_7d", name: "AI SNS Retention 7d", scope_level: :service, service_id: "ai_sns" },
+    { kpi_key: "kpi:ai_sns_paid_conversion", name: "AI SNS Paid Conversion", scope_level: :service, service_id: "ai_sns" },
+    { kpi_key: "kpi:company_revenue_growth", name: "Company Revenue Growth", scope_level: :company, service_id: nil }
+  ].each do |attrs|
+    KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |kpi_ledger|
+      kpi_ledger.scope_level = attrs[:scope_level]
+      kpi_ledger.service_id = attrs[:service_id]
+      kpi_ledger.name = attrs[:name]
+      kpi_ledger.status = :active
+    end
+  end
+end
+
 # =============================================================
 # 仕込みAI 50体の投入 + 3ヶ月バックフィル
 # =============================================================
 
 puts "=== Seeding AI SNS data ==="
 seed_ledger_definitions_and_heartbeats!
+seed_service_and_kpi_ledgers!
 
 DEFAULT_PERSONALITY = {
   sociability: :normal, post_frequency: :normal, active_time_peak: :normal,

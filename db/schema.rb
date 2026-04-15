@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_15_173001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_15_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -429,6 +429,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_173001) do
     t.index ["jti"], name: "index_jwt_denylists_on_jti", unique: true
   end
 
+  create_table "kpi_ledgers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "current_value", default: {}, null: false
+    t.text "description"
+    t.string "kpi_key", null: false
+    t.string "name", null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.integer "status", default: 0, null: false
+    t.jsonb "target_value", default: {}, null: false
+    t.datetime "updated_at", null: false
+    t.index ["kpi_key"], name: "index_kpi_ledgers_on_kpi_key", unique: true
+    t.index ["scope_level", "service_id"], name: "index_kpi_ledgers_on_scope_level_and_service_id"
+  end
+
   create_table "kpi_snapshots", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.json "metrics", null: false
@@ -556,6 +571,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_173001) do
     t.index ["meeting_definition_id", "service_id"], name: "idx_on_meeting_definition_id_service_id_4057f53616", unique: true
     t.index ["meeting_definition_id"], name: "index_service_heartbeats_on_meeting_definition_id"
     t.index ["status", "next_run_at"], name: "index_service_heartbeats_on_status_and_next_run_at"
+  end
+
+  create_table "service_ledgers", force: :cascade do |t|
+    t.string "business_owner", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.integer "scope_level", default: 2, null: false
+    t.string "service_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["scope_level"], name: "index_service_ledgers_on_scope_level"
+    t.index ["service_id"], name: "index_service_ledgers_on_service_id", unique: true
   end
 
   create_table "ticket_ledgers", force: :cascade do |t|
