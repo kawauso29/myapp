@@ -37,9 +37,9 @@
           <td><%= meeting.meeting_key %></td>
           <td><%= meeting.scope_level %></td>
           <td><%= meeting.service_id.presence || "-" %></td>
-          <td>-</td>
+          <td><%= meeting.created_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
           <td><%= meeting.held_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
-          <td>-</td>
+          <td><%= meeting.status_closed? ? (meeting.updated_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-") : "-" %></td>
           <td><%= meeting.status %></td>
           <td><%= reason_summary.presence || "none" %> (count=<%= hold_items.size %>)</td>
         </tr>
@@ -61,7 +61,7 @@
         <th>meeting_key</th>
         <th>status</th>
         <th>escalation_to</th>
-        <th>linked_kpis</th>
+        <th>Linked KPIs</th>
       </tr>
     </thead>
     <tbody>
