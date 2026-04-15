@@ -114,7 +114,7 @@ jobs:
             (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
           fi
           echo "✅ VPS cron 設定完了:"
-          crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health"
+          crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health" || true
 
       - name: Deploy Rails + frontend
         id: deploy_rails
