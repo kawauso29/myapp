@@ -30,9 +30,17 @@ module Ledgers
 
       ticket_inputs.each do |input|
         attrs = input.symbolize_keys
-        if attrs[:linked_kpis].blank?
+        linked_kpis = Array(attrs[:linked_kpis]).compact
+        if linked_kpis.blank?
           hold_items << hold_payload(attrs)
           decisions << { title: attrs[:title], result: "held_for_missing_kpis" }
+          next
+        end
+
+        missing_kpi_keys = missing_kpi_keys(linked_kpis)
+        if missing_kpi_keys.present?
+          hold_items << hold_payload(attrs, reason: "missing_kpi_definition", missing_kpi_keys:)
+          decisions << { title: attrs[:title], result: "held_for_missing_kpi_definition" }
           next
         end
 
@@ -101,12 +109,28 @@ module Ledgers
       )
     end
 
-    def hold_payload(attrs)
+    def hold_payload(attrs, reason: "missing_linked_kpis", missing_kpi_keys: nil)
       {
         title: attrs[:title],
-        reason: "missing_linked_kpis",
+        reason:,
+        missing_kpi_keys:,
         next_cycle: "weekly"
-      }
+      }.compact
+    end
+
+    def missing_kpi_keys(linked_kpis)
+      linked_kpis - existing_kpi_keys
+    end
+
+    def existing_kpi_keys
+      @existing_kpi_keys ||= begin
+        requested_kpi_keys = ticket_inputs.flat_map { |input| Array(input.symbolize_keys[:linked_kpis]).compact }.uniq
+        if requested_kpi_keys.blank?
+          []
+        else
+          KpiLedger.where(kpi_key: requested_kpi_keys).pluck(:kpi_key)
+        end
+      end
     end
   end
 end

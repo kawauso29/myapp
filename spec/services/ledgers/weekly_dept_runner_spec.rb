@@ -11,6 +11,8 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
     end
 
     it "sets waiting_review + escalation_to monthly when weekly audit is NG" do
+      create(:kpi_ledger, kpi_key: "kpi:risk", scope_level: :service, service_id: "ai_sns")
+
       meeting = described_class.call(
         service_id: "ai_sns",
         ticket_inputs: [
@@ -26,6 +28,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       ticket = TicketLedger.last
       expect(ticket).to be_status_waiting_review
       expect(ticket).to be_escalation_to_monthly
+      expect(ticket.linked_kpis).to eq([ "kpi:risk" ])
       expect(ticket.source_meeting).to eq(meeting)
       expect(meeting.escalations.size).to eq(1)
     end
@@ -46,6 +49,28 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
 
       meeting = MeetingLedger.last
       expect(meeting.hold_items).to include(a_hash_including("reason" => "missing_linked_kpis"))
+    end
+
+    it "holds ticket creation when linked_kpis include unknown keys" do
+      create(:kpi_ledger, kpi_key: "kpi:known", scope_level: :service, service_id: "ai_sns")
+
+      expect do
+        described_class.call(
+          service_id: "ai_sns",
+          ticket_inputs: [
+            {
+              ticket_type: "ops",
+              title: "unknown kpi",
+              linked_kpis: [ "kpi:known", "kpi:unknown" ]
+            }
+          ]
+        )
+      end.not_to change(TicketLedger, :count)
+
+      meeting = MeetingLedger.last
+      expect(meeting.hold_items).to include(
+        a_hash_including("reason" => "missing_kpi_definition", "missing_kpi_keys" => [ "kpi:unknown" ])
+      )
     end
   end
 end
