@@ -1,0 +1,83 @@
+<% content_for :title, "Ops Ledgers" %>
+
+<div class="card">
+  <h2>Ops Ledger Viewer (Read Only)</h2>
+  <%= form_with url: ops_ledgers_path, method: :get, local: true do |f| %>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <%= f.text_field :service_id, value: @service_id, placeholder: "service_id (例: ai_sns)", style: "min-width:200px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.text_field :meeting_key, value: @meeting_key, placeholder: "meeting_key (例: weekly_dept)", style: "min-width:220px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
+      <%= link_to "Reset", ops_ledgers_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <h2>Recent MeetingLedgers (<%= @meeting_ledgers.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>meeting_key</th>
+        <th>scope_level</th>
+        <th>service_id</th>
+        <th>started_at</th>
+        <th>held_at</th>
+        <th>finished_at</th>
+        <th>status</th>
+        <th>hold_items summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @meeting_ledgers.each do |meeting| %>
+        <% hold_items = Array(meeting.hold_items) %>
+        <% reason_summary = hold_items.group_by { |item| item["reason"] || item[:reason] || "unknown" }.sort.map { |reason, items| "#{reason}:#{items.count}" }.join(", ") %>
+        <tr>
+          <td><%= meeting.id %></td>
+          <td><%= meeting.meeting_key %></td>
+          <td><%= meeting.scope_level %></td>
+          <td><%= meeting.service_id.presence || "-" %></td>
+          <td>-</td>
+          <td><%= meeting.held_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
+          <td>-</td>
+          <td><%= meeting.status %></td>
+          <td><%= reason_summary.presence || "none" %> (count=<%= hold_items.size %>)</td>
+        </tr>
+      <% end %>
+      <% if @meeting_ledgers.empty? %>
+        <tr><td colspan="9" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Recent TicketLedgers (<%= @ticket_ledgers.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>service_id</th>
+        <th>meeting_key</th>
+        <th>status</th>
+        <th>escalation_to</th>
+        <th>linked_kpis</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @ticket_ledgers.each do |ticket| %>
+        <tr>
+          <td><%= ticket.id %></td>
+          <td><%= ticket.service_id.presence || "-" %></td>
+          <td><%= ticket.source_meeting&.meeting_key || "-" %></td>
+          <td><%= ticket.status %></td>
+          <td><%= ticket.escalation_to.presence || "-" %></td>
+          <td><%= Array(ticket.linked_kpis).join(", ").presence || "-" %></td>
+        </tr>
+      <% end %>
+      <% if @ticket_ledgers.empty? %>
+        <tr><td colspan="6" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

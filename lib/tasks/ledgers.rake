@@ -4,12 +4,12 @@ namespace :ledgers do
     service_id = args[:service_id].presence || "ai_sns"
     meeting = Ledgers::WeeklyDeptRunner.call(service_id:)
 
-    puts "weekly_dept done: meeting_ledger_id=#{meeting.id} tickets=#{meeting.tickets_to_create.size} holds=#{meeting.hold_items.size}"
+    puts Ledgers::RunOutputFormatter.format(meeting:, operation: "weekly_dept")
   end
 
   desc "Run monthly_ops ledger flow"
   task run_monthly_ops: :environment do
     meeting = Ledgers::MonthlyOpsRunner.call
-    puts "monthly_ops done: meeting_ledger_id=#{meeting.id} resolved=#{meeting.decisions.size}"
+    puts Ledgers::RunOutputFormatter.format(meeting:, operation: "monthly_ops")
   end
 end
