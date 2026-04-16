@@ -26,10 +26,10 @@ jobs:
           REQUIRED_SECTIONS = {
             "背景 / 目的": ["背景/目的", "purpose/background", "background/purpose"],
             "変更内容": ["what changed", "changes"],
-            "受け入れ条件（Acceptance Criteria）": ["受入条件(acceptance criteria)", "acceptance criteria", "acceptance"],
+            "受け入れ条件（Acceptance Criteria）": ["受入条件（acceptance criteria）", "acceptance criteria", "acceptance"],
             "テスト（実行方法 / 結果）": ["テスト", "tests", "test plan", "test results"],
             "ロールアウト / デプロイノート": ["ロールアウト/デプロイ注意", "rollout/deploy notes", "deploy notes", "rollout"],
-            "Ledger影響（台帳・テーブル・運用領域）": ["ledger影響(台帳/runner/定期実行)", "ledger impact", "ledger", "impact area"],
+            "Ledger影響（台帳・テーブル・運用領域）": ["Ledger影響（台帳/Runner/定期実行）", "ledger impact", "ledger", "impact area"],
             "リスクとロールバック": ["リスク&ロールバック", "risk & rollback", "risk and rollback"],
           }
 
