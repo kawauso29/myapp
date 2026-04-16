@@ -35,4 +35,22 @@ namespace :ledgers do
       }
     )
   end
+
+  desc "Detect and resolve improvement tickets"
+  task detect_improvements: :environment do
+    detected = Ledgers::ImprovementDetector.call
+    resolved = Ledgers::ImprovementResolver.call
+    improvements = {
+      detected: detected[:detected] || detected["detected"] || 0,
+      resolved: resolved[:resolved] || resolved["resolved"] || 0,
+      details: Array(detected[:details] || detected["details"]) + Array(resolved[:details] || resolved["details"])
+    }
+
+    puts JSON.pretty_generate(
+      {
+        operation: "detect_improvements",
+        improvements:
+      }
+    )
+  end
 end

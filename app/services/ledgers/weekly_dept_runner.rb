@@ -57,11 +57,21 @@ module Ledgers
         }
       end
 
+      detector_result = Ledgers::ImprovementDetector.call
+      resolver_result = Ledgers::ImprovementResolver.call
+      improvements = {
+        detected: detector_result[:detected] || detector_result["detected"] || 0,
+        resolved: resolver_result[:resolved] || resolver_result["resolved"] || 0,
+        details: Array(detector_result[:details] || detector_result["details"]) +
+          Array(resolver_result[:details] || resolver_result["details"])
+      }
+
       meeting.update!(
         decisions:,
         hold_items:,
         tickets_to_create: created,
         escalations:,
+        directives: [ { improvements: } ],
         status: :closed
       )
       meeting

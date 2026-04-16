@@ -15,6 +15,7 @@ Rails.application.reloader.to_prepare do
     WeeklyDeptLedgerRunJob
     MonthlyOpsLedgerRunJob
     TicketOverdueCheckJob
+    ImprovementDetectorJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob

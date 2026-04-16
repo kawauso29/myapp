@@ -18,6 +18,10 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
              due_cycle: :monthly)
     end
 
+    before do
+      allow(Ledgers::ImprovementResolver).to receive(:call).and_return({ resolved: 0, details: [] })
+    end
+
     it "resolves waiting_review ticket by monthly decision" do
       meeting = described_class.call(resolution_map: { waiting_ticket.id => "cancelled" })
 
@@ -27,6 +31,12 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
       expect(waiting_ticket.due_date).to eq(Date.current + 30.days)
       expect(waiting_ticket.escalation_to).to be_nil
       expect(meeting.decisions).to include(a_hash_including("ticket_id" => waiting_ticket.id, "resolution" => "cancelled"))
+    end
+
+    it "calls improvement resolver after monthly flow" do
+      described_class.call(resolution_map: {})
+
+      expect(Ledgers::ImprovementResolver).to have_received(:call)
     end
   end
 end

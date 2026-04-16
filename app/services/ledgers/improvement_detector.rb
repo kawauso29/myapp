@@ -1,0 +1,204 @@
+module Ledgers
+  class ImprovementDetector
+    OVERDUE_WINDOW_DAYS = 30
+    STALE_SERVICE_DAYS = 14
+    OVERDUE_RATE_THRESHOLD = 0.2
+    IMPROVEMENT_DUE_DAYS = 14
+    OPEN_STATUSES = %i[waiting_review overdue].freeze
+
+    def self.call
+      new.call
+    end
+
+    def call
+      created = []
+      created.concat(detect_high_overdue_rate)
+      created.concat(detect_missing_kpi_definition)
+      created.concat(detect_stale_services)
+      created.concat(detect_monthly_hold_accumulation)
+
+      notify_if_needed(created)
+
+      {
+        detected: created.count,
+        details: created
+      }
+    end
+
+    private
+
+    def detect_high_overdue_rate
+      tickets = TicketLedger.where(created_at: OVERDUE_WINDOW_DAYS.days.ago..Time.current)
+      total_count = tickets.count
+      return [] if total_count.zero?
+
+      overdue_count = tickets.status_overdue.count
+      rate = overdue_count.to_f / total_count
+      return [] unless rate > OVERDUE_RATE_THRESHOLD
+
+      rule = "high_overdue_rate"
+      return [] if duplicate_rule_open?(rule:)
+
+      linked_kpis = {
+        rule:,
+        overdue_count:,
+        total_count:,
+        rate: percent(rate)
+      }
+      ticket = create_ticket!(
+        title: "Improvement: High overdue rate (#{percent(rate)})",
+        linked_kpis:,
+        scope_level: :company
+      )
+
+      [detail_payload(ticket:, linked_kpis:)]
+    end
+
+    def detect_missing_kpi_definition
+      keys = recent_hold_items
+        .select { |item| item[:reason] == "missing_kpi_definition" }
+        .flat_map { |item| Array(item[:missing_kpi_keys]) }
+        .compact
+        .uniq
+        .sort
+      return [] if keys.blank?
+
+      rule = "missing_kpi_definition"
+      return [] if duplicate_rule_open?(rule:)
+
+      linked_kpis = { rule:, keys: }
+      ticket = create_ticket!(
+        title: "Improvement: Missing KPI definitions (#{keys.size} keys)",
+        linked_kpis:,
+        scope_level: :company
+      )
+
+      [detail_payload(ticket:, linked_kpis:)]
+    end
+
+    def detect_stale_services
+      ServiceLedger.pluck(:service_id).filter_map do |service_id|
+        next if weekly_audit_exists_recently?(service_id:)
+        next if duplicate_rule_open?(rule: "stale_service", service_id:)
+
+        linked_kpis = {
+          rule: "stale_service",
+          service_id:,
+          last_audit_at: last_audit_at(service_id:)&.to_date&.iso8601
+        }
+        ticket = create_ticket!(
+          title: "Improvement: Stale service - #{service_id} (no audit in 14+ days)",
+          linked_kpis:,
+          scope_level: :service,
+          service_id:
+        )
+
+        detail_payload(ticket:, linked_kpis:)
+      end
+    end
+
+    def detect_monthly_hold_accumulation
+      meeting = MeetingLedger.where(meeting_key: "monthly_ops").order(held_at: :desc).first
+      return [] unless meeting
+
+      hold_count = Array(meeting.hold_items).count
+      return [] if hold_count < 3
+
+      rule = "monthly_hold_accumulation"
+      return [] if duplicate_rule_open?(rule:)
+
+      linked_kpis = { rule:, hold_count: }
+      ticket = create_ticket!(
+        title: "Improvement: Monthly ops has #{hold_count} held items",
+        linked_kpis:,
+        scope_level: :company
+      )
+
+      [detail_payload(ticket:, linked_kpis:)]
+    end
+
+    def create_ticket!(title:, linked_kpis:, scope_level:, service_id: nil)
+      TicketLedger.create!(
+        ticket_type: :improvement,
+        title:,
+        scope_level:,
+        service_id:,
+        source_meeting_type: :weekly,
+        linked_kpis:,
+        linked_artifacts: [],
+        priority: :medium,
+        status: :waiting_review,
+        assignee: "improvement_detector",
+        due_date: Date.current + IMPROVEMENT_DUE_DAYS.days,
+        due_cycle: :weekly
+      )
+    end
+
+    def duplicate_rule_open?(rule:, service_id: nil)
+      open_improvement_tickets.any? do |ticket|
+        linked = normalize_hash(ticket.linked_kpis)
+        next false unless linked["rule"] == rule
+        next true if service_id.blank?
+
+        linked["service_id"] == service_id
+      end
+    end
+
+    def open_improvement_tickets
+      @open_improvement_tickets ||= TicketLedger.ticket_type_improvement.where(status: OPEN_STATUSES)
+    end
+
+    def recent_hold_items
+      @recent_hold_items ||= MeetingLedger
+        .where(held_at: OVERDUE_WINDOW_DAYS.days.ago..Time.current)
+        .where.not(hold_items: [])
+        .flat_map { |meeting| Array(meeting.hold_items) }
+        .map { |item| normalize_hash(item).symbolize_keys }
+    end
+
+    def weekly_audit_exists_recently?(service_id:)
+      MeetingLedger.where(meeting_key: "weekly_dept", service_id:)
+        .where(held_at: STALE_SERVICE_DAYS.days.ago..Time.current)
+        .exists?
+    end
+
+    def last_audit_at(service_id:)
+      MeetingLedger.where(meeting_key: "weekly_dept", service_id:).maximum(:held_at)
+    end
+
+    def percent(rate)
+      "#{(rate * 100).round(1)}%"
+    end
+
+    def detail_payload(ticket:, linked_kpis:)
+      {
+        ticket_id: ticket.id,
+        rule: linked_kpis[:rule] || linked_kpis["rule"],
+        title: ticket.title
+      }
+    end
+
+    def notify_if_needed(created)
+      return if created.blank?
+
+      Ledgers::SlackNotifier.notify(
+        operation: "detect_improvements",
+        counts: { tickets_created: created.count, held_items: 0 },
+        improvements: {
+          detected: created.count,
+          resolved: 0,
+          details: created
+        }
+      )
+    end
+
+    def normalize_hash(value)
+      case value
+      when Hash
+        value
+      else
+        {}
+      end
+    end
+  end
+end

@@ -37,7 +37,14 @@ module Ledgers
         decisions << { ticket_id: ticket.id, resolution: }
       end
 
-      meeting.update!(decisions:, status: :closed)
+      resolver_result = Ledgers::ImprovementResolver.call
+      improvements = {
+        detected: 0,
+        resolved: resolver_result[:resolved] || resolver_result["resolved"] || 0,
+        details: Array(resolver_result[:details] || resolver_result["details"])
+      }
+
+      meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed)
       meeting
     end
 

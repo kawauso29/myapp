@@ -15,6 +15,7 @@ namespace :solid_queue do
     WeeklyDeptLedgerRunJob
     MonthlyOpsLedgerRunJob
     TicketOverdueCheckJob
+    ImprovementDetectorJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob

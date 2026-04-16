@@ -10,6 +10,11 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
              service_id: "ai_sns")
     end
 
+    before do
+      allow(Ledgers::ImprovementDetector).to receive(:call).and_return({ detected: 0, details: [] })
+      allow(Ledgers::ImprovementResolver).to receive(:call).and_return({ resolved: 0, details: [] })
+    end
+
     it "sets waiting_review + escalation_to monthly when weekly audit is NG" do
       create(:kpi_ledger, kpi_key: "kpi:risk", scope_level: :service, service_id: "ai_sns")
 
@@ -96,6 +101,25 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(meeting.hold_items).to include(
         a_hash_including("reason" => "missing_kpi_definition", "missing_kpi_keys" => [ "kpi:unknown" ])
       )
+    end
+
+    it "calls improvement detector and resolver after weekly flow" do
+      create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+      described_class.call(
+        service_id: "ai_sns",
+        ticket_inputs: [
+          {
+            ticket_type: "ops",
+            title: "weekly ticket",
+            linked_kpis: [ "kpi:service_health" ],
+            audit_ok: true
+          }
+        ]
+      )
+
+      expect(Ledgers::ImprovementDetector).to have_received(:call)
+      expect(Ledgers::ImprovementResolver).to have_received(:call)
     end
   end
 end

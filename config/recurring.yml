@@ -160,3 +160,9 @@ production:
     class: TicketOverdueCheckJob
     queue: default
     schedule: "0 21 * * *"
+
+  # 毎日 7:00 JST (= 前日 22:00 UTC): 改善チケットの検出と解消判定
+  improvement_detector:
+    class: ImprovementDetectorJob
+    queue: default
+    schedule: "0 22 * * *"

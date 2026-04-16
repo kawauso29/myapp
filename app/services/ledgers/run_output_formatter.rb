@@ -1,12 +1,13 @@
 module Ledgers
   class RunOutputFormatter
-    def self.format(meeting:, operation:)
-      new(meeting:, operation:).format
+    def self.format(meeting:, operation:, improvements: nil)
+      new(meeting:, operation:, improvements:).format
     end
 
-    def initialize(meeting:, operation:)
+    def initialize(meeting:, operation:, improvements: nil)
       @meeting = meeting
       @operation = operation
+      @improvements = improvements
     end
 
     def format
@@ -29,7 +30,8 @@ module Ledgers
           holds: {
             grouped_by_reason: grouped_hold_reasons,
             missing_kpi_definition_keys: missing_kpi_definition_keys
-          }
+          },
+          improvements: improvements_payload
         }
       )
     end
@@ -77,6 +79,39 @@ module Ledgers
         .compact
         .uniq
         .sort
+    end
+
+    def improvements_payload
+      payload = @improvements.presence || improvement_directive
+      return default_improvements_payload if payload.blank?
+
+      {
+        detected: fetch_from_hash(payload, :detected, default: 0),
+        resolved: fetch_from_hash(payload, :resolved, default: 0),
+        details: Array(fetch_from_hash(payload, :details, default: []))
+      }
+    end
+
+    def improvement_directive
+      return {} unless @meeting.respond_to?(:directives)
+
+      Array(@meeting.directives)
+        .map { |directive| fetch_from_hash(directive, :improvements, default: {}) }
+        .find(&:present?)
+    end
+
+    def default_improvements_payload
+      {
+        detected: 0,
+        resolved: 0,
+        details: []
+      }
+    end
+
+    def fetch_from_hash(hash, key, default:)
+      return default unless hash.respond_to?(:[])
+
+      hash[key] || hash[key.to_s] || default
     end
   end
 end
