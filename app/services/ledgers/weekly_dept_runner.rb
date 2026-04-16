@@ -60,10 +60,9 @@ module Ledgers
       detector_result = Ledgers::ImprovementDetector.call
       resolver_result = Ledgers::ImprovementResolver.call
       improvements = {
-        detected: detector_result[:detected] || detector_result["detected"] || 0,
-        resolved: resolver_result[:resolved] || resolver_result["resolved"] || 0,
-        details: Array(detector_result[:details] || detector_result["details"]) +
-          Array(resolver_result[:details] || resolver_result["details"])
+        detected: detector_result.fetch(:detected, 0),
+        resolved: resolver_result.fetch(:resolved, 0),
+        details: Array(detector_result.fetch(:details, [])) + Array(resolver_result.fetch(:details, []))
       }
 
       meeting.update!(

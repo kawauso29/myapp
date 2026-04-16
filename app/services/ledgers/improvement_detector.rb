@@ -84,7 +84,7 @@ module Ledgers
         linked_kpis = {
           rule: "stale_service",
           service_id:,
-          last_audit_at: last_audit_at(service_id:)&.to_date&.iso8601
+          last_audit_at: last_audit_at(service_id:)&.iso8601
         }
         ticket = create_ticket!(
           title: "Improvement: Stale service - #{service_id} (no audit in 14+ days)",

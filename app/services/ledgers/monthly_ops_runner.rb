@@ -40,8 +40,8 @@ module Ledgers
       resolver_result = Ledgers::ImprovementResolver.call
       improvements = {
         detected: 0,
-        resolved: resolver_result[:resolved] || resolver_result["resolved"] || 0,
-        details: Array(resolver_result[:details] || resolver_result["details"])
+        resolved: resolver_result.fetch(:resolved, 0),
+        details: Array(resolver_result.fetch(:details, []))
       }
 
       meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed)

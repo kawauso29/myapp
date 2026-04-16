@@ -54,8 +54,11 @@ module Ledgers
       return "" if details.blank?
 
       rules = details.map { |item| fetch_value(item, :rule, default: "unknown") }.uniq.join(",")
-      titles = details.map { |item| fetch_value(item, :title, default: "unknown") }.uniq.join(" | ")
-      " improvements_created=#{details.count} improvement_rules=#{rules} improvement_titles=#{titles}"
+      titles = details.map { |item| fetch_value(item, :title, default: "unknown") }.uniq
+      title_preview = titles.first(3).join(" | ")
+      title_preview = "#{title_preview} ..." if titles.size > 3
+
+      " improvements_created=#{details.count} improvement_rules=#{rules} improvement_titles=#{title_preview}"
     end
 
     def post_to_slack(webhook_url:, body:)

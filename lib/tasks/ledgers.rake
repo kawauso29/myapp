@@ -41,9 +41,9 @@ namespace :ledgers do
     detected = Ledgers::ImprovementDetector.call
     resolved = Ledgers::ImprovementResolver.call
     improvements = {
-      detected: detected[:detected] || detected["detected"] || 0,
-      resolved: resolved[:resolved] || resolved["resolved"] || 0,
-      details: Array(detected[:details] || detected["details"]) + Array(resolved[:details] || resolved["details"])
+      detected: detected.fetch(:detected, 0),
+      resolved: resolved.fetch(:resolved, 0),
+      details: Array(detected.fetch(:details, [])) + Array(resolved.fetch(:details, []))
     }
 
     puts JSON.pretty_generate(

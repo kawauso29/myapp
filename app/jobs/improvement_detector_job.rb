@@ -6,8 +6,8 @@ class ImprovementDetectorJob < ApplicationJob
     resolver_result = Ledgers::ImprovementResolver.call
 
     {
-      detected: detector_result[:detected] || detector_result["detected"] || 0,
-      resolved: resolver_result[:resolved] || resolver_result["resolved"] || 0
+      detected: detector_result.fetch(:detected, 0),
+      resolved: resolver_result.fetch(:resolved, 0)
     }
   end
 end
