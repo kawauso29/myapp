@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_15_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -586,15 +586,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_190000) do
   end
 
   create_table "ticket_ledgers", force: :cascade do |t|
+    t.string "assignee"
     t.string "business_owner"
     t.datetime "created_at", null: false
     t.integer "due_cycle"
+    t.date "due_date"
     t.integer "escalation_to"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
     t.string "owner_agent"
     t.string "owner_dept"
     t.integer "priority", default: 1, null: false
+    t.datetime "resolved_at"
     t.integer "scope_level", null: false
     t.string "service_id"
     t.bigint "source_meeting_id"

@@ -1,6 +1,7 @@
 module Ledgers
   class MonthlyOpsRunner
     ALLOWED_RESOLUTIONS = %w[approved draft cancelled].freeze
+    DEFAULT_ASSIGNEE = "monthly_ops_runner".freeze
 
     def self.call(resolution_map: {})
       new(resolution_map:).call
@@ -28,6 +29,8 @@ module Ledgers
         resolution = normalize_resolution(@resolution_map[ticket.id] || "approved")
         ticket.update!(
           status: resolution,
+          assignee: ticket.assignee.presence || DEFAULT_ASSIGNEE,
+          due_date: ticket.due_date || (Date.current + 30.days),
           due_cycle: resolution == "draft" ? :weekly : ticket.due_cycle,
           escalation_to: nil
         )

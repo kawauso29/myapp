@@ -60,6 +60,9 @@
         <th>service_id</th>
         <th>meeting_key</th>
         <th>status</th>
+        <th>assignee</th>
+        <th>due_date</th>
+        <th>resolved_at</th>
         <th>escalation_to</th>
         <th>Linked KPIs</th>
       </tr>
@@ -70,13 +73,22 @@
           <td><%= ticket.id %></td>
           <td><%= ticket.service_id.presence || "-" %></td>
           <td><%= ticket.source_meeting&.meeting_key || "-" %></td>
-          <td><%= ticket.status %></td>
+          <td>
+            <% if ticket.status_overdue? %>
+              <span style="color:#f56565; font-weight:600;">overdue</span>
+            <% else %>
+              <%= ticket.status %>
+            <% end %>
+          </td>
+          <td><%= ticket.assignee.presence || "-" %></td>
+          <td><%= ticket.due_date&.strftime("%Y-%m-%d") || "-" %></td>
+          <td><%= ticket.resolved_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
           <td><%= ticket.escalation_to.presence || "-" %></td>
           <td><%= Array(ticket.linked_kpis).join(", ").presence || "-" %></td>
         </tr>
       <% end %>
       <% if @ticket_ledgers.empty? %>
-        <tr><td colspan="6" style="text-align:center; color:#4a5568;">データなし</td></tr>
+        <tr><td colspan="9" style="text-align:center; color:#4a5568;">データなし</td></tr>
       <% end %>
     </tbody>
   </table>

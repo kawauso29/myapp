@@ -38,6 +38,7 @@ RSpec.describe "ledgers rake tasks" do
       expect(payload.dig("meeting_ledger", "meeting_key")).to eq("weekly_dept")
       expect(payload.dig("counts", "tickets_created")).to eq(2)
       expect(payload.dig("counts", "held_items")).to eq(2)
+      expect(payload.dig("tickets", "info")).to eq([])
       expect(payload.dig("holds", "grouped_by_reason")).to eq(
         "missing_kpi_definition" => 1,
         "missing_linked_kpis" => 1
@@ -74,7 +75,28 @@ RSpec.describe "ledgers rake tasks" do
       expect(payload.dig("meeting_ledger", "meeting_key")).to eq("monthly_ops")
       expect(payload.dig("counts", "tickets_created")).to eq(0)
       expect(payload.dig("counts", "held_items")).to eq(0)
+      expect(payload.dig("tickets", "info")).to eq([])
       expect(Ledgers::MonthlyOpsRunner).to have_received(:call)
+    end
+  end
+
+  describe "ledgers:check_overdue" do
+    let(:task) { Rake::Task["ledgers:check_overdue"] }
+
+    before do
+      task.reenable
+      allow(TicketOverdueCheckJob).to receive(:perform_now).and_return(3)
+    end
+
+    it "runs overdue check job inline" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload).to eq(
+        "operation" => "check_overdue",
+        "overdue_marked" => 3
+      )
+      expect(TicketOverdueCheckJob).to have_received(:perform_now)
     end
   end
 

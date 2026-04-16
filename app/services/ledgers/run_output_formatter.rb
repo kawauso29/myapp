@@ -23,6 +23,9 @@ module Ledgers
             tickets_created: tickets_created_count,
             held_items: hold_items.count
           },
+          tickets: {
+            info: tickets_info
+          },
           holds: {
             grouped_by_reason: grouped_hold_reasons,
             missing_kpi_definition_keys: missing_kpi_definition_keys
@@ -39,6 +42,25 @@ module Ledgers
 
     def tickets_created_count
       Array(@meeting.tickets_to_create).count
+    end
+
+    def tickets_info
+      return [] if created_ticket_ids.blank?
+
+      TicketLedger.where(id: created_ticket_ids).order(:id).map do |ticket|
+        {
+          ticket_id: ticket.id,
+          title: ticket.title,
+          status: ticket.status,
+          assignee: ticket.assignee,
+          due_date: ticket.due_date&.iso8601
+        }
+      end
+    end
+
+    def created_ticket_ids
+      @created_ticket_ids ||= Array(@meeting.tickets_to_create)
+        .filter_map { |ticket| ticket["ticket_id"] || ticket[:ticket_id] }
     end
 
     def grouped_hold_reasons
