@@ -23,13 +23,16 @@ tar xzf actions-runner-linux-x64.tar.gz
 ```bash
 sudo ./svc.sh install ubuntu
 sudo ./svc.sh start
-sudo systemctl enable actions.runner.kawauso29-myapp.ubuntu
+sudo systemctl enable actions.runner.kawauso29-myapp.os3-392-29108
 ```
+
+> **注意**: サービス名の末尾はホスト名（`os3-392-29108`）が使われます。ラベル名（`sakura-vps`）やユーザー名（`ubuntu`）ではありません。  
+> 実際の名前は `systemctl list-units --type=service | grep actions.runner` で確認してください。
 
 確認:
 
 ```bash
-sudo systemctl status actions.runner.kawauso29-myapp.ubuntu
+sudo systemctl status actions.runner.kawauso29-myapp.os3-392-29108
 ```
 
 ## 3. sudo 権限の確認
@@ -64,7 +67,7 @@ ruby --version  # → ruby 3.3.7
 ### runner が offline になる場合
 
 ```bash
-sudo systemctl restart actions.runner.kawauso29-myapp.ubuntu
+sudo systemctl restart actions.runner.kawauso29-myapp.os3-392-29108
 ```
 
 ### runner のアップデート
