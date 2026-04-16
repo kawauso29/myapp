@@ -58,4 +58,68 @@ RSpec.describe TicketLedger, type: :model do
       expect { ticket.update!(status: :cancelled) }.to change { ticket.reload.resolved_at }.from(nil)
     end
   end
+
+  describe "補強10: effectiveness fields" do
+    it "rejects effectiveness_score outside 0..1" do
+      ticket = build(:ticket_ledger, effectiveness_score: 1.5)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:effectiveness_score]).to be_present
+    end
+
+    it "rejects negative effectiveness_sample_size" do
+      ticket = build(:ticket_ledger, effectiveness_sample_size: -1)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:effectiveness_sample_size]).to be_present
+    end
+
+    describe ".effectiveness_for_pattern" do
+      it "returns nil when sample size is below minimum" do
+        2.times do
+          create(:ticket_ledger,
+                 ticket_type: "improvement",
+                 improvement_pattern_key: "posting_frequency_up",
+                 effectiveness_score: 0.5)
+        end
+        expect(described_class.effectiveness_for_pattern("posting_frequency_up")).to be_nil
+      end
+
+      it "returns average score once enough samples exist" do
+        [ 0.2, 0.4, 0.6 ].each do |score|
+          create(:ticket_ledger,
+                 ticket_type: "improvement",
+                 improvement_pattern_key: "prompt_tuning",
+                 effectiveness_score: score)
+        end
+        expect(described_class.effectiveness_for_pattern("prompt_tuning")).to be_within(0.01).of(0.4)
+      end
+    end
+  end
+
+  describe "補強13: SLA fields" do
+    it "auto-fills sla_breached_at when deadline is in the past" do
+      ticket = build(:ticket_ledger, sla_deadline: 1.hour.ago)
+      ticket.save!
+      expect(ticket.sla_breached_at).to be_present
+      expect(ticket).to be_sla_breached
+    end
+
+    it "does not mark breach when deadline is in the future" do
+      ticket = create(:ticket_ledger, sla_deadline: 1.hour.from_now)
+      expect(ticket.sla_breached_at).to be_nil
+    end
+
+    it "rejects sla_breached_at without sla_deadline" do
+      ticket = build(:ticket_ledger, sla_breached_at: Time.current, sla_deadline: nil)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:sla_breached_at]).to be_present
+    end
+
+    describe ".sla_breached" do
+      it "returns only tickets whose sla_breached_at is set" do
+        breached = create(:ticket_ledger, sla_deadline: 2.hours.ago)
+        create(:ticket_ledger, sla_deadline: 1.hour.from_now)
+        expect(described_class.sla_breached).to contain_exactly(breached)
+      end
+    end
+  end
 end
