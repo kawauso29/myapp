@@ -16,6 +16,10 @@ RSpec.describe TicketLedger, type: :model do
   end
 
   describe "enums" do
+    it "defines ticket_type enum" do
+      expect(described_class.ticket_types.keys).to eq(%w[operations audit ops quarterly_review annual_plan])
+    end
+
     it "defines status enum from spec" do
       expect(described_class.statuses.keys).to eq(%w[draft approved planned executing waiting_review completed cancelled overdue])
     end

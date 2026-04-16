@@ -129,3 +129,15 @@ production:
     class: WeeklyKpiSnapshotJob
     queue: low
     schedule: "0 21 * * 0"
+
+  # 四半期レビュー: 1/4/7/10月 1日 10:00 JST (= 01:00 UTC)
+  quarterly_review_ledger_run:
+    class: QuarterlyReviewLedgerRunJob
+    queue: default
+    schedule: "0 1 1 1,4,7,10 *"
+
+  # 年次計画: 毎年1月1日 12:00 JST (= 03:00 UTC)
+  annual_plan_ledger_run:
+    class: AnnualPlanLedgerRunJob
+    queue: default
+    schedule: "0 3 1 1 *"

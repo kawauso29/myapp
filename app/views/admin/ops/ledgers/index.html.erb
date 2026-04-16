@@ -69,6 +69,7 @@
     </thead>
     <tbody>
       <% @ticket_ledgers.each do |ticket| %>
+        <% linked_kpis = ticket.linked_kpis.is_a?(Hash) ? ticket.linked_kpis.to_json : Array(ticket.linked_kpis).join(", ") %>
         <tr>
           <td><%= ticket.id %></td>
           <td><%= ticket.service_id.presence || "-" %></td>
@@ -84,7 +85,7 @@
           <td><%= ticket.due_date&.strftime("%Y-%m-%d") || "-" %></td>
           <td><%= ticket.resolved_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
           <td><%= ticket.escalation_to.presence || "-" %></td>
-          <td><%= Array(ticket.linked_kpis).join(", ").presence || "-" %></td>
+          <td><%= linked_kpis.presence || "-" %></td>
         </tr>
       <% end %>
       <% if @ticket_ledgers.empty? %>

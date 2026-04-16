@@ -3,6 +3,9 @@ require "rails_helper"
 RSpec.describe "Admin::Ops::Ledgers", type: :request do
   let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", scope_level: :service, service_id: "ai_sns") }
   let!(:monthly_definition) { create(:meeting_definition, meeting_key: "monthly_ops", scope_level: :company, service_id: nil) }
+  let!(:quarterly_definition) do
+    create(:meeting_definition, meeting_key: "quarterly_review", meeting_type: :quarterly_review, scope_level: :company, service_id: nil)
+  end
   let!(:weekly_meeting) do
     create(
       :meeting_ledger,
@@ -44,6 +47,29 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       resolved_at: Time.current
     )
   end
+  let!(:quarterly_meeting) do
+    create(
+      :meeting_ledger,
+      meeting_definition: quarterly_definition,
+      meeting_key: "quarterly_review",
+      meeting_type: :quarterly_review,
+      scope_level: :company,
+      service_id: nil,
+      status: :closed
+    )
+  end
+  let!(:quarterly_ticket) do
+    create(
+      :ticket_ledger,
+      ticket_type: "quarterly_review",
+      source_meeting: quarterly_meeting,
+      source_meeting_type: :quarterly,
+      scope_level: :company,
+      service_id: nil,
+      linked_kpis: { meetings_held: 4, tickets_total: 7 },
+      status: :approved
+    )
+  end
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -66,6 +92,9 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include(weekly_ticket.id.to_s)
       expect(response.body).to include("overdue")
       expect(response.body).to include("monthly_ops_runner")
+      expect(response.body).to include("quarterly_review")
+      expect(response.body).to include(quarterly_ticket.id.to_s)
+      expect(response.body).to include("meetings_held")
     end
 
     it "service_id と meeting_key で絞り込みできる" do

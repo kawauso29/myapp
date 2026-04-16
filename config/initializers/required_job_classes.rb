@@ -21,6 +21,8 @@ Rails.application.reloader.to_prepare do
     DailyMemorySummarizeJob
     ExpiredMemoryCleanupJob
     LifeEventCheckJob
+    QuarterlyReviewLedgerRunJob
+    AnnualPlanLedgerRunJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

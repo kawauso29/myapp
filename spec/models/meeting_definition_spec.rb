@@ -10,7 +10,16 @@ RSpec.describe MeetingDefinition, type: :model do
 
   describe "enums" do
     it "defines meeting_type enum" do
-      expect(described_class.meeting_types.keys).to contain_exactly("long_term", "annual", "quarterly", "monthly", "weekly", "incident")
+      expect(described_class.meeting_types.keys).to contain_exactly(
+        "long_term",
+        "annual",
+        "quarterly",
+        "monthly",
+        "weekly",
+        "incident",
+        "quarterly_review",
+        "annual_plan"
+      )
     end
 
     it "defines scope_level enum" do

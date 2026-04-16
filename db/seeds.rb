@@ -18,6 +18,22 @@ def seed_ledger_definitions_and_heartbeats!
     definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
   end
 
+  MeetingDefinition.find_or_create_by!(meeting_key: "quarterly_review") do |definition|
+    definition.meeting_type = :quarterly_review
+    definition.scope_level = :company
+    definition.chair_role = "cto"
+    definition.participant_roles = %w[executive_planning executive_development executive_audit executive_hr business_owner]
+    definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
+  end
+
+  MeetingDefinition.find_or_create_by!(meeting_key: "annual_plan") do |definition|
+    definition.meeting_type = :annual_plan
+    definition.scope_level = :company
+    definition.chair_role = "ceo"
+    definition.participant_roles = %w[executive_planning executive_development executive_audit executive_hr business_owner]
+    definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
+  end
+
   ServiceHeartbeat.find_or_create_by!(meeting_definition: weekly, service_id: "ai_sns") do |heartbeat|
     heartbeat.due_cycle = :weekly
     heartbeat.status = :active
