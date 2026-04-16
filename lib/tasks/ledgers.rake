@@ -59,4 +59,10 @@ namespace :ledgers do
     result = Ledgers::ImprovementEscalator.call
     puts JSON.pretty_generate(result)
   end
+
+  desc "Sync eligible ticket ledgers to GitHub Issues (dry-run by default)"
+  task sync_github_issues: :environment do
+    result = Ledgers::TicketLedgerGithubIssueSyncer.call
+    puts JSON.pretty_generate(result)
+  end
 end

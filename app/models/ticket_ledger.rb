@@ -1,4 +1,7 @@
 class TicketLedger < ApplicationRecord
+  GITHUB_SYNCABLE_STATUSES = %w[approved planned executing].freeze
+  GITHUB_SYNCABLE_TICKET_TYPES = %w[improvement].freeze
+
   belongs_to :source_meeting, class_name: "MeetingLedger", optional: true
 
   enum :scope_level, {
@@ -61,8 +64,13 @@ class TicketLedger < ApplicationRecord
   validates :ticket_type, :title, :scope_level, :status, :priority, presence: true
   validate :linked_kpis_not_empty
   scope :overdue_candidates, -> { where(status: :waiting_review).where("due_date < ?", Date.current) }
+  scope :github_issue_sync_candidates, -> { where(status: GITHUB_SYNCABLE_STATUSES, ticket_type: GITHUB_SYNCABLE_TICKET_TYPES) }
 
   before_save :set_resolved_at, if: :will_save_change_to_status?
+
+  def github_issue_sync_eligible?
+    status.in?(GITHUB_SYNCABLE_STATUSES) && ticket_type.in?(GITHUB_SYNCABLE_TICKET_TYPES) && !status_cancelled?
+  end
 
   private
 

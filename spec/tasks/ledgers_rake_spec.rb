@@ -214,6 +214,39 @@ RSpec.describe "ledgers rake tasks" do
     end
   end
 
+  describe "ledgers:sync_github_issues" do
+    let(:task) { Rake::Task["ledgers:sync_github_issues"] }
+
+    before do
+      task.reenable
+      allow(Ledgers::TicketLedgerGithubIssueSyncer).to receive(:call).and_return(
+        operation: "sync_github_issues",
+        dry_run: true,
+        scanned: 2,
+        eligible: 1,
+        created: 1,
+        updated: 0,
+        skipped: 1,
+        failed: 0,
+        details: [ { ticket_id: 1, action: "create_dry_run" } ]
+      )
+    end
+
+    it "outputs sync summary in JSON format" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("sync_github_issues")
+      expect(payload["dry_run"]).to be(true)
+      expect(payload["eligible"]).to eq(1)
+      expect(payload["created"]).to eq(1)
+      expect(payload["details"]).to include(
+        a_hash_including("ticket_id" => 1, "action" => "create_dry_run")
+      )
+      expect(Ledgers::TicketLedgerGithubIssueSyncer).to have_received(:call)
+    end
+  end
+
   def capture_stdout
     original_stdout = $stdout
     $stdout = StringIO.new

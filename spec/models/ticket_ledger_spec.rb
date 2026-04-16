@@ -31,7 +31,17 @@ RSpec.describe TicketLedger, type: :model do
 
   describe "schema" do
     it "has phase 3 columns" do
-      expect(described_class.column_names).to include("assignee", "due_date", "resolved_at")
+      expect(described_class.column_names).to include(
+        "assignee",
+        "due_date",
+        "resolved_at",
+        "github_repo",
+        "github_issue_number",
+        "github_issue_url",
+        "github_issue_synced_at",
+        "github_issue_sync_status",
+        "github_issue_sync_error"
+      )
     end
   end
 
@@ -56,6 +66,18 @@ RSpec.describe TicketLedger, type: :model do
       ticket = create(:ticket_ledger, status: :waiting_review, resolved_at: nil)
 
       expect { ticket.update!(status: :cancelled) }.to change { ticket.reload.resolved_at }.from(nil)
+    end
+  end
+
+  describe ".github_issue_sync_candidates" do
+    it "returns only conservative sync targets" do
+      eligible = create(:ticket_ledger, ticket_type: :improvement, status: :approved)
+      create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review)
+      create(:ticket_ledger, ticket_type: :operations, status: :approved)
+      create(:ticket_ledger, ticket_type: :improvement, status: :cancelled)
+
+      expect(described_class.github_issue_sync_candidates).to contain_exactly(eligible)
+      expect(eligible.github_issue_sync_eligible?).to be(true)
     end
   end
 end

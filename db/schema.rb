@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_214500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -592,6 +592,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
     t.integer "due_cycle"
     t.date "due_date"
     t.integer "escalation_to"
+    t.text "github_issue_sync_error"
+    t.integer "github_issue_number"
+    t.string "github_issue_sync_status"
+    t.datetime "github_issue_synced_at"
+    t.string "github_issue_url"
+    t.string "github_repo"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
     t.string "owner_agent"
