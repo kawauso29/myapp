@@ -12,6 +12,9 @@ Rails.application.reloader.to_prepare do
     DynamicParamsUpdateJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
+    WeeklyDeptLedgerRunJob
+    MonthlyOpsLedgerRunJob
+    TicketOverdueCheckJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob
