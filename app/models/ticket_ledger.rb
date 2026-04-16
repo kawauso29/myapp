@@ -23,7 +23,8 @@ class TicketLedger < ApplicationRecord
     executing: 3,
     waiting_review: 4,
     completed: 5,
-    cancelled: 6
+    cancelled: 6,
+    overdue: 7
   }, prefix: true
 
   enum :due_cycle, {
@@ -50,8 +51,17 @@ class TicketLedger < ApplicationRecord
 
   validates :ticket_type, :title, :scope_level, :status, :priority, presence: true
   validate :linked_kpis_not_empty
+  scope :overdue_candidates, -> { where(status: :waiting_review).where("due_date < ?", Date.current) }
+
+  before_save :set_resolved_at, if: :will_save_change_to_status?
 
   private
+
+  def set_resolved_at
+    return unless status_approved? || status_cancelled?
+
+    self.resolved_at = Time.current
+  end
 
   def linked_kpis_not_empty
     return unless linked_kpis.blank?

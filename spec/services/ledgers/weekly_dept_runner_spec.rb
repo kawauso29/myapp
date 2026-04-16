@@ -29,8 +29,33 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(ticket).to be_status_waiting_review
       expect(ticket).to be_escalation_to_monthly
       expect(ticket.linked_kpis).to eq([ "kpi:risk" ])
+      expect(ticket.assignee).to eq("ai_sns")
+      expect(ticket.due_date).to eq(Date.current + 7.days)
+      expect(ticket.resolved_at).to be_nil
       expect(ticket.source_meeting).to eq(meeting)
       expect(meeting.escalations.size).to eq(1)
+    end
+
+    it "auto-resolves approved ticket with resolved_at when weekly audit is OK" do
+      create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+      described_class.call(
+        service_id: "ai_sns",
+        ticket_inputs: [
+          {
+            ticket_type: "ops",
+            title: "approved by weekly audit",
+            linked_kpis: [ "kpi:service_health" ],
+            audit_ok: true
+          }
+        ]
+      )
+
+      ticket = TicketLedger.last
+      expect(ticket).to be_status_approved
+      expect(ticket.resolved_at).to be_present
+      expect(ticket.assignee).to eq("ai_sns")
+      expect(ticket.due_date).to eq(Date.current + 7.days)
     end
 
     it "holds ticket creation when linked_kpis is empty" do

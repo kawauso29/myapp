@@ -23,8 +23,27 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       status: :closed
     )
   end
-  let!(:weekly_ticket) { create(:ticket_ledger, source_meeting: weekly_meeting, service_id: "ai_sns", status: :waiting_review) }
-  let!(:monthly_ticket) { create(:ticket_ledger, source_meeting: monthly_meeting, service_id: "trade_ops", status: :approved) }
+  let!(:weekly_ticket) do
+    create(
+      :ticket_ledger,
+      source_meeting: weekly_meeting,
+      service_id: "ai_sns",
+      status: :overdue,
+      assignee: "ai_sns",
+      due_date: Date.current - 1.day
+    )
+  end
+  let!(:monthly_ticket) do
+    create(
+      :ticket_ledger,
+      source_meeting: monthly_meeting,
+      service_id: "trade_ops",
+      status: :approved,
+      assignee: "monthly_ops_runner",
+      due_date: Date.current + 30.days,
+      resolved_at: Time.current
+    )
+  end
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -45,7 +64,8 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("Ops Ledger Viewer (Read Only)")
       expect(response.body).to include("weekly_dept")
       expect(response.body).to include(weekly_ticket.id.to_s)
-      expect(response.body).to include(weekly_ticket.status)
+      expect(response.body).to include("overdue")
+      expect(response.body).to include("monthly_ops_runner")
     end
 
     it "service_id と meeting_key で絞り込みできる" do

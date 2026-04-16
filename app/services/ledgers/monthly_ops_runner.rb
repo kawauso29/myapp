@@ -28,6 +28,8 @@ module Ledgers
         resolution = normalize_resolution(@resolution_map[ticket.id] || "approved")
         ticket.update!(
           status: resolution,
+          assignee: ticket.assignee.presence || "monthly_ops_runner",
+          due_date: ticket.due_date || (Date.current + 30.days),
           due_cycle: resolution == "draft" ? :weekly : ticket.due_cycle,
           escalation_to: nil
         )

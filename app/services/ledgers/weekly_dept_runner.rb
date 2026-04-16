@@ -104,6 +104,8 @@ module Ledgers
         linked_artifacts: attrs[:linked_artifacts] || [],
         priority: attrs[:priority] || :medium,
         status: audit_ok ? :approved : :waiting_review,
+        assignee: service_id,
+        due_date: Date.current + 7.days,
         due_cycle: :weekly,
         escalation_to: audit_ok ? nil : :monthly
       )
