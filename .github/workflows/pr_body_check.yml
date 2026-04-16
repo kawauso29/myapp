@@ -12,10 +12,6 @@ jobs:
   validate-pr-body:
     runs-on: [self-hosted, sakura-vps]
     steps:
-      - name: Skip draft PR
-        if: github.event.pull_request.draft == true
-        run: echo "Draft PR のため PR 本文チェックをスキップします。"
-
       - name: Validate required headings
         if: github.event.pull_request.draft != true
         uses: actions/github-script@v9
@@ -31,8 +27,10 @@ jobs:
               '## Ledger影響（台帳/Runner/定期実行）',
               '## リスク & ロールバック'
             ];
+            const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            const missing = requiredHeadings.filter((heading) => !body.includes(heading));
+            const missing = requiredHeadings
+              .filter((heading) => !new RegExp(`^${escapeRegex(heading)}$`, 'm').test(body));
             if (missing.length > 0) {
               core.setFailed(
                 `PR本文に必須見出しが不足しています:\n${missing.map((heading) => `- ${heading}`).join('\n')}`
