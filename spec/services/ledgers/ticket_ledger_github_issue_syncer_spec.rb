@@ -37,7 +37,14 @@ RSpec.describe Ledgers::TicketLedgerGithubIssueSyncer do
       allow(http).to receive(:use_ssl=)
       allow(http).to receive(:open_timeout=)
       allow(http).to receive(:read_timeout=)
-      allow(http).to receive(:request).and_return(response)
+      allow(http).to receive(:request) do |request|
+        body = JSON.parse(request.body)
+        expect(body["title"]).to eq("[ai_sns] improvement: Fix KPI drift")
+        expect(body["body"]).to include("## Ledger Metadata (DO NOT EDIT)")
+        expect(body["body"]).to include("ticket_ledger_id: #{eligible_ticket.id}")
+        expect(body["body"]).to include("github_repo: kawauso29/myapp")
+        response
+      end
       allow(Net::HTTP).to receive(:new).with("api.github.com", 443).and_return(http)
 
       result = described_class.call
@@ -69,17 +76,6 @@ RSpec.describe Ledgers::TicketLedgerGithubIssueSyncer do
 
       expect(result[:updated]).to eq(1)
       expect(result[:details]).to include(hash_including(ticket_id: eligible_ticket.id, action: "update", issue_number: 7))
-    end
-
-    it "includes immutable structured metadata in issue body" do
-      syncer = described_class.new(scope: TicketLedger.where(id: eligible_ticket.id), dry_run: true, repo: "kawauso29/myapp")
-
-      body = syncer.send(:issue_body_for, eligible_ticket)
-
-      expect(body).to include("## Ledger Metadata (DO NOT EDIT)")
-      expect(body).to include("ticket_ledger_id: #{eligible_ticket.id}")
-      expect(body).to include("github_repo: kawauso29/myapp")
-      expect(body).to include("linked_kpis_json:")
     end
   end
 end

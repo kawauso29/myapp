@@ -69,7 +69,7 @@ class TicketLedger < ApplicationRecord
   before_save :set_resolved_at, if: :will_save_change_to_status?
 
   def github_issue_sync_eligible?
-    status.in?(GITHUB_SYNCABLE_STATUSES) && ticket_type.in?(GITHUB_SYNCABLE_TICKET_TYPES) && !status_cancelled?
+    status.in?(GITHUB_SYNCABLE_STATUSES) && ticket_type.in?(GITHUB_SYNCABLE_TICKET_TYPES)
   end
 
   private

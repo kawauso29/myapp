@@ -124,7 +124,7 @@ module Ledgers
       req_class = {
         post: Net::HTTP::Post,
         patch: Net::HTTP::Patch
-      }.fetch(method)
+      }.fetch(method) { |unsupported_method| raise ArgumentError, "Unsupported HTTP method: #{unsupported_method}" }
 
       request = req_class.new(uri.request_uri)
       request["Authorization"] = "Bearer #{token}"
