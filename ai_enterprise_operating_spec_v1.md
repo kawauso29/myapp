@@ -1063,12 +1063,12 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 | 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 合意済み |
 | 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | 合意済み |
 | 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 本章で新規 |
-| 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 本章で新規 |
+| 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 実装済み（台帳・モデル） |
 | 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 本章で新規 |
 | 13 | ticket_ledgers.sla_deadline（外部依存 SLA） | 起票台帳 | §27 / §33.3 | 本章で新規 |
 | 14 | compliance_rules（コンプライアンス層） | 新規台帳 | §16 / §33.3 | 本章で新規 |
 | 15 | meeting_health_score（会議品質） | 会議台帳 | §26 / §33.3 | 本章で新規 |
-| 16 | operator_override_ledger（キルスイッチ） | 新規台帳 | §18 / §33.3 | 本章で新規 |
+| 16 | operator_override_ledger（キルスイッチ） | 新規台帳 | §18 / §33.3 | 実装済み（台帳・モデル） |
 
 補強1〜9 の詳細は前セッションで合意済みのため、本章では要点のみ表に掲載する。実装時点で挙動が曖昧な場合は、本章の様式（目的 / 追加項目 / 更新主体 / 接続）に合わせて逐次正式化する。
 
