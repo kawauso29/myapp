@@ -53,7 +53,7 @@
 
 <div class="card">
   <h2>Recent TicketLedgers (<%= @ticket_ledgers.size %>)</h2>
-  <p style="margin-top:-8px; color:#a0aec0;">Open improvements: <strong style="color:#f6ad55;"><%= @open_improvement_count %></strong></p>
+  <p class="ops-open-improvements">Open improvements: <strong class="ops-open-improvements-count"><%= @open_improvement_count %></strong></p>
   <table>
     <thead>
       <tr>
@@ -76,7 +76,7 @@
           <td><%= ticket.id %></td>
           <td>
             <% if ticket.ticket_type_improvement? %>
-              <span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#805ad5; color:#fff; font-weight:600;">improvement</span>
+              <span class="ticket-type-badge-improvement">improvement</span>
             <% else %>
               <%= ticket.ticket_type %>
             <% end %>
