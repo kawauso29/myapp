@@ -96,7 +96,7 @@ RSpec.describe Ledgers::ImprovementEscalator do
       )
     end
 
-    it "is idempotent and does not create duplicate hold items" do
+    it "does not create duplicate hold items when called multiple times" do
       ticket = create(
         :ticket_ledger,
         ticket_type: :improvement,
