@@ -100,6 +100,64 @@ RSpec.describe "ledgers rake tasks" do
     end
   end
 
+  describe "ledgers:run_quarterly_review" do
+    let(:task) { Rake::Task["ledgers:run_quarterly_review"] }
+    let(:meeting) do
+      instance_double(
+        MeetingLedger,
+        id: 3,
+        meeting_key: "quarterly_review",
+        service_id: nil,
+        created_at: Time.current,
+        tickets_to_create: [],
+        hold_items: []
+      )
+    end
+
+    before do
+      task.reenable
+      allow(Ledgers::QuarterlyReviewRunner).to receive(:call).and_return(meeting)
+    end
+
+    it "runs without raising" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("quarterly_review")
+      expect(payload.dig("meeting_ledger", "meeting_key")).to eq("quarterly_review")
+      expect(Ledgers::QuarterlyReviewRunner).to have_received(:call)
+    end
+  end
+
+  describe "ledgers:run_annual_plan" do
+    let(:task) { Rake::Task["ledgers:run_annual_plan"] }
+    let(:meeting) do
+      instance_double(
+        MeetingLedger,
+        id: 4,
+        meeting_key: "annual_plan",
+        service_id: nil,
+        created_at: Time.current,
+        tickets_to_create: [],
+        hold_items: []
+      )
+    end
+
+    before do
+      task.reenable
+      allow(Ledgers::AnnualPlanRunner).to receive(:call).and_return(meeting)
+    end
+
+    it "runs without raising" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("annual_plan")
+      expect(payload.dig("meeting_ledger", "meeting_key")).to eq("annual_plan")
+      expect(Ledgers::AnnualPlanRunner).to have_received(:call)
+    end
+  end
+
   def capture_stdout
     original_stdout = $stdout
     $stdout = StringIO.new

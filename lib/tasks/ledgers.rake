@@ -13,6 +13,18 @@ namespace :ledgers do
     puts Ledgers::RunOutputFormatter.format(meeting:, operation: "monthly_ops")
   end
 
+  desc "Run quarterly_review ledger flow"
+  task run_quarterly_review: :environment do
+    meeting = Ledgers::QuarterlyReviewRunner.call
+    puts Ledgers::RunOutputFormatter.format(meeting:, operation: "quarterly_review")
+  end
+
+  desc "Run annual_plan ledger flow"
+  task run_annual_plan: :environment do
+    meeting = Ledgers::AnnualPlanRunner.call
+    puts Ledgers::RunOutputFormatter.format(meeting:, operation: "annual_plan")
+  end
+
   desc "Check overdue waiting_review tickets and mark as overdue"
   task check_overdue: :environment do
     overdue_count = TicketOverdueCheckJob.perform_now

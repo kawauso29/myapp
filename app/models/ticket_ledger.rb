@@ -16,6 +16,14 @@ class TicketLedger < ApplicationRecord
     incident: 5
   }, prefix: true
 
+  enum :ticket_type, {
+    operations: "operations",
+    audit: "audit",
+    ops: "ops",
+    quarterly_review: "quarterly_review",
+    annual_plan: "annual_plan"
+  }, prefix: true
+
   enum :status, {
     draft: 0,
     approved: 1,

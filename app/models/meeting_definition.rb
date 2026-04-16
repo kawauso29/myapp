@@ -8,7 +8,9 @@ class MeetingDefinition < ApplicationRecord
     quarterly: 2,
     monthly: 3,
     weekly: 4,
-    incident: 5
+    incident: 5,
+    quarterly_review: 6,
+    annual_plan: 7
   }, prefix: true
 
   enum :scope_level, {

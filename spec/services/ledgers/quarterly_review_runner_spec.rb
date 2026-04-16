@@ -1,0 +1,55 @@
+require "rails_helper"
+
+RSpec.describe Ledgers::QuarterlyReviewRunner do
+  describe ".call" do
+    let!(:definition) do
+      create(
+        :meeting_definition,
+        meeting_key: "quarterly_review",
+        meeting_type: :quarterly_review,
+        scope_level: :company,
+        service_id: nil,
+        chair_role: "cto"
+      )
+    end
+    let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns") }
+    let!(:monthly_definition) { create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil) }
+
+    before do
+      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 10.days.ago, held_at: 10.days.ago)
+      create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops", meeting_type: :monthly, created_at: 20.days.ago, held_at: 20.days.ago)
+      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 100.days.ago, held_at: 100.days.ago)
+
+      create(:ticket_ledger, status: :approved, created_at: 10.days.ago)
+      create(:ticket_ledger, status: :cancelled, created_at: 5.days.ago)
+      create(:ticket_ledger, status: :overdue, created_at: 2.days.ago)
+      create(:ticket_ledger, status: :approved, created_at: 120.days.ago)
+
+      create(:kpi_snapshot, recorded_on: 14.days.ago.to_date)
+      create(:kpi_snapshot, recorded_on: 120.days.ago.to_date)
+    end
+
+    it "creates quarterly review meeting and summary ticket" do
+      meeting = described_class.call
+      ticket = TicketLedger.where(ticket_type: "quarterly_review").order(:id).last
+
+      expect(meeting.meeting_key).to eq("quarterly_review")
+      expect(meeting).to be_scope_level_company
+      expect(meeting).to be_status_closed
+      expect(ticket.title).to match(/^Q\d #{Date.current.year} Review Summary$/)
+      expect(ticket).to be_status_approved
+      expect(ticket.assignee).to eq("quarterly_review_runner")
+      expect(ticket.due_date).to eq(Date.current + 90.days)
+      expect(ticket.resolved_at).to be_present
+      expect(ticket.linked_kpis).to include(
+        "meetings_held" => 2,
+        "tickets_total" => 3,
+        "tickets_approved" => 1,
+        "tickets_cancelled" => 1,
+        "tickets_overdue" => 1
+      )
+      expect(ticket.linked_artifacts.size).to eq(1)
+      expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => ticket.id))
+    end
+  end
+end
