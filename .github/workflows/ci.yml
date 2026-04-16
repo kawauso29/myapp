@@ -22,10 +22,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
@@ -40,10 +43,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Scan for security vulnerabilities in JavaScript dependencies
         run: bin/importmap audit || true
@@ -56,10 +62,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
@@ -71,10 +80,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Check job autoload and run job specs
         env:
@@ -91,10 +103,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Check controller and API route integrity
         env:
@@ -111,10 +126,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Run tests
         env:
@@ -131,10 +149,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 4 --retry 3
 
       - name: Run System Tests
         env:
