@@ -16,7 +16,7 @@ module Ledgers
 
     def notify
       webhook_url = ENV[LEDGER_WEBHOOK_ENV].presence || ENV[FALLBACK_WEBHOOK_ENV].presence
-      unless webhook_url.present?
+      unless webhook_url
         Rails.logger.warn("[Ledgers::SlackNotifier] webhook URL is not configured. skip notification.")
         return
       end
@@ -31,16 +31,20 @@ module Ledgers
     attr_reader :payload
 
     def format_text
-      operation = payload[:operation] || payload["operation"] || "unknown"
-      tickets_created = counts[:tickets_created] || counts["tickets_created"] || 0
-      held_items = counts[:held_items] || counts["held_items"] || 0
-      overdue_marked = payload[:overdue_marked] || payload["overdue_marked"] || 0
+      operation = fetch_value(payload, :operation, default: "unknown")
+      tickets_created = fetch_value(counts, :tickets_created, default: 0)
+      held_items = fetch_value(counts, :held_items, default: 0)
+      overdue_marked = fetch_value(payload, :overdue_marked, default: 0)
 
       "[ops-ledger] operation=#{operation} tickets_created=#{tickets_created} held_items=#{held_items} overdue_marked=#{overdue_marked}"
     end
 
     def counts
-      payload[:counts] || payload["counts"] || {}
+      fetch_value(payload, :counts, default: {})
+    end
+
+    def fetch_value(hash, key, default: nil)
+      hash[key] || hash[key.to_s] || default
     end
 
     def post_to_slack(webhook_url:, body:)
