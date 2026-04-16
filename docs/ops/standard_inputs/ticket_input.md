@@ -12,7 +12,7 @@ source:
   source_meeting_id: 123
 service_key: "ai_sns" # DB保存時は service_id に対応
 kpi_key: "overdue_ticket_rate"
-ticket_type: "improvement" # operations | audit | ops | quarterly_review | annual_plan | improvement
+ticket_type: "improvement" # operations | audit | quarterly_review | annual_plan | improvement
 title: "overdue率上昇の是正"
 status: "planned" # draft | approved | planned | executing | waiting_review | completed | cancelled | overdue
 priority: "high" # low | medium | high
@@ -24,6 +24,9 @@ rationale: "overdue率25%が閾値20%を超過したため"
 linked_kpis:
   - "overdue_ticket_rate"
 ```
+
+> 補足: `ticket_ledger` の `scope_level` は `company | portfolio | service` のみです（`cross_service` は `meeting_ledger` 側の値）。
+> 補足: DB enum 上は `ops` も有効値ですが、このテンプレートでは新規入力の標準化のため allowed values から意図的に除外しています。新規作成・更新は `operations` を使用してください。既存データに `ops` が残っている場合は読み取り互換として許容し、必要に応じて `operations` へ移行します。
 
 ## 記入例 / Example
 

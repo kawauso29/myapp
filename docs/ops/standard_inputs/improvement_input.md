@@ -27,6 +27,8 @@ resolution_steps:
 owner: "improvement_detector"
 ```
 
+> 補足: `lookback_window` は `<数値>_<単位>`（例: `7_days`, `2_weeks`, `1_month`）で統一します。
+
 ## 記入例 / Example
 
 ```yaml

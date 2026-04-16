@@ -7,7 +7,7 @@
 ```yaml
 request_id: "meeting-weekly_dept-2026-04-16-ai_sns" # 冪等キー（同一実行の重複防止）
 meeting_key: "weekly_dept" # weekly_dept | monthly_ops | quarterly_review | annual_plan
-meeting_type: "weekly" # weekly | monthly | quarterly_review | annual_plan
+meeting_type: "weekly" # 推奨: long_term | annual | quarterly | monthly | weekly | incident
 service_key: "ai_sns" # 運用キー（DB保存時は service_id に対応）
 scope_level: "service" # company | portfolio | service | cross_service
 held_at: "2026-04-16T09:00:00+09:00"
@@ -47,6 +47,15 @@ linked_kpis:
 
 - `request_id` を必須化し、同一キーは再実行時に「更新扱い」にする
 - `meeting_key + held_at + service_key` の組み合わせ重複をチェックする
+
+> 補足: `quarterly_review` / `annual_plan` は会議種別を表す `meeting_key` として使います。`meeting_type` は運用入力の標準化のため、`meeting_key=quarterly_review` でも `quarterly`、`meeting_key=annual_plan` でも `annual` を推奨します（DB enum には拡張値が存在しても入力値は単純化する方針）。
+
+| meeting_key | 推奨 meeting_type |
+|---|---|
+| weekly_dept | weekly |
+| monthly_ops | monthly |
+| quarterly_review | quarterly |
+| annual_plan | annual |
 
 ## 監査性メモ / Auditability Notes
 
