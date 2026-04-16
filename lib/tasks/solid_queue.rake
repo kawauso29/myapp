@@ -27,6 +27,8 @@ namespace :solid_queue do
     LifeEventCheckJob
     QuarterlyReviewLedgerRunJob
     AnnualPlanLedgerRunJob
+    ImprovementDetectorJob
+    ImprovementResolverJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

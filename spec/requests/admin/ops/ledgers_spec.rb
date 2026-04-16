@@ -70,6 +70,19 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       status: :approved
     )
   end
+  let!(:improvement_ticket) do
+    create(
+      :ticket_ledger,
+      ticket_type: :improvement,
+      source_meeting: weekly_meeting,
+      source_meeting_type: :weekly,
+      scope_level: :company,
+      service_id: nil,
+      linked_kpis: { rule: "overdue_rate", value: "25%", threshold: "20%" },
+      status: :waiting_review,
+      assignee: "improvement_detector"
+    )
+  end
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -95,6 +108,9 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("quarterly_review")
       expect(response.body).to include(quarterly_ticket.id.to_s)
       expect(response.body).to include("meetings_held")
+      expect(response.body).to include("Open improvements:")
+      expect(response.body).to include("improvement")
+      expect(response.body).to include(improvement_ticket.id.to_s)
     end
 
     it "service_id と meeting_key で絞り込みできる" do

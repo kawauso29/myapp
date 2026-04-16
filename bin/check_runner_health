@@ -19,7 +19,7 @@ set -a
 source "$HOME/myapp/.env" 2>/dev/null || true
 set +a
 
-RUNNER_SERVICE="actions.runner.kawauso29-myapp.sakura-vps.service"
+RUNNER_SERVICE="actions.runner.kawauso29-myapp.os3-392-29108.service"
 export RUNNER_SERVICE
 LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
 COOLDOWN_FILE="/tmp/runner_health_last_notify"
