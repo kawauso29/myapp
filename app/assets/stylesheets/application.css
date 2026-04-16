@@ -8,3 +8,21 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+.ops-open-improvements {
+  margin-top: -8px;
+  color: #a0aec0;
+}
+
+.ops-open-improvements-count {
+  color: #f6ad55;
+}
+
+.ticket-type-badge-improvement {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #805ad5;
+  color: #fff;
+  font-weight: 600;
+}

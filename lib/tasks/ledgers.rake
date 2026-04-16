@@ -35,4 +35,16 @@ namespace :ledgers do
       }
     )
   end
+
+  desc "Detect improvement tickets automatically"
+  task detect_improvements: :environment do
+    result = Ledgers::ImprovementDetector.call
+    puts JSON.pretty_generate(result)
+  end
+
+  desc "Resolve improvement tickets automatically"
+  task resolve_improvements: :environment do
+    result = Ledgers::ImprovementResolver.call
+    puts JSON.pretty_generate(result)
+  end
 end

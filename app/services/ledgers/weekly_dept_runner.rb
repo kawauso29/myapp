@@ -64,6 +64,7 @@ module Ledgers
         escalations:,
         status: :closed
       )
+      Ledgers::ImprovementDetector.call
       meeting
     end
 

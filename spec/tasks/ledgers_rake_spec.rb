@@ -158,6 +158,50 @@ RSpec.describe "ledgers rake tasks" do
     end
   end
 
+  describe "ledgers:detect_improvements" do
+    let(:task) { Rake::Task["ledgers:detect_improvements"] }
+
+    before do
+      task.reenable
+      allow(Ledgers::ImprovementDetector).to receive(:call).and_return(
+        operation: "detect_improvements",
+        created_tickets_count: 1,
+        created_tickets: [ { id: 99, title: "High overdue rate detected (25.0%)", rule: "overdue_rate" } ]
+      )
+    end
+
+    it "runs without raising" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("detect_improvements")
+      expect(payload["created_tickets_count"]).to eq(1)
+      expect(Ledgers::ImprovementDetector).to have_received(:call)
+    end
+  end
+
+  describe "ledgers:resolve_improvements" do
+    let(:task) { Rake::Task["ledgers:resolve_improvements"] }
+
+    before do
+      task.reenable
+      allow(Ledgers::ImprovementResolver).to receive(:call).and_return(
+        operation: "resolve_improvements",
+        resolved_tickets_count: 1,
+        resolved_tickets: [ { id: 88, title: "High overdue rate detected (25.0%)", rule: "overdue_rate" } ]
+      )
+    end
+
+    it "runs without raising" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("resolve_improvements")
+      expect(payload["resolved_tickets_count"]).to eq(1)
+      expect(Ledgers::ImprovementResolver).to have_received(:call)
+    end
+  end
+
   def capture_stdout
     original_stdout = $stdout
     $stdout = StringIO.new
