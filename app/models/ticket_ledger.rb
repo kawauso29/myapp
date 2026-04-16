@@ -21,7 +21,8 @@ class TicketLedger < ApplicationRecord
     audit: "audit",
     ops: "ops",
     quarterly_review: "quarterly_review",
-    annual_plan: "annual_plan"
+    annual_plan: "annual_plan",
+    improvement: "improvement"
   }, prefix: true
 
   enum :status, {

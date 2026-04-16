@@ -53,10 +53,12 @@
 
 <div class="card">
   <h2>Recent TicketLedgers (<%= @ticket_ledgers.size %>)</h2>
+  <p style="margin-top:-8px; color:#a0aec0;">Open improvements: <strong style="color:#f6ad55;"><%= @open_improvement_count %></strong></p>
   <table>
     <thead>
       <tr>
         <th>ID</th>
+        <th>ticket_type</th>
         <th>service_id</th>
         <th>meeting_key</th>
         <th>status</th>
@@ -72,6 +74,13 @@
         <% linked_kpis = ticket.linked_kpis.is_a?(Hash) ? ticket.linked_kpis.to_json : Array(ticket.linked_kpis).join(", ") %>
         <tr>
           <td><%= ticket.id %></td>
+          <td>
+            <% if ticket.ticket_type_improvement? %>
+              <span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#805ad5; color:#fff; font-weight:600;">improvement</span>
+            <% else %>
+              <%= ticket.ticket_type %>
+            <% end %>
+          </td>
           <td><%= ticket.service_id.presence || "-" %></td>
           <td><%= ticket.source_meeting&.meeting_key || "-" %></td>
           <td>
@@ -89,7 +98,7 @@
         </tr>
       <% end %>
       <% if @ticket_ledgers.empty? %>
-        <tr><td colspan="9" style="text-align:center; color:#4a5568;">データなし</td></tr>
+        <tr><td colspan="10" style="text-align:center; color:#4a5568;">データなし</td></tr>
       <% end %>
     </tbody>
   </table>

@@ -14,5 +14,6 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
       ticket_scope = ticket_scope.joins(:source_meeting).where(meeting_ledgers: { meeting_key: @meeting_key })
     end
     @ticket_ledgers = ticket_scope.includes(:source_meeting).limit(100)
+    @open_improvement_count = TicketLedger.ticket_type_improvement.status_waiting_review.count
   end
 end

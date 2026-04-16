@@ -10,6 +10,10 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
              service_id: "ai_sns")
     end
 
+    before do
+      allow(Ledgers::ImprovementDetector).to receive(:call)
+    end
+
     it "sets waiting_review + escalation_to monthly when weekly audit is NG" do
       create(:kpi_ledger, kpi_key: "kpi:risk", scope_level: :service, service_id: "ai_sns")
 
@@ -34,6 +38,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(ticket.resolved_at).to be_nil
       expect(ticket.source_meeting).to eq(meeting)
       expect(meeting.escalations.size).to eq(1)
+      expect(Ledgers::ImprovementDetector).to have_received(:call)
     end
 
     it "auto-resolves approved ticket with resolved_at when weekly audit is OK" do
