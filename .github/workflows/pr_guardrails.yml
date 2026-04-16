@@ -85,12 +85,15 @@ jobs:
 
           sections = extract_sections(body)
           normalized_sections = {normalize_heading(key): value for key, value in sections.items()}
+          normalized_required = {
+            display_name: [normalize_heading(display_name), *[normalize_heading(alias) for alias in aliases]]
+            for display_name, aliases in REQUIRED_SECTIONS.items()
+          }
 
           missing_sections = []
           empty_sections = []
 
-          for display_name, aliases in REQUIRED_SECTIONS.items():
-            candidate_keys = [normalize_heading(display_name), *[normalize_heading(alias) for alias in aliases]]
+          for display_name, candidate_keys in normalized_required.items():
             matched_key = next((key for key in candidate_keys if key in normalized_sections), None)
 
             if matched_key is None:
