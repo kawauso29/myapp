@@ -31,6 +31,7 @@
 6. 実装や運用に影響する変更には技術記録が必要である。
 7. 組織自身も継続的に再設計される対象である。
 8. ユーザーに楽しみや新たな体験価値を提供することを事業価値の中心に置く。
+9. 過去の改善効果を学習に反映し、同じ処方箋を繰り返し無効に適用しない。
 
 ---
 
@@ -1022,3 +1023,243 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 3. 会議出力からIssue化するルール
 4. Copilot coding agent に渡す標準入力テンプレート
 5. high / medium / low リスクごとのGitHubフロー差分
+
+補強10〜16 に対応するフェーズは以下とする（詳細は §33）。
+
+| Phase | 名称 | 対応補強 | 目的 |
+|---|---|---|---|
+| 20 | 学習ループ | 補強10 | improvement の効果を蓄積し、同じ処方箋の無効反復を防ぐ |
+| 21 | コスト台帳 / P/L | 補強11 | 各判断・各会議・各ジョブに費用を紐付け、ROI を機械的に評価する |
+| 22 | 権限マトリクス DB 化 | 補強12 | 「誰が何を決めてよいか」を DB 制約で表現する |
+| 23 | SLA / 外部依存タイムアウト | 補強13 | 人間の承認待ちで固まらない保証を与える |
+| 24 | コンプライアンス台帳 | 補強14 | PII / 景表法 / 薬機法 / 金商法などを台帳化し、出力前に自動検証する |
+| 25 | 会議品質メトリクス | 補強15 | 会議の形骸化を数値で検知し improvement を起票する |
+| 26 | 人間オーバーライド / キルスイッチ | 補強16 | 最上位の緊急停止を 1 行で表現できるようにする |
+
+オープン論点 R1〜R4 は §33.4 で継続検討し、対応 Phase は確定次第この表に追記する。
+
+---
+
+## 33. 補強仕様 v1.1（補強1〜16 / オープン論点 R1〜R4）
+
+### 33.1 本章の位置づけ
+本章は、v1 本文（§0〜§32）で定義した企業体設計を、実運用での耐性・学習性・安全性・進化性の観点から補強するための追加仕様である。
+
+- v1 本文の原則・台帳・会議体を**変更せず**、不足分を**追加項目・追加台帳・追加状態**として積む。
+- 本章で定義する台帳・項目は、§23.3 の共通項目（`ledger_id` / `scope_level` / `owner` / `status` / `source_*_id` など）を必ず備える。
+- 既存台帳への追加項目は、該当章（§24〜§27 等）の次回改訂時に本文へ取り込む前提とする。
+
+### 33.2 補強一覧
+
+| No. | 名称 | 対象 | 影響範囲 | 合意状況 |
+|---|---|---|---|---|
+| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | 合意済み（前セッション） |
+| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | 合意済み |
+| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | 合意済み |
+| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 合意済み |
+| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | 合意済み |
+| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | 合意済み |
+| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 合意済み |
+| 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 合意済み |
+| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | 合意済み |
+| 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 本章で新規 |
+| 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 本章で新規 |
+| 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 本章で新規 |
+| 13 | ticket_ledgers.sla_deadline（外部依存 SLA） | 起票台帳 | §27 / §33.3 | 本章で新規 |
+| 14 | compliance_rules（コンプライアンス層） | 新規台帳 | §16 / §33.3 | 本章で新規 |
+| 15 | meeting_health_score（会議品質） | 会議台帳 | §26 / §33.3 | 本章で新規 |
+| 16 | operator_override_ledger（キルスイッチ） | 新規台帳 | §18 / §33.3 | 本章で新規 |
+
+補強1〜9 の詳細は前セッションで合意済みのため、本章では要点のみ表に掲載する。実装時点で挙動が曖昧な場合は、本章の様式（目的 / 追加項目 / 更新主体 / 接続）に合わせて逐次正式化する。
+
+### 33.3 補強10〜16 の詳細
+
+#### 補強10: improvement_ledger.effectiveness_score（学習ループ）
+- **目的**: KPI 悪化 → improvement 起票 → 対策実行の改善ループに、**過去の類似改善の効果**をフィードバックする経路を与える。同じ処方箋を無効と知りながら繰り返し起票することを防ぐ。
+- **追加項目**（§27 起票台帳の improvement カテゴリに付与）:
+  - `improvement_pattern_key`: 起票内容を正規化した分類キー（例: `posting_frequency_up`, `prompt_tuning`）。
+  - `effectiveness_score`: 過去の同一 pattern_key の改善が対象 KPI を実際に動かした割合（0.0〜1.0）。
+  - `effectiveness_sample_size`: 根拠となった過去改善の件数。
+  - `effectiveness_updated_at`: 最終再計算時刻。
+- **更新主体**: サービス企画部（再計算は日次バッチ、起票直後は monthly 運営会議で確定）。
+- **更新タイミング**:
+  - 起票時: 過去ログから `effectiveness_score` を推定付与。
+  - 月次運営会議: サンプルサイズ更新に合わせて再計算。
+- **接続ルール**:
+  - 起票前に `effectiveness_score < しきい値 (既定 0.2)` かつ `sample_size >= 3` の場合、**別 pattern_key の処方箋を検討させる** ハンドラを企画部に起票する。
+  - `effectiveness_score` が低い起票を強行する場合、`audit_decision.reason_code = low_effectiveness_override` を必須化する。
+- **§3 との接続**: 原則9（過去の改善効果を学習に反映）の実装根拠。
+
+#### 補強11: cost_ledger（コスト会計 / ROI）
+- **目的**: 各判断・各会議・各ジョブに発生したコスト（LLM API 利用料 / VPS 秒数 / 人時）を一元台帳化し、改善施策や会議体そのもののの費用対効果を数値で評価できるようにする。
+- **新規台帳**:
+  ```yaml
+  cost_ledger:
+    cost_id:
+    subject_type: meeting | ticket | artifact | job | service
+    subject_id:
+    scope_level: company | portfolio | service | short_term
+    service_id:
+    business_unit_id:
+    amount_jpy:
+    currency: jpy
+    source: llm_api | vps_runtime | human_hours | external_service
+    source_detail:
+    incurred_at:
+    recorded_at:
+    source_meeting_id:
+    source_ticket_id:
+    source_artifact_id:
+  ```
+- **更新主体**: 開発部（自動収集）。人時は人事部が確定。
+- **更新タイミング**:
+  - ジョブ終了時に自動付与。
+  - 会議終了時に参加ロールの人時相当コストを自動集計。
+- **接続ルール**:
+  - §24 KPI 台帳に `roi` KPI を追加可能にする（`achievement_delta / related_cost`）。
+  - 月次運営会議（§12.4）で `cost_ledger` と KPI 移動の相関レビューを必須化。
+  - サービス台帳（§25）に `monthly_cost` を参照項目として持たせる。
+- **停止条件**: 1 サービスの `monthly_cost` が目標収益比しきい値を超えた場合、§18.1 軽度停止を自動提案する。
+
+#### 補強12: role_permissions（権限境界 DB 化）
+- **目的**: §10（事業部と共通部門の権限境界）を DB 制約で表現し、「lock_key を取った者が何を変更できて / できないか」を機械的に決定可能にする。
+- **新規台帳**:
+  ```yaml
+  role_permissions:
+    permission_id:
+    role: president | exec_planning | exec_dev | exec_audit | exec_hr |
+          business_lead | service_planning | dev | audit | hr | customer_success
+    action: create_ticket | approve_ticket | change_kpi | halt_service |
+            close_service | change_company_policy | ...
+    scope: company | portfolio | service | short_term
+    service_id_pattern:
+    allowed: true | false
+    requires_dual_approval: true | false
+    approver_role:
+    audit_reason_code_required:
+    created_at:
+    updated_at:
+  ```
+- **更新主体**: 社長（全社スコープ）/ 役員（人事）（各ロール詳細）。
+- **適用タイミング**: 起票・承認・成果物出力・会議出力のいずれも、処理直前に本台帳を参照してチェックする。
+- **接続ルール**:
+  - §10.3 拒否権に対応する `action=veto` も本台帳で表現する。
+  - Phase 18（権限境界の機械化）で本台帳を実装単位とする。
+
+#### 補強13: ticket_ledgers.sla_deadline（外部依存 SLA）
+- **目的**: 人間の承認待ち（`waiting_review` 等）でチケットが固まらない保証を与える。
+- **追加項目**（§27 起票台帳に付与）:
+  - `sla_deadline`: `due_cycle × scope_level` のマトリクスから自動計算される期限。
+  - `sla_breach_action`: 期限超過時の自動措置（`auto_escalate` / `auto_reject` / `audit_open`）。
+  - `sla_breached_at`: 実際の超過時刻（超過発生時のみ）。
+- **既定マトリクス**（初期値、月次運営会議で見直し可能）:
+
+  | scope_level | due_cycle | sla_deadline 既定 | sla_breach_action 既定 |
+  |---|---|---|---|
+  | service | weekly | 7 日 | auto_escalate（business_lead へ） |
+  | service | monthly | 30 日 | auto_reject |
+  | portfolio | monthly | 30 日 | auto_escalate（exec_planning へ） |
+  | company | quarterly | 90 日 | audit_open |
+  | any | daily | 2 日 | auto_reject |
+
+- **更新主体**: 開発部（期限自動計算）/ 監査部（マトリクス改訂）。
+- **接続ルール**:
+  - `sla_breached_at IS NOT NULL` のチケットは §18.1 軽度停止の自動起票対象候補となる。
+  - weekly_pdca の WIP 滞留検知ロジックは本項目に統合する。
+
+#### 補強14: compliance_rules（コンプライアンス層）
+- **目的**: AI が自律で外部発信・課金・HR 判断を行う前提に対して、PII / 景表法 / 薬機法 / 金商法などの制約を**DB レベル**で強制する。
+- **新規台帳**:
+  ```yaml
+  compliance_rules:
+    rule_id:
+    name:
+    law_domain: pii | pr_law | pharma | financial | copyright | brand | internal
+    scope_level: company | portfolio | service
+    service_id_pattern:
+    pattern: # 正規表現 / 禁則語 / 分類器参照
+    severity: block | warn | audit
+    enforced_at:
+    owner_role: audit | legal | exec_audit
+    rationale:
+    updated_at:
+  ```
+- **更新主体**: 監査部（初期策定）/ 役員（監査）（承認）。
+- **適用タイミング**: §16 成果物（特に `customer_announcement` / `press_release` 等の顧客可視成果物）の出力直前に、全 `compliance_rules` を適用して検査する。`severity=block` に一致した場合、成果物出力を中止し `audit_decision.reason_code=compliance_violation` で差戻す。
+- **接続ルール**:
+  - 顧客成功部は `warn` レベル全件を週次レビューする。
+  - 監査部は `audit` レベルを月次で再評価する。
+
+#### 補強15: meeting_health_score（会議品質）
+- **目的**: §26 会議台帳の「結論」だけでなく「**会議が機能していたか**」を数値化し、形骸化を自動検知する。
+- **追加項目**（§26 会議台帳に付与）:
+  - `role_fill_rate`: 規定参加ロールの充足率（0.0〜1.0）。
+  - `hold_item_rate`: `hold_items` / 議題数。
+  - `duration_minutes`: 実所要時間。
+  - `kpi_correlation_score`: 会議の結論と対象 KPI の次評価値の相関（0.0〜1.0、事後算出）。
+  - `meeting_health_score`: 上記を重み付け合成したスコア。
+- **更新主体**: サービス企画部（事後算出）/ 監査部（しきい値見直し）。
+- **接続ルール**:
+  - `meeting_health_score < しきい値 (既定 0.4)` が 2 期連続発生した場合、自動で improvement 起票（§27）。
+  - improvement 起票時には補強10 の `improvement_pattern_key` として `meeting_redesign` を付与する。
+
+#### 補強16: operator_override_ledger（キルスイッチ）
+- **目的**: audit ロール自体の暴走を含む最悪ケースに備え、**人間オペレーター（kawauso29）のみが引ける物理スイッチ**を設計書に正式位置づける。
+- **新規台帳**:
+  ```yaml
+  operator_override_ledger:
+    override_id:
+    action: halt_all | halt_scope | halt_service | resume_all | resume_scope | resume_service
+    scope_level: company | portfolio | service
+    service_id:
+    operator: # 人間のみ。GitHub ユーザー名で特定
+    started_at:
+    lifted_at:
+    reason:
+    linked_stop_ledger_id:
+    created_at:
+  ```
+- **更新主体**: 人間オペレーターのみ（GitHub 側で codeowners / 2FA 相当の保護）。
+- **適用タイミング**: 全ジョブ・全会議・全成果物出力の起動直前に、有効な `halt_*` 行が存在しないかを確認する。該当する場合は即時中断し、`lifted_at` が入るまで再開しない。
+- **優先度**: 本台帳は他のすべての判断（監査拒否権 §27.4 を含む）に優先する。
+- **§18 との接続**: §18.1 停止レベルは自動停止の範囲を表し、本台帳は「手動最終停止」を表す。補強7 の `stop_ledger` と本台帳は別物として並存させる。
+
+### 33.4 オープン論点（R1〜R4）
+
+本項目は本章で**即時反映しない**が、設計進化の余地として設計書に残す。対応 Phase が確定次第、§32 の表および本文に正式反映する。
+
+#### R1: 会議体の「固定6周期」は、事業が成長すると歪む
+- 現 §11 / §12 はすべてのスコープに対し 6 周期（日 / 週 / 月 / 四半期 / 年 / 長期）を均一適用している。
+- 年商規模やサービス数により最適周期は異なる（例: service スコープは daily + weekly のみで十分なケース）。
+- **対応方針案**: §26 会議台帳の `meeting_definitions` が `scope_level` を持つ前提で、「scope ごとに持てる周期は可変」を設計書に明示する。
+- **想定 Phase**: 20 以降、必要性が観測されたタイミング。
+
+#### R2: 「AI vs AI」の対立マトリクス
+- §27.4 で audit ロールの拒否権が明記されているが、**他ロール同士の対立**（例: service chair の承認 vs exec_planning の差戻）の優先順位が未定義。
+- **対応方針案**: ロール ×アクション ×結論の対立マトリクスを作成し、補強12 の `role_permissions` の拡張項目として `tiebreaker_role` を持たせる。
+- **想定 Phase**: 22（権限マトリクス DB 化）と同時、もしくは直後。
+
+#### R3: 「会社を閉じる / ピボットする」判断が設計にない
+- §27 起票カテゴリに `service_shutdown` / `pivot` に相当する項目がなく、**自己否定の判断**ができない。
+- **対応方針案**: §27.2 に新カテゴリ `service_shutdown` / `service_pivot` を追加し、起票条件を「3 期連続の KPI critical」「3 期連続の monthly_cost > 収益」などに定める。stop_ledger / operator_override_ledger と接続する。
+- **想定 Phase**: 21（コスト台帳）完成後、コスト根拠で起票できるようになってから。
+
+#### R4: 「成長と秩序」のバランスが止める側に寄っている
+- 監査拒否権・権限境界・停止条件・SLA・コンプライアンスと、止める仕組みが充実する一方で、**挑戦させる仕組み**（ファストレーン / 実験）が弱い。
+- **対応方針案**: 新規台帳 `experiment_ledger(service_id, hypothesis, kpi_target, deadline, auto_decision)` を定義し、90 日後に自動で継続 / 撤退を決める。補強14 の `compliance_rules` とは競合しない形で接続する。
+- **想定 Phase**: 20〜26 の補強群完成後、組織安定性が担保されたタイミング。
+
+### 33.5 本章と既存章の関係
+
+| 既存章 | 補強で追加・改訂される箇所 |
+|---|---|
+| §3 最上位原則 | 原則 9（学習）を本改訂で追加済み |
+| §10 権限境界 | 補強12 で機械的表現を導入 |
+| §16 成果物 | 補強14 で出力前検査を必須化 |
+| §18 監査・停止条件 | 補強7（stop_ledger）/ 補強16（operator_override） |
+| §24 KPI 台帳 | 補強5（段階化）/ 補強11（ROI） |
+| §26 会議台帳 | 補強2 / 補強8 / 補強15 |
+| §27 起票台帳 | 補強6 / 補強10 / 補強13 |
+| §28 テンプレート | 補強4（artifact_version）反映時に随伴更新 |
+| §30 Copilot 役割分担 | 補強9（標準入力テンプレート ID 化） |
+| §32 次の実装フェーズ | Phase 20〜26 を追加済み |
