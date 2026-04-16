@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe "Ops::Ledgers", type: :request do
+RSpec.describe "Admin::Ops::Ledgers", type: :request do
   let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", scope_level: :service, service_id: "ai_sns") }
   let!(:monthly_definition) { create(:meeting_definition, meeting_key: "monthly_ops", scope_level: :company, service_id: nil) }
   let!(:weekly_meeting) do
@@ -31,15 +31,15 @@ RSpec.describe "Ops::Ledgers", type: :request do
     allow(ENV).to receive(:[]).with("ADMIN_PASSWORD").and_return("secret")
   end
 
-  describe "GET /ops/ledgers" do
+  describe "GET /admin/ops/ledgers" do
     it "認証なしでは 401 を返す" do
-      get "/ops/ledgers"
+      get "/admin/ops/ledgers"
 
       expect(response).to have_http_status(:unauthorized)
     end
 
     it "認証ありで台帳一覧が表示される" do
-      get "/ops/ledgers", headers: basic_auth_headers
+      get "/admin/ops/ledgers", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Ops Ledger Viewer (Read Only)")
@@ -49,7 +49,7 @@ RSpec.describe "Ops::Ledgers", type: :request do
     end
 
     it "service_id と meeting_key で絞り込みできる" do
-      get "/ops/ledgers",
+      get "/admin/ops/ledgers",
           params: { service_id: "ai_sns", meeting_key: "weekly_dept" },
           headers: basic_auth_headers
 
