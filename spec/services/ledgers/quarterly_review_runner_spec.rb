@@ -16,6 +16,13 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
     let!(:monthly_definition) { create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil) }
 
     before do
+      allow(Ledgers::ImprovementEscalator).to receive(:call).and_return(
+        operation: "escalate_improvements",
+        overdue_marked: 0,
+        escalated_monthly: 0,
+        escalated_quarterly: 0,
+        details: []
+      )
       create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 10.days.ago, held_at: 10.days.ago)
       create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops", meeting_type: :monthly, created_at: 20.days.ago, held_at: 20.days.ago)
       create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 100.days.ago, held_at: 100.days.ago)
@@ -50,6 +57,7 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
       )
       expect(ticket.linked_artifacts.size).to eq(1)
       expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => ticket.id))
+      expect(Ledgers::ImprovementEscalator).to have_received(:call)
     end
   end
 end

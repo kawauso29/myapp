@@ -188,6 +188,32 @@ RSpec.describe "ledgers rake tasks" do
     end
   end
 
+  describe "ledgers:escalate_improvements" do
+    let(:task) { Rake::Task["ledgers:escalate_improvements"] }
+
+    before do
+      task.reenable
+      allow(Ledgers::ImprovementEscalator).to receive(:call).and_return(
+        operation: "escalate_improvements",
+        overdue_marked: 1,
+        escalated_monthly: 2,
+        escalated_quarterly: 1,
+        details: [ { action: "escalated", ticket_id: 1 } ]
+      )
+    end
+
+    it "runs escalation and outputs JSON" do
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["operation"]).to eq("escalate_improvements")
+      expect(payload["overdue_marked"]).to eq(1)
+      expect(payload["escalated_monthly"]).to eq(2)
+      expect(payload["escalated_quarterly"]).to eq(1)
+      expect(Ledgers::ImprovementEscalator).to have_received(:call)
+    end
+  end
+
   def capture_stdout
     original_stdout = $stdout
     $stdout = StringIO.new
