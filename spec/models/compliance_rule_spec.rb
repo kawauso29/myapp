@@ -59,9 +59,12 @@ RSpec.describe ComplianceRule, type: :model do
 
     it "skips rules with invalid regex gracefully" do
       described_class.create!(valid_attrs.merge(name: "bad regex", pattern: "("))
+      result = nil
       expect {
-        described_class.violations_for("anything", scope_level: :company)
+        result = described_class.violations_for("alice@example.com", scope_level: :company)
       }.not_to raise_error
+      # 無効な regex のルールは違反リストから除外されること（valid 側の email ルールは残る）
+      expect(result.map(&:name)).not_to include("bad regex")
     end
   end
 

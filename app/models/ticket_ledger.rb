@@ -91,12 +91,12 @@ class TicketLedger < ApplicationRecord
   def self.effectiveness_for_pattern(pattern_key, min_sample: 3)
     return nil if pattern_key.blank?
 
-    rows = ticket_type_improvement
-           .where(improvement_pattern_key: pattern_key)
-           .where.not(effectiveness_score: nil)
-    return nil if rows.size < min_sample
+    improvement_tickets = ticket_type_improvement
+                            .where(improvement_pattern_key: pattern_key)
+                            .where.not(effectiveness_score: nil)
+    return nil if improvement_tickets.size < min_sample
 
-    rows.average(:effectiveness_score)&.to_f
+    improvement_tickets.average(:effectiveness_score)&.to_f
   end
 
   def sla_breached?

@@ -33,13 +33,21 @@ class ComplianceRule < ApplicationRecord
   validates :name, uniqueness: { scope: [ :law_domain, :scope_level, :service_id_pattern ] }
 
   scope :enforced, -> { where.not(enforced_at: nil).where("enforced_at <= ?", Time.current) }
-  scope :applicable_to, ->(scope_level:, service_id: nil) {
-    base = enforced.where(scope_level: scope_level)
-    next base if service_id.blank?
 
-    base.where("service_id_pattern IS NULL OR service_id_pattern = ? OR ? LIKE REPLACE(service_id_pattern, '*', '%')",
-               service_id, service_id)
-  }
+  # 適用スコープを service_id にマッチするものへ絞り込む。glob マッチは Ruby 側で
+  # `File.fnmatch?` を使う（SQL の REPLACE ベースでは glob 以外の文字で誤爆しうるため）。
+  def self.applicable_to(scope_level:, service_id: nil)
+    base = enforced.where(scope_level: scope_level)
+    return base if service_id.blank?
+
+    ids = base.select do |rule|
+      rule.service_id_pattern.blank? ||
+        rule.service_id_pattern == service_id ||
+        File.fnmatch?(rule.service_id_pattern, service_id.to_s)
+    end.map(&:id)
+
+    base.where(id: ids)
+  end
 
   # 与えられたテキストに違反する enforced ルールを返す。pattern は Ruby 正規表現として評価する。
   # 不正な正規表現はスキップし、警告扱いにする（運用ログへはサービス層で記録）。
