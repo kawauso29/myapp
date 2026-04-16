@@ -1,9 +1,15 @@
 #!/bin/bash
 # self-hosted runner のヘルスチェックスクリプト
-# runner サービスが停止していたら Slack に通知する
+# runner サービスが停止していたら自動リスタートを試み、失敗時のみ Slack 通知する
 #
 # crontab 設定例 (deploy.yml の Setup VPS cron jobs で自動登録):
 #   */5 * * * * $HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1
+#
+# 動作:
+#   1. runner サービスの状態を確認
+#   2. 停止していたら自動リスタートを試行
+#   3. リスタート成功 → ログ出力のみ（通知なし）
+#   4. リスタート失敗 → Slack 通知（1時間クールダウン付き）
 #
 # 環境変数:
 #   SLACK_WEBHOOK_URL_ERROR - エラー通知用 Slack Webhook URL（.env から読み込み）
@@ -16,17 +22,45 @@ set +a
 RUNNER_SERVICE="actions.runner.kawauso29-myapp.sakura-vps.service"
 export RUNNER_SERVICE
 LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
+COOLDOWN_FILE="/tmp/runner_health_last_notify"
+COOLDOWN_SECONDS=3600  # 1時間
 
 # runner サービスの状態を確認
 if systemctl is-active --quiet "$RUNNER_SERVICE"; then
-  # 正常時は何も出力しない（ログを最小限に）
+  # 正常時はクールダウンファイルをリセットして終了（復旧後に再通知できるように）
+  rm -f "$COOLDOWN_FILE"
   exit 0
 fi
 
-# runner が停止している場合
-echo "${LOG_PREFIX} WARN: ${RUNNER_SERVICE} is not active"
+# runner が停止している場合 → 自動リスタートを試行
+echo "${LOG_PREFIX} WARN: ${RUNNER_SERVICE} is not active, attempting restart..."
+sudo systemctl restart "$RUNNER_SERVICE" 2>&1
+
+# リスタート後に少し待ってから確認
+sleep 3
+
+if systemctl is-active --quiet "$RUNNER_SERVICE"; then
+  echo "${LOG_PREFIX} OK: ${RUNNER_SERVICE} を自動リスタートしました"
+  rm -f "$COOLDOWN_FILE"
+  exit 0
+fi
+
+# リスタート失敗
+echo "${LOG_PREFIX} ERROR: ${RUNNER_SERVICE} のリスタートに失敗しました"
 STATUS=$(systemctl status "$RUNNER_SERVICE" 2>&1 | head -5)
 echo "${LOG_PREFIX} Status: ${STATUS}"
+
+# クールダウンチェック（同じ障害で何度も通知しない）
+if [ -f "$COOLDOWN_FILE" ]; then
+  LAST_NOTIFY=$(cat "$COOLDOWN_FILE" 2>/dev/null || echo 0)
+  NOW=$(date +%s)
+  ELAPSED=$((NOW - LAST_NOTIFY))
+  if [ "$ELAPSED" -lt "$COOLDOWN_SECONDS" ]; then
+    REMAINING=$(( (COOLDOWN_SECONDS - ELAPSED) / 60 ))
+    echo "${LOG_PREFIX} クールダウン中（残り約${REMAINING}分）、通知をスキップ"
+    exit 1
+  fi
+fi
 
 # Slack 通知
 WEBHOOK_URL="${SLACK_WEBHOOK_URL_ERROR}"
@@ -40,7 +74,7 @@ PAYLOAD=$(python3 -c "
 import json, sys, os
 status_text = sys.stdin.read()[:500]
 service = os.environ.get('RUNNER_SERVICE', 'unknown')
-text = f':warning: *Self-hosted runner offline*\nサービス \`{service}\` が停止しています。\n\`\`\`{status_text}\`\`\`\n確認: \`sudo systemctl restart {service}\`'
+text = f':warning: *Self-hosted runner offline*\nサービス \`{service}\` が停止しています。自動リスタートも失敗しました。\n\`\`\`{status_text}\`\`\`\n確認: \`sudo systemctl restart {service}\`'
 print(json.dumps({'text': text}))
 " <<< "$STATUS")
 
@@ -48,4 +82,7 @@ curl -s -X POST -H 'Content-type: application/json' \
   --data "$PAYLOAD" \
   "$WEBHOOK_URL" > /dev/null 2>&1
 
-echo "${LOG_PREFIX} Slack 通知送信完了"
+# クールダウン記録
+date +%s > "$COOLDOWN_FILE"
+
+echo "${LOG_PREFIX} Slack 通知送信完了（次回通知まで${COOLDOWN_SECONDS}秒クールダウン）"
