@@ -4,20 +4,20 @@
 ## 変更内容
 - 例: 追加/変更/削除した機能・ファイルを箇条書き
 
-## 受け入れ条件（Acceptance Criteria）
+## 受入条件（Acceptance Criteria）
 - [ ] 例: ユーザーが○○できる
 - [ ] 例: 関連CIがすべて成功する
 
-## テスト（実行方法 / 結果）
-- 実行コマンド:
-- 結果:
+## テスト
+- 実施したコマンド: 例 `bin/rubocop` / `bundle exec rspec`
+- 結果: 例 `すべて成功`
 
-## ロールアウト / デプロイノート
+## ロールアウト/デプロイ注意
 - 例: 先行リリース有無、環境変数更新、マイグレーション注意点
 
-## Ledger影響（台帳・テーブル・運用領域）
-- 例: ticket_ledgers / kpi_ledgers / docs/ai_sns_plan_status.yml への影響
+## Ledger影響（台帳/Runner/定期実行）
+- 例: ticket_ledgers / kpi_ledgers / recurring ジョブ / docs/ai_sns_plan_status.yml への影響
 
-## リスクとロールバック
+## リスク & ロールバック
 - リスク:
 - ロールバック手順:
