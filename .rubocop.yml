@@ -10,3 +10,4 @@ Layout/SpaceInsideArrayLiteralBrackets:
 AllCops:
   Exclude:
     - 'guide/**/*'
+    - 'frontend/node_modules/**/*'
