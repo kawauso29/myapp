@@ -1,0 +1,131 @@
+name: PR Guardrails
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-pr-description:
+    name: Validate required PR metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required sections
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+
+          REQUIRED_SECTIONS = {
+            "背景 / 目的": ["背景/目的", "purpose/background", "background/purpose"],
+            "変更内容": ["what changed", "changes"],
+            "受け入れ条件（Acceptance Criteria）": ["受入条件（acceptance criteria）", "acceptance criteria", "acceptance"],
+            "テスト（実行方法 / 結果）": ["テスト", "tests", "test plan", "test results"],
+            "ロールアウト / デプロイノート": ["ロールアウト/デプロイ注意", "rollout/deploy notes", "deploy notes", "rollout"],
+            "Ledger影響（台帳・テーブル・運用領域）": ["Ledger影響（台帳/Runner/定期実行）", "ledger impact", "ledger", "impact area"],
+            "リスクとロールバック": ["リスク&ロールバック", "risk & rollback", "risk and rollback"],
+          }
+
+          def normalize_heading(value):
+            value = value.strip().lower()
+            value = value.translate(str.maketrans({
+              "　": " ",
+              "／": "/",
+              "（": "(",
+              "）": ")",
+              "＆": "&",
+              "・": "",
+              "：": ":",
+            }))
+            value = re.sub(r"\s+", "", value)
+            return value
+
+          def extract_sections(markdown):
+            sections = {}
+            current_heading = None
+            current_lines = []
+
+            for line in markdown.splitlines():
+              heading_match = re.match(r"^\s*##\s+(.+?)\s*$", line)
+              if heading_match:
+                if current_heading is not None:
+                  sections[current_heading] = "\n".join(current_lines).strip()
+                current_heading = heading_match.group(1).strip()
+                current_lines = []
+              elif current_heading is not None:
+                current_lines.append(line)
+
+            if current_heading is not None:
+              sections[current_heading] = "\n".join(current_lines).strip()
+
+            return sections
+
+          with open(os.environ["GITHUB_EVENT_PATH"], "r", encoding="utf-8") as f:
+            event = json.load(f)
+
+          pr = event.get("pull_request", {})
+          body = pr.get("body") or ""
+          pr_url = pr.get("html_url", "")
+
+          if not body.strip():
+            print("::error title=PR Guardrails::PR本文が空です。PRテンプレートの必須セクションをすべて記入してください。")
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              print("### ❌ PR Guardrails 失敗", file=summary)
+              print("- PR本文が空です。テンプレートの必須セクションを記入してください。", file=summary)
+              if pr_url:
+                print(f"- PR: {pr_url}", file=summary)
+            sys.exit(1)
+
+          sections = extract_sections(body)
+          normalized_sections = {normalize_heading(key): value for key, value in sections.items()}
+          normalized_required = {
+            display_name: [normalize_heading(display_name), *[normalize_heading(alias) for alias in aliases]]
+            for display_name, aliases in REQUIRED_SECTIONS.items()
+          }
+
+          missing_sections = []
+          empty_sections = []
+
+          for display_name, candidate_keys in normalized_required.items():
+            matched_key = next((key for key in candidate_keys if key in normalized_sections), None)
+
+            if matched_key is None:
+              missing_sections.append(display_name)
+              continue
+
+            if not normalized_sections[matched_key].strip():
+              empty_sections.append(display_name)
+
+          if missing_sections or empty_sections:
+            print("::error title=PR Guardrails::PR本文の必須セクションが不足または未記入です。")
+            if missing_sections:
+              print("::error title=Missing sections::" + " / ".join(missing_sections))
+            if empty_sections:
+              print("::error title=Empty sections::" + " / ".join(empty_sections))
+
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              print("### ❌ PR Guardrails 失敗", file=summary)
+              if missing_sections:
+                print("- 不足セクション:", file=summary)
+                for section in missing_sections:
+                  print(f"  - `{section}`", file=summary)
+              if empty_sections:
+                print("- 未記入セクション:", file=summary)
+                for section in empty_sections:
+                  print(f"  - `{section}`", file=summary)
+              print("", file=summary)
+              print("PRテンプレートに沿って本文を更新してください。", file=summary)
+
+            sys.exit(1)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            print("### ✅ PR Guardrails 成功", file=summary)
+            print("- 必須セクションがすべて確認できました。", file=summary)
+          PY
