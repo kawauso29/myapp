@@ -3,12 +3,12 @@ class ImprovementResolverJob < ApplicationJob
 
   def perform
     result = Ledgers::ImprovementResolver.call
-    return result if result[:resolved_tickets_count].zero?
+    return result if result[:resolved].to_i.zero?
 
     Ledgers::SlackNotifier.notify(
       operation: "resolve_improvements",
-      counts: { tickets_created: result[:resolved_tickets_count], held_items: 0 },
-      details: result[:resolved_tickets]
+      counts: { tickets_created: result[:resolved], held_items: 0 },
+      details: result[:details]
     )
     result
   end

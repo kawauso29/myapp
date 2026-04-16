@@ -44,6 +44,8 @@ RSpec.describe "ledgers rake tasks" do
         "missing_linked_kpis" => 1
       )
       expect(payload.dig("holds", "missing_kpi_definition_keys")).to eq([ "kpi:risk" ])
+      expect(payload.dig("improvements", "detected")).to eq(0)
+      expect(payload.dig("improvements", "resolved")).to eq(0)
       expect(Ledgers::WeeklyDeptRunner).to have_received(:call).with(service_id: "ai_sns")
     end
   end
@@ -76,6 +78,8 @@ RSpec.describe "ledgers rake tasks" do
       expect(payload.dig("counts", "tickets_created")).to eq(0)
       expect(payload.dig("counts", "held_items")).to eq(0)
       expect(payload.dig("tickets", "info")).to eq([])
+      expect(payload.dig("improvements", "detected")).to eq(0)
+      expect(payload.dig("improvements", "resolved")).to eq(0)
       expect(Ledgers::MonthlyOpsRunner).to have_received(:call)
     end
   end
@@ -164,41 +168,23 @@ RSpec.describe "ledgers rake tasks" do
     before do
       task.reenable
       allow(Ledgers::ImprovementDetector).to receive(:call).and_return(
-        operation: "detect_improvements",
-        created_tickets_count: 1,
-        created_tickets: [ { id: 99, title: "High overdue rate detected (25.0%)", rule: "overdue_rate" } ]
+        detected: 2,
+        details: [ { ticket_id: 1, rule: "high_overdue_rate", title: "A" } ]
+      )
+      allow(Ledgers::ImprovementResolver).to receive(:call).and_return(
+        resolved: 1,
+        details: [ { ticket_id: 2, rule: "stale_service", title: "B" } ]
       )
     end
 
-    it "runs without raising" do
+    it "outputs improvement detection and resolution summary" do
       output = capture_stdout { task.invoke }
       payload = JSON.parse(output)
 
       expect(payload["operation"]).to eq("detect_improvements")
-      expect(payload["created_tickets_count"]).to eq(1)
-      expect(Ledgers::ImprovementDetector).to have_received(:call)
-    end
-  end
-
-  describe "ledgers:resolve_improvements" do
-    let(:task) { Rake::Task["ledgers:resolve_improvements"] }
-
-    before do
-      task.reenable
-      allow(Ledgers::ImprovementResolver).to receive(:call).and_return(
-        operation: "resolve_improvements",
-        resolved_tickets_count: 1,
-        resolved_tickets: [ { id: 88, title: "High overdue rate detected (25.0%)", rule: "overdue_rate" } ]
-      )
-    end
-
-    it "runs without raising" do
-      output = capture_stdout { task.invoke }
-      payload = JSON.parse(output)
-
-      expect(payload["operation"]).to eq("resolve_improvements")
-      expect(payload["resolved_tickets_count"]).to eq(1)
-      expect(Ledgers::ImprovementResolver).to have_received(:call)
+      expect(payload.dig("improvements", "detected")).to eq(2)
+      expect(payload.dig("improvements", "resolved")).to eq(1)
+      expect(payload.dig("improvements", "details").size).to eq(2)
     end
   end
 

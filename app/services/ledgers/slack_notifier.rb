@@ -35,8 +35,9 @@ module Ledgers
       tickets_created = fetch_value(counts, :tickets_created, default: 0)
       held_items = fetch_value(counts, :held_items, default: 0)
       overdue_marked = fetch_value(payload, :overdue_marked, default: 0)
+      improvements_text = format_improvements
 
-      "[ops-ledger] operation=#{operation} tickets_created=#{tickets_created} held_items=#{held_items} overdue_marked=#{overdue_marked}"
+      "[ops-ledger] operation=#{operation} tickets_created=#{tickets_created} held_items=#{held_items} overdue_marked=#{overdue_marked}#{improvements_text}"
     end
 
     def counts
@@ -45,6 +46,19 @@ module Ledgers
 
     def fetch_value(hash, key, default: nil)
       hash[key] || hash[key.to_s] || default
+    end
+
+    def format_improvements
+      improvements = fetch_value(payload, :improvements, default: {})
+      details = Array(fetch_value(improvements, :details, default: []))
+      return "" if details.blank?
+
+      rules = details.map { |item| fetch_value(item, :rule, default: "unknown") }.uniq.join(",")
+      titles = details.map { |item| fetch_value(item, :title, default: "unknown") }.uniq
+      title_preview = titles.first(3).join(" | ")
+      title_preview = "#{title_preview} ..." if titles.size > 3
+
+      " improvements_created=#{details.count} improvement_rules=#{rules} improvement_titles=#{title_preview}"
     end
 
     def post_to_slack(webhook_url:, body:)

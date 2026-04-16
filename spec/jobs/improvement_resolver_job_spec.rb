@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe ImprovementResolverJob, type: :job do
   describe "#perform" do
     it "calls resolver and notifies when tickets are resolved" do
-      result = { resolved_tickets_count: 1, resolved_tickets: [ { id: 1, rule: "overdue_rate" } ] }
+      result = { resolved: 1, details: [ { ticket_id: 1, rule: "high_overdue_rate", title: "A" } ] }
       allow(Ledgers::ImprovementResolver).to receive(:call).and_return(result)
       allow(Ledgers::SlackNotifier).to receive(:notify)
 
@@ -16,7 +16,7 @@ RSpec.describe ImprovementResolverJob, type: :job do
     end
 
     it "does not notify when nothing is resolved" do
-      allow(Ledgers::ImprovementResolver).to receive(:call).and_return(resolved_tickets_count: 0, resolved_tickets: [])
+      allow(Ledgers::ImprovementResolver).to receive(:call).and_return(resolved: 0, details: [])
       allow(Ledgers::SlackNotifier).to receive(:notify)
 
       described_class.perform_now

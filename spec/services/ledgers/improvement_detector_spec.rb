@@ -2,93 +2,104 @@ require "rails_helper"
 
 RSpec.describe Ledgers::ImprovementDetector do
   describe ".call" do
-    it "creates ticket when overdue rate is above 20%" do
-      create_list(:ticket_ledger, 3, status: :overdue, created_at: 2.days.ago)
-      create_list(:ticket_ledger, 7, status: :approved, created_at: 2.days.ago)
+    let!(:weekly_definition) do
+      create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
+    end
+    let!(:monthly_definition) do
+      create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil)
+    end
+
+    before do
+      allow(Ledgers::SlackNotifier).to receive(:notify)
+    end
+
+    it "triggers high_overdue_rate rule" do
+      create_list(:ticket_ledger, 3, status: :approved, created_at: 2.days.ago)
+      create_list(:ticket_ledger, 2, status: :overdue, created_at: 2.days.ago)
 
       result = described_class.call
 
-      expect(result[:created_tickets_count]).to eq(1)
       ticket = TicketLedger.ticket_type_improvement.last
-      expect(ticket.title).to match(/^High overdue rate detected/)
-      expect(ticket.linked_kpis).to include("rule" => "overdue_rate", "threshold" => "20%")
-      expect(ticket.assignee).to eq("improvement_detector")
-      expect(ticket).to be_status_waiting_review
-      expect(ticket.due_date).to eq(Date.current + 14.days)
+      expect(result[:detected]).to eq(1)
+      expect(ticket.title).to include("Improvement: High overdue rate")
+      expect(ticket.linked_kpis).to include("rule" => "high_overdue_rate")
     end
 
-    it "creates ticket when KPI definitions are missing in recent weekly holds" do
-      weekly_definition = create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
-      create(
-        :meeting_ledger,
-        meeting_definition: weekly_definition,
-        meeting_key: "weekly_dept",
-        meeting_type: :weekly,
-        scope_level: :service,
-        service_id: "ai_sns",
-        hold_items: [ { reason: "missing_kpi_definition", missing_kpi_keys: [ "kpi:foo", "kpi:bar" ] } ],
-        created_at: 1.day.ago
-      )
+    it "triggers missing_kpi_definition rule" do
+      create(:meeting_ledger,
+             meeting_definition: weekly_definition,
+             meeting_key: "weekly_dept",
+             hold_items: [ { reason: "missing_kpi_definition", missing_kpi_keys: [ "kpi:a", "kpi:b", "kpi:a" ] } ],
+             status: :closed)
 
       result = described_class.call
 
-      expect(result[:created_tickets_count]).to eq(1)
-      expect(TicketLedger.ticket_type_improvement.last.title).to eq("KPI definitions missing for: kpi:bar, kpi:foo")
+      ticket = TicketLedger.ticket_type_improvement.last
+      expect(result[:detected]).to eq(1)
+      expect(ticket.linked_kpis).to include("rule" => "missing_kpi_definition", "keys" => %w[kpi:a kpi:b])
+      expect(ticket.title).to include("(2 keys)")
     end
 
-    it "creates ticket when latest monthly meeting has more than 3 hold items" do
-      monthly_definition = create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil)
-      create(
-        :meeting_ledger,
-        meeting_definition: monthly_definition,
-        meeting_key: "monthly_ops",
-        meeting_type: :monthly,
-        scope_level: :company,
-        hold_items: [ { reason: "a" }, { reason: "b" }, { reason: "c" }, { reason: "d" } ],
-        held_at: Time.current
-      )
+    it "triggers stale_service rule per stale service" do
+      ServiceLedger.create!(service_id: "ai_sns", scope_level: :service, business_owner: "owner", status: :active)
+      ServiceLedger.create!(service_id: "trade_ops", scope_level: :service, business_owner: "owner", status: :active)
+      create(:meeting_ledger,
+             meeting_definition: weekly_definition,
+             meeting_key: "weekly_dept",
+             service_id: "trade_ops",
+             held_at: 1.day.ago,
+             status: :closed)
 
       result = described_class.call
 
-      expect(result[:created_tickets_count]).to eq(1)
-      expect(TicketLedger.ticket_type_improvement.last.title).to eq("Monthly ops has 4 unresolved holds")
+      expect(result[:detected]).to eq(1)
+      ticket = TicketLedger.ticket_type_improvement.last
+      expect(ticket.title).to include("Stale service - ai_sns")
+      expect(ticket.linked_kpis).to include("rule" => "stale_service", "service_id" => "ai_sns")
     end
 
-    it "creates ticket when stale waiting_review tickets exist" do
-      create(:ticket_ledger, status: :waiting_review, created_at: 15.days.ago, due_date: Date.current + 1.day)
+    it "triggers monthly_hold_accumulation rule" do
+      create(:meeting_ledger,
+             meeting_definition: monthly_definition,
+             meeting_key: "monthly_ops",
+             hold_items: [ { reason: "a" }, { reason: "b" }, { reason: "c" } ],
+             status: :closed)
 
       result = described_class.call
 
-      expect(result[:created_tickets_count]).to eq(1)
-      expect(TicketLedger.ticket_type_improvement.last.title).to eq("1 tickets stale for 14+ days")
+      expect(result[:detected]).to eq(1)
+      ticket = TicketLedger.ticket_type_improvement.last
+      expect(ticket.linked_kpis).to include("rule" => "monthly_hold_accumulation", "hold_count" => 3)
     end
 
-    it "does not create duplicate ticket for the same rule" do
-      create(
-        :ticket_ledger,
-        ticket_type: :improvement,
-        status: :waiting_review,
-        title: "High overdue rate detected (25.0%)",
-        linked_kpis: { rule: "overdue_rate", value: "25.0%", threshold: "20%" }
-      )
-      create_list(:ticket_ledger, 3, status: :overdue, created_at: 2.days.ago)
-      create_list(:ticket_ledger, 7, status: :approved, created_at: 2.days.ago)
+    it "does not create duplicate improvement ticket for same rule" do
+      create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review, linked_kpis: { rule: "high_overdue_rate" })
+      create_list(:ticket_ledger, 4, status: :approved, created_at: 2.days.ago)
+      create_list(:ticket_ledger, 2, status: :overdue, created_at: 2.days.ago)
+
+      expect { described_class.call }.not_to change(TicketLedger.ticket_type_improvement, :count)
+    end
+
+    it "does not create ticket when conditions are not met" do
+      ServiceLedger.create!(service_id: "ai_sns", scope_level: :service, business_owner: "owner", status: :active)
+      create(:meeting_ledger,
+             meeting_definition: weekly_definition,
+             meeting_key: "weekly_dept",
+             service_id: "ai_sns",
+             held_at: 1.day.ago,
+             status: :closed)
+      create(:meeting_ledger,
+             meeting_definition: monthly_definition,
+             meeting_key: "monthly_ops",
+             hold_items: [ { reason: "a" }, { reason: "b" } ],
+             status: :closed)
+      create_list(:ticket_ledger, 5, status: :approved, created_at: 2.days.ago)
 
       result = described_class.call
 
-      expect(result[:created_tickets_count]).to eq(0)
-      expect(TicketLedger.ticket_type_improvement.count).to eq(1)
-    end
-
-    it "returns result hash with details" do
-      create_list(:ticket_ledger, 3, status: :overdue, created_at: 2.days.ago)
-      create_list(:ticket_ledger, 7, status: :approved, created_at: 2.days.ago)
-
-      result = described_class.call
-
-      expect(result).to include(:operation, :created_tickets_count, :created_tickets)
-      expect(result[:operation]).to eq("detect_improvements")
-      expect(result[:created_tickets].first).to include(:id, :title, :rule)
+      expect(result[:detected]).to eq(0)
+      expect(TicketLedger.ticket_type_improvement).to be_empty
+      expect(Ledgers::SlackNotifier).not_to have_received(:notify)
     end
   end
 end

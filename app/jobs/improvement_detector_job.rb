@@ -2,14 +2,12 @@ class ImprovementDetectorJob < ApplicationJob
   queue_as :default
 
   def perform
-    result = Ledgers::ImprovementDetector.call
-    return result if result[:created_tickets_count].zero?
+    detector_result = Ledgers::ImprovementDetector.call
+    resolver_result = Ledgers::ImprovementResolver.call
 
-    Ledgers::SlackNotifier.notify(
-      operation: "detect_improvements",
-      counts: { tickets_created: result[:created_tickets_count], held_items: 0 },
-      details: result[:created_tickets]
-    )
-    result
+    {
+      detected: detector_result.fetch(:detected, 0),
+      resolved: resolver_result.fetch(:resolved, 0)
+    }
   end
 end
