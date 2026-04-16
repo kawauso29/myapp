@@ -44,10 +44,9 @@ Rails.application.routes.draw do
     end
 
     resources :users, only: [ :index ]
-  end
-
-  namespace :ops do
-    resources :ledgers, only: [ :index ]
+    namespace :ops do
+      resources :ledgers, only: [ :index ]
+    end
   end
 
   # API

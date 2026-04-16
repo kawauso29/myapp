@@ -1,4 +1,4 @@
-class Ops::LedgersController < Ops::BaseController
+class Admin::Ops::LedgersController < Admin::Ops::BaseController
   def index
     @service_id = params[:service_id].presence
     @meeting_key = params[:meeting_key].presence

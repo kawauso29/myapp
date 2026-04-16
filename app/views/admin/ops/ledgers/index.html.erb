@@ -2,12 +2,12 @@
 
 <div class="card">
   <h2>Ops Ledger Viewer (Read Only)</h2>
-  <%= form_with url: ops_ledgers_path, method: :get, local: true do |f| %>
+  <%= form_with url: admin_ops_ledgers_path, method: :get, local: true do |f| %>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <%= f.text_field :service_id, value: @service_id, placeholder: "service_id (例: ai_sns)", style: "min-width:200px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
       <%= f.text_field :meeting_key, value: @meeting_key, placeholder: "meeting_key (例: weekly_dept)", style: "min-width:220px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
       <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
-      <%= link_to "Reset", ops_ledgers_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+      <%= link_to "Reset", admin_ops_ledgers_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
     </div>
   <% end %>
 </div>
