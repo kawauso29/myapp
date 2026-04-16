@@ -91,8 +91,8 @@ jobs:
       - name: Check job autoload and run job specs
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432
-          POSTGRES_PASSWORD: postgres
+          DATABASE_URL: postgres://postgres:password@localhost:5432
+          POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare && bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
@@ -114,8 +114,8 @@ jobs:
       - name: Check controller and API route integrity
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432
-          POSTGRES_PASSWORD: postgres
+          DATABASE_URL: postgres://postgres:password@localhost:5432
+          POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare && bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
@@ -137,8 +137,8 @@ jobs:
       - name: Run tests
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432
-          POSTGRES_PASSWORD: postgres
+          DATABASE_URL: postgres://postgres:password@localhost:5432
+          POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare && bundle exec rspec
 
@@ -160,8 +160,8 @@ jobs:
       - name: Run System Tests
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432
-          POSTGRES_PASSWORD: postgres
+          DATABASE_URL: postgres://postgres:password@localhost:5432
+          POSTGRES_PASSWORD: password
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare && (find test/system -name "*_test.rb" 2>/dev/null | grep -q . && bin/rails test:system || echo "No system tests found, skipping.")
