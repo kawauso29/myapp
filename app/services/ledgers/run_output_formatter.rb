@@ -59,7 +59,7 @@ module Ledgers
     end
 
     def created_ticket_ids
-      Array(@meeting.tickets_to_create)
+      @created_ticket_ids ||= Array(@meeting.tickets_to_create)
         .filter_map { |ticket| ticket["ticket_id"] || ticket[:ticket_id] }
     end
 
