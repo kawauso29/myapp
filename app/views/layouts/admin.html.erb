@@ -158,6 +158,7 @@
     <a href="<%= admin_ai_sns_path %>" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
     <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
     <a href="<%= admin_users_path %>" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
+    <a href="<%= ops_ledgers_path %>" class="<%= 'active' if controller_path == 'ops/ledgers' %>">Ops Ledgers</a>
   </nav>
   <main>
     <% if flash[:notice] %>
@@ -182,6 +183,7 @@
           <li><a href="/admin/ai_sns/ai_users">/admin/ai_sns/ai_users</a> <span class="note">AI一覧</span></li>
           <li><a href="/admin/ai_sns/posts">/admin/ai_sns/posts</a> <span class="note">投稿一覧</span></li>
           <li><a href="/admin/ai_sns/moderation">/admin/ai_sns/moderation</a> <span class="note">モデレーション</span></li>
+          <li><a href="/ops/ledgers">/ops/ledgers</a> <span class="note">台帳ビュー（Read Only）</span></li>
           <li><a href="/admin/users">/admin/users</a> <span class="note">ユーザー管理</span></li>
         </ul>
       </div>
