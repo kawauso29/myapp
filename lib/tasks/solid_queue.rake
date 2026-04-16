@@ -29,6 +29,7 @@ namespace :solid_queue do
     AnnualPlanLedgerRunJob
     ImprovementDetectorJob
     ImprovementResolverJob
+    ImprovementEscalationJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

@@ -38,10 +38,14 @@ module Ledgers
       end
 
       resolver_result = Ledgers::ImprovementResolver.call
+      escalation_result = Ledgers::ImprovementEscalator.call
       improvements = {
         detected: 0,
         resolved: resolver_result.fetch(:resolved, 0),
-        details: Array(resolver_result.fetch(:details, []))
+        overdue_marked: escalation_result.fetch(:overdue_marked, 0),
+        escalated_monthly: escalation_result.fetch(:escalated_monthly, 0),
+        escalated_quarterly: escalation_result.fetch(:escalated_quarterly, 0),
+        details: Array(resolver_result.fetch(:details, [])) + Array(escalation_result.fetch(:details, []))
       }
 
       meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed)

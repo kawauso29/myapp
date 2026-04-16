@@ -44,6 +44,7 @@ module Ledgers
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
         status: :closed
       )
+      Ledgers::ImprovementEscalator.call
       meeting
     end
 

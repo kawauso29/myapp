@@ -20,6 +20,13 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
 
     before do
       allow(Ledgers::ImprovementResolver).to receive(:call).and_return({ resolved: 0, details: [] })
+      allow(Ledgers::ImprovementEscalator).to receive(:call).and_return(
+        operation: "escalate_improvements",
+        overdue_marked: 0,
+        escalated_monthly: 0,
+        escalated_quarterly: 0,
+        details: []
+      )
     end
 
     it "resolves waiting_review ticket by monthly decision" do
@@ -37,6 +44,7 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
       described_class.call(resolution_map: {})
 
       expect(Ledgers::ImprovementResolver).to have_received(:call)
+      expect(Ledgers::ImprovementEscalator).to have_received(:call)
     end
   end
 end

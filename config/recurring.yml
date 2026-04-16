@@ -166,3 +166,9 @@ production:
     class: ImprovementDetectorJob
     queue: default
     schedule: "0 22 * * *"
+
+  # 毎日 8:00 JST (= 前日 23:00 UTC): 未解決改善チケットのエスカレーション
+  improvement_escalation:
+    class: ImprovementEscalationJob
+    queue: default
+    schedule: "0 23 * * *"

@@ -53,4 +53,10 @@ namespace :ledgers do
       }
     )
   end
+
+  desc "Escalate unresolved improvement tickets"
+  task escalate_improvements: :environment do
+    result = Ledgers::ImprovementEscalator.call
+    puts JSON.pretty_generate(result)
+  end
 end
