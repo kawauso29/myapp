@@ -240,7 +240,7 @@ jobs:
           if-no-files-found: ignore
 
   notify:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
     if: always()
     steps:
@@ -256,11 +256,16 @@ jobs:
           fi
           echo "notify_label=${NOTIFY_LABEL}" >> "$GITHUB_OUTPUT"
 
-      # カテゴリ①: CI進捗/成功通知
+      # カテゴリ①: CI進捗/成功通知（jq未使用: self-hosted runner に jq がないため python3 で生成）
       - name: Notify Slack (success)
         if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          NOTIFY_LABEL: ${{ steps.notify_context.outputs.notify_label }}
+          ACTOR: ${{ github.actor }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_CI }}"
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping success notification"
             exit 0
@@ -269,21 +274,38 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping success notification"
             exit 0
           fi
-          PAYLOAD=$(jq -n \
-            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg msg "${{ github.event.head_commit.message }}" \
-            --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{attachments:[{color:"#2eb886",text:":white_check_mark: *CI passed* \($notify_label) by \($actor)",fields:[{title:"コミット",value:$msg,short:false},{title:"リンク",value:$link,short:false}],footer:"GitHub Actions",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          notify_label = os.environ['NOTIFY_LABEL']
+          actor = os.environ['ACTOR']
+          msg = os.environ['COMMIT_MSG']
+          link = os.environ['RUN_LINK']
+          payload = {'attachments': [{'color': '#2eb886', 'text': f':white_check_mark: *CI passed* {notify_label} by {actor}', 'fields': [{'title': 'コミット', 'value': msg, 'short': False}, {'title': 'リンク', 'value': link, 'short': False}], 'footer': 'GitHub Actions', 'ts': int(time.time())}]}
+          print(json.dumps(payload))
+          ")
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack success notification failed; continuing"
 
-      # カテゴリ②: CIエラー通知
+      # カテゴリ②: CIエラー通知（jq未使用: self-hosted runner に jq がないため python3 で生成）
       - name: Notify Slack (failure)
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+          NOTIFY_LABEL: ${{ steps.notify_context.outputs.notify_label }}
+          ACTOR: ${{ github.actor }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          RESULT_SCAN_RUBY: ${{ needs.scan_ruby.result }}
+          RESULT_SCAN_JS: ${{ needs.scan_js.result }}
+          RESULT_LINT: ${{ needs.lint.result }}
+          RESULT_JOB_CHECK: ${{ needs.job-check.result }}
+          RESULT_ROUTE_CHECK: ${{ needs.route-check.result }}
+          RESULT_TEST: ${{ needs.test.result }}
+          RESULT_SYSTEM_TEST: ${{ needs.system-test.result }}
         run: |
-          WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL_ERROR }}"
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping failure notification"
             exit 0
@@ -292,18 +314,23 @@ jobs:
             echo "SLACK_WEBHOOK_URL format is invalid; skipping failure notification"
             exit 0
           fi
-          DEPLOY_SKIP_REASON=""
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            DEPLOY_SKIP_REASON="main の CI が失敗したため、自動デプロイは実行されません"
-          fi
-          PAYLOAD=$(jq -n \
-            --arg notify_label "${{ steps.notify_context.outputs.notify_label }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg msg "${{ github.event.head_commit.message }}" \
-            --arg result "scan_ruby: ${{ needs.scan_ruby.result }} | scan_js: ${{ needs.scan_js.result }} | lint: ${{ needs.lint.result }} | job-check: ${{ needs.job-check.result }} | route-check: ${{ needs.route-check.result }} | test: ${{ needs.test.result }} | system-test: ${{ needs.system-test.result }}" \
-            --arg link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --arg deploy_skip_reason "${DEPLOY_SKIP_REASON}" \
-            '{attachments:[{color:"#e01e5a",text:":x: *CI failed* \($notify_label) by \($actor)",fields:([{title:"コミット",value:$msg,short:false},{title:"結果",value:$result,short:false},{title:"リンク",value:$link,short:false}] + (if $deploy_skip_reason == "" then [] else [{title:"デプロイ",value:$deploy_skip_reason,short:false}] end)),footer:"GitHub Actions",ts:now|floor}]}')
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          notify_label = os.environ['NOTIFY_LABEL']
+          actor = os.environ['ACTOR']
+          msg = os.environ['COMMIT_MSG']
+          link = os.environ['RUN_LINK']
+          result = f\"scan_ruby: {os.environ['RESULT_SCAN_RUBY']} | scan_js: {os.environ['RESULT_SCAN_JS']} | lint: {os.environ['RESULT_LINT']} | job-check: {os.environ['RESULT_JOB_CHECK']} | route-check: {os.environ['RESULT_ROUTE_CHECK']} | test: {os.environ['RESULT_TEST']} | system-test: {os.environ['RESULT_SYSTEM_TEST']}\"
+          fields = [
+              {'title': 'コミット', 'value': msg, 'short': False},
+              {'title': '結果', 'value': result, 'short': False},
+              {'title': 'リンク', 'value': link, 'short': False},
+          ]
+          if os.environ['EVENT_NAME'] == 'push' and os.environ['REF_NAME'] == 'main':
+              fields.append({'title': 'デプロイ', 'value': 'main の CI が失敗したため、自動デプロイは実行されません', 'short': False})
+          payload = {'attachments': [{'color': '#e01e5a', 'text': f':x: *CI failed* {notify_label} by {actor}', 'fields': fields, 'footer': 'GitHub Actions', 'ts': int(time.time())}]}
+          print(json.dumps(payload))
+          ")
           curl -s -X POST "${WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack failure notification failed; continuing"
@@ -312,7 +339,7 @@ jobs:
   # workflow_run トリガーが self-hosted runner 移行後に発火しなくなったため、
   # CI から直接 deploy を起動する（auto_merge.yml と同じ方式）
   dispatch_deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
     if: >-
       github.event_name == 'push' &&
