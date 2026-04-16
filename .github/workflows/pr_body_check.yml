@@ -1,0 +1,42 @@
+name: PR Body Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-pr-body:
+    runs-on: [self-hosted, sakura-vps]
+    steps:
+      - name: Skip draft PR
+        if: github.event.pull_request.draft == true
+        run: echo "Draft PR のため PR 本文チェックをスキップします。"
+
+      - name: Validate required headings
+        if: github.event.pull_request.draft != true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const requiredHeadings = [
+              '## 背景/目的',
+              '## 変更内容',
+              '## 受入条件（Acceptance Criteria）',
+              '## テスト',
+              '## ロールアウト/デプロイ注意',
+              '## Ledger影響（台帳/Runner/定期実行）',
+              '## リスク & ロールバック'
+            ];
+
+            const missing = requiredHeadings.filter((heading) => !body.includes(heading));
+            if (missing.length > 0) {
+              core.setFailed(
+                `PR本文に必須見出しが不足しています:\n${missing.map((heading) => `- ${heading}`).join('\n')}`
+              );
+            } else {
+              core.info('PR本文の必須見出しチェックに合格しました。');
+            }
