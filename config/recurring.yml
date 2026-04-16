@@ -129,3 +129,22 @@ production:
     class: WeeklyKpiSnapshotJob
     queue: low
     schedule: "0 21 * * 0"
+
+  # 毎週月曜 9:00 JST (= 月曜 00:00 UTC): 週次部門台帳を実行（ai_sns）
+  weekly_dept_ledger_run:
+    class: WeeklyDeptLedgerRunJob
+    queue: default
+    args: [ "ai_sns" ]
+    schedule: "0 0 * * 1"
+
+  # 毎月1日 9:00 JST (= 毎月1日 00:00 UTC): 月次Ops台帳を実行
+  monthly_ops_ledger_run:
+    class: MonthlyOpsLedgerRunJob
+    queue: default
+    schedule: "0 0 1 * *"
+
+  # 毎日 6:00 JST (= 前日 21:00 UTC): 期限超過チケットを検出
+  ticket_overdue_check:
+    class: TicketOverdueCheckJob
+    queue: default
+    schedule: "0 21 * * *"

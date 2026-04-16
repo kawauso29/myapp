@@ -12,6 +12,9 @@ namespace :solid_queue do
     DynamicParamsUpdateJob
     MilestoneCheckJob
     WeeklyKpiSnapshotJob
+    WeeklyDeptLedgerRunJob
+    MonthlyOpsLedgerRunJob
+    TicketOverdueCheckJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob
