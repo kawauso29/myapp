@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -411,6 +411,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "cost_ledgers", force: :cascade do |t|
+    t.decimal "amount_jpy", precision: 14, scale: 2, default: "0.0", null: false
+    t.string "business_unit_id"
+    t.datetime "created_at", null: false
+    t.datetime "incurred_at", null: false
+    t.datetime "recorded_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.integer "source", null: false
+    t.string "source_artifact_id"
+    t.string "source_detail"
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.string "subject_id", null: false
+    t.integer "subject_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["incurred_at"], name: "index_cost_ledgers_on_incurred_at"
+    t.index ["scope_level", "service_id"], name: "index_cost_ledgers_on_scope_level_and_service_id"
+    t.index ["source_meeting_id"], name: "index_cost_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_cost_ledgers_on_source_ticket_id"
+    t.index ["subject_type", "subject_id"], name: "index_cost_ledgers_on_subject_type_and_subject_id"
+  end
+
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
@@ -521,6 +544,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id", "is_read"], name: "index_notifications_on_user_id_and_is_read"
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "operator_override_ledgers", force: :cascade do |t|
+    t.integer "action", null: false
+    t.datetime "created_at", null: false
+    t.datetime "lifted_at"
+    t.string "linked_stop_ledger_id"
+    t.string "operator", null: false
+    t.text "reason", null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.datetime "started_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["action", "lifted_at"], name: "index_operator_override_ledgers_on_action_and_lifted_at"
+    t.index ["scope_level", "service_id", "lifted_at"], name: "idx_operator_override_scope_lifted"
   end
 
   create_table "picro_messages", force: :cascade do |t|
@@ -722,6 +760,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_032730) do
   add_foreign_key "ai_story_reactions", "ai_posts"
   add_foreign_key "ai_story_reactions", "users"
   add_foreign_key "ai_users", "users"
+  add_foreign_key "cost_ledgers", "meeting_ledgers", column: "source_meeting_id"
+  add_foreign_key "cost_ledgers", "ticket_ledgers", column: "source_ticket_id"
   add_foreign_key "meeting_ledgers", "meeting_definitions"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"
