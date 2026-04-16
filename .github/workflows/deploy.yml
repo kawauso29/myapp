@@ -75,7 +75,7 @@ jobs:
               -d "$PAYLOAD"
           fi
 
-      - name: Sync Slack env vars to VPS
+      - name: Sync env vars from GitHub Secrets to VPS
         run: |
           set_env() {
             KEY=$1; VAL=$2; FILE=~/myapp/.env
@@ -86,12 +86,31 @@ jobs:
               echo "${KEY}=${VAL}" >> $FILE
             fi
           }
+          set_env AI_PROVIDER '${{ secrets.AI_PROVIDER }}'
+          set_env OPENAI_API_KEY '${{ secrets.OPENAI_API_KEY }}'
+          set_env GEMINI_API_KEY '${{ secrets.GEMINI_API_KEY }}'
+          set_env AI_SNS_POST_MODEL '${{ secrets.AI_SNS_POST_MODEL }}'
+          set_env AI_SNS_CREATION_MODEL '${{ secrets.AI_SNS_CREATION_MODEL }}'
+          set_env TECHNICAL_MODEL '${{ secrets.TECHNICAL_MODEL }}'
+          set_env MOMENTUM_MODEL '${{ secrets.MOMENTUM_MODEL }}'
+          set_env EVENT_RISK_MODEL '${{ secrets.EVENT_RISK_MODEL }}'
+          set_env MACRO_MODEL '${{ secrets.MACRO_MODEL }}'
+          set_env SENTIMENT_MODEL '${{ secrets.SENTIMENT_MODEL }}'
+
           set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
           set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
+          set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
           set_env SLACK_WEBHOOK_URL_ERROR '${{ secrets.SLACK_WEBHOOK_URL_ERROR }}'
           set_env SLACK_WEBHOOK_URL_JOBS '${{ secrets.SLACK_WEBHOOK_URL_JOBS }}'
+          set_env SLACK_WEBHOOK_URL_LEDGER '${{ secrets.SLACK_WEBHOOK_URL_LEDGER }}'
+
           set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
           set_env SOLID_QUEUE_IN_PUMA '1'
+
+          # Remove unused env vars
+          for KEY in SLACK_ERROR_CHANNEL_ID SLACK_CLAUDE_CHANNEL_ID SLACK_CLAUDE_MEMBER_ID GITHUB_DEPLOY_TOKEN; do
+            sed -i "/^${KEY}=/d" ~/myapp/.env
+          done
 
       - name: Setup VPS cron jobs (定期実行 + 監視)
         # weekly_pdca.yml を10分おきに VPS cron から dispatch する
