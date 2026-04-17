@@ -1,4 +1,4 @@
-## 背景 / 目的
+## 背景/目的
 - 例: どの課題を解消する変更か、なぜ今必要か
 
 ## 変更内容
@@ -21,3 +21,14 @@
 ## リスク & ロールバック
 - リスク:
 - ロールバック手順:
+
+## §31 必須メタ情報
+<!-- 設計書 §30.4 / §31 に基づく必須メタ情報。キーと値を `key: value` 形式で記入してください。 -->
+<!-- 自動運用ブランチ（copilot/auto-*, copilot/ai-sns-*, auto-fix/*, dependabot/*）は CI で検証をスキップします。 -->
+- service_id: <!-- 例: ai_sns / core / none（横断変更の場合） -->
+- linked_kpis: <!-- 例: kpi:service_health, kpi:daily_posts / none（KPI非紐付の理由をリスクに記載） -->
+- source_ticket_id: <!-- 例: ticket:2026q1-ops-12 / none -->
+- risk_level: <!-- high / medium / low -->
+- docs_update_required: <!-- true / false -->
+- tech_record_update_required: <!-- true / false -->
+

@@ -1,0 +1,114 @@
+<% content_for :title, "Ops Artifacts" %>
+
+<div class="card">
+  <h2>Ops Artifacts / Stops / Feedback Viewer (Read Only)</h2>
+  <%= form_with url: admin_ops_artifacts_path, method: :get, local: true do |f| %>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <%= f.text_field :service_id, value: @service_id, placeholder: "service_id (例: ai_sns)", style: "min-width:200px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.text_field :artifact_type, value: @artifact_type, placeholder: "artifact_type (例: spec / runbook)", style: "min-width:220px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
+      <%= link_to "Reset", admin_ops_artifacts_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <h2>Recent ArtifactLedgers (<%= @artifacts.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>type</th>
+        <th>scope</th>
+        <th>service_id</th>
+        <th>title</th>
+        <th>version</th>
+        <th>status</th>
+        <th>supersedes</th>
+        <th>published_at</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @artifacts.each do |artifact| %>
+        <tr>
+          <td><%= artifact.id %></td>
+          <td><%= artifact.artifact_type %></td>
+          <td><%= artifact.scope_level %></td>
+          <td><%= artifact.service_id.presence || "-" %></td>
+          <td><%= artifact.title %></td>
+          <td>v<%= artifact.artifact_version %></td>
+          <td><%= artifact.status %></td>
+          <td><%= artifact.supersedes_id.presence || "-" %></td>
+          <td><%= artifact.published_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
+        </tr>
+      <% end %>
+      <% if @artifacts.empty? %>
+        <tr><td colspan="9" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Active StopLedgers (<%= @active_stops.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>trigger</th>
+        <th>scope</th>
+        <th>service_id</th>
+        <th>started_at</th>
+        <th>evidence</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @active_stops.each do |stop| %>
+        <tr>
+          <td><%= stop.id %></td>
+          <td><%= stop.trigger_type %></td>
+          <td><%= stop.scope_level %></td>
+          <td><%= stop.service_id.presence || "-" %></td>
+          <td><%= stop.started_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
+          <td style="font-family:monospace; font-size:12px;"><%= stop.evidence.to_json %></td>
+        </tr>
+      <% end %>
+      <% if @active_stops.empty? %>
+        <tr><td colspan="6" style="text-align:center; color:#4a5568;">active な停止なし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Recent CustomerFeedback (<%= @recent_feedback.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>source</th>
+        <th>service_id</th>
+        <th>status</th>
+        <th>received_at</th>
+        <th>linked_ticket</th>
+        <th>text (preview)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @recent_feedback.each do |feedback| %>
+        <tr>
+          <td><%= feedback.id %></td>
+          <td><%= feedback.source %></td>
+          <td><%= feedback.service_id.presence || "-" %></td>
+          <td><%= feedback.status %></td>
+          <td><%= feedback.received_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
+          <td><%= feedback.linked_ticket_id.presence || "-" %></td>
+          <td><%= truncate(feedback.raw_text.to_s, length: 100) %></td>
+        </tr>
+      <% end %>
+      <% if @recent_feedback.empty? %>
+        <tr><td colspan="7" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

@@ -124,6 +124,7 @@ module Ledgers
         scope_level:,
         service_id:,
         source_meeting_type: :weekly,
+        source_meeting: Ledgers::SystemMeetingProvider.for(kind: "improvement_detector"),
         linked_kpis:,
         linked_artifacts: [],
         priority: :medium,

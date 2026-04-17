@@ -30,6 +30,14 @@ Rails.application.reloader.to_prepare do
     ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob
+    ExperimentAutoDeciderJob
+    SlaSweepJob
+    KpiAutoCollectJob
+    KpiGradeEvaluateJob
+    StopConditionMonitorJob
+    EffectivenessRecalcJob
+    PlannerJob
+    TicketIssueSyncJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

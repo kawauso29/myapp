@@ -55,17 +55,23 @@ def seed_service_and_kpi_ledgers!
   end
 
   [
-    { kpi_key: "kpi:service_health", name: "Service Health", scope_level: :service, service_id: "ai_sns" },
-    { kpi_key: "kpi:ai_sns_wau", name: "AI SNS WAU", scope_level: :service, service_id: "ai_sns" },
-    { kpi_key: "kpi:ai_sns_retention_7d", name: "AI SNS Retention 7d", scope_level: :service, service_id: "ai_sns" },
-    { kpi_key: "kpi:ai_sns_paid_conversion", name: "AI SNS Paid Conversion", scope_level: :service, service_id: "ai_sns" },
-    { kpi_key: "kpi:company_revenue_growth", name: "Company Revenue Growth", scope_level: :company, service_id: nil }
+    { kpi_key: "kpi:service_health", name: "Service Health", scope_level: :service, service_id: "ai_sns",
+      thresholds: { "healthy" => 0.8, "warning" => 0.4, "direction" => "higher_better" } },
+    { kpi_key: "kpi:ai_sns_wau", name: "AI SNS WAU", scope_level: :service, service_id: "ai_sns",
+      thresholds: { "healthy" => 1000, "warning" => 300, "direction" => "higher_better" } },
+    { kpi_key: "kpi:ai_sns_retention_7d", name: "AI SNS Retention 7d", scope_level: :service, service_id: "ai_sns",
+      thresholds: { "healthy" => 40, "warning" => 20, "direction" => "higher_better" } },
+    { kpi_key: "kpi:ai_sns_paid_conversion", name: "AI SNS Paid Conversion", scope_level: :service, service_id: "ai_sns",
+      thresholds: { "healthy" => 5, "warning" => 1, "direction" => "higher_better" } },
+    { kpi_key: "kpi:company_revenue_growth", name: "Company Revenue Growth", scope_level: :company, service_id: nil,
+      thresholds: { "healthy" => 10, "warning" => 0, "direction" => "higher_better" } }
   ].each do |attrs|
     KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |kpi_ledger|
       kpi_ledger.scope_level = attrs[:scope_level]
       kpi_ledger.service_id = attrs[:service_id]
       kpi_ledger.name = attrs[:name]
       kpi_ledger.status = :active
+      kpi_ledger.thresholds = attrs[:thresholds] || {}
     end
   end
 end

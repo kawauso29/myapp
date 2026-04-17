@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_046000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -411,6 +411,69 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "artifact_ledgers", force: :cascade do |t|
+    t.integer "artifact_type", null: false
+    t.integer "artifact_version", default: 1, null: false
+    t.string "author"
+    t.jsonb "content", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "idempotency_key"
+    t.datetime "published_at"
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.bigint "supersedes_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_type", "scope_level", "service_id"], name: "idx_artifact_ledgers_type_scope"
+    t.index ["artifact_type", "title", "artifact_version"], name: "idx_artifact_ledgers_type_title_version", unique: true
+    t.index ["idempotency_key"], name: "index_artifact_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_artifact_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_artifact_ledgers_on_source_ticket_id"
+    t.index ["status"], name: "index_artifact_ledgers_on_status"
+    t.index ["supersedes_id"], name: "index_artifact_ledgers_on_supersedes_id"
+  end
+
+  create_table "audit_decision_ledgers", force: :cascade do |t|
+    t.string "audit_role", null: false
+    t.string "auditor"
+    t.datetime "created_at", null: false
+    t.datetime "decided_at", null: false
+    t.integer "decision", null: false
+    t.decimal "effectiveness_override_score", precision: 5, scale: 4
+    t.string "idempotency_key"
+    t.string "reason_code", null: false
+    t.text "reason_detail"
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.bigint "target_ticket_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["decision", "reason_code"], name: "idx_audit_decision_by_reason"
+    t.index ["idempotency_key"], name: "index_audit_decision_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_audit_decision_ledgers_on_source_meeting_id"
+    t.index ["target_ticket_id"], name: "index_audit_decision_ledgers_on_target_ticket_id"
+  end
+
+  create_table "compliance_rules", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "enforced_at"
+    t.integer "law_domain", null: false
+    t.string "name", null: false
+    t.integer "owner_role", null: false
+    t.text "pattern", null: false
+    t.text "rationale"
+    t.integer "scope_level", null: false
+    t.string "service_id_pattern"
+    t.integer "severity", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enforced_at"], name: "index_compliance_rules_on_enforced_at"
+    t.index ["law_domain", "severity"], name: "index_compliance_rules_on_law_domain_and_severity"
+    t.index ["scope_level", "severity"], name: "index_compliance_rules_on_scope_level_and_severity"
+  end
+
   create_table "cost_ledgers", force: :cascade do |t|
     t.decimal "amount_jpy", precision: 14, scale: 2, default: "0.0", null: false
     t.string "business_unit_id"
@@ -434,6 +497,65 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.index ["subject_type", "subject_id"], name: "index_cost_ledgers_on_subject_type_and_subject_id"
   end
 
+  create_table "customer_feedback_ledgers", force: :cascade do |t|
+    t.jsonb "categorization", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "idempotency_key"
+    t.bigint "linked_ticket_id"
+    t.text "raw_text", null: false
+    t.datetime "received_at", null: false
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.integer "source", null: false
+    t.integer "status", default: 0, null: false
+    t.string "submitted_by"
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_customer_feedback_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["linked_ticket_id"], name: "index_customer_feedback_ledgers_on_linked_ticket_id"
+    t.index ["scope_level", "service_id", "received_at"], name: "idx_cust_feedback_scope_received"
+    t.index ["status", "source"], name: "index_customer_feedback_ledgers_on_status_and_source"
+  end
+
+  create_table "experiment_ledgers", force: :cascade do |t|
+    t.string "auto_decision"
+    t.datetime "created_at", null: false
+    t.string "created_by"
+    t.date "deadline", null: false
+    t.datetime "decided_at"
+    t.string "decision_reason"
+    t.string "hypothesis", null: false
+    t.jsonb "kpi_targets", default: [], null: false
+    t.jsonb "linked_kpis", default: [], null: false
+    t.integer "scope_level", default: 2, null: false
+    t.string "service_id", null: false
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["deadline"], name: "index_experiment_ledgers_on_deadline"
+    t.index ["service_id"], name: "index_experiment_ledgers_on_service_id"
+    t.index ["status"], name: "index_experiment_ledgers_on_status"
+  end
+
+  create_table "hr_evaluation_ledgers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "criteria", default: {}, null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.string "idempotency_key"
+    t.date "period_end", null: false
+    t.date "period_start", null: false
+    t.integer "scope_level", null: false
+    t.decimal "score", precision: 5, scale: 4
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.integer "status", default: 0, null: false
+    t.string "subject_agent"
+    t.string "subject_role", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_hr_evaluation_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_hr_evaluation_ledgers_on_source_meeting_id"
+    t.index ["subject_role", "period_end"], name: "idx_hr_evaluation_role_period"
+  end
+
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
@@ -452,17 +574,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.index ["jti"], name: "index_jwt_denylists_on_jti", unique: true
   end
 
+  create_table "knowledge_ledgers", force: :cascade do |t|
+    t.datetime "accepted_at"
+    t.string "author"
+    t.text "body", default: "", null: false
+    t.datetime "created_at", null: false
+    t.string "idempotency_key"
+    t.integer "kind", null: false
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.bigint "supersedes_id"
+    t.jsonb "tags", default: {}, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_knowledge_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["kind", "status"], name: "index_knowledge_ledgers_on_kind_and_status"
+    t.index ["source_meeting_id"], name: "index_knowledge_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_knowledge_ledgers_on_source_ticket_id"
+    t.index ["supersedes_id"], name: "index_knowledge_ledgers_on_supersedes_id"
+  end
+
   create_table "kpi_ledgers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.jsonb "current_value", default: {}, null: false
     t.text "description"
+    t.integer "grade"
+    t.datetime "graded_at"
     t.string "kpi_key", null: false
     t.string "name", null: false
     t.integer "scope_level", null: false
     t.string "service_id"
     t.integer "status", default: 0, null: false
     t.jsonb "target_value", default: {}, null: false
+    t.jsonb "thresholds", default: {}, null: false
     t.datetime "updated_at", null: false
+    t.index ["grade"], name: "index_kpi_ledgers_on_grade"
     t.index ["kpi_key"], name: "index_kpi_ledgers_on_kpi_key", unique: true
     t.index ["scope_level", "service_id"], name: "index_kpi_ledgers_on_scope_level_and_service_id"
   end
@@ -474,6 +621,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.date "recorded_on", null: false
     t.datetime "updated_at", null: false
     t.index ["period", "recorded_on"], name: "index_kpi_snapshots_on_period_and_recorded_on", unique: true
+  end
+
+  create_table "lane_capacity_caps", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "notes"
+    t.integer "operating_lane", null: false
+    t.integer "scope_level"
+    t.string "service_id"
+    t.datetime "updated_at", null: false
+    t.integer "wip_cap", default: 5, null: false
+    t.index ["scope_level", "service_id", "operating_lane"], name: "idx_lane_capacity_scope_lane", unique: true
   end
 
   create_table "market_snapshots", force: :cascade do |t|
@@ -492,6 +650,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
 
   create_table "meeting_definitions", force: :cascade do |t|
     t.boolean "active", default: true, null: false
+    t.jsonb "allowed_cycles", default: [], null: false
     t.string "chair_role", null: false
     t.datetime "created_at", null: false
     t.string "meeting_key", null: false
@@ -506,24 +665,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
   end
 
   create_table "meeting_ledgers", force: :cascade do |t|
+    t.jsonb "carry_over_items", default: [], null: false
     t.string "chair", null: false
     t.datetime "created_at", null: false
     t.jsonb "decisions", default: [], null: false
     t.jsonb "directives", default: [], null: false
+    t.integer "duration_minutes"
     t.jsonb "escalations", default: [], null: false
     t.datetime "held_at", null: false
+    t.decimal "hold_item_rate", precision: 5, scale: 4
     t.jsonb "hold_items", default: [], null: false
+    t.string "idempotency_key"
     t.jsonb "input_materials", default: [], null: false
+    t.decimal "kpi_correlation_score", precision: 5, scale: 4
     t.bigint "meeting_definition_id", null: false
+    t.decimal "meeting_health_score", precision: 5, scale: 4
     t.string "meeting_key", null: false
     t.integer "meeting_type", null: false
     t.jsonb "participants", default: [], null: false
+    t.decimal "role_fill_rate", precision: 5, scale: 4
     t.integer "scope_level", null: false
     t.string "service_id"
     t.integer "status", default: 0, null: false
     t.jsonb "tickets_to_create", default: [], null: false
     t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_meeting_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["meeting_definition_id"], name: "index_meeting_ledgers_on_meeting_definition_id"
+    t.index ["meeting_health_score"], name: "index_meeting_ledgers_on_meeting_health_score"
     t.index ["meeting_key", "held_at"], name: "index_meeting_ledgers_on_meeting_key_and_held_at"
   end
 
@@ -561,6 +729,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.index ["scope_level", "service_id", "lifted_at"], name: "idx_operator_override_scope_lifted"
   end
 
+  create_table "org_change_ledgers", force: :cascade do |t|
+    t.integer "change_type", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "diff", default: {}, null: false
+    t.date "effective_from"
+    t.string "idempotency_key"
+    t.text "rationale"
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.string "subject_role"
+    t.datetime "updated_at", null: false
+    t.index ["change_type", "status"], name: "index_org_change_ledgers_on_change_type_and_status"
+    t.index ["idempotency_key"], name: "index_org_change_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_org_change_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_org_change_ledgers_on_source_ticket_id"
+  end
+
   create_table "picro_messages", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "message_id", null: false
@@ -571,6 +759,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.index ["message_id"], name: "index_picro_messages_on_message_id", unique: true
+  end
+
+  create_table "portfolio_strategy_ledgers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "idempotency_key"
+    t.jsonb "linked_kpis", default: [], null: false
+    t.jsonb "member_service_ids", default: [], null: false
+    t.date "period_end"
+    t.date "period_start", null: false
+    t.bigint "source_meeting_id"
+    t.integer "status", default: 0, null: false
+    t.string "strategy_key", null: false
+    t.integer "strategy_type", null: false
+    t.jsonb "targets", default: {}, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_portfolio_strategy_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_portfolio_strategy_ledgers_on_source_meeting_id"
+    t.index ["strategy_key"], name: "index_portfolio_strategy_ledgers_on_strategy_key", unique: true
+    t.index ["strategy_type", "status"], name: "index_portfolio_strategy_ledgers_on_strategy_type_and_status"
   end
 
   create_table "post_interest_tags", force: :cascade do |t|
@@ -595,6 +803,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.index ["ai_post_id"], name: "index_post_reports_on_ai_post_id"
     t.index ["status"], name: "index_post_reports_on_status"
     t.index ["user_id"], name: "index_post_reports_on_user_id"
+  end
+
+  create_table "role_permissions", force: :cascade do |t|
+    t.integer "action", null: false
+    t.boolean "allowed", default: false, null: false
+    t.integer "approver_role"
+    t.string "audit_reason_code_required"
+    t.datetime "created_at", null: false
+    t.boolean "requires_dual_approval", default: false, null: false
+    t.integer "role", null: false
+    t.integer "scope", null: false
+    t.string "service_id_pattern"
+    t.integer "tiebreaker_role"
+    t.datetime "updated_at", null: false
+    t.index ["action", "allowed"], name: "index_role_permissions_on_action_and_allowed"
+    t.index ["role", "action", "scope"], name: "index_role_permissions_on_role_and_action_and_scope"
   end
 
   create_table "service_heartbeats", force: :cascade do |t|
@@ -623,28 +847,69 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_222500) do
     t.index ["service_id"], name: "index_service_ledgers_on_service_id", unique: true
   end
 
+  create_table "stop_ledgers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.string "idempotency_key"
+    t.text "lift_reason"
+    t.datetime "lifted_at"
+    t.string "lifted_by"
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.datetime "started_at", null: false
+    t.integer "status", default: 0, null: false
+    t.string "trigger_detail"
+    t.integer "trigger_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_stop_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["scope_level", "service_id", "lifted_at"], name: "idx_stop_ledger_scope_lifted"
+    t.index ["source_meeting_id"], name: "index_stop_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_stop_ledgers_on_source_ticket_id"
+    t.index ["status", "trigger_type"], name: "index_stop_ledgers_on_status_and_trigger_type"
+  end
+
   create_table "ticket_ledgers", force: :cascade do |t|
     t.string "assignee"
     t.string "business_owner"
     t.datetime "created_at", null: false
     t.integer "due_cycle"
     t.date "due_date"
+    t.integer "effectiveness_sample_size"
+    t.decimal "effectiveness_score", precision: 5, scale: 4
+    t.datetime "effectiveness_updated_at"
     t.integer "escalation_to"
+    t.integer "github_issue_number"
+    t.integer "github_pr_number"
+    t.datetime "github_synced_at"
+    t.string "idempotency_key"
+    t.string "improvement_pattern_key"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
+    t.integer "operating_lane"
     t.string "owner_agent"
     t.string "owner_dept"
     t.integer "priority", default: 1, null: false
     t.datetime "resolved_at"
+    t.integer "risk_level", default: 0
     t.integer "scope_level", null: false
     t.string "service_id"
-    t.bigint "source_meeting_id"
+    t.integer "sla_breach_action"
+    t.datetime "sla_breached_at"
+    t.datetime "sla_deadline"
+    t.bigint "source_meeting_id", null: false
     t.integer "source_meeting_type"
     t.integer "status", default: 0, null: false
     t.string "ticket_type", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_ticket_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["improvement_pattern_key"], name: "index_ticket_ledgers_on_improvement_pattern_key"
+    t.index ["operating_lane", "status"], name: "idx_ticket_operating_lane_status"
     t.index ["service_id"], name: "index_ticket_ledgers_on_service_id"
+    t.index ["sla_breached_at"], name: "index_ticket_ledgers_on_sla_breached_at"
+    t.index ["sla_deadline"], name: "index_ticket_ledgers_on_sla_deadline"
     t.index ["source_meeting_id"], name: "index_ticket_ledgers_on_source_meeting_id"
     t.index ["status", "escalation_to"], name: "index_ticket_ledgers_on_status_and_escalation_to"
   end

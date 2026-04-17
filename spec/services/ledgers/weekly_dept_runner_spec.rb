@@ -121,5 +121,36 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(Ledgers::ImprovementDetector).to have_received(:call)
       expect(Ledgers::ImprovementResolver).to have_received(:call)
     end
+
+    it "sets a deterministic idempotency_key and role_fill_rate from PreflightValidator" do
+      create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+      meeting = described_class.call(
+        service_id: "ai_sns",
+        ticket_inputs: [
+          { ticket_type: "ops", title: "weekly", linked_kpis: [ "kpi:service_health" ], audit_ok: true }
+        ],
+        present_roles: %w[planning dev audit]
+      )
+
+      expected_key = "weekly_dept:ai_sns:#{Date.current.iso8601}"
+      expect(meeting.idempotency_key).to eq(expected_key)
+      # definition has 5 participant_roles, so 3 / 5 = 0.6
+      expect(meeting.role_fill_rate.to_f).to be_within(0.0001).of(0.6)
+      expect(meeting.participants).to match_array(%w[planning dev audit])
+    end
+
+    it "copies hold_items into carry_over_items for the next weekly cycle" do
+      described_class.call(
+        service_id: "ai_sns",
+        ticket_inputs: [
+          { ticket_type: "ops", title: "missing kpi", linked_kpis: [] }
+        ]
+      )
+
+      meeting = MeetingLedger.last
+      expect(meeting.hold_items).to be_present
+      expect(meeting.carry_over_items).to eq(meeting.hold_items)
+    end
   end
 end

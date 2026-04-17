@@ -1,6 +1,8 @@
 # 理念駆動型AI企業体 統合設計書 v1
 
-<!-- spec-version: v1.1 (§33 補強11/16 実装済み) -->
+<!-- spec-version: v1.5 (§31 必須メタ情報の CI 強制 + Reinforcements 定期実行化) -->
+<!-- note: §33 補強11/16 (cost_ledger / operator_override_ledger) 実装済み -->
+
 
 ## 0. 本書の位置づけ
 本書は、複数サービスを持つ自律運営型の企業体を前提に、理念・経営・事業・実行・監査・人事・顧客成功・知識管理までを一体運用するための統合設計書である。
@@ -418,6 +420,10 @@
 - business_unit_id
 - business_owner
 
+### 16.3 実装状況
+本章の 6 主要成果物は §28 のテンプレート文字列として定義済みであり、**DB 台帳 `artifact_ledger` と Runner からの自動 publish 連動まで実装済み**（Phase 31 + 31b + 31c）。`artifact_type` enum（`kpi_definition` / `spec` / `execution_plan` / `audit_judgment` / `customer_notice` / `tech_record`）と `artifact_version` / `supersedes_id`（self-reference）によるバージョン履歴、`Artifacts::Publisher` サービスによる公開 / 自動 supersede、`/admin/ops/artifacts` Viewer、`Ledgers::RunnerArtifactPublisher` による 4 Runner（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）からの議事要約自動 publish（`artifact:<runner>:<meeting_key>` 冪等キー付）を提供する。
+旧来の `ticket_ledger.linked_artifacts` JSONB 参照も後方互換のため並存する。
+
 ---
 
 ## 17. 起票カテゴリ
@@ -486,6 +492,10 @@
 - 組織再編提案
 - プロンプト修正
 
+### 19.4 実装状況
+**モデル層まで実装済み**（Phase 38）。`hr_evaluation_ledger`（`subject_role` / `period` / `axis_scores` jsonb / `overall_score` / `proposed_action`）と `org_change_ledger`（`change_type`: `split` / `merge` / `create` / `abolish` / `prompt_update` / `role_move` / `capacity_adjust`）を追加。
+**未実装**: 評価軸 5 項目（成果品質・KPI 貢献・実行効率・協調性・継続可能性）の自動計測ジョブ（`Hr::Evaluator`）とプロンプト修正レーンは Phase 38b で別 PR 分離する（四半期 recurring job として起動する想定）。
+
 ---
 
 ## 20. 知識管理・ドキュメント運用
@@ -519,6 +529,14 @@
 - 変更に随伴して更新する
 - デプロイ前に更新完了確認を行う
 - 更新漏れは停止トリガーではないが改善対象とする
+
+### 20.4 実装状況
+**Phase 37 で台帳化・PR ガードレール（警告モード）・Admin Viewer を実装済み**。
+- `knowledge_ledger`（`knowledge_type`: `adr` / `runbook` / `incident` / `deploy_record`、`title` / `body` / `tags` / `service_id` / `business_unit_id` / `scope_level`）を追加。
+- `Knowledge::PrGuardrail` が PR 本文の ADR / Runbook リンク欠如を検知し、`TicketLedger.warn_pr_guardrail` から `after_create` 警告ログとして記録。
+- `/admin/ops/knowledge` Viewer で ADR / Runbook / Incident / Deploy 記録を一覧。
+
+**未実装 / 次 PR**: 警告ログから `enforce` モード（CI ブロック）への切り替えは、警告データが十分蓄積してから別 PR で判断する。
 
 ---
 
@@ -1015,30 +1033,73 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 4. 技術記録更新対象が true の場合、対応ファイル更新または更新不要理由が必須。
 5. 顧客向け更新が必要な場合、顧客成功部レビューを経る。
 6. 監査部は GitHub 上のレビュー / チェック結果で停止提案できる。
+7. **本運用ルール 3 の必須メタ情報は CI ワークフロー `pr_guardrails.yml` により強制される**。自動運用ブランチ（`copilot/auto-*` / `copilot/ai-sns-*` / `auto-fix/*` / `dependabot/*`）は検証をスキップする。
 
 ---
 
 ## 32. 次の実装フェーズ
 本設計の次フェーズでは、以下を具体化する。
-1. GitHub Issue / PR / Project の項目定義
-2. 台帳とGitHub項目のマッピング
-3. 会議出力からIssue化するルール
-4. Copilot coding agent に渡す標準入力テンプレート
-5. high / medium / low リスクごとのGitHubフロー差分
+1. GitHub Issue / PR / Project の項目定義 → **実装済み**（`GithubMapping::IssueBuilder` / `PrBuilder` / `ProjectFieldMapper`）
+2. 台帳とGitHub項目のマッピング → **実装済み**（`GithubMapping::LedgerSyncService`）
+3. 会議出力からIssue化するルール → **実装済み**（`GithubMapping::MeetingToIssueRule`）
+4. Copilot coding agent に渡す標準入力テンプレート → **実装済み**（`GithubMapping::CopilotInputTemplate`）
+5. high / medium / low リスクごとのGitHubフロー差分 → **実装済み**（`GithubMapping::RiskBasedFlow`）
 
 補強10〜16 に対応するフェーズは以下とする（詳細は §33）。
 
-| Phase | 名称 | 対応補強 | 目的 |
-|---|---|---|---|
-| 20 | 学習ループ | 補強10 | improvement の効果を蓄積し、同じ処方箋の無効反復を防ぐ |
-| 21 | コスト台帳 / P/L | 補強11 | 各判断・各会議・各ジョブに費用を紐付け、ROI を機械的に評価する |
-| 22 | 権限マトリクス DB 化 | 補強12 | 「誰が何を決めてよいか」を DB 制約で表現する |
-| 23 | SLA / 外部依存タイムアウト | 補強13 | 人間の承認待ちで固まらない保証を与える |
-| 24 | コンプライアンス台帳 | 補強14 | PII / 景表法 / 薬機法 / 金商法などを台帳化し、出力前に自動検証する |
-| 25 | 会議品質メトリクス | 補強15 | 会議の形骸化を数値で検知し improvement を起票する |
-| 26 | 人間オーバーライド / キルスイッチ | 補強16 | 最上位の緊急停止を 1 行で表現できるようにする |
+| Phase | 名称 | 対応補強 | 目的 | 実装状況 |
+|---|---|---|---|---|
+| 20 | 学習ループ | 補強10 | improvement の効果を蓄積し、同じ処方箋の無効反復を防ぐ | サービス層実装済み（`Reinforcements::EffectivenessEvaluator`） |
+| 21 | コスト台帳 / P/L | 補強11 | 各判断・各会議・各ジョブに費用を紐付け、ROI を機械的に評価する | サービス層実装済み（`Reinforcements::CostRecorder`） |
+| 22 | 権限マトリクス DB 化 | 補強12 | 「誰が何を決めてよいか」を DB 制約で表現する | サービス層実装済み（`Reinforcements::PermissionEnforcer`） |
+| 23 | SLA / 外部依存タイムアウト | 補強13 | 人間の承認待ちで固まらない保証を与える | サービス層 + 定期実行実装済み（`Reinforcements::SlaCalculator` + `SlaSweepJob` 1時間ごと） |
+| 24 | コンプライアンス台帳 | 補強14 | PII / 景表法 / 薬機法 / 金商法などを台帳化し、出力前に自動検証する | サービス層実装済み（`Reinforcements::ComplianceChecker`） |
+| 25 | 会議品質メトリクス | 補強15 | 会議の形骸化を数値で検知し improvement を起票する | サービス層実装済み（`Reinforcements::MeetingHealthScorer`） |
+| 26 | 人間オーバーライド / キルスイッチ | 補強16 | 最上位の緊急停止を 1 行で表現できるようにする | サービス層実装済み（`Reinforcements::KillSwitchGuard`） |
 
 オープン論点 R1〜R4 は §33.4 で継続検討し、対応 Phase は確定次第この表に追記する。
+
+### 32.1 自律成長ループ（Phase A〜E）
+
+§32 / §33 の Phase 群は「止まらず・壊れず・説明可能に運営する」ためのガバナンス OS を完成させる。
+これに対し、Phase A〜E は **サービスを能動的に成長させる**ためのループを接続する層である。
+`KpiLedger → EffectivenessScore → Improvement起票 → GitHub Issue → Copilot 実装` の閉ループを機械化する。
+
+| Phase | 名称 | 役割 | 実装状況 |
+|---|---|---|---|
+| A | KPI 自動収集 | `Admin::KpiService.weekly_metrics` を `KpiLedger.current_value` に投入。R4 / ImprovementDetector / Planner の入力データを常時供給する | 実装済み（`Reinforcements::KpiAutoCollector` + `KpiAutoCollectJob` 日次） |
+| B | 発案エージェント | KPI の actual < target 乖離から improvement ticket を自動起票する。補強10 の学習ループと連動し、低効果パターンの再起票を抑止する | 実装済み（`Reinforcements::Planner` + `PlannerJob` 日次 / ルールベース） |
+| C | Ticket→Issue 同期 | `approved` / `planned` チケットを §32-2 LedgerSyncService で GitHub Issue 化し、Copilot coding agent に実装させる | 実装済み（`Reinforcements::TicketIssueSync` + `TicketIssueSyncJob` 毎時） |
+| D | 効果書き戻し | 完了 improvement チケットの `linked_kpis` を根拠に `effectiveness_score` を書き戻し、補強10 の学習ループに燃料を供給する | 実装済み（`Reinforcements::EffectivenessRecalculator` + `EffectivenessRecalcJob` 日次） |
+| E | 顧客フィードバック導線 | AI SNS 側のユーザー利用ログ・離脱理由を KPI に還流する | 未実装（§32.2 Phase 39 で対応） |
+
+Planner は現状ルールベースだが、将来 `LlmGateway` 経由の仮説生成器に差し替えられる構造で実装している。
+Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する（§32.2 Phase 39）。
+
+### 32.2 統合実装ロードマップ（Phase 30〜41）
+
+§32 本文（GitHub 接続 5 項目）/ Phase 20〜26（補強10〜16）/ Phase A〜E（自律成長）を実装したあと、**初期 3 設計文書（`自律開発エージェント設計.md` / `thu_apr_16_2026_...設計.md` / 本仕様書）と現行実装を突き合わせて検出された残ギャップを、以降 Phase 30 〜 Phase 41 の通し番号に統合する**。
+
+これは Phase 0〜7（履歴）/ Phase 20〜26（補強）/ Phase A〜E（成長）の 3 系統を Phase 30 以降で 1 本化するためのものであり、**以降の改修は必ずこの通し番号で起票する**。
+
+| Phase | 名称 | 根拠 | 粒度 | 状態 |
+|---|---|---|---|---|
+| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ **完了**（30a + 30b + 30c：idempotency_key 自動採番 / PreflightValidator / carry_over_items / SystemMeetingProvider / source_meeting_id NOT NULL / JobIdempotency） |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | ✅ **完了**（31：ArtifactLedger + Artifacts::Publisher / 31b：Admin Viewer / 31c：4 Runner からの自動 publish with 冪等キー） |
+| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | ✅ **完了**（AuditDecisionLedger + Audits::RecordDecision + reason_code 強制 + Admin Viewer） |
+| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | ✅ **完了**（StopLedger + Stops::ConditionEvaluator + StopConditionMonitorJob + Stops::EntryGuard（TicketLedger 起票ブロック）+ Admin Viewer 手動 lift 付き） |
+| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ **完了**（grade enum + thresholds + KpiGradeEvaluator + 日次ジョブ） |
+| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | ✅ **完了**（TicketLedger.ticket_type enum に §17 の 11 種を実装） |
+| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ **完了**（operating_lane + LaneCapacityCap + Ledgers::LaneCapacityGuard 警告ログ） |
+| 37 | 知識台帳（ADR / Runbook / 障害 / デプロイ記録）+ PR ガードレール | §20 | 中 | ✅ **完了**（KnowledgeLedger + Knowledge::PrGuardrail 警告ログ + Admin Viewer。enforce モードは別 PR） |
+| 38 | 人事評価 / 組織再編（`hr_evaluation_ledger` 等） | §19 | 大 | 🔧 **モデル層完了**（HrEvaluationLedger / OrgChangeLedger）。評価ロジックは 38b で別 PR |
+| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | ✅ **完了**（CustomerFeedbackLedger + Feedback::Intake、高重大度は即 escalate） |
+| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | ❌ 未着手（影響範囲が広いため別 PR に分離） |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 **モデル層完了**（PortfolioStrategyLedger）。実運用フローは 41b で別 PR |
+
+**依存関係**: Phase 30 / 34 は他の前提。Phase 32〜37 は Phase 31 に依存する。Phase 38 / 40 / 41 はいずれも独立かつ大型のため、別セッション（別 PR）で順次進める。
+
+**詳細な工程分解と進捗**は `docs/projects/operating-spec-phase-30-plan.md` に置く。本表はその要約である。
 
 ---
 
@@ -1055,21 +1116,21 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 
 | No. | 名称 | 対象 | 影響範囲 | 合意状況 |
 |---|---|---|---|---|
-| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | 合意済み（前セッション） |
-| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | 合意済み |
-| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | 合意済み |
-| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 合意済み |
-| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | 合意済み |
-| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | 合意済み |
-| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 合意済み |
-| 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 合意済み |
-| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | 合意済み |
-| 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 本章で新規 |
+| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | ✅ 実装済み（Phase 30a 台帳カラム + 30b Runner 自動採番 + 30c `Ledgers::JobIdempotency`）|
+| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | ✅ 実装済み（Phase 30b `Ledgers::PreflightValidator`）|
+| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | ✅ 実装済み（Phase 30c：`ticket_ledgers.source_meeting_id` NOT NULL + `Ledgers::SystemMeetingProvider`）|
+| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | ✅ 実装済み（Phase 31：`ArtifactLedger` + `Artifacts::Publisher` / 31b：Admin Viewer / 31c：`Ledgers::RunnerArtifactPublisher` による 4 Runner 自動 publish）|
+| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | ✅ 実装済み（Phase 34：`KpiLedger#grade` + `thresholds` + `KpiGradeEvaluator`）|
+| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | ✅ 実装済み（Phase 32：`AuditDecisionLedger` + `Audits::RecordDecision` が reason_code を必須化 + Admin Viewer）|
+| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | ✅ 実装済み（Phase 33：`StopLedger` + `Stops::ConditionEvaluator` + `StopConditionMonitorJob` + `Stops::EntryGuard`（TicketLedger 起票ブロック、bypass ホワイトリスト付）+ Admin Viewer 手動 lift 付き）|
+| 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 実装済み（Phase 30a 台帳カラム + Phase 30b `WeeklyDeptRunner` 書き込み）|
+| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | `GithubMapping::CopilotInputTemplate` 実装済み / 台帳への `template_id` 列は別 PR |
+| 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 実装済み（台帳カラム・モデル） |
 | 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 実装済み（台帳・モデル） |
-| 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 本章で新規 |
-| 13 | ticket_ledgers.sla_deadline（外部依存 SLA） | 起票台帳 | §27 / §33.3 | 本章で新規 |
-| 14 | compliance_rules（コンプライアンス層） | 新規台帳 | §16 / §33.3 | 本章で新規 |
-| 15 | meeting_health_score（会議品質） | 会議台帳 | §26 / §33.3 | 本章で新規 |
+| 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 実装済み（台帳・モデル） |
+| 13 | ticket_ledgers.sla_deadline（外部依存 SLA） | 起票台帳 | §27 / §33.3 | 実装済み（台帳カラム・モデル） |
+| 14 | compliance_rules（コンプライアンス層） | 新規台帳 | §16 / §33.3 | 実装済み（台帳・モデル） |
+| 15 | meeting_health_score（会議品質） | 会議台帳 | §26 / §33.3 | 実装済み（台帳カラム・モデル） |
 | 16 | operator_override_ledger（キルスイッチ） | 新規台帳 | §18 / §33.3 | 実装済み（台帳・モデル） |
 
 補強1〜9 の詳細は前セッションで合意済みのため、本章では要点のみ表に掲載する。実装時点で挙動が曖昧な場合は、本章の様式（目的 / 追加項目 / 更新主体 / 接続）に合わせて逐次正式化する。
@@ -1228,28 +1289,25 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 
 ### 33.4 オープン論点（R1〜R4）
 
-本項目は本章で**即時反映しない**が、設計進化の余地として設計書に残す。対応 Phase が確定次第、§32 の表および本文に正式反映する。
+本項目は v1.4 で設計実装済みとなった。各論点は以下の形で反映されている。
 
-#### R1: 会議体の「固定6周期」は、事業が成長すると歪む
-- 現 §11 / §12 はすべてのスコープに対し 6 周期（日 / 週 / 月 / 四半期 / 年 / 長期）を均一適用している。
-- 年商規模やサービス数により最適周期は異なる（例: service スコープは daily + weekly のみで十分なケース）。
-- **対応方針案**: §26 会議台帳の `meeting_definitions` が `scope_level` を持つ前提で、「scope ごとに持てる周期は可変」を設計書に明示する。
-- **想定 Phase**: 20 以降、必要性が観測されたタイミング。
+#### R1: 会議体の「固定6周期」は、事業が成長すると歪む — **実装済み**
+- `meeting_definitions.allowed_cycles`（JSONB）で scope ごとの許可周期を可変に。
+- 空配列は後方互換（全周期許可）。`MeetingDefinition#cycle_allowed?` で判定。
+- バリデーション付き（`VALID_CYCLES = %w[daily weekly monthly quarterly annual long_term]`）。
 
-#### R2: 「AI vs AI」の対立マトリクス
-- §27.4 で audit ロールの拒否権が明記されているが、**他ロール同士の対立**（例: service chair の承認 vs exec_planning の差戻）の優先順位が未定義。
-- **対応方針案**: ロール ×アクション ×結論の対立マトリクスを作成し、補強12 の `role_permissions` の拡張項目として `tiebreaker_role` を持たせる。
-- **想定 Phase**: 22（権限マトリクス DB 化）と同時、もしくは直後。
+#### R2: 「AI vs AI」の対立マトリクス — **実装済み**
+- `role_permissions.tiebreaker_role` カラムを追加。
+- `Reinforcements::ConflictResolver.resolve` で対立判定→tiebreaker 決着→未決着を構造化して返す。
 
-#### R3: 「会社を閉じる / ピボットする」判断が設計にない
-- §27 起票カテゴリに `service_shutdown` / `pivot` に相当する項目がなく、**自己否定の判断**ができない。
-- **対応方針案**: §27.2 に新カテゴリ `service_shutdown` / `service_pivot` を追加し、起票条件を「3 期連続の KPI critical」「3 期連続の monthly_cost > 収益」などに定める。stop_ledger / operator_override_ledger と接続する。
-- **想定 Phase**: 21（コスト台帳）完成後、コスト根拠で起票できるようになってから。
+#### R3: 「会社を閉じる / ピボットする」判断が設計にない — **実装済み**
+- `ticket_ledgers.ticket_type` に `service_shutdown` / `service_pivot` を追加。
+- 起票可能な状態となり、`stop_ledger` / `operator_override_ledger` との接続が可能。
 
-#### R4: 「成長と秩序」のバランスが止める側に寄っている
-- 監査拒否権・権限境界・停止条件・SLA・コンプライアンスと、止める仕組みが充実する一方で、**挑戦させる仕組み**（ファストレーン / 実験）が弱い。
-- **対応方針案**: 新規台帳 `experiment_ledger(service_id, hypothesis, kpi_target, deadline, auto_decision)` を定義し、90 日後に自動で継続 / 撤退を決める。補強14 の `compliance_rules` とは競合しない形で接続する。
-- **想定 Phase**: 20〜26 の補強群完成後、組織安定性が担保されたタイミング。
+#### R4: 「成長と秩序」のバランスが止める側に寄っている — **実装済み**
+- `experiment_ledgers` テーブルを新設（`service_id` / `hypothesis` / `kpi_targets` / `deadline` / `status`）。
+- `Reinforcements::ExperimentAutoDecider.call` が期限切れ実験の KPI 達成状況を照合し、自動で continued/withdrawn を決定。
+- **日次スケジュール `ExperimentAutoDeciderJob` により `config/recurring.yml` で自動実行（毎日 9:00 JST）**。
 
 ### 33.5 本章と既存章の関係
 
@@ -1264,4 +1322,5 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 | §27 起票台帳 | 補強6 / 補強10 / 補強13 |
 | §28 テンプレート | 補強4（artifact_version）反映時に随伴更新 |
 | §30 Copilot 役割分担 | 補強9（標準入力テンプレート ID 化） |
-| §32 次の実装フェーズ | Phase 20〜26 を追加済み |
+| §32 次の実装フェーズ | Phase 20〜26 を追加済み / §32 items 1-5 を `GithubMapping` で実装済み |
+| §33.4 オープン論点 | R1（allowed_cycles）/ R2（tiebreaker_role + ConflictResolver）/ R3（service_shutdown/pivot）/ R4（experiment_ledger + ExperimentAutoDecider）すべて実装済み |

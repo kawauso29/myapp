@@ -33,6 +33,34 @@ jobs:
             "リスクとロールバック": ["リスク&ロールバック", "risk & rollback", "risk and rollback"],
           }
 
+          # §31 必須メタ情報キー（設計書 §30.4 / §31）
+          REQUIRED_META_KEYS = [
+            "service_id",
+            "linked_kpis",
+            "source_ticket_id",
+            "risk_level",
+            "docs_update_required",
+            "tech_record_update_required",
+          ]
+
+          VALID_RISK_LEVELS = {"high", "medium", "low"}
+          VALID_BOOL_VALUES = {"true", "false"}
+          PLACEHOLDER_PATTERNS = (
+            re.compile(r"^\s*$"),
+            re.compile(r"^<!--.*-->$"),
+            re.compile(r"^[-–—]+$"),
+            re.compile(r"^\s*例[:：]"),
+            re.compile(r"^\s*TODO\s*$", re.IGNORECASE),
+          )
+
+          # 自動運用ブランチは §31 メタ検証をスキップする（運用ルールに合わせる）。
+          AUTO_BRANCH_PREFIXES = (
+            "copilot/auto-",
+            "copilot/ai-sns-",
+            "auto-fix/",
+            "dependabot/",
+          )
+
           def normalize_heading(value):
             value = value.strip().lower()
             value = value.translate(str.maketrans({
@@ -73,6 +101,8 @@ jobs:
           pr = event.get("pull_request", {})
           body = pr.get("body") or ""
           pr_url = pr.get("html_url", "")
+          head_ref = (pr.get("head") or {}).get("ref") or ""
+          skip_meta = head_ref.startswith(AUTO_BRANCH_PREFIXES)
 
           if not body.strip():
             print("::error title=PR Guardrails::PR本文が空です。PRテンプレートの必須セクションをすべて記入してください。")
@@ -125,7 +155,49 @@ jobs:
 
             sys.exit(1)
 
+          # §31 必須メタ情報の検証（自動運用ブランチは skip）
+          meta_errors = []
+          if not skip_meta:
+            # PR本文から "key: value" 形式で必須メタ情報を抽出する
+            meta_values = {}
+            for line in body.splitlines():
+              m = re.match(r"^\s*[-*]\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*[:：]\s*(.*)$", line)
+              if m:
+                key = m.group(1).strip().lower()
+                value = m.group(2).strip()
+                # HTMLコメントは値から除去
+                value = re.sub(r"<!--.*?-->", "", value).strip()
+                if key in REQUIRED_META_KEYS and value:
+                  meta_values[key] = value
+
+            for key in REQUIRED_META_KEYS:
+              value = meta_values.get(key)
+              if not value or any(p.match(value) for p in PLACEHOLDER_PATTERNS):
+                meta_errors.append(f"{key}: 未記入")
+                continue
+              if key == "risk_level" and value.lower() not in VALID_RISK_LEVELS:
+                meta_errors.append(f"{key}: 値 '{value}' は high/medium/low のいずれかである必要があります")
+              elif key in ("docs_update_required", "tech_record_update_required") and value.lower() not in VALID_BOOL_VALUES:
+                meta_errors.append(f"{key}: 値 '{value}' は true/false である必要があります")
+
+          if meta_errors:
+            print("::error title=PR Guardrails::§31 必須メタ情報が不足または不正です。")
+            for msg in meta_errors:
+              print(f"::error title=Meta field::{msg}")
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              print("### ❌ §31 必須メタ情報 検証失敗", file=summary)
+              for msg in meta_errors:
+                print(f"- {msg}", file=summary)
+              print("", file=summary)
+              print("設計書 §30.4 / §31 に基づき、以下のキーを `key: value` 形式でPR本文に記入してください:", file=summary)
+              print("`service_id` / `linked_kpis` / `source_ticket_id` / `risk_level` / `docs_update_required` / `tech_record_update_required`", file=summary)
+            sys.exit(1)
+
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
             print("### ✅ PR Guardrails 成功", file=summary)
             print("- 必須セクションがすべて確認できました。", file=summary)
+            if skip_meta:
+              print(f"- §31 メタ情報検証: skip（自動運用ブランチ: `{head_ref}`）", file=summary)
+            else:
+              print("- §31 必須メタ情報: OK", file=summary)
           PY
