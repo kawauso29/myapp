@@ -13,6 +13,18 @@ RSpec.describe TicketLedger, type: :model do
       expect(ticket).not_to be_valid
       expect(ticket.errors[:linked_kpis]).to include("can't be blank")
     end
+
+    it "requires service_id when scope_level is :service" do
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: nil)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:service_id]).to be_present
+    end
+
+    it "allows scope_level :company without service_id" do
+      ticket = build(:ticket_ledger, scope_level: :company, service_id: nil,
+                     ticket_type: :quarterly_review)
+      expect(ticket).to be_valid
+    end
   end
 
   describe "enums" do

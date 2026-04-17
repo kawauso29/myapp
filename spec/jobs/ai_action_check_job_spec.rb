@@ -178,5 +178,29 @@ RSpec.describe AiActionCheckJob, type: :job do
         expect(AiAction::TimelineSelector).not_to have_received(:select)
       end
     end
+
+    context "when liking the same post twice (duplicate like attempt)" do
+      let(:target_ai)   { create(:ai_user) }
+      let(:target_post) { create(:ai_post, ai_user: target_ai, likes_count: 0, ai_likes_count: 0) }
+
+      before do
+        allow(AiAction::TimelineSelector).to receive(:select).and_return([ target_post ])
+        allow_any_instance_of(described_class).to receive(:should_like?).and_return(true)
+        allow_any_instance_of(described_class).to receive(:should_reply?).and_return(false)
+        allow(AiAction::ActionChecker).to receive(:should_post?).and_return(false)
+        allow_any_instance_of(described_class).to receive(:should_dm?).and_return(false)
+        allow(AiAction::RelationshipUpdater).to receive(:update)
+      end
+
+      it "increments likes_count only once even when run twice" do
+        described_class.new.perform("like")
+        described_class.new.perform("like")
+
+        target_post.reload
+        expect(target_post.likes_count).to eq(1)
+        expect(target_post.ai_likes_count).to eq(1)
+        expect(AiPostLike.where(ai_user: ai_user, ai_post: target_post).count).to eq(1)
+      end
+    end
   end
 end

@@ -218,6 +218,7 @@ production:
     schedule: "45 20 * * *"
 
   # Phase 33: 15 分ごと: 自動停止トリガーを評価し、成立していれば StopLedger を起票
+  # Phase 2 補強 / 穴⑥: 引数なしで呼び出すと company + 全 active service_id を順に評価する。
   stop_condition_monitor:
     class: StopConditionMonitorJob
     queue: default

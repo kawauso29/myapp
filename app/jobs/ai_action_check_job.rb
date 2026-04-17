@@ -90,12 +90,19 @@ class AiActionCheckJob < ApplicationJob
       next if post.ai_user_id == ai.id
       next unless should_like?(ai, post)
 
-      AiPostLike.find_or_create_by!(ai_user: ai, ai_post: post)
+      # Use create! (not find_or_create_by!) so that a duplicate like raises
+      # RecordNotUnique instead of silently returning the existing record.
+      # Without this, every retry / re-encounter of the same post would
+      # increment likes_count again, inflating counters indefinitely.
+      begin
+        AiPostLike.create!(ai_user: ai, ai_post: post)
+      rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+        next
+      end
+
       post.increment!(:ai_likes_count)
       post.increment!(:likes_count)
       AiAction::RelationshipUpdater.update(ai.id, post.ai_user_id, :liked_post)
-    rescue ActiveRecord::RecordNotUnique
-      next
     end
   end
 

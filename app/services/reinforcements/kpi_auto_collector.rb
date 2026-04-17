@@ -59,6 +59,19 @@ module Reinforcements
         compute: ->(_m) { nil },
         unit: "percent",
         note: "frontend crash instrumentation not yet implemented"
+      },
+      # Phase 2 補強 / 穴③: 顧客フィードバック満足度（0..100）。
+      # ネガティブ feedback がなければ 100、フィードバック自体がない週は nil でスキップする。
+      "kpi:customer_feedback" => {
+        path: %i[customer_feedback satisfaction_score],
+        unit: "percent"
+      },
+      # Phase 2 補強 / 穴③: 売上成長率（前月 paid ユーザー数比 %）の代理指標。
+      # 真の MRR 連携前の暫定値。
+      "kpi:company_revenue_growth" => {
+        path: %i[company_revenue growth_pct],
+        unit: "percent",
+        note: "paid ユーザー前月比を MRR 連携までの代理指標として暫定利用"
       }
     }.freeze
 

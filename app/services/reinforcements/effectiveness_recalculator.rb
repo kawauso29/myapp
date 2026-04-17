@@ -85,7 +85,8 @@ module Reinforcements
       scores = []
       KpiLedger.where(kpi_key: kpi_keys).find_each do |kpi|
         actual = numeric_from(kpi.current_value)
-        target = numeric_from(kpi.target_value)
+        # Phase 2 補強 / 穴②: target_value 未設定時は thresholds["healthy"] を代理目標として使う。
+        target = kpi.numeric_target_value
         next if actual.nil? || target.nil? || target.zero?
 
         ratio = (actual.to_f / target.to_f)

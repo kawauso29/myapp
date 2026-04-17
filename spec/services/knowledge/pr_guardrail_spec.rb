@@ -29,5 +29,20 @@ RSpec.describe Knowledge::PrGuardrail do
       result = described_class.check(ticket: ticket)
       expect(result.passed?).to be(false)
     end
+
+    it "does not falsely pass for an unsaved ticket when a KnowledgeLedger has source_ticket_id IS NULL" do
+      # 以前の実装は before_create 経由で呼ばれると @ticket.id が nil となり、
+      # `OR source_ticket_id: nil` が広くマッチして誤って passed を返していた。
+      unrelated_service_adr = create(:knowledge_ledger, kind: :adr, status: :accepted,
+                                     tags: { service_id: "other_service" })
+      expect(unrelated_service_adr.source_ticket_id).to be_nil
+
+      ticket = build(:ticket_ledger, risk_level: :high, ticket_type: :improvement, service_id: "ai_sns")
+      expect(ticket.id).to be_nil
+
+      result = described_class.check(ticket: ticket)
+      expect(result.passed?).to be(false)
+      expect(result.missing_artifacts).to include("adr")
+    end
   end
 end

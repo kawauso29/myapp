@@ -54,7 +54,8 @@ module Reinforcements
     def underperforming_kpis
       KpiLedger.status_active.select do |kpi|
         actual = numeric_from(kpi.current_value)
-        target = numeric_from(kpi.target_value)
+        # Phase 2 補強 / 穴②: target_value 未設定時は thresholds["healthy"] を代理目標として使う。
+        target = kpi.numeric_target_value
         actual.present? && target.present? && target.positive? && actual < (target * UNDERPERFORM_RATIO)
       end
     end
@@ -81,7 +82,7 @@ module Reinforcements
 
     def create_improvement_ticket!(kpi:, pattern_key:)
       actual = numeric_from(kpi.current_value)
-      target = numeric_from(kpi.target_value)
+      target = kpi.numeric_target_value
       gap_pct = target.positive? ? (((target - actual) / target) * 100).round(1) : nil
 
       title = llm_augmented_title(kpi: kpi, actual: actual, target: target, gap_pct: gap_pct) ||
