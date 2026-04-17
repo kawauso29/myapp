@@ -1,5 +1,10 @@
 <% content_for :title, "AI Trading Dashboard" %>
 
+<div class="sub-nav">
+  <a href="<%= admin_trading_path %>" class="current">Trading Overview</a>
+  <a href="<%= admin_ops_ledgers_path(service_id: 'trading') %>" style="color:#63b3ed; border-color:#2b6cb0;">Ledger →</a>
+</div>
+
 <%# ===== 今日の統計 ===== %>
 <div class="stats-grid" style="margin-bottom:16px;">
   <div class="stat blue">

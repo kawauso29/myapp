@@ -1,5 +1,80 @@
 <% content_for :title, "Ops Ledgers" %>
 
+<%# ===== アラートサマリー（全体表示時のみ） ===== %>
+<% if @alert_summary.present? %>
+  <% has_alerts = @alert_summary.values.any? { |v| v.to_i > 0 } %>
+  <div class="card" style="<%= has_alerts ? 'border-color:#f56565;' : '' %>">
+    <h2 style="<%= has_alerts ? 'color:#fc8181;' : 'color:#68d391;' %>">
+      <%= has_alerts ? '⚠ Ledger アラート' : '✅ Ledger 異常なし' %>
+    </h2>
+    <div class="stats-grid">
+      <div class="stat <%= @alert_summary[:waiting_review].to_i > 0 ? 'yellow' : '' %>">
+        <div class="value"><%= @alert_summary[:waiting_review] || 0 %></div>
+        <div class="label">改善待ちレビュー</div>
+      </div>
+      <div class="stat <%= @alert_summary[:overdue].to_i > 0 ? 'red' : '' %>">
+        <div class="value"><%= @alert_summary[:overdue] || 0 %></div>
+        <div class="label">期限超過チケット</div>
+      </div>
+      <div class="stat <%= @alert_summary[:non_approval].to_i > 0 ? 'yellow' : '' %>">
+        <div class="value"><%= @alert_summary[:non_approval] || 0 %></div>
+        <div class="label">非承認（Audit）</div>
+      </div>
+      <div class="stat <%= @alert_summary[:active_stop].to_i > 0 ? 'red' : '' %>">
+        <div class="value"><%= @alert_summary[:active_stop] || 0 %></div>
+        <div class="label">稼働中の停止</div>
+      </div>
+    </div>
+    <% if has_alerts %>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <% if @alert_summary[:overdue].to_i > 0 || @alert_summary[:waiting_review].to_i > 0 %>
+          <%= link_to "→ Ticket一覧", admin_ops_ledgers_path, class: "btn btn-sm", style: "background:#c05621; color:#fff;" %>
+        <% end %>
+        <% if @alert_summary[:non_approval].to_i > 0 %>
+          <%= link_to "→ Audit Decisions", admin_ops_audit_decisions_path, class: "btn btn-sm", style: "background:#744210; color:#fff;" %>
+        <% end %>
+        <% if @alert_summary[:active_stop].to_i > 0 %>
+          <%= link_to "→ Stops", admin_ops_stops_path, class: "btn btn-danger btn-sm" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<%# ===== サービス別サマリー（フィルタなし時のみ） ===== %>
+<% if @service_summaries&.any? %>
+  <div class="card">
+    <h2>サービス別 Ledger サマリー</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>service_id</th>
+          <th>Meetings</th>
+          <th>Tickets</th>
+          <th>Active Stops</th>
+          <th>フィルタ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% %w[ai_sns trading picro].each do |svc| %>
+          <tr>
+            <td style="font-weight:600; color:#e2e8f0;"><%= svc %></td>
+            <td><%= @service_summaries.dig(:meeting, svc) || 0 %></td>
+            <td><%= @service_summaries.dig(:ticket, svc) || 0 %></td>
+            <td style="<%= (@service_summaries.dig(:stop, svc) || 0) > 0 ? 'color:#fc8181; font-weight:600;' : '' %>">
+              <%= @service_summaries.dig(:stop, svc) || 0 %>
+            </td>
+            <td>
+              <%= link_to "絞り込む →", admin_ops_ledgers_path(service_id: svc),
+                    class: "btn btn-sm", style: "background:#2d3748; color:#e2e8f0;" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
 <div class="card">
   <h2>Ops Ledger Viewer (Read Only)</h2>
   <%= form_with url: admin_ops_ledgers_path, method: :get, local: true do |f| %>
@@ -8,6 +83,13 @@
       <%= f.text_field :meeting_key, value: @meeting_key, placeholder: "meeting_key (例: weekly_dept)", style: "min-width:220px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
       <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
       <%= link_to "Reset", admin_ops_ledgers_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+      <% if @service_id == "ai_sns" %>
+        <%= link_to "← AI SNS ダッシュボード", admin_ai_sns_path, class: "btn btn-sm", style: "background:#1a365d; color:#63b3ed; border:1px solid #2b6cb0;" %>
+      <% elsif @service_id == "trading" %>
+        <%= link_to "← Trading ダッシュボード", admin_trading_path, class: "btn btn-sm", style: "background:#1a365d; color:#63b3ed; border:1px solid #2b6cb0;" %>
+      <% elsif @service_id == "picro" %>
+        <%= link_to "← Picro 通知", admin_picro_notifications_path, class: "btn btn-sm", style: "background:#1a365d; color:#63b3ed; border:1px solid #2b6cb0;" %>
+      <% end %>
     </div>
   <% end %>
 </div>

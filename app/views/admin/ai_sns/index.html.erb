@@ -13,6 +13,7 @@
   <a href="<%= failed_jobs_admin_ai_sns_path %>" style="<%= @queue_stats[:failed].to_i > 0 ? 'color:#fc8181;' : '' %>">
     Failed Jobs<% if @queue_stats[:failed].to_i > 0 %> (<%= @queue_stats[:failed] %>)<% end %>
   </a>
+  <a href="<%= admin_ops_ledgers_path(service_id: 'ai_sns') %>" style="color:#63b3ed; border-color:#2b6cb0;">Ledger →</a>
 </div>
 
 <%# ===== 統計カード ===== %>

@@ -15,5 +15,34 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     end
     @ticket_ledgers = ticket_scope.includes(:source_meeting).limit(100)
     @open_improvement_count = TicketLedger.ticket_type_improvement.status_waiting_review.count
+
+    @alert_summary = build_alert_summary
+    @service_summaries = build_service_summaries unless @service_id.present?
+  end
+
+  private
+
+  def build_alert_summary
+    {
+      waiting_review: TicketLedger.ticket_type_improvement.status_waiting_review.count,
+      overdue:        TicketLedger.status_overdue.count,
+      non_approval:   AuditDecisionLedger.non_approvals.count,
+      active_stop:    StopLedger.status_active.count
+    }
+  rescue StandardError => e
+    Rails.logger.warn("Admin::Ops::LedgersController#build_alert_summary: #{e.message}")
+    {}
+  end
+
+  def build_service_summaries
+    services = %w[ai_sns trading picro]
+    {
+      meeting: MeetingLedger.where(service_id: services).group(:service_id).count,
+      ticket:  TicketLedger.where(service_id: services).group(:service_id).count,
+      stop:    StopLedger.status_active.where(service_id: services).group(:service_id).count
+    }
+  rescue StandardError => e
+    Rails.logger.warn("Admin::Ops::LedgersController#build_service_summaries: #{e.message}")
+    {}
   end
 end
