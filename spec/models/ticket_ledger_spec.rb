@@ -146,4 +146,68 @@ RSpec.describe TicketLedger, type: :model do
       expect(duplicate.errors[:idempotency_key]).to be_present
     end
   end
+
+  describe "Phase 33 補強7: stop guard" do
+    around do |example|
+      original = described_class.enforce_stop_guard
+      described_class.enforce_stop_guard = true
+      example.run
+    ensure
+      described_class.enforce_stop_guard = original
+    end
+
+    it "blocks ticket creation when an active company-scope stop exists" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be false
+      expect(ticket.errors[:base].join).to include("blocked by active stops")
+    end
+
+    it "allows creation when skip_stop_guard is set" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      ticket.skip_stop_guard = true
+      expect(ticket.save).to be true
+    end
+
+    it "allows creation when no active stop exists" do
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be true
+    end
+  end
+
+  describe "Phase 36/37: warn_lane_capacity / warn_pr_guardrail" do
+    it "logs a warning when lane usage is at or over cap" do
+      # Create cap
+      LaneCapacityCap.create!(scope_level: :service, service_id: "ai_sns", operating_lane: :weekly_improvement, wip_cap: 1)
+      # Use up the cap
+      create(:ticket_ledger, operating_lane: :weekly_improvement, scope_level: :service, service_id: "ai_sns", status: :waiting_review)
+
+      original = described_class.warn_lane_capacity
+      described_class.warn_lane_capacity = true
+
+      expect(Rails.logger).to receive(:warn).with(a_string_including("[LaneCapacityGuard] over cap"))
+
+      create(:ticket_ledger, operating_lane: :weekly_improvement, scope_level: :service, service_id: "ai_sns", status: :waiting_review)
+    ensure
+      described_class.warn_lane_capacity = original
+    end
+
+    it "logs a warning when high-risk ticket is missing ADR/runbook" do
+      original = described_class.warn_pr_guardrail
+      described_class.warn_pr_guardrail = true
+
+      expect(Rails.logger).to receive(:warn).with(a_string_including("[PrGuardrail] missing artifacts"))
+
+      create(:ticket_ledger, ticket_type: :investigation, risk_level: :high, scope_level: :service, service_id: "ai_sns")
+    ensure
+      described_class.warn_pr_guardrail = original
+    end
+  end
 end

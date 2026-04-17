@@ -55,6 +55,15 @@ module Ledgers
         status: :closed
       )
       Ledgers::ImprovementEscalator.call
+
+      # Phase 31c: 四半期レビューのサマリーを成果物台帳に自動記録する
+      Ledgers::RunnerArtifactPublisher.publish_for!(
+        meeting: meeting,
+        runner: :quarterly_review,
+        source_ticket: ticket,
+        extra_content: { summary_ticket_id: ticket.id, metrics: metrics }
+      )
+
       meeting
     end
 

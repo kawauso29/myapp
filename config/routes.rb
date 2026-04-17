@@ -47,6 +47,13 @@ Rails.application.routes.draw do
     namespace :ops do
       resources :ledgers, only: [ :index ]
       resources :artifacts, only: [ :index ]
+      resources :audit_decisions, only: [ :index ]
+      resources :knowledge, only: [ :index ]
+      resources :stops, only: [ :index ] do
+        member do
+          post :lift
+        end
+      end
     end
   end
 

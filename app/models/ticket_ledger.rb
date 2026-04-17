@@ -109,6 +109,27 @@ class TicketLedger < ApplicationRecord
   validate :linked_kpis_not_empty
   validate :sla_breached_at_requires_deadline
 
+  # Phase 33 / 補強7 / §18: active な StopLedger が存在する scope への新規起票をブロックする。
+  # 既存テストの互換のためデフォルトは OFF。production では
+  # `config/initializers/ticket_stop_guard.rb` で有効化する。
+  class_attribute :enforce_stop_guard, instance_accessor: false, default: false
+
+  # Phase 36 / §13: LaneCapacityGuard を起票直前に評価して警告ログを出す。
+  # デフォルト OFF。production で ON にして WIP 超過の可視化を得る。
+  class_attribute :warn_lane_capacity, instance_accessor: false, default: false
+
+  # Phase 37 / §20: high リスク / investigation / tech_record 起票時に
+  # ADR / Runbook が存在するかを check して警告ログを出す。
+  class_attribute :warn_pr_guardrail, instance_accessor: false, default: false
+
+  # Runner や呼び出し側で「このレコードだけは例外的に guard をスキップしたい」場合に
+  # `ticket.skip_stop_guard = true` を指定できる。
+  attr_accessor :skip_stop_guard
+
+  before_create :assert_no_active_stop!, if: :stop_guard_applies?
+  after_create :warn_if_lane_over_capacity, if: :warn_lane_capacity_applies?
+  after_create :warn_if_pr_guardrail_missing, if: :warn_pr_guardrail_applies?
+
   scope :overdue_candidates, -> { where(status: :waiting_review).where("due_date < ?", Date.current) }
   scope :sla_breached, -> { where.not(sla_breached_at: nil) }
   scope :sla_approaching, ->(within: 1.day) {
@@ -163,5 +184,58 @@ class TicketLedger < ApplicationRecord
     return if sla_deadline.blank? || sla_deadline >= Time.current
 
     self.sla_breached_at = Time.current
+  end
+
+  def stop_guard_applies?
+    return false if skip_stop_guard
+    return false unless self.class.enforce_stop_guard
+
+    scope_level.present?
+  end
+
+  def assert_no_active_stop!
+    Stops::EntryGuard.assert!(scope_level: scope_level, service_id: service_id)
+  rescue Stops::EntryGuard::Blocked => e
+    errors.add(:base, e.message)
+    throw(:abort)
+  end
+
+  def warn_lane_capacity_applies?
+    self.class.warn_lane_capacity && operating_lane.present?
+  end
+
+  def warn_if_lane_over_capacity
+    return if Ledgers::LaneCapacityGuard.allowed?(
+      operating_lane: operating_lane,
+      scope_level: scope_level,
+      service_id: service_id
+    )
+
+    usage = Ledgers::LaneCapacityGuard.current_usage(
+      operating_lane: operating_lane,
+      scope_level: scope_level,
+      service_id: service_id
+    )
+    Rails.logger.warn(
+      "[LaneCapacityGuard] over cap: ticket=##{id} lane=#{operating_lane} scope=#{scope_level} service=#{service_id} usage=#{usage}"
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[LaneCapacityGuard] check failed for ticket=##{id}: #{e.message}")
+  end
+
+  def warn_pr_guardrail_applies?
+    self.class.warn_pr_guardrail &&
+      (risk_level.to_s == "high" || %w[investigation tech_record].include?(ticket_type.to_s))
+  end
+
+  def warn_if_pr_guardrail_missing
+    result = Knowledge::PrGuardrail.check(ticket: self)
+    return if result.passed?
+
+    Rails.logger.warn(
+      "[PrGuardrail] missing artifacts for ticket=##{id} type=#{ticket_type} risk=#{risk_level} missing=#{result.missing_artifacts.join(',')}"
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[PrGuardrail] check failed for ticket=##{id}: #{e.message}")
   end
 end

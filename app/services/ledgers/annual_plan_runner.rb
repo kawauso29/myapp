@@ -52,6 +52,15 @@ module Ledgers
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
         status: :closed
       )
+
+      # Phase 31c: 年次計画のサマリーを成果物台帳に自動記録する
+      Ledgers::RunnerArtifactPublisher.publish_for!(
+        meeting: meeting,
+        runner: :annual_plan,
+        source_ticket: ticket,
+        extra_content: { summary_ticket_id: ticket.id, metrics: metrics }
+      )
+
       meeting
     end
 

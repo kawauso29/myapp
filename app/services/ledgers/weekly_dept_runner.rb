@@ -81,6 +81,14 @@ module Ledgers
         directives: [ { improvements: } ],
         status: :closed
       )
+
+      # Phase 31c: 会議の議事要約を成果物台帳に自動記録する
+      Ledgers::RunnerArtifactPublisher.publish_for!(
+        meeting: meeting,
+        runner: :weekly_dept,
+        service_id: service_id
+      )
+
       meeting
     end
 

@@ -160,6 +160,9 @@
     <a href="<%= admin_users_path %>" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
     <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if controller_path == 'admin/ops/ledgers' %>">Ops Ledgers</a>
     <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">Ops Artifacts</a>
+    <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">Ops Audits</a>
+    <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">Ops Stops</a>
+    <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">Ops Knowledge</a>
   </nav>
   <main>
     <% if flash[:notice] %>

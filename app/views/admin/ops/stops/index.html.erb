@@ -1,0 +1,78 @@
+<% content_for :title, "Ops Stops" %>
+
+<div class="card">
+  <h2>Stop Ledger Viewer (<%= @active_count %> active)</h2>
+  <%= form_with url: admin_ops_stops_path, method: :get, local: true do |f| %>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <%= f.text_field :service_id, value: @service_id, placeholder: "service_id (例: ai_sns)", style: "min-width:200px; padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.select :trigger_type, options_for_select([ [ "(all)", "" ] ] + StopLedger.trigger_types.keys.map { |k| [ k, k ] }, @trigger_type), {}, style: "padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.select :status, options_for_select([ [ "(all)", "" ] ] + StopLedger.statuses.keys.map { |k| [ k, k ] }, @status), {}, style: "padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
+      <%= link_to "Reset", admin_ops_stops_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+    </div>
+  <% end %>
+</div>
+
+<% if notice %><div class="card" style="background:#22543d;"><%= notice %></div><% end %>
+<% if alert %><div class="card" style="background:#742a2a;"><%= alert %></div><% end %>
+
+<div class="card">
+  <h2>Trigger Type 分布</h2>
+  <table>
+    <thead><tr><th>trigger_type</th><th>count</th></tr></thead>
+    <tbody>
+      <% @trigger_counts.each do |trigger, count| %>
+        <tr><td><%= trigger %></td><td><%= count %></td></tr>
+      <% end %>
+      <% if @trigger_counts.empty? %>
+        <tr><td colspan="2" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Stops (<%= @stops.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>trigger</th>
+        <th>scope</th>
+        <th>service_id</th>
+        <th>status</th>
+        <th>started_at</th>
+        <th>lifted_at</th>
+        <th>evidence</th>
+        <th>lift</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @stops.each do |stop| %>
+        <tr>
+          <td><%= stop.id %></td>
+          <td><%= stop.trigger_type %></td>
+          <td><%= stop.scope_level %></td>
+          <td><%= stop.service_id.presence || "-" %></td>
+          <td style="<%= 'color:#f56565;' if stop.status_active? %>"><%= stop.status %></td>
+          <td><%= stop.started_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= stop.lifted_at&.in_time_zone("Tokyo")&.strftime("%Y-%m-%d %H:%M") || "-" %></td>
+          <td style="font-family:monospace; font-size:11px; max-width:300px; overflow:hidden; text-overflow:ellipsis;"><%= stop.evidence.to_json %></td>
+          <td>
+            <% if stop.status_active? %>
+              <%= button_to lift_admin_ops_stop_path(stop), method: :post, form: { style: "display:inline;", onsubmit: "this.querySelector('[name=lift_reason]').value = prompt('解除理由を入力', ''); if (!this.querySelector('[name=lift_reason]').value) return false;" }, class: "btn btn-sm", style: "background:#c53030;" do %>
+                <%= hidden_field_tag :lift_reason, "" %>
+                Lift
+              <% end %>
+            <% else %>
+              -
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @stops.empty? %>
+        <tr><td colspan="9" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
