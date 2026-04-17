@@ -124,5 +124,147 @@ RSpec.describe Stops::ConditionEvaluator do
     ensure
       ENV.delete("COST_RUNAWAY_MONTHLY_JPY")
     end
+
+    context "error_spike" do
+      it "creates an error_spike stop when failed executions exceed the threshold" do
+        ENV["ERROR_SPIKE_THRESHOLD"] = "2"
+        # SolidQueue テーブルが存在しない場合はスキップ相当なので存在チェックをモックする
+        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
+        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
+          double("scope", count: 3)
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        stop = result.created.find { |s| s.trigger_type == "error_spike" }
+        expect(stop).to be_present
+        expect(stop).to be_trigger_type_error_spike
+        expect(stop.evidence["failed_count"]).to eq(3)
+      ensure
+        ENV.delete("ERROR_SPIKE_THRESHOLD")
+      end
+
+      it "does not create error_spike when count is below threshold" do
+        ENV["ERROR_SPIKE_THRESHOLD"] = "10"
+        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
+        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
+          double("scope", count: 2)
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        expect(result.created.select { |s| s.trigger_type == "error_spike" }).to be_empty
+      ensure
+        ENV.delete("ERROR_SPIKE_THRESHOLD")
+      end
+
+      it "is idempotent within the same 10-minute slot" do
+        ENV["ERROR_SPIKE_THRESHOLD"] = "2"
+        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
+        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
+          double("scope", count: 5)
+        )
+
+        described_class.call(scope_level: :service, service_id: "ai_sns")
+        second = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        expect(second.created.select { |s| s.trigger_type == "error_spike" }).to be_empty
+      ensure
+        ENV.delete("ERROR_SPIKE_THRESHOLD")
+      end
+    end
+
+    context "security_incident" do
+      it "creates a security_incident stop when a security_risk audit decision exists within 24h" do
+        audit_ticket = create(:ticket_ledger, service_id: "ai_sns")
+        AuditDecisionLedger.create!(
+          target_ticket: audit_ticket,
+          decision: :reject,
+          reason_code: "security_risk",
+          audit_role: "audit_board",
+          scope_level: :service,
+          service_id: "ai_sns",
+          decided_at: 1.hour.ago
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        stop = result.created.find { |s| s.trigger_type == "security_incident" }
+        expect(stop).to be_present
+        expect(stop).to be_trigger_type_security_incident
+      end
+
+      it "does not create security_incident when the audit decision is older than 24h" do
+        audit_ticket = create(:ticket_ledger, service_id: "ai_sns")
+        AuditDecisionLedger.create!(
+          target_ticket: audit_ticket,
+          decision: :reject,
+          reason_code: "security_risk",
+          audit_role: "audit_board",
+          scope_level: :service,
+          service_id: "ai_sns",
+          decided_at: 25.hours.ago
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        expect(result.created.select { |s| s.trigger_type == "security_incident" }).to be_empty
+      end
+    end
+
+    context "compliance_violation" do
+      it "creates a compliance_violation stop when an enforced block-severity ComplianceRule exists" do
+        ComplianceRule.create!(
+          name: "PII block rule",
+          law_domain: :pii,
+          scope_level: :service,
+          service_id_pattern: "ai_sns",
+          severity: :block,
+          owner_role: :audit,
+          pattern: "\\bSSN\\b",
+          enforced_at: 1.day.ago
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        stop = result.created.find { |s| s.trigger_type == "compliance_violation" }
+        expect(stop).to be_present
+        expect(stop).to be_trigger_type_compliance_violation
+      end
+
+      it "does not create compliance_violation when the rule is not yet enforced" do
+        ComplianceRule.create!(
+          name: "Future PII block rule",
+          law_domain: :pii,
+          scope_level: :service,
+          service_id_pattern: "ai_sns",
+          severity: :block,
+          owner_role: :audit,
+          pattern: "\\bSSN\\b",
+          enforced_at: 1.day.from_now
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        expect(result.created.select { |s| s.trigger_type == "compliance_violation" }).to be_empty
+      end
+
+      it "does not create compliance_violation when the rule is warn-severity" do
+        ComplianceRule.create!(
+          name: "PII warn rule",
+          law_domain: :pii,
+          scope_level: :service,
+          service_id_pattern: "ai_sns",
+          severity: :warn,
+          owner_role: :audit,
+          pattern: "\\bSSN\\b",
+          enforced_at: 1.day.ago
+        )
+
+        result = described_class.call(scope_level: :service, service_id: "ai_sns")
+
+        expect(result.created.select { |s| s.trigger_type == "compliance_violation" }).to be_empty
+      end
+    end
   end
 end

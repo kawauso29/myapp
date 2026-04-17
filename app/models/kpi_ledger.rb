@@ -29,6 +29,11 @@ class KpiLedger < ApplicationRecord
   # Phase 34: thresholds の direction は 2 値のみ許可。
   validate :direction_is_valid
 
+  # `current_value` が更新されたときに grade を自動再評価する。
+  # 日次バッチ（KpiGradeEvaluateJob）の補完として機能し、値が入った瞬間に grade を反映する。
+  # thresholds 未設定 / value が取れない場合は evaluate_grade が nil を返すのでスキップする。
+  after_save :auto_apply_grade_if_value_changed
+
   # `current_value["value"]` と `thresholds` から grade を算出する。
   # thresholds が設定されていない / value が取れない場合は nil を返し、grade を変えない。
   def evaluate_grade
@@ -103,5 +108,11 @@ class KpiLedger < ApplicationRecord
     return if [ HIGHER_BETTER, LOWER_BETTER ].include?(direction.to_s)
 
     errors.add(:thresholds, "direction must be higher_better or lower_better")
+  end
+
+  def auto_apply_grade_if_value_changed
+    return unless saved_change_to_current_value?
+
+    apply_grade!
   end
 end

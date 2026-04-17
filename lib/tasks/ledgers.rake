@@ -59,4 +59,17 @@ namespace :ledgers do
     result = Ledgers::ImprovementEscalator.call
     puts JSON.pretty_generate(result)
   end
+
+  desc "Verify that required seed records (MeetingDefinition / ServiceLedger / KpiLedger) exist in the database"
+  task verify_seeds: :environment do
+    result = Ledgers::SeedValidator.call
+
+    if result.ok?
+      puts JSON.pretty_generate({ status: "ok", message: "All required seed records are present." })
+    else
+      puts JSON.pretty_generate({ status: "missing", details: result.missing })
+      $stderr.puts "ERROR: Required seed records are missing. Run `rails db:seed` to fix."
+      exit 1
+    end
+  end
 end
