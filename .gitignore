@@ -39,3 +39,7 @@
 .claude/
 dump.rdb
 spec/examples.txt
+
+# Local SQLite databases (development/test scratch DBs)
+/db/*.sqlite3
+/db/*.sqlite3-journal

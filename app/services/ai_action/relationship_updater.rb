@@ -7,6 +7,7 @@ module AiAction
   #   AiAction::RelationshipUpdater.update(ai_user_id, target_ai_user_id, :liked_post)
   #
   class RelationshipUpdater
+    include RelationshipScoreCalculator
     ACTION_SCORES = {
       liked_post:    5,
       replied_to:    10,
@@ -46,10 +47,14 @@ module AiAction
       )
 
       new_score = (relationship.interaction_score + score_delta).clamp(0, 100)
-      relationship.update!(
-        interaction_score: new_score,
+      updates = {
+        interaction_score:   new_score,
         last_interaction_at: Time.current
-      )
+      }
+      # Record the actual follow relationship so TimelineSelector can prioritize
+      # posts from followed AIs (without this, `following_ai_ids` always returns []).
+      updates[:is_following] = true if @action_type == :followed
+      relationship.update!(updates)
 
       recalculate_type(relationship)
 
@@ -80,19 +85,6 @@ module AiAction
       if new_type.to_s != relationship.relationship_type
         relationship.update!(relationship_type: new_type)
       end
-    end
-
-    # Weighted average of all score components
-    def composite_score(rel)
-      (
-        rel.interaction_score * 0.35 +
-        rel.interest_match    * 0.15 +
-        rel.usefulness        * 0.10 +
-        rel.proximity         * 0.10 +
-        rel.popularity_appeal * 0.10 +
-        rel.obligation        * 0.10 +
-        rel.follow_intention  * 0.10
-      ).round
     end
 
     def type_from_score(score)
