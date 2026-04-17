@@ -180,6 +180,24 @@ RSpec.describe TicketLedger, type: :model do
       ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
       expect(ticket.save).to be true
     end
+
+    it "allows investigation ticket even when stop is active (bypass by ticket_type)" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, ticket_type: :investigation, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be true
+    end
+
+    it "allows quarterly_review summary ticket even when stop is active" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :kpi_breach, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, ticket_type: :quarterly_review, scope_level: :company, service_id: nil)
+      expect(ticket.save).to be true
+    end
   end
 
   describe "Phase 36/37: warn_lane_capacity / warn_pr_guardrail" do

@@ -18,8 +18,14 @@ module Stops
 
       def initialize(active_stops)
         @active_stops = active_stops
-        summary = active_stops.map { |s| "##{s.id}:#{s.trigger_type}/#{s.scope_level}#{s.service_id ? "(#{s.service_id})" : ''}" }.join(", ")
+        summary = active_stops.map { |stop| self.class.format_stop(stop) }.join(", ")
         super("ticket creation is blocked by active stops: #{summary}")
+      end
+
+      # 単一 StopLedger を人間可読な 1 行表記に整形する（エラーメッセージ / ログ用）。
+      def self.format_stop(stop)
+        service_suffix = stop.service_id ? "(#{stop.service_id})" : ""
+        "##{stop.id}:#{stop.trigger_type}/#{stop.scope_level}#{service_suffix}"
       end
     end
 

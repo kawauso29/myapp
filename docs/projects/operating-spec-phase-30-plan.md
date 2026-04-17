@@ -87,6 +87,7 @@
 - [x] `Stops::EntryGuard` を追加し、active `StopLedger` がある scope への `TicketLedger` 起票をブロック（scope 上位包含あり。company → portfolio → service / cross_service）
 - [x] `TicketLedger.enforce_stop_guard` class attribute + `before_create` コールバック + production 初期化子 `config/initializers/ticket_stop_guard.rb` で ON（test は後方互換で OFF）
 - [x] 例外経路として `ticket.skip_stop_guard = true` を許可
+- [x] **stop_guard bypass ホワイトリスト** `TicketLedger::STOP_GUARD_BYPASS_TICKET_TYPES`: `investigation` / `audit` / `quarterly_review` / `annual_plan` / `service_shutdown` は active stop 中でも記録できる（§18 の趣旨「通常業務の新規起票を止める」に準拠）
 - [x] `TicketLedger.warn_lane_capacity` / `TicketLedger.warn_pr_guardrail` を追加し、production で WIP 超過 / ADR・Runbook 不足を **警告ログ**として記録（enforce モードは別 PR で判断）
 
 ## 次 PR に分離

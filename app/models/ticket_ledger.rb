@@ -114,6 +114,14 @@ class TicketLedger < ApplicationRecord
   # `config/initializers/ticket_stop_guard.rb` で有効化する。
   class_attribute :enforce_stop_guard, instance_accessor: false, default: false
 
+  # stop_guard を自動的に bypass する ticket_type のホワイトリスト。
+  # Phase 33 / §18 の趣旨は「通常業務の新規起票を止める」ことであり、以下は停止中でも
+  # 記録する必要があるため常に許可する:
+  # - investigation / audit: 停止原因の調査 / 監査証跡
+  # - quarterly_review / annual_plan: retrospective サマリーの自動生成
+  # - service_shutdown: 停止に伴うサービス終了の記録
+  STOP_GUARD_BYPASS_TICKET_TYPES = %w[investigation audit quarterly_review annual_plan service_shutdown].freeze
+
   # Phase 36 / §13: LaneCapacityGuard を起票直前に評価して警告ログを出す。
   # デフォルト OFF。production で ON にして WIP 超過の可視化を得る。
   class_attribute :warn_lane_capacity, instance_accessor: false, default: false
@@ -189,6 +197,7 @@ class TicketLedger < ApplicationRecord
   def stop_guard_applies?
     return false if skip_stop_guard
     return false unless self.class.enforce_stop_guard
+    return false if STOP_GUARD_BYPASS_TICKET_TYPES.include?(ticket_type.to_s)
 
     scope_level.present?
   end
