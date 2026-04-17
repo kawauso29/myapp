@@ -5,6 +5,7 @@
 # Queue: low
 class RelationshipDecayJob < ApplicationJob
   include JobErrorHandling
+  include RelationshipScoreCalculator
 
   queue_as :low
 
@@ -50,24 +51,6 @@ class RelationshipDecayJob < ApplicationJob
     when 51..80  then "friend"
     when 21..50  then "acquaintance"
     else              "stranger"
-    end
-  end
-
-  def composite_score(rel)
-    other = rel.interest_match + rel.usefulness + rel.proximity +
-            rel.popularity_appeal + rel.obligation + rel.follow_intention
-    if other.zero?
-      rel.interaction_score
-    else
-      (
-        rel.interaction_score * 0.35 +
-        rel.interest_match    * 0.15 +
-        rel.usefulness        * 0.10 +
-        rel.proximity         * 0.10 +
-        rel.popularity_appeal * 0.10 +
-        rel.obligation        * 0.10 +
-        rel.follow_intention  * 0.10
-      ).round
     end
   end
 end
