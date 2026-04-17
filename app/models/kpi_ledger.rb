@@ -58,7 +58,8 @@ class KpiLedger < ApplicationRecord
     end
   end
 
-  # evaluate_grade の結果を grade / graded_at に保存する（変化しない場合はタイムスタンプのみ更新）。
+  # evaluate_grade の結果を grade / graded_at に保存する。
+  # 既に同じ grade であれば graded_at のみ更新する。evaluate_grade が nil の場合は何もしない。
   def apply_grade!
     new_grade = evaluate_grade
     return nil if new_grade.nil?

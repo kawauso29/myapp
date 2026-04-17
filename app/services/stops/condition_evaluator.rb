@@ -126,7 +126,7 @@ module Stops
       count = SolidQueue::FailedExecution.where(created_at: window..).count
       return [] if count < threshold
 
-      key = stop_key(kind: "error_spike", detail: "#{Time.current.strftime('%Y%m%d%H%M').first(11)}0")
+      key = stop_key(kind: "error_spike", detail: (Time.current.to_i / 600) * 600)
       return [] if existing.any? { |s| s.idempotency_key == key }
 
       [ StopLedger.create!(

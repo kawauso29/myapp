@@ -158,7 +158,7 @@ RSpec.describe Stops::ConditionEvaluator do
         ENV.delete("ERROR_SPIKE_THRESHOLD")
       end
 
-      it "is idempotent within the same 10-minute slot" do
+      it "is idempotent within the same 10-minute slot (epoch / 600)" do
         ENV["ERROR_SPIKE_THRESHOLD"] = "2"
         allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
         allow(SolidQueue::FailedExecution).to receive(:where).and_return(
