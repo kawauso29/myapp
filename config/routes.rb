@@ -46,6 +46,7 @@ Rails.application.routes.draw do
     resources :users, only: [ :index ]
     namespace :ops do
       resources :ledgers, only: [ :index ]
+      resources :artifacts, only: [ :index ]
     end
   end
 

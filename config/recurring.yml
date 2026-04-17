@@ -197,6 +197,12 @@ production:
     queue: default
     schedule: "45 20 * * *"
 
+  # Phase 33: 15 分ごと: 自動停止トリガーを評価し、成立していれば StopLedger を起票
+  stop_condition_monitor:
+    class: StopConditionMonitorJob
+    queue: default
+    schedule: "*/15 * * * *"
+
   # Phase D: 毎日 6:15 JST (= 21:15 UTC): 完了 improvement の effectiveness_score 再計算
   effectiveness_recalc:
     class: EffectivenessRecalcJob

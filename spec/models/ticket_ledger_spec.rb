@@ -16,8 +16,16 @@ RSpec.describe TicketLedger, type: :model do
   end
 
   describe "enums" do
-    it "defines ticket_type enum" do
-      expect(described_class.ticket_types.keys).to eq(%w[operations audit ops quarterly_review annual_plan improvement service_shutdown service_pivot])
+    it "defines ticket_type enum with 11 §17 categories + legacy types" do
+      keys = described_class.ticket_types.keys
+      # §17 の 11 種が全部含まれる
+      expect(keys).to include(
+        "initiative", "investigation", "audit", "hr", "customer_notice",
+        "tech_record", "org_change", "exec_plan",
+        "service_launch", "service_shutdown", "service_merge"
+      )
+      # 既存互換: 後方互換のために残している旧来のキーも含まれる
+      expect(keys).to include("operations", "ops", "quarterly_review", "annual_plan", "improvement", "service_pivot")
     end
 
     it "defines status enum from spec" do

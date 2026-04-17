@@ -17,15 +17,35 @@ class TicketLedger < ApplicationRecord
     incident: 5
   }, prefix: true
 
+  # Phase 36 / §13: 28日運営レーン
+  enum :operating_lane, {
+    immediate: 0,
+    weekly_improvement: 1,
+    monthly_ops: 2,
+    quarterly_review_lane: 3
+  }, prefix: true
+
+  # §17 / Phase 35: 起票カテゴリ 11 種（+ 既存の運用由来 3 種を後方互換として残す）
   enum :ticket_type, {
+    # 旧来（後方互換）
     operations: "operations",
-    audit: "audit",
     ops: "ops",
     quarterly_review: "quarterly_review",
     annual_plan: "annual_plan",
-    improvement: "improvement",
-    service_shutdown: "service_shutdown",
-    service_pivot: "service_pivot"
+    service_pivot: "service_pivot",
+    # §17 の 11 種
+    initiative: "initiative",             # 1. 施策起票
+    investigation: "investigation",       # 2. 調査起票
+    audit: "audit",                       # 3. 監査起票
+    hr: "hr",                             # 4. 人事起票
+    customer_notice: "customer_notice",   # 5. 顧客案内起票
+    tech_record: "tech_record",           # 6. 技術記録起票
+    org_change: "org_change",             # 7. 組織起票
+    exec_plan: "exec_plan",               # 8. 経営起票
+    service_launch: "service_launch",     # 9. 新規サービス起票
+    service_shutdown: "service_shutdown", # 10. サービス縮小 / 廃止起票
+    service_merge: "service_merge",       # 11. サービス統合起票
+    improvement: "improvement"            # 10 + effectiveness ループ（§33.3 補強10）
   }, prefix: true
 
   enum :status, {

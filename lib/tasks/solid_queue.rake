@@ -34,6 +34,7 @@ namespace :solid_queue do
     SlaSweepJob
     KpiAutoCollectJob
     KpiGradeEvaluateJob
+    StopConditionMonitorJob
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob

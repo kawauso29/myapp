@@ -20,17 +20,17 @@
 | Phase | 名称 | 根拠 | 粒度 | 状態 |
 |---|---|---|---|---|
 | 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ 完了（30a + 30b + 30c） |
-| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 🔧 進行中（ArtifactLedger / Artifacts::Publisher 実装完了。UI と各 Runner からの publish は 31b） |
-| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | 未着手 |
-| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | 未着手 |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | ✅ モデル層完了 + 31b で Admin Viewer 実装済み（Runner からの publish 自動連動は 31c で対応） |
+| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | ✅ 完了（`AuditDecisionLedger` + `Audits::RecordDecision` + reason_code 強制） |
+| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | ✅ 完了（`StopLedger` + `Stops::ConditionEvaluator` + `StopConditionMonitorJob`（15分ごと）） |
 | 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ 完了 |
-| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | 未着手（現状 3 種） |
-| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | 未着手 |
-| 37 | 知識台帳 + PR ガードレール | §20 | 中 | 未着手 |
-| 38 | 人事評価 / 組織再編 | §19 | 大 | 未着手 |
-| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | 未着手 |
-| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | 未着手 |
-| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 未着手 |
+| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | ✅ 完了（`TicketLedger.ticket_type` enum に §17 の 11 種を実装） |
+| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ 完了（`operating_lane` + `LaneCapacityCap` + `Ledgers::LaneCapacityGuard`） |
+| 37 | 知識台帳 + PR ガードレール | §20 | 中 | ✅ 完了（`KnowledgeLedger`（ADR/Runbook/Incident/Deploy）+ `Knowledge::PrGuardrail`） |
+| 38 | 人事評価 / 組織再編 | §19 | 大 | 🔧 モデル層完了（`HrEvaluationLedger` / `OrgChangeLedger`）。評価ロジックは 38b |
+| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | ✅ 完了（`CustomerFeedbackLedger` + `Feedback::Intake`（高重大度は即 escalate）） |
+| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | ❌ 未着手（影響範囲が広いため別 PR に分離） |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 モデル層完了（`PortfolioStrategyLedger`）。実運用フローは 41b |
 
 ## 依存関係
 

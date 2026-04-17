@@ -34,6 +34,7 @@ Rails.application.reloader.to_prepare do
     SlaSweepJob
     KpiAutoCollectJob
     KpiGradeEvaluateJob
+    StopConditionMonitorJob
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
