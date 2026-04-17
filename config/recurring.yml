@@ -184,3 +184,27 @@ production:
     class: SlaSweepJob
     queue: default
     schedule: "0 * * * *"
+
+  # Phase A: 毎日 5:30 JST (= 20:30 UTC): KPI を KpiLedger.current_value に自動投入
+  kpi_auto_collect:
+    class: KpiAutoCollectJob
+    queue: default
+    schedule: "30 20 * * *"
+
+  # Phase D: 毎日 6:15 JST (= 21:15 UTC): 完了 improvement の effectiveness_score 再計算
+  effectiveness_recalc:
+    class: EffectivenessRecalcJob
+    queue: default
+    schedule: "15 21 * * *"
+
+  # Phase B: 毎日 7:30 JST (= 22:30 UTC): KPI 乖離から improvement ticket を自動起票
+  planner:
+    class: PlannerJob
+    queue: default
+    schedule: "30 22 * * *"
+
+  # Phase C: 1時間ごと (毎時 15 分): approved / planned チケットを GitHub Issue に自動同期
+  ticket_issue_sync:
+    class: TicketIssueSyncJob
+    queue: default
+    schedule: "15 * * * *"

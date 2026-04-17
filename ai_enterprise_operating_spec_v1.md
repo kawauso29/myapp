@@ -1041,6 +1041,23 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 
 オープン論点 R1〜R4 は §33.4 で継続検討し、対応 Phase は確定次第この表に追記する。
 
+### 32.1 自律成長ループ（Phase A〜E）
+
+§32 / §33 の Phase 群は「止まらず・壊れず・説明可能に運営する」ためのガバナンス OS を完成させる。
+これに対し、Phase A〜E は **サービスを能動的に成長させる**ためのループを接続する層である。
+`KpiLedger → EffectivenessScore → Improvement起票 → GitHub Issue → Copilot 実装` の閉ループを機械化する。
+
+| Phase | 名称 | 役割 | 実装状況 |
+|---|---|---|---|
+| A | KPI 自動収集 | `Admin::KpiService.weekly_metrics` を `KpiLedger.current_value` に投入。R4 / ImprovementDetector / Planner の入力データを常時供給する | 実装済み（`Reinforcements::KpiAutoCollector` + `KpiAutoCollectJob` 日次） |
+| B | 発案エージェント | KPI の actual < target 乖離から improvement ticket を自動起票する。補強10 の学習ループと連動し、低効果パターンの再起票を抑止する | 実装済み（`Reinforcements::Planner` + `PlannerJob` 日次 / ルールベース） |
+| C | Ticket→Issue 同期 | `approved` / `planned` チケットを §32-2 LedgerSyncService で GitHub Issue 化し、Copilot coding agent に実装させる | 実装済み（`Reinforcements::TicketIssueSync` + `TicketIssueSyncJob` 毎時） |
+| D | 効果書き戻し | 完了 improvement チケットの `linked_kpis` を根拠に `effectiveness_score` を書き戻し、補強10 の学習ループに燃料を供給する | 実装済み（`Reinforcements::EffectivenessRecalculator` + `EffectivenessRecalcJob` 日次） |
+| E | 顧客フィードバック導線 | AI SNS 側のユーザー利用ログ・離脱理由を KPI に還流する | 未実装（次フェーズ） |
+
+Planner は現状ルールベースだが、将来 `LlmGateway` 経由の仮説生成器に差し替えられる構造で実装している。
+Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する。
+
 ---
 
 ## 33. 補強仕様 v1.1（補強1〜16 / オープン論点 R1〜R4）
