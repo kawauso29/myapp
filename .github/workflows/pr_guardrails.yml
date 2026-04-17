@@ -161,9 +161,9 @@ jobs:
             # PR本文から "key: value" 形式で必須メタ情報を抽出する
             meta_values = {}
             for line in body.splitlines():
-              m = re.match(r"^\s*[-*]\s*([a-z_]+)\s*[:：]\s*(.*)$", line)
+              m = re.match(r"^\s*[-*]\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*[:：]\s*(.*)$", line)
               if m:
-                key = m.group(1).strip()
+                key = m.group(1).strip().lower()
                 value = m.group(2).strip()
                 # HTMLコメントは値から除去
                 value = re.sub(r"<!--.*?-->", "", value).strip()
