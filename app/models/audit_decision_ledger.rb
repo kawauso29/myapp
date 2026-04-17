@@ -46,11 +46,13 @@ class AuditDecisionLedger < ApplicationRecord
       errors.add(:reason_code, "must be an approval code when decision=approve")
     end
 
-    return unless decision_reject? || decision_request_changes?
-
-    # reject / request_changes では approved_* は使えない
-    if reason_code&.start_with?("approved_")
+    if (decision_reject? || decision_request_changes?) && reason_code&.start_with?("approved_")
       errors.add(:reason_code, "cannot be an approval code when decision is #{decision}")
+    end
+
+    # abstain は「拒否権は行使しないが approve もしない」判断なので、approved_* は使わせない。
+    if decision_abstain? && reason_code&.start_with?("approved_")
+      errors.add(:reason_code, "cannot be an approval code when decision=abstain")
     end
   end
 end

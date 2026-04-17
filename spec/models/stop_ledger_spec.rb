@@ -27,9 +27,32 @@ RSpec.describe StopLedger, type: :model do
       matching = create(:stop_ledger, scope_level: :service, service_id: "ai_sns", status: :active)
       create(:stop_ledger, scope_level: :service, service_id: "trading", status: :active)
       create(:stop_ledger, scope_level: :service, service_id: "ai_sns",
-             status: :lifted, started_at: 2.hours.ago, lifted_at: 1.hour.ago)
+             status: :lifted, started_at: 2.hours.ago, lifted_at: 1.hour.ago,
+             lifted_by: "operator", lift_reason: "recovered")
 
       expect(described_class.active_for(scope_level: :service, service_id: "ai_sns")).to contain_exactly(matching)
+    end
+  end
+
+  describe "lifted validation" do
+    it "requires lifted_at / lifted_by / lift_reason when status=lifted" do
+      record = build(:stop_ledger, status: :lifted,
+                     lifted_at: nil, lifted_by: nil, lift_reason: nil)
+      expect(record).not_to be_valid
+      expect(record.errors[:lifted_at]).to be_present
+      expect(record.errors[:lifted_by]).to be_present
+      expect(record.errors[:lift_reason]).to be_present
+    end
+
+    it "allows status=active without lifted fields" do
+      expect(build(:stop_ledger, status: :active)).to be_valid
+    end
+
+    it "allows status=lifted with all audit fields filled" do
+      record = build(:stop_ledger, status: :lifted,
+                     started_at: 1.hour.ago,
+                     lifted_at: Time.current, lifted_by: "operator", lift_reason: "recovered")
+      expect(record).to be_valid
     end
   end
 end

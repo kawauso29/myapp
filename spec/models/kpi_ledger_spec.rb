@@ -85,15 +85,61 @@ RSpec.describe KpiLedger, type: :model do
   describe "#apply_grade! (Phase 34)" do
     it "persists grade and graded_at" do
       kpi = create(:kpi_ledger, current_value: { "value" => 150 }, thresholds: { "healthy" => 100, "warning" => 50 })
+      # after_save callback により create 時点で grade=healthy が計算されている。
+      expect(kpi.reload.grade).to eq("healthy")
 
-      expect { kpi.apply_grade! }.to change { kpi.reload.grade }.from(nil).to("healthy")
-      expect(kpi.graded_at).to be_present
+      # grade を手動で nil にリセットしてから apply_grade! が正しく復元することを確認する。
+      kpi.update_column(:grade, nil)
+      kpi.update_column(:graded_at, nil)
+      expect(kpi.reload.grade).to be_nil
+
+      kpi.apply_grade!
+
+      expect(kpi.reload.grade).to eq("healthy")
+      expect(kpi.reload.graded_at).to be_present
     end
 
     it "returns nil without side effects when grade cannot be evaluated" do
       kpi = create(:kpi_ledger, current_value: {}, thresholds: {})
 
       expect(kpi.apply_grade!).to be_nil
+      expect(kpi.reload.grade).to be_nil
+    end
+  end
+
+  describe "after_save: auto grade recalculation on current_value change" do
+    let(:thresholds) { { "healthy" => 100, "warning" => 50 } }
+
+    it "updates grade automatically when current_value is written" do
+      kpi = create(:kpi_ledger, thresholds:, current_value: {})
+      expect(kpi.reload.grade).to be_nil
+
+      kpi.update!(current_value: { "value" => 200 })
+
+      expect(kpi.reload.grade).to eq("healthy")
+    end
+
+    it "transitions grade from healthy to critical when value drops" do
+      kpi = create(:kpi_ledger, thresholds:, current_value: { "value" => 200 })
+      expect(kpi.reload.grade).to eq("healthy")
+
+      kpi.update!(current_value: { "value" => 10 })
+
+      expect(kpi.reload.grade).to eq("critical")
+    end
+
+    it "does not trigger grade change when other attributes change" do
+      kpi = create(:kpi_ledger, thresholds:, current_value: { "value" => 200 })
+      original_graded_at = kpi.reload.graded_at
+
+      kpi.update!(name: "Updated Name")
+
+      expect(kpi.reload.graded_at).to eq(original_graded_at)
+    end
+
+    it "skips auto recalculation when thresholds are missing" do
+      kpi = create(:kpi_ledger, thresholds: {}, current_value: {})
+      kpi.update!(current_value: { "value" => 999 })
       expect(kpi.reload.grade).to be_nil
     end
   end

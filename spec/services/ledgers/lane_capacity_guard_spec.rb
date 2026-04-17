@@ -43,5 +43,23 @@ RSpec.describe Ledgers::LaneCapacityGuard do
 
       expect(described_class.allowed?(operating_lane: :weekly_improvement, service_id: "ai_sns")).to be(true)
     end
+
+    it "does not count tickets from a different scope_level when scope_level filter is applied" do
+      create(:lane_capacity_cap,
+             scope_level: :service,
+             service_id: "ai_sns",
+             operating_lane: :weekly_improvement,
+             wip_cap: 2)
+      # company-scope tickets should NOT be counted against the service-scope cap
+      2.times do
+        create(:ticket_ledger, operating_lane: :weekly_improvement, status: :approved,
+               service_id: "ai_sns", scope_level: :company)
+      end
+
+      expect(described_class.current_usage(operating_lane: :weekly_improvement,
+                                            scope_level: :service, service_id: "ai_sns")).to eq(0)
+      expect(described_class.allowed?(operating_lane: :weekly_improvement,
+                                       scope_level: :service, service_id: "ai_sns")).to be(true)
+    end
   end
 end

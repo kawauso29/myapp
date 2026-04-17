@@ -214,6 +214,37 @@ RSpec.describe "ledgers rake tasks" do
     end
   end
 
+  describe "ledgers:verify_seeds" do
+    let(:task) { Rake::Task["ledgers:verify_seeds"] }
+
+    before { task.reenable }
+
+    it "outputs status=ok when all seeds are present" do
+      allow(Ledgers::SeedValidator).to receive(:call).and_return(
+        instance_double(Ledgers::SeedValidator::Result,
+                        ok?: true,
+                        missing: { meeting_definitions: [], service_ledgers: [], kpi_ledgers: [] })
+      )
+
+      output = capture_stdout { task.invoke }
+      payload = JSON.parse(output)
+
+      expect(payload["status"]).to eq("ok")
+    end
+
+    it "exits 1 and outputs missing keys when seeds are absent" do
+      allow(Ledgers::SeedValidator).to receive(:call).and_return(
+        instance_double(Ledgers::SeedValidator::Result,
+                        ok?: false,
+                        missing: { meeting_definitions: ["weekly_dept"], service_ledgers: [], kpi_ledgers: [] })
+      )
+
+      expect {
+        capture_stdout { task.invoke }
+      }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+    end
+  end
+
   def capture_stdout
     original_stdout = $stdout
     $stdout = StringIO.new

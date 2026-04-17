@@ -32,6 +32,9 @@ class ArtifactLedger < ApplicationRecord
 
   validates :artifact_type, :scope_level, :title, :artifact_version, :status, presence: true
   validates :artifact_version, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
+  # DB 側の idx_artifact_ledgers_type_title_version と一致するモデル側検証。
+  # 同一 artifact_type + title の中で version は一意。
+  validates :artifact_version, uniqueness: { scope: [ :artifact_type, :title ] }
   validates :idempotency_key, uniqueness: true, allow_nil: true
   validate :version_consistency_with_supersedes
 
@@ -42,6 +45,12 @@ class ArtifactLedger < ApplicationRecord
   # supersedes を指定した場合は artifact_version が元版 + 1、title と artifact_type が同一であることを要求する。
   def version_consistency_with_supersedes
     return if supersedes.blank?
+
+    # 自己参照（supersedes_id == id）は循環チェーンの起点になるため明示的に禁止する。
+    if persisted? && supersedes_id == id
+      errors.add(:supersedes_id, "must not reference self")
+      return
+    end
 
     errors.add(:artifact_type, "must match superseded version") unless supersedes.artifact_type == artifact_type
     errors.add(:title, "must match superseded version") unless supersedes.title == title

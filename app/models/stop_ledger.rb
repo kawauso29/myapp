@@ -27,6 +27,7 @@ class StopLedger < ApplicationRecord
 
   validates :trigger_type, :scope_level, :status, :started_at, presence: true
   validate :lifted_at_is_after_started_at
+  validate :lifted_fields_required_when_lifted
 
   scope :currently_active, -> { status_active }
   scope :active_for, ->(scope_level:, service_id: nil) {
@@ -47,5 +48,15 @@ class StopLedger < ApplicationRecord
     return if lifted_at >= started_at
 
     errors.add(:lifted_at, "must be greater than or equal to started_at")
+  end
+
+  # `status: :lifted` の行は必ず lifted_at / lifted_by / lift_reason を伴う。
+  # `lift!` 以外の経路（直接 update 等）で空のまま lifted 化されるのを防ぐ。
+  def lifted_fields_required_when_lifted
+    return unless status_lifted?
+
+    errors.add(:lifted_at, "can't be blank when status=lifted") if lifted_at.blank?
+    errors.add(:lifted_by, "can't be blank when status=lifted") if lifted_by.blank?
+    errors.add(:lift_reason, "can't be blank when status=lifted") if lift_reason.blank?
   end
 end

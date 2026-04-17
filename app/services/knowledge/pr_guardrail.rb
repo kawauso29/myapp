@@ -34,13 +34,14 @@ module Knowledge
     end
 
     def kind_exists?(kind)
-      scope = KnowledgeLedger.where(kind: KnowledgeLedger.kinds[kind], status: KnowledgeLedger.statuses[:accepted])
+      base = KnowledgeLedger.where(kind: KnowledgeLedger.kinds[kind], status: KnowledgeLedger.statuses[:accepted])
       # 対応 ticket の service_id で絞り込む
-      if @ticket.service_id.present?
-        scope = scope.where("tags @> ?", { service_id: @ticket.service_id }.to_json)
-          .or(KnowledgeLedger.where(kind: KnowledgeLedger.kinds[kind], status: KnowledgeLedger.statuses[:accepted], source_ticket_id: @ticket.id))
-      end
-      scope.exists?
+      return base.exists? if @ticket.service_id.blank?
+
+      tag_match = base.where("tags @> ?", { service_id: @ticket.service_id }.to_json)
+      return tag_match.exists? if @ticket.id.blank?
+
+      tag_match.or(base.where(source_ticket_id: @ticket.id)).exists?
     end
   end
 end
