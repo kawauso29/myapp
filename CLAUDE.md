@@ -187,8 +187,8 @@ docker compose up
 
 | カテゴリ | 内容 | GitHub Secret | VPS .env |
 |---|---|---|---|
-| ① CI/Deploy進捗 | CI成功, デプロイ開始/成功, PR通知 | `SLACK_WEBHOOK_URL_CI` | 不要（GitHub Actionsのみ） |
-| ② エラー | CI失敗, デプロイ失敗, アプリ障害, レート制限 | `SLACK_WEBHOOK_URL_ERROR` | `SLACK_WEBHOOK_URL_ERROR` |
+| ① CI/Deploy進捗 | CI成功/失敗, デプロイ開始/成功, PR通知 | `SLACK_WEBHOOK_URL_CI` | 不要（GitHub Actionsのみ） |
+| ② エラー | デプロイ失敗, アプリ障害, レート制限 | `SLACK_WEBHOOK_URL_ERROR` | `SLACK_WEBHOOK_URL_ERROR` |
 | ③ ジョブ/アクション結果 | auto-fix PR作成, auto-merge結果, triage issue通知, AI投稿運用ログ | `SLACK_WEBHOOK_URL_JOBS` | `SLACK_WEBHOOK_URL_JOBS` |
 
 ### フォールバック仕様
@@ -201,7 +201,7 @@ GitHub Actions側は未設定時に既存の `SLACK_WEBHOOK_URL` へフォール
 | ワークフロー | 通知 | カテゴリ |
 |---|---|---|
 | `ci.yml` notify success | CI passed | ① |
-| `ci.yml` notify failure | CI failed | ② |
+| `ci.yml` notify failure | CI failed | ① |
 | `deploy.yml` start/success | デプロイ開始/成功 | ① |
 | `deploy.yml` failure | デプロイ失敗 | ② |
 | `auto_fix.yml` | auto-fix PR作成/lint失敗 | ③ |

@@ -6,8 +6,8 @@
 
 | カテゴリ | 用途 | Secret |
 |---|---|---|
-| ① CI/Deploy進捗 | CI成功、デプロイ開始/成功、定期運用の進捗 | `SLACK_WEBHOOK_URL_CI` |
-| ② エラー | CI失敗、デプロイ失敗、アプリ例外、監視アラート | `SLACK_WEBHOOK_URL_ERROR` |
+| ① CI/Deploy進捗 | CI成功/失敗、デプロイ開始/成功、定期運用の進捗 | `SLACK_WEBHOOK_URL_CI` |
+| ② エラー | デプロイ失敗、アプリ例外、監視アラート | `SLACK_WEBHOOK_URL_ERROR` |
 | ③ ジョブ/アクション結果 | Auto Fix/Auto Merge/Auto PR などの運用結果、AI投稿系の運用ログ | `SLACK_WEBHOOK_URL_JOBS` |
 
 ## 送信元ごとの割り当て
@@ -15,7 +15,7 @@
 | 送信元 | 通知内容 | カテゴリ |
 |---|---|---|
 | `ci.yml` notify success | CI passed | ① |
-| `ci.yml` notify failure | CI failed | ② |
+| `ci.yml` notify failure | CI failed | ① |
 | `deploy.yml` deploy start/success | デプロイ開始/成功 | ① |
 | `deploy.yml` deploy failure | デプロイ失敗 | ② |
 | `post_deploy_cleanup.yml` deploy failure PR created | デプロイ失敗PR起票 | ② |

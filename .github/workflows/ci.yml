@@ -222,11 +222,11 @@ jobs:
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" || echo "Slack success notification failed; continuing"
 
-      # カテゴリ②: CIエラー通知（jq未使用: self-hosted runner に jq がないため python3 で生成）
+      # カテゴリ①: CI失敗通知（ci-deploy チャネルへ通知。jq未使用: self-hosted runner に jq がないため python3 で生成）
       - name: Notify Slack (failure)
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         env:
-          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
           NOTIFY_LABEL: ${{ steps.notify_context.outputs.notify_label }}
           ACTOR: ${{ github.actor }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
