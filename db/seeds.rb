@@ -139,7 +139,9 @@ def seed_ui_knowledge_adr!
       ## Acceptance Criteria
       - WAU > 0（週1人以上がUIを利用）
       - 全7画面がナビゲーション到達可能
-      - クラッシュ率 < 0.5%（計装後に計測）
+      - クラッシュ率 < 0.5%（フロントエンド計装後に計測予定。Sentry等の導入が前提。
+        現時点では kpi:ai_sns_ui_crash_rate は nil を返し KpiAutoCollector でスキップされる。
+        TODO: Sentry/Expo crash reporting 導入後に KpiAutoCollector の compute を実装する）
 
       ## Status
       accepted

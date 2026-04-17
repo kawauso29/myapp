@@ -41,8 +41,10 @@ module Reinforcements
         unit: "score_0_1"
       },
       # Phase 42 / UI伴走管理: UI 画面稼働率。
-      # WAU が存在すれば全7画面にアクセス可能とみなし 100% を記録する（代理指標）。
-      # WAU = 0 の場合は UI が実質的に未活用とみなし 0% とする。
+      # WAU が存在すれば UI がアクティブとみなす代理指標（binary: 100% or 0%）。
+      # 実際の画面到達率ではなく「UI利用有無」を示す指標のため、
+      # 名称に "_activity_proxy" を含む KPI key を将来追加して差し替えることを推奨。
+      # ※ この値を単独で意思決定に使用しないこと（補助指標として扱う）。
       "kpi:ai_sns_ui_screen_coverage" => {
         compute: ->(m) {
           wau = m.dig(:users, :wau).to_i

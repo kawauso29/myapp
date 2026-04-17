@@ -162,6 +162,8 @@ production:
     schedule: "0 0 * * 1"
 
   # Phase 42 / UI伴走管理: 2日ごと 9:00 JST (= 00:00 UTC): ai_sns_ui UIチェック台帳を実行
+  # 注意: */2 は月の奇数日（1,3,5...）に実行される。2日前後の間隔を保証するが、
+  # 月をまたぐ場合は連続しない日がある（例: 1/31 → 2/1 は1日間隔になる）。
   ui_check_ledger_run:
     class: UiCheckLedgerRunJob
     queue: default
