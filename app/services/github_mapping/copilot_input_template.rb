@@ -56,11 +56,12 @@ module GithubMapping
 
     # 補強9: 生成時に ticket_ledger へ template_id を保存する。
     # すでに保存済み or 新規レコード（id=nil）の場合はスキップする。
+    # バリデーション（format / uniqueness）を通すため `update` を使い、失敗は警告ログで済ませる。
     def persist_template_id!
       return if ticket.template_id.present?
       return if ticket.id.blank?
 
-      ticket.update_column(:template_id, "tmpl-#{ticket.ticket_type}-#{ticket.id}")
+      ticket.update(template_id: "tmpl-#{ticket.ticket_type}-#{ticket.id}")
     rescue ActiveRecord::RecordNotUnique, ActiveRecord::StatementInvalid => e
       Rails.logger.warn("[CopilotInputTemplate] template_id persist failed ticket=##{ticket.id}: #{e.message}")
     end

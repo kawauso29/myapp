@@ -18,6 +18,7 @@ module Portfolio
       "warning" => 0.5,
       "critical" => 0.0
     }.freeze
+    DEFAULT_GRADE_SCORE = 0.5
 
     DEFAULT_PERIOD_DAYS = 90
 
@@ -76,7 +77,7 @@ module Portfolio
 
       grouped = kpis.group_by(&:service_id)
       grouped.transform_values do |service_kpis|
-        grades = service_kpis.map { |k| GRADE_SCORE.fetch(k.grade.to_s, 0.5) }
+        grades = service_kpis.map { |k| GRADE_SCORE.fetch(k.grade.to_s, DEFAULT_GRADE_SCORE) }
         avg = grades.sum / grades.size.to_f
         { avg_grade_score: avg.round(4), kpi_count: service_kpis.size }
       end

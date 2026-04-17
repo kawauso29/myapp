@@ -5,8 +5,9 @@ class HrEvaluationRunJob < ApplicationJob
   # Phase 38b / §19: 四半期ごとに主要ロールの人事評価を自動実行する。
   #
   # 対象ロールは TicketLedger.owner_dept / assignee に出現した上位ロールを動的に抽出し、
-  # 前四半期（直前の 90 日）を評価期間として `Hr::Evaluator` に渡す。
+  # 直前の `EVALUATION_PERIOD_DAYS` 日を評価期間として `Hr::Evaluator` に渡す。
   SUBJECT_ROLE_LIMIT = 20
+  EVALUATION_PERIOD_DAYS = 90
 
   def perform
     quarter_number = ((Date.current.month - 1) / 3) + 1
@@ -14,7 +15,7 @@ class HrEvaluationRunJob < ApplicationJob
 
     self.class.with_job_idempotency(key) do
       period_end = Date.current - 1
-      period_start = period_end - 90
+      period_start = period_end - EVALUATION_PERIOD_DAYS
 
       roles = collect_subject_roles(period_start, period_end)
       roles.each do |role, service_id|
