@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_046000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -901,6 +901,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_046000) do
     t.bigint "source_meeting_id", null: false
     t.integer "source_meeting_type"
     t.integer "status", default: 0, null: false
+    t.string "template_id"
     t.string "ticket_type", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
@@ -912,6 +913,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_046000) do
     t.index ["sla_deadline"], name: "index_ticket_ledgers_on_sla_deadline"
     t.index ["source_meeting_id"], name: "index_ticket_ledgers_on_source_meeting_id"
     t.index ["status", "escalation_to"], name: "index_ticket_ledgers_on_status_and_escalation_to"
+    t.index ["template_id"], name: "idx_ticket_ledgers_template_id", unique: true, where: "(template_id IS NOT NULL)"
   end
 
   create_table "trade_decisions", force: :cascade do |t|

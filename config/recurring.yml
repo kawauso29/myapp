@@ -136,6 +136,18 @@ production:
     queue: default
     schedule: "0 1 1 1,4,7,10 *"
 
+  # Phase 38b: 人事評価: 1/4/7/10月 1日 11:00 JST (= 02:00 UTC)
+  hr_evaluation_run:
+    class: HrEvaluationRunJob
+    queue: default
+    schedule: "0 2 1 1,4,7,10 *"
+
+  # Phase 41b: ポートフォリオ再編: 1/4/7/10月 1日 11:30 JST (= 02:30 UTC)
+  portfolio_rebalance_run:
+    class: PortfolioRebalanceRunJob
+    queue: default
+    schedule: "30 2 1 1,4,7,10 *"
+
   # 年次計画: 毎年1月1日 12:00 JST (= 03:00 UTC)
   annual_plan_ledger_run:
     class: AnnualPlanLedgerRunJob

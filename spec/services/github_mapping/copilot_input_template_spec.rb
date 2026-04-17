@@ -39,4 +39,24 @@ RSpec.describe GithubMapping::CopilotInputTemplate do
       expect(md).to include("template_id")
     end
   end
+
+  describe "Phase 35 補強9: template_id persistence" do
+    it "persists template_id on the ticket when generate is called" do
+      ticket = create(:ticket_ledger, service_id: "ai_sns", ticket_type: :operations)
+      expect(ticket.template_id).to be_nil
+
+      described_class.generate(ticket)
+
+      expect(ticket.reload.template_id).to eq("tmpl-operations-#{ticket.id}")
+    end
+
+    it "does not overwrite an existing template_id" do
+      ticket = create(:ticket_ledger, service_id: "ai_sns", ticket_type: :operations)
+      ticket.update!(template_id: "tmpl-operations-#{ticket.id}")
+
+      described_class.generate(ticket)
+
+      expect(ticket.reload.template_id).to eq("tmpl-operations-#{ticket.id}")
+    end
+  end
 end
