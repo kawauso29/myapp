@@ -49,15 +49,17 @@
 - [x] モデル spec の追加
 - [x] 仕様書（§16 / §19 / §20 の実装状況節、§32 の Phase 30〜41 表、§33.2 の補強ステータス）
 
-### Phase 30b（別 PR）
+### Phase 30b（本 PR で追加）
 
-- [ ] 補強2: `Ledgers::PreflightValidator` サービスを追加し、Runner が会議を開く前に参加ロール充足を検証する
-- [ ] Runner 側で `idempotency_key` を自動採番（例: `"weekly_dept:#{service_id}:#{held_on}"`）
-- [ ] `Ledgers::*Runner` が `carry_over_items` を書き込むよう拡張（§26.5）
-- [ ] 補強3: `source_*_id` のバックフィル（自動生成 ticket には仮想 meeting を紐付け）→ NOT NULL 制約
+- [x] 補強2: `Ledgers::PreflightValidator` を追加し、Runner が会議を開く前に参加ロール充足を検証（`role_fill_rate` 自動算出、不足時は `PreflightFailure` を raise）
+- [x] Runner 側で `idempotency_key` を自動採番（`Ledgers::IdempotencyKey.for_meeting`）
+- [x] 4 つの Runner（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）が `participants` / `role_fill_rate` / `idempotency_key` を必ず記録
+- [x] `WeeklyDeptRunner` が `hold_items` を `carry_over_items` にも書き込む（§26.5 / 補強8 の完全化）
+- [x] PreflightValidator / IdempotencyKey の RSpec、WeeklyDeptRunner の idempotency / role_fill_rate / carry_over_items テストを追加
 
 ### Phase 30c（別 PR）
 
+- [ ] 補強3: `source_*_id` のバックフィル（自動生成 ticket には仮想 meeting を紐付け）→ NOT NULL 制約
 - [ ] ジョブ側の idempotency（ActiveJob 側ラッパ）
 - [ ] 既存 `TicketIssueSync` / `Planner` に idempotency_key を伝播
 
@@ -67,14 +69,14 @@
 
 | No. | 実体 | 足りないもの | Phase |
 |---|---|---|---|
-| 1 idempotency_key | 部分 | Runner 自動採番 / ジョブ側 idempotency | 30a → 30b/c |
-| 2 参加ロール充足 | △ | Runner 側プリフライト | 30b |
-| 3 source_*_id NOT NULL | ❌ | バックフィル + NOT NULL migration | 30b |
+| 1 idempotency_key | 部分 | ジョブ側 idempotency（ActiveJob ラッパ） | 30a / 30b → 30c |
+| 2 参加ロール充足 | ✅ | — （Runner プリフライト実装済み） | 30b |
+| 3 source_*_id NOT NULL | ❌ | バックフィル + NOT NULL migration | 30c |
 | 4 artifact_version | ❌ | 成果物台帳自体が無い | 31 |
 | 5 KPI grade | ❌ | `KpiLedger.grade` + 閾値評価ジョブ | 34 |
 | 6 audit_decision.reason_code | △ | `audit_decisions` 台帳 | 32 |
 | 7 stop_ledger | ❌ | 自動停止ログ台帳 | 33 |
-| 8 carry_over_items | 部分 | Runner 書き込み | 30a → 30b |
+| 8 carry_over_items | ✅ | — （WeeklyDept 書き込み済み） | 30a / 30b |
 | 9 Copilot 標準入力テンプレート ID 化 | △ | `template_id` 列 | 35 |
 
 ### B. §16 成果物の実体化（Phase 31）

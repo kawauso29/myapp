@@ -1,16 +1,18 @@
 module Ledgers
   class WeeklyDeptRunner
-    def self.call(service_id:, ticket_inputs: nil)
-      new(service_id:, ticket_inputs:).call
+    def self.call(service_id:, ticket_inputs: nil, present_roles: nil)
+      new(service_id:, ticket_inputs:, present_roles:).call
     end
 
-    def initialize(service_id:, ticket_inputs: nil)
+    def initialize(service_id:, ticket_inputs: nil, present_roles: nil)
       @service_id = service_id
       @ticket_inputs = ticket_inputs.presence || default_ticket_inputs
+      @present_roles = present_roles
     end
 
     def call
       definition = meeting_definition!
+      preflight = Ledgers::PreflightValidator.call(definition:, present_roles: @present_roles)
       meeting = MeetingLedger.create!(
         meeting_definition: definition,
         meeting_key: definition.meeting_key,
@@ -18,9 +20,14 @@ module Ledgers
         scope_level: definition.scope_level,
         service_id:,
         chair: definition.chair_role,
-        participants: definition.participant_roles,
+        participants: preflight.participants,
+        role_fill_rate: preflight.role_fill_rate,
         held_at: Time.current,
-        status: :open
+        status: :open,
+        idempotency_key: Ledgers::IdempotencyKey.for_meeting(
+          prefix: "weekly_dept",
+          parts: [ service_id ]
+        )
       )
 
       created = []
@@ -68,6 +75,7 @@ module Ledgers
       meeting.update!(
         decisions:,
         hold_items:,
+        carry_over_items: hold_items,
         tickets_to_create: created,
         escalations:,
         directives: [ { improvements: } ],
