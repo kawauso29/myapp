@@ -3,25 +3,29 @@ module Ledgers
     ALLOWED_RESOLUTIONS = %w[approved draft cancelled].freeze
     DEFAULT_ASSIGNEE = "monthly_ops_runner".freeze
 
-    def self.call(resolution_map: {})
-      new(resolution_map:).call
+    def self.call(resolution_map: {}, present_roles: nil)
+      new(resolution_map:, present_roles:).call
     end
 
-    def initialize(resolution_map:)
+    def initialize(resolution_map:, present_roles: nil)
       @resolution_map = (resolution_map || {}).transform_keys(&:to_i)
+      @present_roles = present_roles
     end
 
     def call
       definition = meeting_definition!
+      preflight = Ledgers::PreflightValidator.call(definition:, present_roles: @present_roles)
       meeting = MeetingLedger.create!(
         meeting_definition: definition,
         meeting_key: definition.meeting_key,
         meeting_type: definition.meeting_type,
         scope_level: definition.scope_level,
         chair: definition.chair_role,
-        participants: definition.participant_roles,
+        participants: preflight.participants,
+        role_fill_rate: preflight.role_fill_rate,
         held_at: Time.current,
-        status: :open
+        status: :open,
+        idempotency_key: Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops")
       )
 
       decisions = []
@@ -49,6 +53,10 @@ module Ledgers
       }
 
       meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed)
+
+      # Phase 31c: 月次会議の議事要約を成果物台帳に自動記録する
+      Ledgers::RunnerArtifactPublisher.publish_for!(meeting: meeting, runner: :monthly_ops)
+
       meeting
     end
 

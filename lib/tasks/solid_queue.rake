@@ -30,6 +30,14 @@ namespace :solid_queue do
     ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob
+    ExperimentAutoDeciderJob
+    SlaSweepJob
+    KpiAutoCollectJob
+    KpiGradeEvaluateJob
+    StopConditionMonitorJob
+    EffectivenessRecalcJob
+    PlannerJob
+    TicketIssueSyncJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

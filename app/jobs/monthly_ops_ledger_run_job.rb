@@ -1,10 +1,13 @@
 class MonthlyOpsLedgerRunJob < ApplicationJob
+  include Ledgers::JobIdempotency
   queue_as :default
 
   def perform(resolution_map: {})
-    meeting = Ledgers::MonthlyOpsRunner.call(resolution_map:)
-    payload = JSON.parse(Ledgers::RunOutputFormatter.format(meeting:, operation: "monthly_ops"))
-    Ledgers::SlackNotifier.notify(payload)
-    meeting
+    self.class.with_job_idempotency("monthly_ops:#{Date.current.strftime('%Y-%m')}") do
+      meeting = Ledgers::MonthlyOpsRunner.call(resolution_map:)
+      payload = JSON.parse(Ledgers::RunOutputFormatter.format(meeting:, operation: "monthly_ops"))
+      Ledgers::SlackNotifier.notify(payload)
+      meeting
+    end
   end
 end

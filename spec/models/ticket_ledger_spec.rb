@@ -16,8 +16,16 @@ RSpec.describe TicketLedger, type: :model do
   end
 
   describe "enums" do
-    it "defines ticket_type enum" do
-      expect(described_class.ticket_types.keys).to eq(%w[operations audit ops quarterly_review annual_plan improvement])
+    it "defines ticket_type enum with 11 §17 categories + legacy types" do
+      keys = described_class.ticket_types.keys
+      # §17 の 11 種が全部含まれる
+      expect(keys).to include(
+        "initiative", "investigation", "audit", "hr", "customer_notice",
+        "tech_record", "org_change", "exec_plan",
+        "service_launch", "service_shutdown", "service_merge"
+      )
+      # 既存互換: 後方互換のために残している旧来のキーも含まれる
+      expect(keys).to include("operations", "ops", "quarterly_review", "annual_plan", "improvement", "service_pivot")
     end
 
     it "defines status enum from spec" do
@@ -56,6 +64,168 @@ RSpec.describe TicketLedger, type: :model do
       ticket = create(:ticket_ledger, status: :waiting_review, resolved_at: nil)
 
       expect { ticket.update!(status: :cancelled) }.to change { ticket.reload.resolved_at }.from(nil)
+    end
+  end
+
+  describe "補強10: effectiveness fields" do
+    it "rejects effectiveness_score outside 0..1" do
+      ticket = build(:ticket_ledger, effectiveness_score: 1.5)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:effectiveness_score]).to be_present
+    end
+
+    it "rejects negative effectiveness_sample_size" do
+      ticket = build(:ticket_ledger, effectiveness_sample_size: -1)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:effectiveness_sample_size]).to be_present
+    end
+
+    describe ".effectiveness_for_pattern" do
+      it "returns nil when sample size is below minimum" do
+        2.times do
+          create(:ticket_ledger,
+                 ticket_type: "improvement",
+                 improvement_pattern_key: "posting_frequency_up",
+                 effectiveness_score: 0.5)
+        end
+        expect(described_class.effectiveness_for_pattern("posting_frequency_up")).to be_nil
+      end
+
+      it "returns average score once enough samples exist" do
+        [ 0.2, 0.4, 0.6 ].each do |score|
+          create(:ticket_ledger,
+                 ticket_type: "improvement",
+                 improvement_pattern_key: "prompt_tuning",
+                 effectiveness_score: score)
+        end
+        expect(described_class.effectiveness_for_pattern("prompt_tuning")).to be_within(0.01).of(0.4)
+      end
+    end
+  end
+
+  describe "補強13: SLA fields" do
+    it "auto-fills sla_breached_at when deadline is in the past" do
+      ticket = build(:ticket_ledger, sla_deadline: 1.hour.ago)
+      ticket.save!
+      expect(ticket.sla_breached_at).to be_present
+      expect(ticket).to be_sla_breached
+    end
+
+    it "does not mark breach when deadline is in the future" do
+      ticket = create(:ticket_ledger, sla_deadline: 1.hour.from_now)
+      expect(ticket.sla_breached_at).to be_nil
+    end
+
+    it "rejects sla_breached_at without sla_deadline" do
+      ticket = build(:ticket_ledger, sla_breached_at: Time.current, sla_deadline: nil)
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:sla_breached_at]).to be_present
+    end
+
+    describe ".sla_breached" do
+      it "returns only tickets whose sla_breached_at is set" do
+        breached = create(:ticket_ledger, sla_deadline: 2.hours.ago)
+        create(:ticket_ledger, sla_deadline: 1.hour.from_now)
+        expect(described_class.sla_breached).to contain_exactly(breached)
+      end
+    end
+  end
+
+  describe "Phase 30 補強1: idempotency_key" do
+    it "allows creation with nil idempotency_key" do
+      record = create(:ticket_ledger, idempotency_key: nil)
+      expect(record).to be_persisted
+      expect(record.idempotency_key).to be_nil
+    end
+
+    it "persists a unique idempotency_key when provided" do
+      key = "improvement:pattern-x:#{Date.current}"
+      create(:ticket_ledger, idempotency_key: key)
+      duplicate = build(:ticket_ledger, idempotency_key: key)
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:idempotency_key]).to be_present
+    end
+  end
+
+  describe "Phase 33 補強7: stop guard" do
+    around do |example|
+      original = described_class.enforce_stop_guard
+      described_class.enforce_stop_guard = true
+      example.run
+    ensure
+      described_class.enforce_stop_guard = original
+    end
+
+    it "blocks ticket creation when an active company-scope stop exists" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be false
+      expect(ticket.errors[:base].join).to include("blocked by active stops")
+    end
+
+    it "allows creation when skip_stop_guard is set" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      ticket.skip_stop_guard = true
+      expect(ticket.save).to be true
+    end
+
+    it "allows creation when no active stop exists" do
+      ticket = build(:ticket_ledger, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be true
+    end
+
+    it "allows investigation ticket even when stop is active (bypass by ticket_type)" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :error_spike, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, ticket_type: :investigation, scope_level: :service, service_id: "ai_sns")
+      expect(ticket.save).to be true
+    end
+
+    it "allows quarterly_review summary ticket even when stop is active" do
+      create(:stop_ledger, scope_level: :company, service_id: nil,
+                           trigger_type: :kpi_breach, status: :active,
+                           started_at: 1.minute.ago)
+
+      ticket = build(:ticket_ledger, ticket_type: :quarterly_review, scope_level: :company, service_id: nil)
+      expect(ticket.save).to be true
+    end
+  end
+
+  describe "Phase 36/37: warn_lane_capacity / warn_pr_guardrail" do
+    it "logs a warning when lane usage is at or over cap" do
+      # Create cap
+      LaneCapacityCap.create!(scope_level: :service, service_id: "ai_sns", operating_lane: :weekly_improvement, wip_cap: 1)
+      # Use up the cap
+      create(:ticket_ledger, operating_lane: :weekly_improvement, scope_level: :service, service_id: "ai_sns", status: :waiting_review)
+
+      original = described_class.warn_lane_capacity
+      described_class.warn_lane_capacity = true
+
+      expect(Rails.logger).to receive(:warn).with(a_string_including("[LaneCapacityGuard] over cap"))
+
+      create(:ticket_ledger, operating_lane: :weekly_improvement, scope_level: :service, service_id: "ai_sns", status: :waiting_review)
+    ensure
+      described_class.warn_lane_capacity = original
+    end
+
+    it "logs a warning when high-risk ticket is missing ADR/runbook" do
+      original = described_class.warn_pr_guardrail
+      described_class.warn_pr_guardrail = true
+
+      expect(Rails.logger).to receive(:warn).with(a_string_including("[PrGuardrail] missing artifacts"))
+
+      create(:ticket_ledger, ticket_type: :investigation, risk_level: :high, scope_level: :service, service_id: "ai_sns")
+    ensure
+      described_class.warn_pr_guardrail = original
     end
   end
 end

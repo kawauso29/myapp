@@ -38,6 +38,38 @@ jobs:
             const commitMessage = context.payload.head_commit?.message || branch;
             const title = commitMessage.split('\n')[0];
 
+            // PR Body Check (pr_body_check.yml) が要求する必須7見出しを初期本文に含める。
+            // これを省くと auto-created PR が常に validate-pr-body で落ちるため、
+            // テンプレ見出しだけは必ず埋め込み、後からユーザー/Copilot が中身を埋める運用にする。
+            const bodyTemplate = [
+              `ブランチ \`${branch}\` からの自動PR作成`,
+              '',
+              'CI通過後に自動マージされます（session-hold ラベルが付いている場合は除外すまで保留）。',
+              '',
+              '## 背景/目的',
+              '<!-- どの課題を解消する変更か、なぜ今必要かを記入 -->',
+              '',
+              '## 変更内容',
+              `<!-- このPRで追加/変更/削除した内容を箇条書き。初期タイトル: ${title} -->`,
+              '',
+              '## 受入条件（Acceptance Criteria）',
+              '- [ ] 関連CIがすべて成功する',
+              '',
+              '## テスト',
+              '- 実施したコマンド: <!-- 例 `bin/rubocop` / `bundle exec rspec` -->',
+              '- 結果: <!-- 例 すべて成功 -->',
+              '',
+              '## ロールアウト/デプロイ注意',
+              '<!-- 環境変数/マイグレーション/先行リリース等の注意点。なければ「なし」 -->',
+              '',
+              '## Ledger影響（台帳/Runner/定期実行）',
+              '<!-- ticket_ledgers / kpi_ledgers / recurring ジョブ / docs/ai_sns_plan_status.yml 等への影響。なければ「なし」 -->',
+              '',
+              '## リスク & ロールバック',
+              '- リスク: <!-- 想定リスク -->',
+              '- ロールバック手順: <!-- 当該PRを revert 等 -->'
+            ].join('\n');
+
             // リトライ付きPR作成（3回、指数バックオフ）
             for (let attempt = 1; attempt <= 3; attempt++) {
               try {
@@ -45,7 +77,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   title: title,
-                  body: `ブランチ \`${branch}\` からの自動PR作成\n\nCI通過後に自動マージされます。`,
+                  body: bodyTemplate,
                   head: branch,
                   base: 'main',
                   draft: false
