@@ -10,12 +10,26 @@
            background: #0f1117; color: #e2e8f0; font-size: 14px; }
 
     /* ナビ */
-    nav { background: #1a1d2e; border-bottom: 1px solid #2d3748; padding: 12px 24px;
-          display: flex; align-items: center; gap: 24px; }
-    nav .logo { font-size: 16px; font-weight: 700; color: #63b3ed; }
-    nav a { color: #a0aec0; text-decoration: none; font-size: 14px; }
-    nav a:hover { color: #e2e8f0; }
-    nav a.active { color: #63b3ed; font-weight: 600; }
+    nav { background: #1a1d2e; border-bottom: 1px solid #2d3748; padding: 10px 24px;
+          display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+    nav .logo { font-size: 16px; font-weight: 700; color: #63b3ed; margin-right: 20px; }
+    nav a { color: #a0aec0; text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 4px; }
+    nav a:hover { color: #e2e8f0; background: #232637; }
+    nav a.active { color: #63b3ed; font-weight: 600; background: #1a2744; }
+
+    /* ナビグループ */
+    .nav-group { display: flex; align-items: center; gap: 2px; padding: 4px 6px;
+                 border-radius: 6px; margin-right: 4px; }
+    .nav-group.ledger-group { background: #191c2a; border: 1px solid #2d3748; }
+    .nav-group.ledger-group.active-group { border-color: #3182ce; background: #1a2744; }
+    .nav-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+                       color: #4a5568; font-weight: 700; padding: 0 6px 0 2px;
+                       border-right: 1px solid #2d3748; margin-right: 4px; }
+    .nav-group.active-group .nav-group-label { color: #63b3ed; border-right-color: #3182ce; }
+    .nav-divider { width: 1px; height: 20px; background: #2d3748; margin: 0 8px; flex-shrink: 0; }
+    .nav-stop-badge { display: inline-block; background: #c53030; color: #fff;
+                      font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px;
+                      margin-left: 2px; vertical-align: middle; }
 
     /* メインコンテンツ */
     main { padding: 24px; max-width: 1400px; margin: 0 auto; }
@@ -152,17 +166,36 @@
 </head>
 <body>
   <nav>
-    <span class="logo">Admin Dashboard</span>
-    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
-    <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path == 'admin/dashboard' %>">Trading</a>
-    <a href="<%= admin_ai_sns_path %>" class="<%= 'active' if controller_path == 'admin/ai_sns' %>">AI SNS</a>
+    <span class="logo">Admin</span>
+
+    <%# ===== LEDGER グループ ===== %>
+    <% ledger_active = controller_path.start_with?('admin/ops') %>
+    <% active_stop_count = StopLedger.status_active.count rescue 0 %>
+    <div class="nav-group ledger-group <%= 'active-group' if ledger_active %>">
+      <span class="nav-group-label">Ledger</span>
+      <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if controller_path == 'admin/ops/ledgers' %>">Mtg/Ticket</a>
+      <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">Artifacts</a>
+      <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">Audits</a>
+      <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">
+        Stops<% if active_stop_count > 0 %><span class="nav-stop-badge"><%= active_stop_count %></span><% end %>
+      </a>
+      <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">Knowledge</a>
+    </div>
+
+    <span class="nav-divider"></span>
+
+    <%# ===== AI SNS ===== %>
+    <a href="<%= admin_ai_sns_path %>" class="<%= 'active' if controller_path.start_with?('admin/ai_sns') %>">AI SNS</a>
+
+    <span class="nav-divider"></span>
+
+    <%# ===== 独立系統 ===== %>
+    <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path.start_with?('admin/dashboard') %>">Trading</a>
     <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
-    <a href="<%= admin_users_path %>" class="<%= 'active' if controller_path == 'admin/users' %>">Users</a>
-    <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if controller_path == 'admin/ops/ledgers' %>">Ops Ledgers</a>
-    <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">Ops Artifacts</a>
-    <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">Ops Audits</a>
-    <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">Ops Stops</a>
-    <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">Ops Knowledge</a>
+
+    <span class="nav-divider"></span>
+
+    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
   </nav>
   <main>
     <% if flash[:notice] %>
