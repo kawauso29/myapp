@@ -140,8 +140,8 @@ cd ~/myapp && RAILS_ENV=production rails runner "puts 'OK'" 2>&1 | head -5
 
 - 通知ルーティングの正本は `docs/slack-notification-routing.md` を参照する
 - カテゴリは以下の3つを使い分ける
-  - ① CI/Deploy進捗: `SLACK_WEBHOOK_URL_CI`
-  - ② エラー: `SLACK_WEBHOOK_URL_ERROR`
+  - ① CI/Deploy進捗（CI失敗含む）: `SLACK_WEBHOOK_URL_CI`
+  - ② エラー（デプロイ失敗・アプリ障害等）: `SLACK_WEBHOOK_URL_ERROR`
   - ③ ジョブ/アクション結果: `SLACK_WEBHOOK_URL_JOBS`
 - Rails `SlackNotifierService` は `channel: :jobs` を error にフォールバックさせない（誤配送防止）
 - JSON は必ず `jq -n --arg key value '...'` で生成する（インジェクション・改行対策）
