@@ -197,6 +197,9 @@ class TicketLedger < ApplicationRecord
     Stops::EntryGuard.assert!(scope_level: scope_level, service_id: service_id)
   rescue Stops::EntryGuard::Blocked => e
     errors.add(:base, e.message)
+    # Rails の before_create コールバックチェーンを中断して create をキャンセルする。
+    # ActiveRecord::Rollback を使うと transaction 全体がロールバックされてしまうため
+    # `throw(:abort)` が Rails 標準のキャンセル方法。
     throw(:abort)
   end
 

@@ -60,9 +60,14 @@
           <td style="font-family:monospace; font-size:11px; max-width:300px; overflow:hidden; text-overflow:ellipsis;"><%= stop.evidence.to_json %></td>
           <td>
             <% if stop.status_active? %>
-              <%= button_to lift_admin_ops_stop_path(stop), method: :post, form: { style: "display:inline;", onsubmit: "this.querySelector('[name=lift_reason]').value = prompt('解除理由を入力', ''); if (!this.querySelector('[name=lift_reason]').value) return false;" }, class: "btn btn-sm", style: "background:#c53030;" do %>
-                <%= hidden_field_tag :lift_reason, "" %>
-                Lift
+              <%= form_with url: lift_admin_ops_stop_path(stop), method: :post, local: true, class: "lift-form", style: "display:flex; gap:4px; align-items:center;" do |f| %>
+                <%= label_tag "lift_reason_#{stop.id}", "理由", style: "font-size:11px; color:#a0aec0;" %>
+                <%= text_field_tag :lift_reason, "", id: "lift_reason_#{stop.id}", required: true, placeholder: "解除理由",
+                    style: "flex:1; min-width:140px; padding:4px 6px; border-radius:4px; border:1px solid #2d3748; background:#232637; color:#e2e8f0; font-size:12px;",
+                    "aria-label": "停止 ##{stop.id} の解除理由" %>
+                <%= f.submit "Lift", class: "btn btn-sm",
+                    style: "background:#c53030; padding:4px 10px;",
+                    data: { confirm: "停止 ##{stop.id} を解除しますか？" } %>
               <% end %>
             <% else %>
               -

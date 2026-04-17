@@ -20,17 +20,17 @@
 | Phase | 名称 | 根拠 | 粒度 | 状態 |
 |---|---|---|---|---|
 | 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ 完了（30a + 30b + 30c） |
-| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | ✅ モデル層完了 + 31b で Admin Viewer 実装済み（Runner からの publish 自動連動は 31c で対応） |
-| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | ✅ 完了（`AuditDecisionLedger` + `Audits::RecordDecision` + reason_code 強制） |
-| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | ✅ 完了（`StopLedger` + `Stops::ConditionEvaluator` + `StopConditionMonitorJob`（15分ごと）） |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | ✅ 完了（モデル層 + 31b Admin Viewer + 31c Runner 自動 publish） |
+| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | ✅ 完了（`AuditDecisionLedger` + `Audits::RecordDecision` + reason_code 強制 + Admin Viewer） |
+| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | ✅ 完了（`StopLedger` + `Stops::ConditionEvaluator` + `StopConditionMonitorJob` + `Stops::EntryGuard`（TicketLedger 起票ブロック）+ Admin Viewer（lift 操作付き）） |
 | 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ 完了 |
 | 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | ✅ 完了（`TicketLedger.ticket_type` enum に §17 の 11 種を実装） |
-| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ 完了（`operating_lane` + `LaneCapacityCap` + `Ledgers::LaneCapacityGuard`） |
-| 37 | 知識台帳 + PR ガードレール | §20 | 中 | ✅ 完了（`KnowledgeLedger`（ADR/Runbook/Incident/Deploy）+ `Knowledge::PrGuardrail`） |
-| 38 | 人事評価 / 組織再編 | §19 | 大 | 🔧 モデル層完了（`HrEvaluationLedger` / `OrgChangeLedger`）。評価ロジックは 38b |
+| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ 完了（`operating_lane` + `LaneCapacityCap` + `Ledgers::LaneCapacityGuard` + 警告ログ自動実行） |
+| 37 | 知識台帳 + PR ガードレール | §20 | 中 | ✅ 完了（`KnowledgeLedger` + `Knowledge::PrGuardrail` + 警告ログ自動実行 + Admin Viewer） |
+| 38 | 人事評価 / 組織再編 | §19 | 大 | 🔧 モデル層完了（`HrEvaluationLedger` / `OrgChangeLedger`）。評価ロジックは 38b で別 PR |
 | 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | ✅ 完了（`CustomerFeedbackLedger` + `Feedback::Intake`（高重大度は即 escalate）） |
 | 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | ❌ 未着手（影響範囲が広いため別 PR に分離） |
-| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 モデル層完了（`PortfolioStrategyLedger`）。実運用フローは 41b |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 モデル層完了（`PortfolioStrategyLedger`）。実運用フローは 41b で別 PR |
 
 ## 依存関係
 
@@ -67,6 +67,36 @@
 - [x] `ticket_ledger` factory をデフォルトで共有 `factory_default_meeting` に紐付ける
 - [x] RSpec（JobIdempotency / 既存 ledger spec）を更新
 
+### Phase 31c（本 PR で完了）
+
+- [x] `Ledgers::RunnerArtifactPublisher` を追加（会議の議事要約を `ArtifactLedger` に `execution_plan` として記録）
+- [x] 4 つの Runner（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）から自動 publish
+- [x] `meeting.idempotency_key` から派生した `artifact:<runner>:<meeting_key>` を `idempotency_key` に設定して二重記録防止
+- [x] RSpec（`spec/services/ledgers/runner_artifact_publisher_spec.rb`）を追加
+
+### Admin Ops UI 3 画面（本 PR で完了）
+
+- [x] `/admin/ops/audit_decisions` — Phase 32 / §18 の決定分布と non-approval 強調
+- [x] `/admin/ops/stops` — Phase 33 の停止台帳 + 管理者による **手動 lift アクション**（`lift_reason` 必須）
+- [x] `/admin/ops/knowledge` — Phase 37 / §20 の ADR / Runbook / Incident / Deploy 記録
+- [x] Admin ナビに 3 リンクを追加、routes に 3 コントローラーを追加
+- [x] RSpec（`spec/requests/admin/ops/*_spec.rb` を 3 本追加）
+
+### App 統合 D（本 PR で完了）
+
+- [x] `Stops::EntryGuard` を追加し、active `StopLedger` がある scope への `TicketLedger` 起票をブロック（scope 上位包含あり。company → portfolio → service / cross_service）
+- [x] `TicketLedger.enforce_stop_guard` class attribute + `before_create` コールバック + production 初期化子 `config/initializers/ticket_stop_guard.rb` で ON（test は後方互換で OFF）
+- [x] 例外経路として `ticket.skip_stop_guard = true` を許可
+- [x] `TicketLedger.warn_lane_capacity` / `TicketLedger.warn_pr_guardrail` を追加し、production で WIP 超過 / ADR・Runbook 不足を **警告ログ**として記録（enforce モードは別 PR で判断）
+
+## 次 PR に分離
+
+- **Phase 40**: `LlmGateway` 差し替え（40a-e 全体）。Planner / EffectivenessEvaluator / Audits の書き換えを伴う
+- **Phase 38b**: `Hr::Evaluator` ＋ quarterly recurring job
+- **Phase 41b**: `Portfolio::Rebalancer` ＋ quarterly runner
+- LaneCapacityGuard / PrGuardrail の **enforce モード**: 警告ログで十分な件数集まってから
+
+
 ## 検出したギャップの詳細（参考）
 
 ### A. 補強 1〜9 の実装状況
@@ -76,10 +106,10 @@
 | 1 idempotency_key | ✅ | — （台帳 + ジョブ双方に適用済） | 30a / 30b / 30c |
 | 2 参加ロール充足 | ✅ | — （Runner プリフライト実装済み） | 30b |
 | 3 source_*_id NOT NULL | ✅ | — （backfill + NOT NULL + SystemMeetingProvider） | 30c |
-| 4 artifact_version | ✅ | — （ArtifactLedger + Publisher 実装済み。Runner 側の publish 連動は 31b） | 31 |
+| 4 artifact_version | ✅ | — （ArtifactLedger + Publisher + Runner 自動 publish） | 31 / 31b / 31c |
 | 5 KPI grade | ✅ | — （grade enum + thresholds + KpiGradeEvaluator） | 34 |
-| 6 audit_decision.reason_code | △ | `audit_decisions` 台帳 | 32 |
-| 7 stop_ledger | ❌ | 自動停止ログ台帳 | 33 |
+| 6 audit_decision.reason_code | ✅ | — （台帳 + reason_code 強制 + Admin Viewer） | 32 |
+| 7 stop_ledger | ✅ | — （台帳 + ConditionEvaluator + EntryGuard + Admin Viewer） | 33 |
 | 8 carry_over_items | ✅ | — （WeeklyDept 書き込み済み） | 30a / 30b |
 | 9 Copilot 標準入力テンプレート ID 化 | △ | `template_id` 列 | 35 |
 
