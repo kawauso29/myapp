@@ -30,6 +30,8 @@ Rails.application.reloader.to_prepare do
     ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob
+    ExperimentAutoDeciderJob
+    SlaSweepJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

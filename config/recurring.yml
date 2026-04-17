@@ -172,3 +172,15 @@ production:
     class: ImprovementEscalationJob
     queue: default
     schedule: "0 23 * * *"
+
+  # 毎日 9:00 JST (= 00:00 UTC): 期限切れ実験（R4: experiment_ledger）を自動判定
+  experiment_auto_decide:
+    class: ExperimentAutoDeciderJob
+    queue: default
+    schedule: "0 0 * * *"
+
+  # 1時間ごと: 補強13 SLA deadline 計算と breach 検知
+  sla_sweep:
+    class: SlaSweepJob
+    queue: default
+    schedule: "0 * * * *"

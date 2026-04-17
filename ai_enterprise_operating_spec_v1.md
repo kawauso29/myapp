@@ -1,6 +1,6 @@
 # 理念駆動型AI企業体 統合設計書 v1
 
-<!-- spec-version: v1.4 (§32 items 1-5 GitHub連携実装済み + §33.4 R1-R4 設計実装済み) -->
+<!-- spec-version: v1.5 (§31 必須メタ情報の CI 強制 + Reinforcements 定期実行化) -->
 
 ## 0. 本書の位置づけ
 本書は、複数サービスを持つ自律運営型の企業体を前提に、理念・経営・事業・実行・監査・人事・顧客成功・知識管理までを一体運用するための統合設計書である。
@@ -1015,6 +1015,7 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 4. 技術記録更新対象が true の場合、対応ファイル更新または更新不要理由が必須。
 5. 顧客向け更新が必要な場合、顧客成功部レビューを経る。
 6. 監査部は GitHub 上のレビュー / チェック結果で停止提案できる。
+7. **本運用ルール 3 の必須メタ情報は CI ワークフロー `pr_guardrails.yml` により強制される**。自動運用ブランチ（`copilot/auto-*` / `copilot/ai-sns-*` / `auto-fix/*` / `dependabot/*`）は検証をスキップする。
 
 ---
 
@@ -1033,7 +1034,7 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 | 20 | 学習ループ | 補強10 | improvement の効果を蓄積し、同じ処方箋の無効反復を防ぐ | サービス層実装済み（`Reinforcements::EffectivenessEvaluator`） |
 | 21 | コスト台帳 / P/L | 補強11 | 各判断・各会議・各ジョブに費用を紐付け、ROI を機械的に評価する | サービス層実装済み（`Reinforcements::CostRecorder`） |
 | 22 | 権限マトリクス DB 化 | 補強12 | 「誰が何を決めてよいか」を DB 制約で表現する | サービス層実装済み（`Reinforcements::PermissionEnforcer`） |
-| 23 | SLA / 外部依存タイムアウト | 補強13 | 人間の承認待ちで固まらない保証を与える | サービス層実装済み（`Reinforcements::SlaCalculator`） |
+| 23 | SLA / 外部依存タイムアウト | 補強13 | 人間の承認待ちで固まらない保証を与える | サービス層 + 定期実行実装済み（`Reinforcements::SlaCalculator` + `SlaSweepJob` 1時間ごと） |
 | 24 | コンプライアンス台帳 | 補強14 | PII / 景表法 / 薬機法 / 金商法などを台帳化し、出力前に自動検証する | サービス層実装済み（`Reinforcements::ComplianceChecker`） |
 | 25 | 会議品質メトリクス | 補強15 | 会議の形骸化を数値で検知し improvement を起票する | サービス層実装済み（`Reinforcements::MeetingHealthScorer`） |
 | 26 | 人間オーバーライド / キルスイッチ | 補強16 | 最上位の緊急停止を 1 行で表現できるようにする | サービス層実装済み（`Reinforcements::KillSwitchGuard`） |
@@ -1246,6 +1247,7 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 #### R4: 「成長と秩序」のバランスが止める側に寄っている — **実装済み**
 - `experiment_ledgers` テーブルを新設（`service_id` / `hypothesis` / `kpi_targets` / `deadline` / `status`）。
 - `Reinforcements::ExperimentAutoDecider.call` が期限切れ実験の KPI 達成状況を照合し、自動で continued/withdrawn を決定。
+- **日次スケジュール `ExperimentAutoDeciderJob` により `config/recurring.yml` で自動実行（毎日 9:00 JST）**。
 
 ### 33.5 本章と既存章の関係
 
