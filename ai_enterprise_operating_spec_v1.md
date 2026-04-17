@@ -418,6 +418,10 @@
 - business_unit_id
 - business_owner
 
+### 16.3 実装状況
+本章の 6 主要成果物は §28 のテンプレート文字列として定義済みだが、**DB 台帳（`artifact_ledger` / `artifact_versions`）は未実装**である。
+補強4 の `artifact_version` と一体で、§32 Phase 31 で実体化する。実体化完了までは `ticket_ledger.linked_artifacts` JSONB による参照のみ可能。
+
 ---
 
 ## 17. 起票カテゴリ
@@ -486,6 +490,10 @@
 - 組織再編提案
 - プロンプト修正
 
+### 19.4 実装状況
+本章は**丸ごと未実装**。`hr_evaluation_ledger` / `org_change_ledger` テーブル、評価軸 5 項目の自動計測ジョブ、プロンプト修正レーンのいずれも存在しない。
+§32 Phase 38 で一括実装する（エージェントスコアリングと organisational reconfiguration を含む大型フェーズ）。
+
 ---
 
 ## 20. 知識管理・ドキュメント運用
@@ -519,6 +527,13 @@
 - 変更に随伴して更新する
 - デプロイ前に更新完了確認を行う
 - 更新漏れは停止トリガーではないが改善対象とする
+
+### 20.4 実装状況
+現状は **PR テンプレートのチェックボックスのみ**で、以下が欠けている。
+- ADR / Runbook / 障害知見 / デプロイ記録の**台帳化**（`knowledge_ledger`）が未実装
+- PR 本文の該当欄未記入時に CI で**ブロック**する仕組みが未実装（警告のみ）
+
+§32 Phase 37 で `knowledge_ledger` 作成と PR ガードレールを同時に整備する。
 
 ---
 
@@ -1053,10 +1068,35 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 | B | 発案エージェント | KPI の actual < target 乖離から improvement ticket を自動起票する。補強10 の学習ループと連動し、低効果パターンの再起票を抑止する | 実装済み（`Reinforcements::Planner` + `PlannerJob` 日次 / ルールベース） |
 | C | Ticket→Issue 同期 | `approved` / `planned` チケットを §32-2 LedgerSyncService で GitHub Issue 化し、Copilot coding agent に実装させる | 実装済み（`Reinforcements::TicketIssueSync` + `TicketIssueSyncJob` 毎時） |
 | D | 効果書き戻し | 完了 improvement チケットの `linked_kpis` を根拠に `effectiveness_score` を書き戻し、補強10 の学習ループに燃料を供給する | 実装済み（`Reinforcements::EffectivenessRecalculator` + `EffectivenessRecalcJob` 日次） |
-| E | 顧客フィードバック導線 | AI SNS 側のユーザー利用ログ・離脱理由を KPI に還流する | 未実装（次フェーズ） |
+| E | 顧客フィードバック導線 | AI SNS 側のユーザー利用ログ・離脱理由を KPI に還流する | 未実装（§32.2 Phase 39 で対応） |
 
 Planner は現状ルールベースだが、将来 `LlmGateway` 経由の仮説生成器に差し替えられる構造で実装している。
-Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する。
+Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する（§32.2 Phase 39）。
+
+### 32.2 統合実装ロードマップ（Phase 30〜41）
+
+§32 本文（GitHub 接続 5 項目）/ Phase 20〜26（補強10〜16）/ Phase A〜E（自律成長）を実装したあと、**初期 3 設計文書（`自律開発エージェント設計.md` / `thu_apr_16_2026_...設計.md` / 本仕様書）と現行実装を突き合わせて検出された残ギャップを、以降 Phase 30 〜 Phase 41 の通し番号に統合する**。
+
+これは Phase 0〜7（履歴）/ Phase 20〜26（補強）/ Phase A〜E（成長）の 3 系統を Phase 30 以降で 1 本化するためのものであり、**以降の改修は必ずこの通し番号で起票する**。
+
+| Phase | 名称 | 根拠 | 粒度 | 状態 |
+|---|---|---|---|---|
+| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | 🔧 **進行中**（idempotency_key / carry_over_items まで投入済み） |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 未着手 |
+| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | 未着手 |
+| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | 未着手 |
+| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | 未着手 |
+| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | 未着手（現状 3 種） |
+| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | 未着手 |
+| 37 | 知識台帳（ADR / Runbook / 障害 / デプロイ記録）+ PR ガードレール | §20 | 中 | 未着手 |
+| 38 | 人事評価 / 組織再編（`hr_evaluation_ledger` 等） | §19 | 大 | 未着手 |
+| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | 未着手 |
+| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | 未着手（Planner 等はルールベース） |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 未着手 |
+
+**依存関係**: Phase 30 / 34 は他の前提。Phase 32〜37 は Phase 31 に依存する。Phase 38 / 40 / 41 はいずれも独立かつ大型のため、別セッション（別 PR）で順次進める。
+
+**詳細な工程分解と進捗**は `docs/projects/operating-spec-phase-30-plan.md` に置く。本表はその要約である。
 
 ---
 
@@ -1073,15 +1113,15 @@ Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する
 
 | No. | 名称 | 対象 | 影響範囲 | 合意状況 |
 |---|---|---|---|---|
-| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | 合意済み（前セッション） |
-| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | 合意済み |
-| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | 合意済み |
-| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 合意済み |
-| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | 合意済み |
-| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | 合意済み |
-| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 合意済み |
-| 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 合意済み |
-| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | 合意済み |
+| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | 台帳カラム実装済み（Phase 30）/ Runner 自動採番は Phase 30b 予定 |
+| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | カラム `participant_roles` / `role_fill_rate` 実装済み / 開催前プリフライトは Phase 30b 予定 |
+| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | 未実装（Phase 30b：バックフィル付き NOT NULL 移行） |
+| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 未実装（Phase 31：成果物 6 台帳の実体化と同時） |
+| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | 未実装（Phase 34） |
+| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | `role_permissions.audit_reason_code_required` のみ実装済み / `audit_decisions` 台帳は Phase 32 |
+| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 未実装（Phase 33） |
+| 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 台帳カラム実装済み（Phase 30）/ Runner 書き込みは Phase 30b 予定 |
+| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | `GithubMapping::CopilotInputTemplate` 実装済み / 台帳への `template_id` 列は Phase 35 予定 |
 | 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 実装済み（台帳カラム・モデル） |
 | 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 実装済み（台帳・モデル） |
 | 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 実装済み（台帳・モデル） |

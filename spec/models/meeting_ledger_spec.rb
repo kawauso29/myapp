@@ -66,4 +66,33 @@ RSpec.describe MeetingLedger, type: :model do
       end
     end
   end
+
+  describe "Phase 30 補強1: idempotency_key" do
+    it "allows creation with nil idempotency_key" do
+      record = create(:meeting_ledger, idempotency_key: nil)
+      expect(record).to be_persisted
+      expect(record.idempotency_key).to be_nil
+    end
+
+    it "persists a unique idempotency_key when provided" do
+      key = "weekly_dept:service-x:#{Date.current}"
+      create(:meeting_ledger, idempotency_key: key)
+      duplicate = build(:meeting_ledger, idempotency_key: key)
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:idempotency_key]).to be_present
+    end
+  end
+
+  describe "Phase 30 補強8: carry_over_items" do
+    it "defaults to an empty array" do
+      record = create(:meeting_ledger)
+      expect(record.carry_over_items).to eq([])
+    end
+
+    it "stores structured carry-over entries" do
+      entries = [ { "title" => "next-cycle review", "reason" => "owner_unavailable", "next_cycle" => "weekly" } ]
+      record = create(:meeting_ledger, carry_over_items: entries)
+      expect(record.reload.carry_over_items).to eq(entries)
+    end
+  end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -544,6 +544,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
   end
 
   create_table "meeting_ledgers", force: :cascade do |t|
+    t.jsonb "carry_over_items", default: [], null: false
     t.string "chair", null: false
     t.datetime "created_at", null: false
     t.jsonb "decisions", default: [], null: false
@@ -553,6 +554,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
     t.datetime "held_at", null: false
     t.decimal "hold_item_rate", precision: 5, scale: 4
     t.jsonb "hold_items", default: [], null: false
+    t.string "idempotency_key"
     t.jsonb "input_materials", default: [], null: false
     t.decimal "kpi_correlation_score", precision: 5, scale: 4
     t.bigint "meeting_definition_id", null: false
@@ -566,6 +568,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
     t.integer "status", default: 0, null: false
     t.jsonb "tickets_to_create", default: [], null: false
     t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_meeting_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["meeting_definition_id"], name: "index_meeting_ledgers_on_meeting_definition_id"
     t.index ["meeting_health_score"], name: "index_meeting_ledgers_on_meeting_health_score"
     t.index ["meeting_key", "held_at"], name: "index_meeting_ledgers_on_meeting_key_and_held_at"
@@ -696,6 +699,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
     t.integer "github_issue_number"
     t.integer "github_pr_number"
     t.datetime "github_synced_at"
+    t.string "idempotency_key"
     t.string "improvement_pattern_key"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
@@ -715,6 +719,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
     t.string "ticket_type", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_ticket_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["improvement_pattern_key"], name: "index_ticket_ledgers_on_improvement_pattern_key"
     t.index ["service_id"], name: "index_ticket_ledgers_on_service_id"
     t.index ["sla_breached_at"], name: "index_ticket_ledgers_on_sla_breached_at"

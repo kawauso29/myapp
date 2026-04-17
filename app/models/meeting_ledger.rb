@@ -27,6 +27,10 @@ class MeetingLedger < ApplicationRecord
 
   validates :meeting_definition, :meeting_key, :meeting_type, :scope_level, :chair, :held_at, :status, presence: true
 
+  # 補強1: 同一イベントの二重書き込みを DB レベルで防ぐ。
+  # 値は任意（既存呼び出しを壊さない）だが、設定時は一意である必要がある。
+  validates :idempotency_key, uniqueness: true, allow_nil: true
+
   # 補強15: 会議品質スコア（0.0〜1.0）の範囲バリデーション
   %i[role_fill_rate hold_item_rate kpi_correlation_score meeting_health_score].each do |attr|
     validates attr,

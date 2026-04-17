@@ -81,6 +81,10 @@ class TicketLedger < ApplicationRecord
   validates :effectiveness_sample_size,
             numericality: { only_integer: true, greater_than_or_equal_to: 0 },
             allow_nil: true
+
+  # 補強1: 同一イベントの二重書き込みを DB レベルで防ぐ。
+  # 値は任意（既存呼び出しを壊さない）だが、設定時は一意である必要がある。
+  validates :idempotency_key, uniqueness: true, allow_nil: true
   validate :linked_kpis_not_empty
   validate :sla_breached_at_requires_deadline
 

@@ -122,4 +122,20 @@ RSpec.describe TicketLedger, type: :model do
       end
     end
   end
+
+  describe "Phase 30 補強1: idempotency_key" do
+    it "allows creation with nil idempotency_key" do
+      record = create(:ticket_ledger, idempotency_key: nil)
+      expect(record).to be_persisted
+      expect(record.idempotency_key).to be_nil
+    end
+
+    it "persists a unique idempotency_key when provided" do
+      key = "improvement:pattern-x:#{Date.current}"
+      create(:ticket_ledger, idempotency_key: key)
+      duplicate = build(:ticket_ledger, idempotency_key: key)
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:idempotency_key]).to be_present
+    end
+  end
 end
