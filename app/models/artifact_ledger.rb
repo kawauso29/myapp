@@ -32,6 +32,9 @@ class ArtifactLedger < ApplicationRecord
 
   validates :artifact_type, :scope_level, :title, :artifact_version, :status, presence: true
   validates :artifact_version, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
+  # DB 側の idx_artifact_ledgers_type_title_version と一致するモデル側検証。
+  # 同一 artifact_type + title の中で version は一意。
+  validates :artifact_version, uniqueness: { scope: [ :artifact_type, :title ] }
   validates :idempotency_key, uniqueness: true, allow_nil: true
   validate :version_consistency_with_supersedes
 

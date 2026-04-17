@@ -62,5 +62,13 @@ RSpec.describe ArtifactLedger, type: :model do
 
       expect { duplicate.save!(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique)
     end
+
+    it "surfaces a friendly model-level uniqueness error (no DB exception)" do
+      create(:artifact_ledger, artifact_type: :spec, title: "Unique Title 2", artifact_version: 1)
+      duplicate = build(:artifact_ledger, artifact_type: :spec, title: "Unique Title 2", artifact_version: 1)
+
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:artifact_version]).to be_present
+    end
   end
 end

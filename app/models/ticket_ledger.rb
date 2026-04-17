@@ -102,6 +102,10 @@ class TicketLedger < ApplicationRecord
   validates :effectiveness_sample_size,
             numericality: { only_integer: true, greater_than_or_equal_to: 0 },
             allow_nil: true
+  # scope_level: :service で起票する場合は service_id を必須にする。
+  # service 起票には必ず対応サービスが紐付くべきであり、NULL のまま通すと
+  # LaneCapacityGuard / Stops::EntryGuard 等の service 単位の集計・検査が漏れる。
+  validates :service_id, presence: true, if: :scope_level_service?
 
   # 補強1: 同一イベントの二重書き込みを DB レベルで防ぐ。
   # 値は任意（既存呼び出しを壊さない）だが、設定時は一意である必要がある。

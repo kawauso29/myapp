@@ -28,11 +28,14 @@ module Ledgers
     end
 
     def current_usage
-      TicketLedger
-        .where(operating_lane: TicketLedger.operating_lanes[lane_enum_key])
-        .where(service_id: @service_id)
-        .where(status: WIP_STATUSES.map { |s| TicketLedger.statuses[s] })
-        .count
+      scope = TicketLedger
+                .where(operating_lane: TicketLedger.operating_lanes[lane_enum_key])
+                .where(service_id: @service_id)
+                .where(status: WIP_STATUSES.map { |s| TicketLedger.statuses[s] })
+      if TicketLedger.scope_levels.key?(@scope_level.to_s)
+        scope = scope.where(scope_level: TicketLedger.scope_levels[@scope_level.to_s])
+      end
+      scope.count
     end
 
     private
