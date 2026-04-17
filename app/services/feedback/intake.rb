@@ -55,7 +55,8 @@ module Feedback
     def high_severity?
       sentiment = @categorization["sentiment"] || @categorization[:sentiment]
       severity = @categorization["severity"] || @categorization[:severity]
-      sentiment.to_s == "negative" && severity.to_s == "high"
+      # 外部入力の表記ゆれ（"Negative" / "HIGH" 等）を吸収するため小文字比較する。
+      sentiment.to_s.downcase == "negative" && severity.to_s.downcase == "high"
     end
 
     def maybe_escalate!(feedback)

@@ -128,11 +128,8 @@ RSpec.describe Stops::ConditionEvaluator do
     context "error_spike" do
       it "creates an error_spike stop when failed executions exceed the threshold" do
         ENV["ERROR_SPIKE_THRESHOLD"] = "2"
-        # SolidQueue テーブルが存在しない場合はスキップ相当なので存在チェックをモックする
-        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
-        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
-          double("scope", count: 3)
-        )
+        probe = instance_double(Stops::ErrorRateProbe, failure_count: 3, source_label: "solid_queue_failed_executions")
+        allow(Stops::ErrorRateProbe).to receive(:default).and_return(probe)
 
         result = described_class.call(scope_level: :service, service_id: "ai_sns")
 
@@ -146,10 +143,8 @@ RSpec.describe Stops::ConditionEvaluator do
 
       it "does not create error_spike when count is below threshold" do
         ENV["ERROR_SPIKE_THRESHOLD"] = "10"
-        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
-        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
-          double("scope", count: 2)
-        )
+        probe = instance_double(Stops::ErrorRateProbe, failure_count: 2, source_label: "solid_queue_failed_executions")
+        allow(Stops::ErrorRateProbe).to receive(:default).and_return(probe)
 
         result = described_class.call(scope_level: :service, service_id: "ai_sns")
 
@@ -160,10 +155,8 @@ RSpec.describe Stops::ConditionEvaluator do
 
       it "is idempotent within the same 10-minute slot (epoch / 600)" do
         ENV["ERROR_SPIKE_THRESHOLD"] = "2"
-        allow_any_instance_of(described_class).to receive(:error_spike_table_exists?).and_return(true)
-        allow(SolidQueue::FailedExecution).to receive(:where).and_return(
-          double("scope", count: 5)
-        )
+        probe = instance_double(Stops::ErrorRateProbe, failure_count: 5, source_label: "solid_queue_failed_executions")
+        allow(Stops::ErrorRateProbe).to receive(:default).and_return(probe)
 
         described_class.call(scope_level: :service, service_id: "ai_sns")
         second = described_class.call(scope_level: :service, service_id: "ai_sns")

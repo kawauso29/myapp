@@ -48,7 +48,87 @@ module Stops
       Result.new(created: created, existing: existing)
     end
 
+    # Phase 2 補強 / 穴①: 条件が解消された active StopLedger を自動 lift する。
+    # `call` の評価ロジックと対称な「条件が成立しなくなったか」を判定し、true なら
+    # `stop.lift!(by: AUTO_LIFTER_ACTOR, reason: ...)` する。
+    #
+    # 各 trigger_type について：
+    #   - kpi_breach: 該当 KPI が critical でなくなったら lift
+    #   - manual_escalation: OperatorOverrideLedger.halted? が false に戻ったら lift
+    #   - cost_runaway: 当月集計が閾値以下に戻ったら lift（月跨ぎ後の自動解除も兼ねる）
+    #   - error_spike: 直近ウィンドウ内の失敗数が閾値未満に戻ったら lift
+    #   - security_incident: 24h 内の security_risk audit が無くなったら lift
+    #   - compliance_violation: 該当 block ルールが外れたら lift
+    #
+    # 戻り値: { lifted: [StopLedger, ...], skipped: [{stop_id:, reason:}] }
+    def lift_resolved!
+      lifted = []
+      skipped = []
+      StopLedger.active_for(scope_level: @scope_level, service_id: @service_id).find_each do |stop|
+        reason = resolution_reason_for(stop)
+        if reason
+          stop.lift!(by: AUTO_LIFTER_ACTOR, reason: reason)
+          lifted << stop
+        else
+          skipped << { stop_id: stop.id, trigger_type: stop.trigger_type }
+        end
+      rescue StandardError => e
+        Rails.logger.warn("[Stops::ConditionEvaluator] auto-lift failed for stop=#{stop.id}: #{e.class}: #{e.message}")
+        skipped << { stop_id: stop.id, error: e.message }
+      end
+      { lifted: lifted, skipped: skipped }
+    end
+
+    AUTO_LIFTER_ACTOR = "system_auto_lifter".freeze
+
     private
+
+    # 条件が解消されている場合の lift 理由文字列を返す。解消されていなければ nil。
+    def resolution_reason_for(stop)
+      case stop.trigger_type.to_s
+      when "kpi_breach"
+        kpi_key = stop.evidence.is_a?(Hash) ? (stop.evidence["kpi_key"] || stop.evidence[:kpi_key]) : nil
+        return nil if kpi_key.blank?
+
+        kpi = KpiLedger.find_by(kpi_key: kpi_key)
+        # KPI が削除されていた場合は安全側で解除しない（trigger_detail を残す）
+        return nil if kpi.nil?
+        return nil if kpi.grade.to_s == "critical"
+
+        "kpi_grade_resolved (now=#{kpi.grade || 'unknown'})"
+      when "manual_escalation"
+        return nil if operator_halted?
+
+        "operator_halt_cleared"
+      when "cost_runaway"
+        threshold = cost_runaway_threshold
+        total = Reinforcements::CostRecorder.monthly_total(service_id: @service_id)
+        return nil if threshold.nil? || total.to_f >= threshold.to_f
+
+        "monthly_cost_within_threshold (total=#{total.to_i} <= #{threshold.to_i})"
+      when "error_spike"
+        probe = Stops::ErrorRateProbe.default
+        threshold = error_spike_threshold
+        count = probe.failure_count(window_minutes: ERROR_SPIKE_WINDOW_MINUTES)
+        return nil if count >= threshold
+
+        "error_rate_normalized (#{count} < #{threshold} via #{probe.source_label})"
+      when "security_incident"
+        return nil if security_risk_audit_exists?
+
+        "no_security_risk_in_window"
+      when "compliance_violation"
+        return nil if compliance_block_rule_exists?
+
+        "no_active_block_rule"
+      else
+        # 未知の trigger_type は触らない（手動 lift に任せる）
+        nil
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[Stops::ConditionEvaluator] resolution check failed for stop=#{stop.id}: #{e.class}: #{e.message}")
+      nil
+    end
 
     def evaluate_kpi_breach(existing)
       critical_kpis.map do |kpi|
@@ -116,14 +196,12 @@ module Stops
     end
 
     # SolidQueue の失敗ジョブ数が直近 ERROR_SPIKE_WINDOW_MINUTES 以内に閾値を超えたら停止する。
-    # 外部エラー監視ストリームが未整備な現状で、内部ジョブ失敗を代理指標として用いる。
-    # `ERROR_SPIKE_THRESHOLD` 環境変数で閾値を変更可能。
+    # Phase 2 補強 / 穴⑦: 判定ソースは `Stops::ErrorRateProbe` でカプセル化されており、
+    # Nginx 5xx / 外部監視サービス等への差し替えが可能。デフォルトは SolidQueue 失敗件数。
     def evaluate_error_spike(existing)
-      return [] unless error_spike_table_exists?
-
+      probe = Stops::ErrorRateProbe.default
       threshold = error_spike_threshold
-      window = ERROR_SPIKE_WINDOW_MINUTES.minutes.ago
-      count = SolidQueue::FailedExecution.where(created_at: window..).count
+      count = probe.failure_count(window_minutes: ERROR_SPIKE_WINDOW_MINUTES)
       return [] if count < threshold
 
       key = stop_key(kind: "error_spike", detail: (Time.current.to_i / 600) * 600)
@@ -131,12 +209,13 @@ module Stops
 
       [ StopLedger.create!(
         trigger_type: :error_spike,
-        trigger_detail: "#{count} failed jobs in last #{ERROR_SPIKE_WINDOW_MINUTES}min (threshold=#{threshold})",
+        trigger_detail: "#{count} errors via #{probe.source_label} in last #{ERROR_SPIKE_WINDOW_MINUTES}min (threshold=#{threshold})",
         scope_level: @scope_level,
         service_id: @service_id,
         status: :active,
         started_at: Time.current,
-        evidence: { failed_count: count, window_minutes: ERROR_SPIKE_WINDOW_MINUTES, threshold: threshold },
+        evidence: { failed_count: count, window_minutes: ERROR_SPIKE_WINDOW_MINUTES, threshold: threshold,
+                    source: probe.source_label },
         idempotency_key: key
       ) ]
     rescue StandardError => e

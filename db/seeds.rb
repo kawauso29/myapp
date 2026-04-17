@@ -56,15 +56,24 @@ def seed_service_and_kpi_ledgers!
 
   [
     { kpi_key: "kpi:service_health", name: "Service Health", scope_level: :service, service_id: "ai_sns",
-      thresholds: { "healthy" => 0.8, "warning" => 0.4, "direction" => "higher_better" } },
+      thresholds: { "healthy" => 0.8, "warning" => 0.4, "direction" => "higher_better" },
+      target_value: { "value" => 0.8, "unit" => "score_0_1", "source" => "seed" } },
     { kpi_key: "kpi:ai_sns_wau", name: "AI SNS WAU", scope_level: :service, service_id: "ai_sns",
-      thresholds: { "healthy" => 1000, "warning" => 300, "direction" => "higher_better" } },
+      thresholds: { "healthy" => 1000, "warning" => 300, "direction" => "higher_better" },
+      target_value: { "value" => 1000, "unit" => "users", "source" => "seed" } },
     { kpi_key: "kpi:ai_sns_retention_7d", name: "AI SNS Retention 7d", scope_level: :service, service_id: "ai_sns",
-      thresholds: { "healthy" => 40, "warning" => 20, "direction" => "higher_better" } },
+      thresholds: { "healthy" => 40, "warning" => 20, "direction" => "higher_better" },
+      target_value: { "value" => 40, "unit" => "percent", "source" => "seed" } },
     { kpi_key: "kpi:ai_sns_paid_conversion", name: "AI SNS Paid Conversion", scope_level: :service, service_id: "ai_sns",
-      thresholds: { "healthy" => 5, "warning" => 1, "direction" => "higher_better" } },
+      thresholds: { "healthy" => 5, "warning" => 1, "direction" => "higher_better" },
+      target_value: { "value" => 5, "unit" => "percent", "source" => "seed" } },
     { kpi_key: "kpi:company_revenue_growth", name: "Company Revenue Growth", scope_level: :company, service_id: nil,
-      thresholds: { "healthy" => 10, "warning" => 0, "direction" => "higher_better" } }
+      thresholds: { "healthy" => 10, "warning" => 0, "direction" => "higher_better" },
+      target_value: { "value" => 10, "unit" => "percent", "source" => "seed" } },
+    # Phase 2 補強 / 穴③: 顧客フィードバック満足度 KPI（CustomerFeedbackLedger 由来）
+    { kpi_key: "kpi:customer_feedback", name: "Customer Feedback Satisfaction", scope_level: :service, service_id: "ai_sns",
+      thresholds: { "healthy" => 90, "warning" => 70, "direction" => "higher_better" },
+      target_value: { "value" => 90, "unit" => "percent", "source" => "seed" } }
   ].each do |attrs|
     KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |kpi_ledger|
       kpi_ledger.scope_level = attrs[:scope_level]
@@ -72,6 +81,28 @@ def seed_service_and_kpi_ledgers!
       kpi_ledger.name = attrs[:name]
       kpi_ledger.status = :active
       kpi_ledger.thresholds = attrs[:thresholds] || {}
+      kpi_ledger.target_value = attrs[:target_value] || {}
+    end
+  end
+end
+
+# Phase 2 補強 / 穴⑤: LaneCapacityCap が seed 投入されていないと WIP 上限が機能しない。
+# 4 レーン全てに service スコープ（ai_sns）のデフォルト cap を投入する。
+# 数値は既存運用観察から保守的に設定（後で `Admin::Ops::LaneCapacityCaps` 画面で調整可能）。
+def seed_lane_capacity_caps!
+  defaults = [
+    { operating_lane: :immediate, wip_cap: 5 },
+    { operating_lane: :weekly_improvement, wip_cap: 4 },
+    { operating_lane: :monthly_ops, wip_cap: 3 },
+    { operating_lane: :quarterly_review, wip_cap: 2 }
+  ]
+  defaults.each do |attrs|
+    LaneCapacityCap.find_or_create_by!(
+      scope_level: :service,
+      service_id: "ai_sns",
+      operating_lane: attrs[:operating_lane]
+    ) do |cap|
+      cap.wip_cap = attrs[:wip_cap]
     end
   end
 end
@@ -83,6 +114,7 @@ end
 puts "=== Seeding AI SNS data ==="
 seed_ledger_definitions_and_heartbeats!
 seed_service_and_kpi_ledgers!
+seed_lane_capacity_caps!
 
 DEFAULT_PERSONALITY = {
   sociability: :normal, post_frequency: :normal, active_time_peak: :normal,

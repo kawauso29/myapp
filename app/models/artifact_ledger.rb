@@ -46,6 +46,12 @@ class ArtifactLedger < ApplicationRecord
   def version_consistency_with_supersedes
     return if supersedes.blank?
 
+    # 自己参照（supersedes_id == id）は循環チェーンの起点になるため明示的に禁止する。
+    if persisted? && supersedes_id == id
+      errors.add(:supersedes_id, "must not reference self")
+      return
+    end
+
     errors.add(:artifact_type, "must match superseded version") unless supersedes.artifact_type == artifact_type
     errors.add(:title, "must match superseded version") unless supersedes.title == title
     errors.add(:artifact_version, "must be superseded version + 1") unless artifact_version == supersedes.artifact_version + 1

@@ -58,7 +58,26 @@ class KpiLedger < ApplicationRecord
     end
   end
 
-  # evaluate_grade の結果を grade / graded_at に保存する。
+  # `current_value["value"]` を Float として返す（取得不能なら nil）。
+  # `Reinforcements::Planner` / `EffectivenessRecalculator` から値抽出ロジックを統一するための公開 API。
+  def numeric_current_value
+    numeric_value
+  end
+
+  # `target_value["value"]` を Float として返す。
+  # `target_value` が未設定の場合は `thresholds["healthy"]` を「事業目標の代理値」として
+  # フォールバック利用する（Phase 2 補強 / 穴②）。これにより seed 投入時に `target_value` を
+  # 個別に書かなくても Planner / EffectivenessRecalculator が動作する。
+  # それでも値が取れない場合のみ nil を返す。
+  def numeric_target_value
+    raw = target_value.is_a?(Hash) ? (target_value["value"] || target_value[:value]) : target_value
+    parsed = numeric_or_nil(raw)
+    return parsed unless parsed.nil?
+
+    threshold_for("healthy")
+  end
+
+  # `evaluate_grade` の結果を grade / graded_at に保存する。
   # 既に同じ grade であれば graded_at のみ更新する。evaluate_grade が nil の場合は何もしない。
   def apply_grade!
     new_grade = evaluate_grade
@@ -74,6 +93,10 @@ class KpiLedger < ApplicationRecord
     return nil if current_value.blank?
 
     raw = current_value.is_a?(Hash) ? (current_value["value"] || current_value[:value]) : current_value
+    numeric_or_nil(raw)
+  end
+
+  def numeric_or_nil(raw)
     return nil if raw.nil?
 
     Float(raw)
