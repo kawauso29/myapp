@@ -1,6 +1,6 @@
 # 理念駆動型AI企業体 統合設計書 v1
 
-<!-- spec-version: v1.3 (§33 補強16/16 + §32 Phase20-26 サービス層実装済み) -->
+<!-- spec-version: v1.4 (§32 items 1-5 GitHub連携実装済み + §33.4 R1-R4 設計実装済み) -->
 
 ## 0. 本書の位置づけ
 本書は、複数サービスを持つ自律運営型の企業体を前提に、理念・経営・事業・実行・監査・人事・顧客成功・知識管理までを一体運用するための統合設計書である。
@@ -1020,11 +1020,11 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 
 ## 32. 次の実装フェーズ
 本設計の次フェーズでは、以下を具体化する。
-1. GitHub Issue / PR / Project の項目定義
-2. 台帳とGitHub項目のマッピング
-3. 会議出力からIssue化するルール
-4. Copilot coding agent に渡す標準入力テンプレート
-5. high / medium / low リスクごとのGitHubフロー差分
+1. GitHub Issue / PR / Project の項目定義 → **実装済み**（`GithubMapping::IssueBuilder` / `PrBuilder` / `ProjectFieldMapper`）
+2. 台帳とGitHub項目のマッピング → **実装済み**（`GithubMapping::LedgerSyncService`）
+3. 会議出力からIssue化するルール → **実装済み**（`GithubMapping::MeetingToIssueRule`）
+4. Copilot coding agent に渡す標準入力テンプレート → **実装済み**（`GithubMapping::CopilotInputTemplate`）
+5. high / medium / low リスクごとのGitHubフロー差分 → **実装済み**（`GithubMapping::RiskBasedFlow`）
 
 補強10〜16 に対応するフェーズは以下とする（詳細は §33）。
 
@@ -1228,28 +1228,24 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 
 ### 33.4 オープン論点（R1〜R4）
 
-本項目は本章で**即時反映しない**が、設計進化の余地として設計書に残す。対応 Phase が確定次第、§32 の表および本文に正式反映する。
+本項目は v1.4 で設計実装済みとなった。各論点は以下の形で反映されている。
 
-#### R1: 会議体の「固定6周期」は、事業が成長すると歪む
-- 現 §11 / §12 はすべてのスコープに対し 6 周期（日 / 週 / 月 / 四半期 / 年 / 長期）を均一適用している。
-- 年商規模やサービス数により最適周期は異なる（例: service スコープは daily + weekly のみで十分なケース）。
-- **対応方針案**: §26 会議台帳の `meeting_definitions` が `scope_level` を持つ前提で、「scope ごとに持てる周期は可変」を設計書に明示する。
-- **想定 Phase**: 20 以降、必要性が観測されたタイミング。
+#### R1: 会議体の「固定6周期」は、事業が成長すると歪む — **実装済み**
+- `meeting_definitions.allowed_cycles`（JSONB）で scope ごとの許可周期を可変に。
+- 空配列は後方互換（全周期許可）。`MeetingDefinition#cycle_allowed?` で判定。
+- バリデーション付き（`VALID_CYCLES = %w[daily weekly monthly quarterly annual long_term]`）。
 
-#### R2: 「AI vs AI」の対立マトリクス
-- §27.4 で audit ロールの拒否権が明記されているが、**他ロール同士の対立**（例: service chair の承認 vs exec_planning の差戻）の優先順位が未定義。
-- **対応方針案**: ロール ×アクション ×結論の対立マトリクスを作成し、補強12 の `role_permissions` の拡張項目として `tiebreaker_role` を持たせる。
-- **想定 Phase**: 22（権限マトリクス DB 化）と同時、もしくは直後。
+#### R2: 「AI vs AI」の対立マトリクス — **実装済み**
+- `role_permissions.tiebreaker_role` カラムを追加。
+- `Reinforcements::ConflictResolver.resolve` で対立判定→tiebreaker 決着→未決着を構造化して返す。
 
-#### R3: 「会社を閉じる / ピボットする」判断が設計にない
-- §27 起票カテゴリに `service_shutdown` / `pivot` に相当する項目がなく、**自己否定の判断**ができない。
-- **対応方針案**: §27.2 に新カテゴリ `service_shutdown` / `service_pivot` を追加し、起票条件を「3 期連続の KPI critical」「3 期連続の monthly_cost > 収益」などに定める。stop_ledger / operator_override_ledger と接続する。
-- **想定 Phase**: 21（コスト台帳）完成後、コスト根拠で起票できるようになってから。
+#### R3: 「会社を閉じる / ピボットする」判断が設計にない — **実装済み**
+- `ticket_ledgers.ticket_type` に `service_shutdown` / `service_pivot` を追加。
+- 起票可能な状態となり、`stop_ledger` / `operator_override_ledger` との接続が可能。
 
-#### R4: 「成長と秩序」のバランスが止める側に寄っている
-- 監査拒否権・権限境界・停止条件・SLA・コンプライアンスと、止める仕組みが充実する一方で、**挑戦させる仕組み**（ファストレーン / 実験）が弱い。
-- **対応方針案**: 新規台帳 `experiment_ledger(service_id, hypothesis, kpi_target, deadline, auto_decision)` を定義し、90 日後に自動で継続 / 撤退を決める。補強14 の `compliance_rules` とは競合しない形で接続する。
-- **想定 Phase**: 20〜26 の補強群完成後、組織安定性が担保されたタイミング。
+#### R4: 「成長と秩序」のバランスが止める側に寄っている — **実装済み**
+- `experiment_ledgers` テーブルを新設（`service_id` / `hypothesis` / `kpi_targets` / `deadline` / `status`）。
+- `Reinforcements::ExperimentAutoDecider.call` が期限切れ実験の KPI 達成状況を照合し、自動で continued/withdrawn を決定。
 
 ### 33.5 本章と既存章の関係
 
@@ -1264,4 +1260,5 @@ GitHub Copilot coding agent は、**開発実行主体**として用いる。こ
 | §27 起票台帳 | 補強6 / 補強10 / 補強13 |
 | §28 テンプレート | 補強4（artifact_version）反映時に随伴更新 |
 | §30 Copilot 役割分担 | 補強9（標準入力テンプレート ID 化） |
-| §32 次の実装フェーズ | Phase 20〜26 を追加済み |
+| §32 次の実装フェーズ | Phase 20〜26 を追加済み / §32 items 1-5 を `GithubMapping` で実装済み |
+| §33.4 オープン論点 | R1（allowed_cycles）/ R2（tiebreaker_role + ConflictResolver）/ R3（service_shutdown/pivot）/ R4（experiment_ledger + ExperimentAutoDecider）すべて実装済み |

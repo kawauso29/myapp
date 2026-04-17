@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_000100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -451,6 +451,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
     t.index ["subject_type", "subject_id"], name: "index_cost_ledgers_on_subject_type_and_subject_id"
   end
 
+  create_table "experiment_ledgers", force: :cascade do |t|
+    t.string "auto_decision"
+    t.datetime "created_at", null: false
+    t.string "created_by"
+    t.date "deadline", null: false
+    t.datetime "decided_at"
+    t.string "decision_reason"
+    t.string "hypothesis", null: false
+    t.jsonb "kpi_targets", default: [], null: false
+    t.jsonb "linked_kpis", default: [], null: false
+    t.integer "scope_level", default: 2, null: false
+    t.string "service_id", null: false
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["deadline"], name: "index_experiment_ledgers_on_deadline"
+    t.index ["service_id"], name: "index_experiment_ledgers_on_service_id"
+    t.index ["status"], name: "index_experiment_ledgers_on_status"
+  end
+
   create_table "interest_tags", force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
@@ -509,6 +529,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
 
   create_table "meeting_definitions", force: :cascade do |t|
     t.boolean "active", default: true, null: false
+    t.jsonb "allowed_cycles", default: [], null: false
     t.string "chair_role", null: false
     t.datetime "created_at", null: false
     t.string "meeting_key", null: false
@@ -630,6 +651,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
     t.integer "role", null: false
     t.integer "scope", null: false
     t.string "service_id_pattern"
+    t.integer "tiebreaker_role"
     t.datetime "updated_at", null: false
     t.index ["action", "allowed"], name: "index_role_permissions_on_action_and_allowed"
     t.index ["role", "action", "scope"], name: "index_role_permissions_on_role_and_action_and_scope"
@@ -671,6 +693,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
     t.decimal "effectiveness_score", precision: 5, scale: 4
     t.datetime "effectiveness_updated_at"
     t.integer "escalation_to"
+    t.integer "github_issue_number"
+    t.integer "github_pr_number"
+    t.datetime "github_synced_at"
     t.string "improvement_pattern_key"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
@@ -678,6 +703,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_230000) do
     t.string "owner_dept"
     t.integer "priority", default: 1, null: false
     t.datetime "resolved_at"
+    t.integer "risk_level", default: 0
     t.integer "scope_level", null: false
     t.string "service_id"
     t.integer "sla_breach_action"

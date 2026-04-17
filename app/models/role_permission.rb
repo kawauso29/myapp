@@ -43,6 +43,15 @@ class RolePermission < ApplicationRecord
     exec_hr: 4
   }, prefix: true
 
+  # R2: ロール対立解決用。同一 action で role が対立した場合に最終判定を下すロール。
+  enum :tiebreaker_role, {
+    president: 0,
+    exec_planning: 1,
+    exec_dev: 2,
+    exec_audit: 3,
+    exec_hr: 4
+  }, prefix: true
+
   validates :role, :action, :scope, presence: true
   validates :role, uniqueness: { scope: [ :action, :scope, :service_id_pattern ] }
   validate :approver_required_when_dual_approval

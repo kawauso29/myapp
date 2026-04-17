@@ -22,7 +22,9 @@ class TicketLedger < ApplicationRecord
     ops: "ops",
     quarterly_review: "quarterly_review",
     annual_plan: "annual_plan",
-    improvement: "improvement"
+    improvement: "improvement",
+    service_shutdown: "service_shutdown",
+    service_pivot: "service_pivot"
   }, prefix: true
 
   enum :status, {
@@ -63,6 +65,13 @@ class TicketLedger < ApplicationRecord
     auto_escalate: 0,
     auto_reject: 1,
     audit_open: 2
+  }, prefix: true
+
+  # §32-5 / §31: リスクレベル（GitHub フロー差分制御に使用）
+  enum :risk_level, {
+    low: 0,
+    medium: 1,
+    high: 2
   }, prefix: true
 
   validates :ticket_type, :title, :scope_level, :status, :priority, presence: true

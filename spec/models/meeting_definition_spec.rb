@@ -26,4 +26,39 @@ RSpec.describe MeetingDefinition, type: :model do
       expect(described_class.scope_levels.keys).to contain_exactly("company", "portfolio", "service", "cross_service")
     end
   end
+
+  describe "R1: allowed_cycles" do
+    it "accepts valid cycles" do
+      definition = build(:meeting_definition, allowed_cycles: %w[daily weekly])
+      expect(definition).to be_valid
+    end
+
+    it "rejects invalid cycles" do
+      definition = build(:meeting_definition, allowed_cycles: %w[hourly])
+      expect(definition).not_to be_valid
+      expect(definition.errors[:allowed_cycles]).to be_present
+    end
+
+    it "allows empty array (backward compatible: all cycles allowed)" do
+      definition = build(:meeting_definition, allowed_cycles: [])
+      expect(definition).to be_valid
+    end
+  end
+
+  describe "#cycle_allowed?" do
+    it "returns true when allowed_cycles is empty" do
+      definition = build(:meeting_definition, allowed_cycles: [])
+      expect(definition.cycle_allowed?(:daily)).to be true
+    end
+
+    it "returns true for allowed cycle" do
+      definition = build(:meeting_definition, allowed_cycles: %w[daily weekly])
+      expect(definition.cycle_allowed?("weekly")).to be true
+    end
+
+    it "returns false for disallowed cycle" do
+      definition = build(:meeting_definition, allowed_cycles: %w[daily weekly])
+      expect(definition.cycle_allowed?("monthly")).to be false
+    end
+  end
 end
