@@ -419,8 +419,8 @@
 - business_owner
 
 ### 16.3 実装状況
-本章の 6 主要成果物は §28 のテンプレート文字列として定義済みであり、**DB 台帳 `artifact_ledger` はモデル層まで実装済み**（Phase 31）。`artifact_type` enum（`kpi_definition` / `spec` / `execution_plan` / `audit_judgment` / `customer_notice` / `tech_record`）と `artifact_version` / `supersedes_id`（self-reference）によるバージョン履歴、`Artifacts::Publisher` サービスによる公開 / 自動 supersede を提供する。
-各 Runner / Controller からの publish 連動（会議終了時の成果物発行）と UI 表示は Phase 31b で対応する。旧来の `ticket_ledger.linked_artifacts` JSONB 参照も後方互換のため並存する。
+本章の 6 主要成果物は §28 のテンプレート文字列として定義済みであり、**DB 台帳 `artifact_ledger` と Runner からの自動 publish 連動まで実装済み**（Phase 31 + 31b + 31c）。`artifact_type` enum（`kpi_definition` / `spec` / `execution_plan` / `audit_judgment` / `customer_notice` / `tech_record`）と `artifact_version` / `supersedes_id`（self-reference）によるバージョン履歴、`Artifacts::Publisher` サービスによる公開 / 自動 supersede、`/admin/ops/artifacts` Viewer、`Ledgers::RunnerArtifactPublisher` による 4 Runner（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）からの議事要約自動 publish（`artifact:<runner>:<meeting_key>` 冪等キー付）を提供する。
+旧来の `ticket_ledger.linked_artifacts` JSONB 参照も後方互換のため並存する。
 
 ---
 
@@ -491,8 +491,8 @@
 - プロンプト修正
 
 ### 19.4 実装状況
-本章は**丸ごと未実装**。`hr_evaluation_ledger` / `org_change_ledger` テーブル、評価軸 5 項目の自動計測ジョブ、プロンプト修正レーンのいずれも存在しない。
-§32 Phase 38 で一括実装する（エージェントスコアリングと organisational reconfiguration を含む大型フェーズ）。
+**モデル層まで実装済み**（Phase 38）。`hr_evaluation_ledger`（`subject_role` / `period` / `axis_scores` jsonb / `overall_score` / `proposed_action`）と `org_change_ledger`（`change_type`: `split` / `merge` / `create` / `abolish` / `prompt_update` / `role_move` / `capacity_adjust`）を追加。
+**未実装**: 評価軸 5 項目（成果品質・KPI 貢献・実行効率・協調性・継続可能性）の自動計測ジョブ（`Hr::Evaluator`）とプロンプト修正レーンは Phase 38b で別 PR 分離する（四半期 recurring job として起動する想定）。
 
 ---
 
@@ -529,11 +529,12 @@
 - 更新漏れは停止トリガーではないが改善対象とする
 
 ### 20.4 実装状況
-現状は **PR テンプレートのチェックボックスのみ**で、以下が欠けている。
-- ADR / Runbook / 障害知見 / デプロイ記録の**台帳化**（`knowledge_ledger`）が未実装
-- PR 本文の該当欄未記入時に CI で**ブロック**する仕組みが未実装（警告のみ）
+**Phase 37 で台帳化・PR ガードレール（警告モード）・Admin Viewer を実装済み**。
+- `knowledge_ledger`（`knowledge_type`: `adr` / `runbook` / `incident` / `deploy_record`、`title` / `body` / `tags` / `service_id` / `business_unit_id` / `scope_level`）を追加。
+- `Knowledge::PrGuardrail` が PR 本文の ADR / Runbook リンク欠如を検知し、`TicketLedger.warn_pr_guardrail` から `after_create` 警告ログとして記録。
+- `/admin/ops/knowledge` Viewer で ADR / Runbook / Incident / Deploy 記録を一覧。
 
-§32 Phase 37 で `knowledge_ledger` 作成と PR ガードレールを同時に整備する。
+**未実装 / 次 PR**: 警告ログから `enforce` モード（CI ブロック）への切り替えは、警告データが十分蓄積してから別 PR で判断する。
 
 ---
 
@@ -1082,17 +1083,17 @@ Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する
 | Phase | 名称 | 根拠 | 粒度 | 状態 |
 |---|---|---|---|---|
 | 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ **完了**（30a + 30b + 30c：idempotency_key 自動採番 / PreflightValidator / carry_over_items / SystemMeetingProvider / source_meeting_id NOT NULL / JobIdempotency） |
-| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 🔧 **進行中**（ArtifactLedger + Artifacts::Publisher 実装済み。Runner からの publish 連動と UI は 31b） |
-| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | 未着手 |
-| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | 未着手 |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | ✅ **完了**（31：ArtifactLedger + Artifacts::Publisher / 31b：Admin Viewer / 31c：4 Runner からの自動 publish with 冪等キー） |
+| 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | ✅ **完了**（AuditDecisionLedger + Audits::RecordDecision + reason_code 強制 + Admin Viewer） |
+| 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | ✅ **完了**（StopLedger + Stops::ConditionEvaluator + StopConditionMonitorJob + Stops::EntryGuard（TicketLedger 起票ブロック）+ Admin Viewer 手動 lift 付き） |
 | 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ **完了**（grade enum + thresholds + KpiGradeEvaluator + 日次ジョブ） |
-| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | 未着手（現状 3 種） |
-| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | 未着手 |
-| 37 | 知識台帳（ADR / Runbook / 障害 / デプロイ記録）+ PR ガードレール | §20 | 中 | 未着手 |
-| 38 | 人事評価 / 組織再編（`hr_evaluation_ledger` 等） | §19 | 大 | 未着手 |
-| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | 未着手 |
-| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | 未着手（Planner 等はルールベース） |
-| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 未着手 |
+| 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | ✅ **完了**（TicketLedger.ticket_type enum に §17 の 11 種を実装） |
+| 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ **完了**（operating_lane + LaneCapacityCap + Ledgers::LaneCapacityGuard 警告ログ） |
+| 37 | 知識台帳（ADR / Runbook / 障害 / デプロイ記録）+ PR ガードレール | §20 | 中 | ✅ **完了**（KnowledgeLedger + Knowledge::PrGuardrail 警告ログ + Admin Viewer。enforce モードは別 PR） |
+| 38 | 人事評価 / 組織再編（`hr_evaluation_ledger` 等） | §19 | 大 | 🔧 **モデル層完了**（HrEvaluationLedger / OrgChangeLedger）。評価ロジックは 38b で別 PR |
+| 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | ✅ **完了**（CustomerFeedbackLedger + Feedback::Intake、高重大度は即 escalate） |
+| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | ❌ 未着手（影響範囲が広いため別 PR に分離） |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 **モデル層完了**（PortfolioStrategyLedger）。実運用フローは 41b で別 PR |
 
 **依存関係**: Phase 30 / 34 は他の前提。Phase 32〜37 は Phase 31 に依存する。Phase 38 / 40 / 41 はいずれも独立かつ大型のため、別セッション（別 PR）で順次進める。
 
@@ -1116,12 +1117,12 @@ Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する
 | 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | ✅ 実装済み（Phase 30a 台帳カラム + 30b Runner 自動採番 + 30c `Ledgers::JobIdempotency`）|
 | 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | ✅ 実装済み（Phase 30b `Ledgers::PreflightValidator`）|
 | 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | ✅ 実装済み（Phase 30c：`ticket_ledgers.source_meeting_id` NOT NULL + `Ledgers::SystemMeetingProvider`）|
-| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 🔧 モデル層実装済み（Phase 31：`ArtifactLedger` + `Artifacts::Publisher`）/ 各 Runner からの publish は 31b |
+| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | ✅ 実装済み（Phase 31：`ArtifactLedger` + `Artifacts::Publisher` / 31b：Admin Viewer / 31c：`Ledgers::RunnerArtifactPublisher` による 4 Runner 自動 publish）|
 | 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | ✅ 実装済み（Phase 34：`KpiLedger#grade` + `thresholds` + `KpiGradeEvaluator`）|
-| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | `role_permissions.audit_reason_code_required` のみ実装済み / `audit_decisions` 台帳は Phase 32 |
-| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 未実装（Phase 33） |
+| 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | ✅ 実装済み（Phase 32：`AuditDecisionLedger` + `Audits::RecordDecision` が reason_code を必須化 + Admin Viewer）|
+| 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | ✅ 実装済み（Phase 33：`StopLedger` + `Stops::ConditionEvaluator` + `StopConditionMonitorJob` + `Stops::EntryGuard`（TicketLedger 起票ブロック、bypass ホワイトリスト付）+ Admin Viewer 手動 lift 付き）|
 | 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 実装済み（Phase 30a 台帳カラム + Phase 30b `WeeklyDeptRunner` 書き込み）|
-| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | `GithubMapping::CopilotInputTemplate` 実装済み / 台帳への `template_id` 列は Phase 35 予定 |
+| 9 | Copilot 標準入力テンプレート ID 化 | 起票台帳 / GitHub 連携 | §30 / §31 | `GithubMapping::CopilotInputTemplate` 実装済み / 台帳への `template_id` 列は別 PR |
 | 10 | improvement_ledger.effectiveness_score（学習ループ） | 起票台帳 | §27 / §33.3 | 実装済み（台帳カラム・モデル） |
 | 11 | cost_ledger（コスト会計 / ROI） | 新規台帳 | §23 / §33.3 | 実装済み（台帳・モデル） |
 | 12 | role_permissions（権限境界 DB 化） | 新規台帳 | §10 / §33.3 | 実装済み（台帳・モデル） |
