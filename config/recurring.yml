@@ -161,6 +161,12 @@ production:
     args: [ "ai_sns" ]
     schedule: "0 0 * * 1"
 
+  # Phase 42 / UI伴走管理: 2日ごと 9:00 JST (= 00:00 UTC): ai_sns_ui UIチェック台帳を実行
+  ui_check_ledger_run:
+    class: UiCheckLedgerRunJob
+    queue: default
+    schedule: "0 0 */2 * *"
+
   # 毎月1日 9:00 JST (= 毎月1日 00:00 UTC): 月次Ops台帳を実行
   monthly_ops_ledger_run:
     class: MonthlyOpsLedgerRunJob

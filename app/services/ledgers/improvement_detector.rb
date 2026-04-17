@@ -5,6 +5,9 @@ module Ledgers
     OVERDUE_RATE_THRESHOLD = 0.2
     IMPROVEMENT_DUE_DAYS = 14
     OPEN_STATUSES = %i[waiting_review overdue].freeze
+    # Phase 42 / UI伴走管理: UI チェック会議が連続して未実施の場合に検知する閾値
+    UI_CHECK_STALE_DAYS = 3
+    UI_CHECK_SERVICE_ID = "ai_sns_ui".freeze
 
     def self.call
       new.call
@@ -16,6 +19,7 @@ module Ledgers
       created.concat(detect_missing_kpi_definition)
       created.concat(detect_stale_services)
       created.concat(detect_monthly_hold_accumulation)
+      created.concat(detect_stale_ui_check)
 
       notify_if_needed(created)
 
@@ -117,6 +121,29 @@ module Ledgers
       [detail_payload(ticket:, linked_kpis:)]
     end
 
+    # Phase 42 / UI伴走管理: UI チェック会議（meeting_key: "ui_check"）が
+    # UI_CHECK_STALE_DAYS 日以上実施されていない場合に検知する。
+    def detect_stale_ui_check
+      return [] if ui_check_recent?
+
+      rule = "stale_ui_check"
+      return [] if duplicate_rule_open?(rule:, service_id: UI_CHECK_SERVICE_ID)
+
+      linked_kpis = {
+        rule:,
+        service_id: UI_CHECK_SERVICE_ID,
+        last_check_at: last_ui_check_at&.iso8601
+      }
+      ticket = create_ticket!(
+        title: "Improvement: UI check not run in #{UI_CHECK_STALE_DAYS}+ days (#{UI_CHECK_SERVICE_ID})",
+        linked_kpis:,
+        scope_level: :service,
+        service_id: UI_CHECK_SERVICE_ID
+      )
+
+      [detail_payload(ticket:, linked_kpis:)]
+    end
+
     def create_ticket!(title:, linked_kpis:, scope_level:, service_id: nil)
       TicketLedger.create!(
         ticket_type: :improvement,
@@ -165,6 +192,16 @@ module Ledgers
 
     def last_audit_at(service_id:)
       MeetingLedger.where(meeting_key: "weekly_dept", service_id:).maximum(:held_at)
+    end
+
+    def ui_check_recent?
+      MeetingLedger.where(meeting_key: "ui_check", service_id: UI_CHECK_SERVICE_ID)
+                   .where(held_at: UI_CHECK_STALE_DAYS.days.ago..Time.current)
+                   .exists?
+    end
+
+    def last_ui_check_at
+      MeetingLedger.where(meeting_key: "ui_check", service_id: UI_CHECK_SERVICE_ID).maximum(:held_at)
     end
 
     def percent(rate)

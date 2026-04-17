@@ -40,6 +40,7 @@ namespace :solid_queue do
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
+    UiCheckLedgerRunJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

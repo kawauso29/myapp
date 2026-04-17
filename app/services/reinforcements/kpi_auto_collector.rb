@@ -39,6 +39,24 @@ module Reinforcements
           score
         },
         unit: "score_0_1"
+      },
+      # Phase 42 / UI伴走管理: UI 画面稼働率。
+      # WAU が存在すれば全7画面にアクセス可能とみなし 100% を記録する（代理指標）。
+      # WAU = 0 の場合は UI が実質的に未活用とみなし 0% とする。
+      "kpi:ai_sns_ui_screen_coverage" => {
+        compute: ->(m) {
+          wau = m.dig(:users, :wau).to_i
+          wau.positive? ? 100.0 : 0.0
+        },
+        unit: "percent"
+      },
+      # Phase 42 / UI伴走管理: UI クラッシュ率。
+      # フロントエンド計装（Sentry 等）が未実装のため現時点は nil を返しスキップする。
+      # 将来的にはエラー率 API から自動収集に切り替える。
+      "kpi:ai_sns_ui_crash_rate" => {
+        compute: ->(_m) { nil },
+        unit: "percent",
+        note: "frontend crash instrumentation not yet implemented"
       }
     }.freeze
 

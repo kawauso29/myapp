@@ -40,6 +40,7 @@ Rails.application.reloader.to_prepare do
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
+    UiCheckLedgerRunJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e
