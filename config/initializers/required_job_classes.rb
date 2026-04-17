@@ -33,6 +33,7 @@ Rails.application.reloader.to_prepare do
     ExperimentAutoDeciderJob
     SlaSweepJob
     KpiAutoCollectJob
+    KpiGradeEvaluateJob
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob

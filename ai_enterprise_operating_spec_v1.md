@@ -419,8 +419,8 @@
 - business_owner
 
 ### 16.3 実装状況
-本章の 6 主要成果物は §28 のテンプレート文字列として定義済みだが、**DB 台帳（`artifact_ledger` / `artifact_versions`）は未実装**である。
-補強4 の `artifact_version` と一体で、§32 Phase 31 で実体化する。実体化完了までは `ticket_ledger.linked_artifacts` JSONB による参照のみ可能。
+本章の 6 主要成果物は §28 のテンプレート文字列として定義済みであり、**DB 台帳 `artifact_ledger` はモデル層まで実装済み**（Phase 31）。`artifact_type` enum（`kpi_definition` / `spec` / `execution_plan` / `audit_judgment` / `customer_notice` / `tech_record`）と `artifact_version` / `supersedes_id`（self-reference）によるバージョン履歴、`Artifacts::Publisher` サービスによる公開 / 自動 supersede を提供する。
+各 Runner / Controller からの publish 連動（会議終了時の成果物発行）と UI 表示は Phase 31b で対応する。旧来の `ticket_ledger.linked_artifacts` JSONB 参照も後方互換のため並存する。
 
 ---
 
@@ -1081,11 +1081,11 @@ Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する
 
 | Phase | 名称 | 根拠 | 粒度 | 状態 |
 |---|---|---|---|---|
-| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | 🔧 **進行中**（30a + 30b 完了：idempotency_key 自動採番 / PreflightValidator / carry_over_items 書き込み。30c は source_*_id NOT NULL 化） |
-| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 未着手 |
+| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ **完了**（30a + 30b + 30c：idempotency_key 自動採番 / PreflightValidator / carry_over_items / SystemMeetingProvider / source_meeting_id NOT NULL / JobIdempotency） |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 🔧 **進行中**（ArtifactLedger + Artifacts::Publisher 実装済み。Runner からの publish 連動と UI は 31b） |
 | 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | 未着手 |
 | 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | 未着手 |
-| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | 未着手 |
+| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ **完了**（grade enum + thresholds + KpiGradeEvaluator + 日次ジョブ） |
 | 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | 未着手（現状 3 種） |
 | 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | 未着手 |
 | 37 | 知識台帳（ADR / Runbook / 障害 / デプロイ記録）+ PR ガードレール | §20 | 中 | 未着手 |
@@ -1113,11 +1113,11 @@ Phase E は AI SNS 側 UI の変更を伴うため別フェーズで対応する
 
 | No. | 名称 | 対象 | 影響範囲 | 合意状況 |
 |---|---|---|---|---|
-| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | 台帳カラム + Runner 自動採番 実装済み（Phase 30a / 30b）/ ジョブ側 idempotency は Phase 30c 予定 |
-| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | 実装済み（Phase 30b `Ledgers::PreflightValidator`）|
-| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | 未実装（Phase 30c：バックフィル付き NOT NULL 移行） |
-| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 未実装（Phase 31：成果物 6 台帳の実体化と同時） |
-| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | 未実装（Phase 34） |
+| 1 | idempotency_key | 会議台帳 / 起票台帳 / 実行ジョブ | §26 / §27 / 実装 | ✅ 実装済み（Phase 30a 台帳カラム + 30b Runner 自動採番 + 30c `Ledgers::JobIdempotency`）|
+| 2 | 会議開催前提条件（参加ロール充足チェック） | 会議台帳 | §26 | ✅ 実装済み（Phase 30b `Ledgers::PreflightValidator`）|
+| 3 | 台帳リンク必須化（source_*_id の NOT NULL 化） | 全台帳 | §23 | ✅ 実装済み（Phase 30c：`ticket_ledgers.source_meeting_id` NOT NULL + `Ledgers::SystemMeetingProvider`）|
+| 4 | 成果物バージョニング（artifact_version） | 成果物 | §16 / §28 | 🔧 モデル層実装済み（Phase 31：`ArtifactLedger` + `Artifacts::Publisher`）/ 各 Runner からの publish は 31b |
+| 5 | KPI 評価スコアの段階化（healthy / warning / critical） | KPI台帳 | §24 | ✅ 実装済み（Phase 34：`KpiLedger#grade` + `thresholds` + `KpiGradeEvaluator`）|
 | 6 | audit_decision.reason_code（拒否理由の構造化） | 起票台帳 / 監査 | §18 / §27 | `role_permissions.audit_reason_code_required` のみ実装済み / `audit_decisions` 台帳は Phase 32 |
 | 7 | stop_ledger（停止条件の正式台帳化） | 停止・監査 | §18 | 未実装（Phase 33） |
 | 8 | 会議引き継ぎ項目（carry_over_items） | 会議台帳 | §26 | 実装済み（Phase 30a 台帳カラム + Phase 30b `WeeklyDeptRunner` 書き込み）|

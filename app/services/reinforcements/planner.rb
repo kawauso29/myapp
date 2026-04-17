@@ -90,6 +90,7 @@ module Reinforcements
         scope_level: kpi.scope_level_service? ? :service : :company,
         service_id: kpi.service_id,
         source_meeting_type: :weekly,
+        source_meeting: Ledgers::SystemMeetingProvider.for(kind: "planner"),
         improvement_pattern_key: pattern_key,
         linked_kpis: [ kpi.kpi_key ],
         linked_artifacts: [],

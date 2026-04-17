@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_032000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -411,6 +411,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_020000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "artifact_ledgers", force: :cascade do |t|
+    t.integer "artifact_type", null: false
+    t.integer "artifact_version", default: 1, null: false
+    t.string "author"
+    t.jsonb "content", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "idempotency_key"
+    t.datetime "published_at"
+    t.integer "scope_level", null: false
+    t.string "service_id"
+    t.bigint "source_meeting_id"
+    t.bigint "source_ticket_id"
+    t.integer "status", default: 0, null: false
+    t.bigint "supersedes_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_type", "scope_level", "service_id"], name: "idx_artifact_ledgers_type_scope"
+    t.index ["artifact_type", "title", "artifact_version"], name: "idx_artifact_ledgers_type_title_version", unique: true
+    t.index ["idempotency_key"], name: "index_artifact_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["source_meeting_id"], name: "index_artifact_ledgers_on_source_meeting_id"
+    t.index ["source_ticket_id"], name: "index_artifact_ledgers_on_source_ticket_id"
+    t.index ["status"], name: "index_artifact_ledgers_on_status"
+    t.index ["supersedes_id"], name: "index_artifact_ledgers_on_supersedes_id"
+  end
+
   create_table "compliance_rules", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "enforced_at"
@@ -493,13 +518,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_020000) do
     t.datetime "created_at", null: false
     t.jsonb "current_value", default: {}, null: false
     t.text "description"
+    t.integer "grade"
+    t.datetime "graded_at"
     t.string "kpi_key", null: false
     t.string "name", null: false
     t.integer "scope_level", null: false
     t.string "service_id"
     t.integer "status", default: 0, null: false
     t.jsonb "target_value", default: {}, null: false
+    t.jsonb "thresholds", default: {}, null: false
     t.datetime "updated_at", null: false
+    t.index ["grade"], name: "index_kpi_ledgers_on_grade"
     t.index ["kpi_key"], name: "index_kpi_ledgers_on_kpi_key", unique: true
     t.index ["scope_level", "service_id"], name: "index_kpi_ledgers_on_scope_level_and_service_id"
   end
@@ -713,7 +742,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_020000) do
     t.integer "sla_breach_action"
     t.datetime "sla_breached_at"
     t.datetime "sla_deadline"
-    t.bigint "source_meeting_id"
+    t.bigint "source_meeting_id", null: false
     t.integer "source_meeting_type"
     t.integer "status", default: 0, null: false
     t.string "ticket_type", null: false

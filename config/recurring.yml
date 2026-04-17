@@ -191,6 +191,12 @@ production:
     queue: default
     schedule: "30 20 * * *"
 
+  # Phase 34: 毎日 5:45 JST (= 20:45 UTC): KPI grade（healthy/warning/critical）を再評価
+  kpi_grade_evaluate:
+    class: KpiGradeEvaluateJob
+    queue: default
+    schedule: "45 20 * * *"
+
   # Phase D: 毎日 6:15 JST (= 21:15 UTC): 完了 improvement の effectiveness_score 再計算
   effectiveness_recalc:
     class: EffectivenessRecalcJob

@@ -19,11 +19,11 @@
 
 | Phase | 名称 | 根拠 | 粒度 | 状態 |
 |---|---|---|---|---|
-| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | 🔧 進行中（idempotency_key / carry_over_items 投入済み） |
-| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 未着手 |
+| 30 | 台帳土台の完成 | §23 / §26 / 補強1・2・3・8 | 中 | ✅ 完了（30a + 30b + 30c） |
+| 31 | 成果物 6 台帳の実体化 | §16 / §28 / 補強4 | 大 | 🔧 進行中（ArtifactLedger / Artifacts::Publisher 実装完了。UI と各 Runner からの publish は 31b） |
 | 32 | `audit_decisions` 台帳 + reason_code 必須化 | §18 / §27 / 補強6 | 中 | 未着手 |
 | 33 | `stop_ledger` + 自動停止トリガー監視ジョブ | §18 / 補強7 | 大 | 未着手 |
-| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | 未着手 |
+| 34 | KPI 段階化（healthy / warning / critical） | §24 / 補強5 | 小 | ✅ 完了 |
 | 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | 未着手（現状 3 種） |
 | 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | 未着手 |
 | 37 | 知識台帳 + PR ガードレール | §20 | 中 | 未着手 |
@@ -57,11 +57,15 @@
 - [x] `WeeklyDeptRunner` が `hold_items` を `carry_over_items` にも書き込む（§26.5 / 補強8 の完全化）
 - [x] PreflightValidator / IdempotencyKey の RSpec、WeeklyDeptRunner の idempotency / role_fill_rate / carry_over_items テストを追加
 
-### Phase 30c（別 PR）
+### Phase 30c（本 PR で完了）
 
-- [ ] 補強3: `source_*_id` のバックフィル（自動生成 ticket には仮想 meeting を紐付け）→ NOT NULL 制約
-- [ ] ジョブ側の idempotency（ActiveJob 側ラッパ）
-- [ ] 既存 `TicketIssueSync` / `Planner` に idempotency_key を伝播
+- [x] 補強3: `Ledgers::SystemMeetingProvider` で月次システム会議を自動発行し、`Reinforcements::Planner` / `Ledgers::ImprovementDetector` が `source_meeting` を必須設定する
+- [x] 既存 NULL レコードを「legacy_backfill」meeting に紐付ける backfill migration 実装（`20260417031000_backfill_and_require_source_meeting_id_on_ticket_ledgers.rb`）
+- [x] `ticket_ledgers.source_meeting_id` を NOT NULL 化し、`TicketLedger#source_meeting` を `belongs_to`（optional なし）に変更
+- [x] `Ledgers::JobIdempotency` concern を追加し、Rails.cache (SolidCache) ベースの 1日冪等性ラッパを提供
+- [x] 4 つの ledger runner ジョブ（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）に適用
+- [x] `ticket_ledger` factory をデフォルトで共有 `factory_default_meeting` に紐付ける
+- [x] RSpec（JobIdempotency / 既存 ledger spec）を更新
 
 ## 検出したギャップの詳細（参考）
 
@@ -69,11 +73,11 @@
 
 | No. | 実体 | 足りないもの | Phase |
 |---|---|---|---|
-| 1 idempotency_key | 部分 | ジョブ側 idempotency（ActiveJob ラッパ） | 30a / 30b → 30c |
+| 1 idempotency_key | ✅ | — （台帳 + ジョブ双方に適用済） | 30a / 30b / 30c |
 | 2 参加ロール充足 | ✅ | — （Runner プリフライト実装済み） | 30b |
-| 3 source_*_id NOT NULL | ❌ | バックフィル + NOT NULL migration | 30c |
-| 4 artifact_version | ❌ | 成果物台帳自体が無い | 31 |
-| 5 KPI grade | ❌ | `KpiLedger.grade` + 閾値評価ジョブ | 34 |
+| 3 source_*_id NOT NULL | ✅ | — （backfill + NOT NULL + SystemMeetingProvider） | 30c |
+| 4 artifact_version | ✅ | — （ArtifactLedger + Publisher 実装済み。Runner 側の publish 連動は 31b） | 31 |
+| 5 KPI grade | ✅ | — （grade enum + thresholds + KpiGradeEvaluator） | 34 |
 | 6 audit_decision.reason_code | △ | `audit_decisions` 台帳 | 32 |
 | 7 stop_ledger | ❌ | 自動停止ログ台帳 | 33 |
 | 8 carry_over_items | ✅ | — （WeeklyDept 書き込み済み） | 30a / 30b |

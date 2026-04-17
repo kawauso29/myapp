@@ -1,5 +1,6 @@
 class TicketLedger < ApplicationRecord
-  belongs_to :source_meeting, class_name: "MeetingLedger", optional: true
+  # Phase 30c / 補強3: すべての起票は発生元の会議（またはシステム自動化会議）に紐付く必要がある。
+  belongs_to :source_meeting, class_name: "MeetingLedger"
 
   enum :scope_level, {
     company: 0,

@@ -33,6 +33,7 @@ namespace :solid_queue do
     ExperimentAutoDeciderJob
     SlaSweepJob
     KpiAutoCollectJob
+    KpiGradeEvaluateJob
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
