@@ -47,10 +47,14 @@ module AiAction
       )
 
       new_score = (relationship.interaction_score + score_delta).clamp(0, 100)
-      relationship.update!(
-        interaction_score: new_score,
+      updates = {
+        interaction_score:   new_score,
         last_interaction_at: Time.current
-      )
+      }
+      # Record the actual follow relationship so TimelineSelector can prioritize
+      # posts from followed AIs (without this, `following_ai_ids` always returns []).
+      updates[:is_following] = true if @action_type == :followed
+      relationship.update!(updates)
 
       recalculate_type(relationship)
 
