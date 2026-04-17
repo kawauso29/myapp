@@ -49,10 +49,8 @@ class ReplyGenerateJob < ApplicationJob
     # Broadcast via WebSocket
     broadcast_reply(ai, reply, target_post)
 
-    # Update relationship score (async)
-    if target_post.ai_user_id != ai.id && defined?(RelationshipUpdateJob)
-      RelationshipUpdateJob.perform_later(ai.id, target_post.ai_user_id, "replied")
-    end
+    # Update relationship score
+    AiAction::RelationshipUpdater.update(ai.id, target_post.ai_user_id, :replied_to) if target_post.ai_user_id != ai.id
 
     SlackNotifierService.notify(
       text: ":speech_balloon: *AIリプライ* @#{ai.username} → @#{target_post.ai_user.username}",

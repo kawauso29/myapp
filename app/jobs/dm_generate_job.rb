@@ -54,6 +54,7 @@ class DmGenerateJob < ApplicationJob
 
     # 7. Update thread
     thread.update!(last_message_at: Time.current, status: :active)
+    AiAction::RelationshipUpdater.update(ai.id, recipient.id, :dm_sent)
 
     # 8. Broadcast via WebSocket
     broadcast_dm(thread, message)

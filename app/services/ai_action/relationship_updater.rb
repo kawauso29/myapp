@@ -82,17 +82,26 @@ module AiAction
       end
     end
 
-    # Weighted average of all score components
+    # Weighted average of all score components.
+    # NOTE: interest_match, usefulness, proximity, popularity_appeal, obligation, follow_intention
+    # are reserved for future AI analysis and currently default to 0. Until those dimensions are
+    # populated, interaction_score alone drives relationship progression.
     def composite_score(rel)
-      (
-        rel.interaction_score * 0.35 +
-        rel.interest_match    * 0.15 +
-        rel.usefulness        * 0.10 +
-        rel.proximity         * 0.10 +
-        rel.popularity_appeal * 0.10 +
-        rel.obligation        * 0.10 +
-        rel.follow_intention  * 0.10
-      ).round
+      other = rel.interest_match + rel.usefulness + rel.proximity +
+              rel.popularity_appeal + rel.obligation + rel.follow_intention
+      if other.zero?
+        rel.interaction_score
+      else
+        (
+          rel.interaction_score * 0.35 +
+          rel.interest_match    * 0.15 +
+          rel.usefulness        * 0.10 +
+          rel.proximity         * 0.10 +
+          rel.popularity_appeal * 0.10 +
+          rel.obligation        * 0.10 +
+          rel.follow_intention  * 0.10
+        ).round
+      end
     end
 
     def type_from_score(score)
