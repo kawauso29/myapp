@@ -84,9 +84,12 @@ module Reinforcements
       target = numeric_from(kpi.target_value)
       gap_pct = target.positive? ? (((target - actual) / target) * 100).round(1) : nil
 
+      title = llm_augmented_title(kpi: kpi, actual: actual, target: target, gap_pct: gap_pct) ||
+              "Planner proposal: improve #{kpi.kpi_key} (actual #{actual} vs target #{target}#{gap_pct ? ", -#{gap_pct}%" : ''})"
+
       TicketLedger.create!(
         ticket_type: :improvement,
-        title: "Planner proposal: improve #{kpi.kpi_key} (actual #{actual} vs target #{target}#{gap_pct ? ", -#{gap_pct}%" : ''})",
+        title: title,
         scope_level: kpi.scope_level_service? ? :service : :company,
         service_id: kpi.service_id,
         source_meeting_type: :weekly,
@@ -101,6 +104,30 @@ module Reinforcements
         due_cycle: :weekly,
         risk_level: :low
       )
+    end
+
+    # Phase 40: LLM が有効な場合、improvement の提案タイトルを LLM で augment する。
+    # 失敗 / gateway 無効時は nil を返し、既存のルールベースのタイトルが使われる。
+    def llm_augmented_title(kpi:, actual:, target:, gap_pct:)
+      return nil unless Llm::Gateway.enabled?
+
+      prompt = <<~PROMPT
+        あなたはサービス運営の改善提案エージェントです。以下の KPI 乖離に対する
+        改善起票タイトルを 1 行（80 文字以内・日本語）で提案してください。
+
+        KPI: #{kpi.kpi_key}
+        service_id: #{kpi.service_id}
+        actual: #{actual}
+        target: #{target}
+        gap_pct: #{gap_pct}
+
+        出力はタイトル文字列のみ。前置きや引用符は不要。
+      PROMPT
+
+      result = Llm::Gateway.call(purpose: :planner, prompt: prompt, max_tokens: 200)
+      return nil unless result.success? && result.text.to_s.strip.length.positive?
+
+      result.text.to_s.strip.lines.first.to_s.strip[0, 120]
     end
 
     def numeric_from(json_value)

@@ -106,6 +106,11 @@ class TicketLedger < ApplicationRecord
   # 補強1: 同一イベントの二重書き込みを DB レベルで防ぐ。
   # 値は任意（既存呼び出しを壊さない）だが、設定時は一意である必要がある。
   validates :idempotency_key, uniqueness: true, allow_nil: true
+  # Phase 35 / 補強9: Copilot 標準入力テンプレート ID は "tmpl-<ticket_type>-<id>" 形式で
+  # 一意。後から辿り直せるよう ticket 側に保存する（`CopilotInputTemplate#generate` で自動セット）。
+  validates :template_id, uniqueness: true, allow_nil: true,
+            format: { with: /\Atmpl-[a-z0-9_]+-\d+\z/, message: "must match tmpl-<ticket_type>-<id>" },
+            length: { maximum: 128 }
   validate :linked_kpis_not_empty
   validate :sla_breached_at_requires_deadline
 
@@ -126,15 +131,29 @@ class TicketLedger < ApplicationRecord
   # デフォルト OFF。production で ON にして WIP 超過の可視化を得る。
   class_attribute :warn_lane_capacity, instance_accessor: false, default: false
 
+  # Phase 36 / §13: 警告ログで十分な件数集まった後に enforce モードに切替可能。
+  # true の場合、WIP 上限を超える TicketLedger.create は `errors.add` + `throw(:abort)` で
+  # 作成をキャンセルする（`skip_lane_capacity_guard = true` で例外的に bypass 可能）。
+  # デフォルト OFF。plan.md §進め方: "警告ログで十分な件数集まってから"。
+  class_attribute :enforce_lane_capacity, instance_accessor: false, default: false
+
   # Phase 37 / §20: high リスク / investigation / tech_record 起票時に
   # ADR / Runbook が存在するかを check して警告ログを出す。
   class_attribute :warn_pr_guardrail, instance_accessor: false, default: false
 
+  # Phase 37 / §20: 警告ログで十分な件数集まった後に enforce モードに切替可能。
+  # true の場合、ADR / Runbook 不足の high リスク ticket 作成を `errors.add` + `throw(:abort)`
+  # でキャンセルする（`skip_pr_guardrail = true` で例外的に bypass 可能）。
+  # デフォルト OFF。
+  class_attribute :enforce_pr_guardrail, instance_accessor: false, default: false
+
   # Runner や呼び出し側で「このレコードだけは例外的に guard をスキップしたい」場合に
   # `ticket.skip_stop_guard = true` を指定できる。
-  attr_accessor :skip_stop_guard
+  attr_accessor :skip_stop_guard, :skip_lane_capacity_guard, :skip_pr_guardrail
 
   before_create :assert_no_active_stop!, if: :stop_guard_applies?
+  before_create :assert_lane_capacity!, if: :enforce_lane_capacity_applies?
+  before_create :assert_pr_guardrail!, if: :enforce_pr_guardrail_applies?
   after_create :warn_if_lane_over_capacity, if: :warn_lane_capacity_applies?
   after_create :warn_if_pr_guardrail_missing, if: :warn_pr_guardrail_applies?
 
@@ -214,6 +233,41 @@ class TicketLedger < ApplicationRecord
 
   def warn_lane_capacity_applies?
     self.class.warn_lane_capacity && operating_lane.present?
+  end
+
+  def enforce_lane_capacity_applies?
+    return false if skip_lane_capacity_guard
+    self.class.enforce_lane_capacity && operating_lane.present?
+  end
+
+  def assert_lane_capacity!
+    return if Ledgers::LaneCapacityGuard.allowed?(
+      operating_lane: operating_lane,
+      scope_level: scope_level,
+      service_id: service_id
+    )
+
+    errors.add(:base, "lane capacity exceeded for #{operating_lane} (scope=#{scope_level}, service=#{service_id})")
+    throw(:abort)
+  rescue StandardError => e
+    # guard 評価そのものが失敗した場合は警告のみで create を通す（安全側）。
+    Rails.logger.warn("[LaneCapacityGuard][enforce] check failed for new ticket: #{e.message}")
+  end
+
+  def enforce_pr_guardrail_applies?
+    return false if skip_pr_guardrail
+    self.class.enforce_pr_guardrail &&
+      (risk_level.to_s == "high" || %w[investigation tech_record].include?(ticket_type.to_s))
+  end
+
+  def assert_pr_guardrail!
+    result = Knowledge::PrGuardrail.check(ticket: self)
+    return if result.passed?
+
+    errors.add(:base, "pr_guardrail missing artifacts: #{result.missing_artifacts.join(',')}")
+    throw(:abort)
+  rescue StandardError => e
+    Rails.logger.warn("[PrGuardrail][enforce] check failed for new ticket: #{e.message}")
   end
 
   def warn_if_lane_over_capacity

@@ -27,10 +27,10 @@
 | 35 | 起票カテゴリ 11 種完備 | §17 / §27 | 中 | ✅ 完了（`TicketLedger.ticket_type` enum に §17 の 11 種を実装） |
 | 36 | 28日運営レーン（4 レーン + 容量制御） | §13 | 中 | ✅ 完了（`operating_lane` + `LaneCapacityCap` + `Ledgers::LaneCapacityGuard` + 警告ログ自動実行） |
 | 37 | 知識台帳 + PR ガードレール | §20 | 中 | ✅ 完了（`KnowledgeLedger` + `Knowledge::PrGuardrail` + 警告ログ自動実行 + Admin Viewer） |
-| 38 | 人事評価 / 組織再編 | §19 | 大 | 🔧 モデル層完了（`HrEvaluationLedger` / `OrgChangeLedger`）。評価ロジックは 38b で別 PR |
+| 38 | 人事評価 / 組織再編 | §19 | 大 | ✅ 完了（モデル層 + `Hr::Evaluator`（5 評価軸）+ `HrEvaluationRunJob`（四半期）） |
 | 39 | Phase E: 顧客フィードバック導線 | §32.1 / Phase E | 中 | ✅ 完了（`CustomerFeedbackLedger` + `Feedback::Intake`（高重大度は即 escalate）） |
-| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | ❌ 未着手（影響範囲が広いため別 PR に分離） |
-| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | 🔧 モデル層完了（`PortfolioStrategyLedger`）。実運用フローは 41b で別 PR |
+| 40 | LLM 判断への差し替え（`LlmGateway` 統一） | `thu_apr_16` 議題 / §32.1 | 大 | 🔧 `Llm::Gateway` 追加 + `Planner` / `EffectivenessEvaluator` / `Audits::RecordDecision` に augment hook（`LLM_GATEWAY_ENABLED=1` で有効化）。既存ルールベース挙動はデフォルト保持 |
+| 41 | ポートフォリオ層の稼働 | §4.2 | 大 | ✅ 完了（モデル層 + `Portfolio::Rebalancer`（service KPI grade ベース分類）+ `PortfolioRebalanceRunJob`（四半期）） |
 
 ## 依存関係
 
@@ -88,14 +88,16 @@
 - [x] `TicketLedger.enforce_stop_guard` class attribute + `before_create` コールバック + production 初期化子 `config/initializers/ticket_stop_guard.rb` で ON（test は後方互換で OFF）
 - [x] 例外経路として `ticket.skip_stop_guard = true` を許可
 - [x] **stop_guard bypass ホワイトリスト** `TicketLedger::STOP_GUARD_BYPASS_TICKET_TYPES`: `investigation` / `audit` / `quarterly_review` / `annual_plan` / `service_shutdown` は active stop 中でも記録できる（§18 の趣旨「通常業務の新規起票を止める」に準拠）
-- [x] `TicketLedger.warn_lane_capacity` / `TicketLedger.warn_pr_guardrail` を追加し、production で WIP 超過 / ADR・Runbook 不足を **警告ログ**として記録（enforce モードは別 PR で判断）
+- [x] `TicketLedger.warn_lane_capacity` / `TicketLedger.warn_pr_guardrail` を追加し、production で WIP 超過 / ADR・Runbook 不足を **警告ログ**として記録
+- [x] `TicketLedger.enforce_lane_capacity` / `TicketLedger.enforce_pr_guardrail` を追加し、`ENFORCE_LANE_CAPACITY=1` / `ENFORCE_PR_GUARDRAIL=1` で段階的に block モードへ切替可能（`skip_lane_capacity_guard` / `skip_pr_guardrail` で個別 bypass 可能）
+- [x] 補強9: `ticket_ledgers.template_id` 列追加 + `CopilotInputTemplate#generate` 時に保存（`tmpl-<ticket_type>-<id>` 形式・unique）
+- [x] Phase 38b: `Hr::Evaluator`（5 評価軸: artifact_quality / kpi_contribution / execution_efficiency / collaboration / sustainability）+ `HrEvaluationRunJob`（四半期）
+- [x] Phase 41b: `Portfolio::Rebalancer`（service KPI の grade から `invest / rebalance / exit` 候補を PortfolioStrategyLedger に記録）+ `PortfolioRebalanceRunJob`（四半期）
+- [x] Phase 40: `Llm::Gateway` 統一入口（feature-flag `LLM_GATEWAY_ENABLED`）+ `Planner` / `EffectivenessEvaluator` / `Audits::RecordDecision` に LLM augment hook（無効時は既存ルールベース挙動をそのまま維持）
 
 ## 次 PR に分離
 
-- **Phase 40**: `LlmGateway` 差し替え（40a-e 全体）。Planner / EffectivenessEvaluator / Audits の書き換えを伴う
-- **Phase 38b**: `Hr::Evaluator` ＋ quarterly recurring job
-- **Phase 41b**: `Portfolio::Rebalancer` ＋ quarterly runner
-- LaneCapacityGuard / PrGuardrail の **enforce モード**: 警告ログで十分な件数集まってから
+（本 PR で上記をすべて実装済み。残件は本番での enforce モード ON タイミングのみ）
 
 
 ## 検出したギャップの詳細（参考）
@@ -112,7 +114,7 @@
 | 6 audit_decision.reason_code | ✅ | — （台帳 + reason_code 強制 + Admin Viewer） | 32 |
 | 7 stop_ledger | ✅ | — （台帳 + ConditionEvaluator + EntryGuard + Admin Viewer） | 33 |
 | 8 carry_over_items | ✅ | — （WeeklyDept 書き込み済み） | 30a / 30b |
-| 9 Copilot 標準入力テンプレート ID 化 | △ | `template_id` 列 | 35 |
+| 9 Copilot 標準入力テンプレート ID 化 | ✅ | — （`ticket_ledgers.template_id` + `CopilotInputTemplate` 保存） | 35 |
 
 ### B. §16 成果物の実体化（Phase 31）
 

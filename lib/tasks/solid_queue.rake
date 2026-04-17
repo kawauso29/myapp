@@ -27,6 +27,8 @@ namespace :solid_queue do
     LifeEventCheckJob
     QuarterlyReviewLedgerRunJob
     AnnualPlanLedgerRunJob
+    HrEvaluationRunJob
+    PortfolioRebalanceRunJob
     ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob

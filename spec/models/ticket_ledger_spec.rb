@@ -228,4 +228,110 @@ RSpec.describe TicketLedger, type: :model do
       described_class.warn_pr_guardrail = original
     end
   end
+
+  describe "Phase 35 補強9: template_id" do
+    it "allows nil template_id" do
+      expect(create(:ticket_ledger, template_id: nil)).to be_persisted
+    end
+
+    it "rejects malformed template_id" do
+      ticket = build(:ticket_ledger, template_id: "not-valid")
+      expect(ticket).not_to be_valid
+      expect(ticket.errors[:template_id]).to be_present
+    end
+
+    it "accepts the canonical tmpl-<type>-<id> format" do
+      ticket = build(:ticket_ledger, template_id: "tmpl-improvement-42")
+      expect(ticket).to be_valid
+    end
+
+    it "enforces uniqueness of template_id" do
+      create(:ticket_ledger, template_id: "tmpl-improvement-1001")
+      dup = build(:ticket_ledger, template_id: "tmpl-improvement-1001")
+      expect(dup).not_to be_valid
+      expect(dup.errors[:template_id]).to be_present
+    end
+  end
+
+  describe "Phase 36 enforce_lane_capacity" do
+    around do |example|
+      original_enforce = described_class.enforce_lane_capacity
+      described_class.enforce_lane_capacity = true
+      example.run
+    ensure
+      described_class.enforce_lane_capacity = original_enforce
+    end
+
+    it "blocks ticket creation when lane WIP cap is reached" do
+      create(:lane_capacity_cap,
+             scope_level: :service,
+             service_id: "ai_sns",
+             operating_lane: :weekly_improvement,
+             wip_cap: 1)
+      create(:ticket_ledger,
+             operating_lane: :weekly_improvement,
+             status: :approved,
+             service_id: "ai_sns")
+
+      ticket = build(:ticket_ledger,
+                     operating_lane: :weekly_improvement,
+                     status: :approved,
+                     service_id: "ai_sns")
+      expect(ticket.save).to be false
+      expect(ticket.errors[:base].join).to include("lane capacity exceeded")
+    end
+
+    it "can be bypassed with skip_lane_capacity_guard = true" do
+      create(:lane_capacity_cap,
+             scope_level: :service,
+             service_id: "ai_sns",
+             operating_lane: :weekly_improvement,
+             wip_cap: 1)
+      create(:ticket_ledger,
+             operating_lane: :weekly_improvement,
+             status: :approved,
+             service_id: "ai_sns")
+
+      ticket = build(:ticket_ledger,
+                     operating_lane: :weekly_improvement,
+                     status: :approved,
+                     service_id: "ai_sns")
+      ticket.skip_lane_capacity_guard = true
+      expect(ticket.save).to be true
+    end
+  end
+
+  describe "Phase 37 enforce_pr_guardrail" do
+    around do |example|
+      original_enforce = described_class.enforce_pr_guardrail
+      described_class.enforce_pr_guardrail = true
+      example.run
+    ensure
+      described_class.enforce_pr_guardrail = original_enforce
+    end
+
+    it "blocks high-risk ticket when ADR/runbook are missing" do
+      ticket = build(:ticket_ledger,
+                     ticket_type: :investigation,
+                     risk_level: :high,
+                     scope_level: :service,
+                     service_id: "ai_sns")
+      expect(ticket.save).to be false
+      expect(ticket.errors[:base].join).to include("pr_guardrail missing artifacts")
+    end
+
+    it "allows creation when ADR and runbook exist for the service" do
+      create(:knowledge_ledger, kind: :adr, status: :accepted,
+             tags: { service_id: "ai_sns" })
+      create(:knowledge_ledger, kind: :runbook, status: :accepted,
+             tags: { service_id: "ai_sns" })
+
+      ticket = build(:ticket_ledger,
+                     ticket_type: :investigation,
+                     risk_level: :high,
+                     scope_level: :service,
+                     service_id: "ai_sns")
+      expect(ticket.save).to be true
+    end
+  end
 end

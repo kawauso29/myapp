@@ -6,7 +6,8 @@ module Reinforcements
     LOW_EFFECTIVENESS_THRESHOLD = 0.2
     MIN_SAMPLE_SIZE = 3
 
-    Result = Struct.new(:pattern_key, :average_score, :sample_size, :low_effectiveness, keyword_init: true) do
+    Result = Struct.new(:pattern_key, :average_score, :sample_size, :low_effectiveness, :llm_note,
+                        keyword_init: true) do
       def recommend_alternative?
         low_effectiveness
       end
@@ -34,7 +35,8 @@ module Reinforcements
         pattern_key: pattern_key,
         average_score: average,
         sample_size: sample_size,
-        low_effectiveness: low
+        low_effectiveness: low,
+        llm_note: low ? llm_alternative_note(average: average, sample_size: sample_size) : nil
       )
     end
 
@@ -46,5 +48,22 @@ module Reinforcements
     private
 
     attr_reader :pattern_key, :threshold, :min_sample
+
+    # Phase 40: LLM が有効な場合、低効果パターンに対する代替案のメモを返す。
+    # 失敗 / gateway 無効時は nil。
+    def llm_alternative_note(average:, sample_size:)
+      return nil unless Llm::Gateway.enabled?
+
+      prompt = <<~PROMPT
+        改善パターン "#{pattern_key}" は平均 effectiveness=#{average&.round(3)}（n=#{sample_size}）で
+        閾値 #{threshold} を下回っています。同一パターンの再試行を避け、別軸の打ち手を
+        日本語 1 文（120 文字以内）で提案してください。出力はその 1 文のみ。
+      PROMPT
+
+      result = Llm::Gateway.call(purpose: :effectiveness, prompt: prompt, max_tokens: 200)
+      return nil unless result.success?
+
+      result.text.to_s.strip.lines.first.to_s.strip[0, 200]
+    end
   end
 end

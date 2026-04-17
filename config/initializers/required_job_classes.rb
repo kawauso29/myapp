@@ -27,6 +27,8 @@ Rails.application.reloader.to_prepare do
     LifeEventCheckJob
     QuarterlyReviewLedgerRunJob
     AnnualPlanLedgerRunJob
+    HrEvaluationRunJob
+    PortfolioRebalanceRunJob
     ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob

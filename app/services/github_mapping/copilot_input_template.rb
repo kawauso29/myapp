@@ -14,6 +14,7 @@ module GithubMapping
     end
 
     def generate
+      persist_template_id!
       {
         template_version: TEMPLATE_VERSION,
         template_id: template_id,
@@ -53,8 +54,20 @@ module GithubMapping
 
     attr_reader :ticket
 
+    # 補強9: 生成時に ticket_ledger へ template_id を保存する。
+    # すでに保存済み or 新規レコード（id=nil）の場合はスキップする。
+    # バリデーション（format / uniqueness）を通すため `update` を使い、失敗は警告ログで済ませる。
+    def persist_template_id!
+      return if ticket.template_id.present?
+      return if ticket.id.blank?
+
+      ticket.update(template_id: "tmpl-#{ticket.ticket_type}-#{ticket.id}")
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::StatementInvalid => e
+      Rails.logger.warn("[CopilotInputTemplate] template_id persist failed ticket=##{ticket.id}: #{e.message}")
+    end
+
     def template_id
-      "tmpl-#{ticket.ticket_type}-#{ticket.id}"
+      ticket.template_id.presence || "tmpl-#{ticket.ticket_type}-#{ticket.id}"
     end
 
     def context_section
