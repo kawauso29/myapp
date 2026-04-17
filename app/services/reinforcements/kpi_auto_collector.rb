@@ -40,6 +40,26 @@ module Reinforcements
         },
         unit: "score_0_1"
       },
+      # Phase 42 / UI伴走管理: UI 画面稼働率。
+      # WAU が存在すれば UI がアクティブとみなす代理指標（binary: 100% or 0%）。
+      # 実際の画面到達率ではなく「UI利用有無」を示す指標のため、
+      # 名称に "_activity_proxy" を含む KPI key を将来追加して差し替えることを推奨。
+      # ※ この値を単独で意思決定に使用しないこと（補助指標として扱う）。
+      "kpi:ai_sns_ui_screen_coverage" => {
+        compute: ->(m) {
+          wau = m.dig(:users, :wau).to_i
+          wau.positive? ? 100.0 : 0.0
+        },
+        unit: "percent"
+      },
+      # Phase 42 / UI伴走管理: UI クラッシュ率。
+      # フロントエンド計装（Sentry 等）が未実装のため現時点は nil を返しスキップする。
+      # 将来的にはエラー率 API から自動収集に切り替える。
+      "kpi:ai_sns_ui_crash_rate" => {
+        compute: ->(_m) { nil },
+        unit: "percent",
+        note: "frontend crash instrumentation not yet implemented"
+      },
       # Phase 2 補強 / 穴③: 顧客フィードバック満足度（0..100）。
       # ネガティブ feedback がなければ 100、フィードバック自体がない週は nil でスキップする。
       "kpi:customer_feedback" => {

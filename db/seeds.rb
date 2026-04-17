@@ -45,6 +45,22 @@ def seed_ledger_definitions_and_heartbeats!
     heartbeat.status = :active
     heartbeat.next_run_at = 1.month.from_now
   end
+
+  # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義
+  ui_check = MeetingDefinition.find_or_create_by!(meeting_key: "ui_check") do |definition|
+    definition.meeting_type = :weekly
+    definition.scope_level = :service
+    definition.service_id = "ai_sns_ui"
+    definition.chair_role = "business_owner"
+    definition.participant_roles = %w[planning dev audit business_owner]
+    definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
+  end
+
+  ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns_ui") do |heartbeat|
+    heartbeat.due_cycle = :weekly
+    heartbeat.status = :active
+    heartbeat.next_run_at = 2.days.from_now
+  end
 end
 
 def seed_service_and_kpi_ledgers!
@@ -105,6 +121,66 @@ def seed_lane_capacity_caps!
       cap.wip_cap = attrs[:wip_cap]
     end
   end
+
+  # Phase 42 / UI伴走管理: ai_sns_ui サービスを ServiceLedger に登録
+  ServiceLedger.find_or_create_by!(service_id: "ai_sns_ui") do |service_ledger|
+    service_ledger.scope_level = :service
+    service_ledger.business_owner = "unassigned_business_owner"
+    service_ledger.status = :active
+  end
+
+  # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）
+  [
+    { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns_ui",
+      thresholds: { "healthy" => 90.0, "warning" => 60.0, "direction" => "higher_better" } },
+    { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns_ui",
+      thresholds: { "healthy" => 0.5, "warning" => 2.0, "direction" => "lower_better" } }
+  ].each do |attrs|
+    KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |kpi_ledger|
+      kpi_ledger.scope_level = attrs[:scope_level]
+      kpi_ledger.service_id = attrs[:service_id]
+      kpi_ledger.name = attrs[:name]
+      kpi_ledger.status = :active
+      kpi_ledger.thresholds = attrs[:thresholds]
+    end
+  end
+end
+
+# Phase 42: AI SNS UI 仕様を KnowledgeLedger（ADR）として記録する初期データ
+def seed_ui_knowledge_adr!
+  KnowledgeLedger.find_or_create_by!(idempotency_key: "adr:ai_sns_ui:v1") do |ledger|
+    ledger.kind = :adr
+    ledger.title = "ADR-UI-001: AI SNS UI Screen Requirements and Acceptance Criteria"
+    ledger.body = <<~BODY
+      ## Context
+      AI SNS の Expo (React Native Web) UI は Phase 1〜3 で実装済み。
+      本 ADR は実装済み画面の一覧と受け入れ基準を台帳に記録し、
+      UiCheckLedgerRunJob（2日周期）のチェックサイクルで継続的に管理する。
+
+      ## Decision
+      実装済み画面（7画面）を正本として扱う：
+      1. ログイン画面 (auth/sign-in)
+      2. タイムライン画面 (tabs/index)
+      3. AI詳細画面 (ai/[id])
+      4. 投稿詳細画面 (post/[id])
+      5. 検索画面 (tabs/search)
+      6. 発見画面 (tabs/discover)
+      7. マイページ画面 (tabs/profile)
+
+      ## Acceptance Criteria
+      - WAU > 0（週1人以上がUIを利用）
+      - 全7画面がナビゲーション到達可能
+      - クラッシュ率 < 0.5%（フロントエンド計装後に計測予定。Sentry等の導入が前提。
+        現時点では kpi:ai_sns_ui_crash_rate は nil を返し KpiAutoCollector でスキップされる。
+        TODO: Sentry/Expo crash reporting 導入後に KpiAutoCollector の compute を実装する）
+
+      ## Status
+      accepted
+    BODY
+    ledger.status = :accepted
+    ledger.accepted_at = Time.current
+    ledger.tags = { "service_id" => "ai_sns_ui", "version" => "v1", "screens" => 7 }
+  end
 end
 
 # =============================================================
@@ -115,6 +191,7 @@ puts "=== Seeding AI SNS data ==="
 seed_ledger_definitions_and_heartbeats!
 seed_service_and_kpi_ledgers!
 seed_lane_capacity_caps!
+seed_ui_knowledge_adr!
 
 DEFAULT_PERSONALITY = {
   sociability: :normal, post_frequency: :normal, active_time_peak: :normal,
