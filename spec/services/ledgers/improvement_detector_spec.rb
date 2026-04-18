@@ -9,7 +9,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil)
     end
     let!(:ui_check_definition) do
-      create(:meeting_definition, meeting_key: "ui_check", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns_ui")
+      create(:meeting_definition, meeting_key: "ui_check", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
     end
 
     before do
@@ -17,7 +17,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
     end
@@ -26,7 +26,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       create_list(:ticket_ledger, 3, status: :approved, created_at: 2.days.ago)
@@ -44,7 +44,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       create(:meeting_ledger,
@@ -65,7 +65,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       ServiceLedger.create!(service_id: "ai_sns", scope_level: :service, business_owner: "owner", status: :active)
@@ -89,7 +89,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       create(:meeting_ledger,
@@ -109,7 +109,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review, linked_kpis: { rule: "high_overdue_rate" })
@@ -135,7 +135,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       create(:meeting_ledger,
              meeting_definition: ui_check_definition,
              meeting_key: "ui_check",
-             service_id: "ai_sns_ui",
+             service_id: "ai_sns",
              held_at: 1.day.ago,
              status: :closed)
       create_list(:ticket_ledger, 5, status: :approved, created_at: 2.days.ago)
@@ -149,23 +149,23 @@ RSpec.describe Ledgers::ImprovementDetector do
 
     describe "detect_stale_ui_check" do
       it "triggers stale_ui_check rule when ui_check meeting not held within threshold" do
-        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns_ui").delete_all
+        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns").delete_all
         result = described_class.call
 
         ticket = TicketLedger.ticket_type_improvement.last
         expect(result[:detected]).to be >= 1
         stale_ticket = TicketLedger.ticket_type_improvement.find { |t| t.linked_kpis["rule"] == "stale_ui_check" }
         expect(stale_ticket).to be_present
-        expect(stale_ticket.title).to include("ai_sns_ui")
-        expect(stale_ticket.service_id).to eq("ai_sns_ui")
-        expect(stale_ticket.linked_kpis).to include("rule" => "stale_ui_check", "service_id" => "ai_sns_ui")
+        expect(stale_ticket.title).to include("ai_sns")
+        expect(stale_ticket.service_id).to eq("ai_sns")
+        expect(stale_ticket.linked_kpis).to include("rule" => "stale_ui_check", "service_id" => "ai_sns")
       end
 
       it "does not create ticket when ui_check was recently held" do
         create(:meeting_ledger,
                meeting_definition: ui_check_definition,
                meeting_key: "ui_check",
-               service_id: "ai_sns_ui",
+               service_id: "ai_sns",
                held_at: 1.day.ago,
                status: :closed)
 
@@ -176,11 +176,11 @@ RSpec.describe Ledgers::ImprovementDetector do
       end
 
       it "does not create duplicate ticket when stale_ui_check is already open" do
-        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns_ui").delete_all
+        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns").delete_all
         existing = create(:ticket_ledger,
                           ticket_type: :improvement,
                           status: :waiting_review,
-                          linked_kpis: { rule: "stale_ui_check", service_id: "ai_sns_ui" })
+                          linked_kpis: { rule: "stale_ui_check", service_id: "ai_sns" })
 
         expect { described_class.call }
           .not_to change { TicketLedger.ticket_type_improvement.where(linked_kpis: { rule: "stale_ui_check" }).count }
