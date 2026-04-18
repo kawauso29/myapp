@@ -186,7 +186,7 @@ jobs:
         if: steps.lint_check.outputs.lint_failed != 'true'
         run: echo "Skipping auto-fix because lint job did not fail."
 
-  # lint 以外のジョブ（test / job-check / route-check）が失敗した場合に Issue を起票する
+  # lint 以外のジョブ（test / job-check / route-check / scan_ruby）が失敗した場合に Issue を起票する
   triage_ci_failures:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: [self-hosted, sakura-vps]
@@ -208,7 +208,7 @@ jobs:
             })
 
             // lint 以外の失敗ジョブを抽出
-            const NON_LINT_JOBS = ['test', 'job-check', 'route-check', 'scan_ruby', 'scan_js', 'system-test']
+            const NON_LINT_JOBS = ['test', 'job-check', 'route-check', 'scan_ruby']
             const failedJobs = response.data.jobs.filter(
               j => NON_LINT_JOBS.includes(j.name) && j.conclusion === 'failure'
             )
@@ -237,8 +237,6 @@ jobs:
               'job-check':   'ci-failure:job-check',
               'route-check': 'ci-failure:route-check',
               'scan_ruby':   'ci-failure:security',
-              'scan_js':     'ci-failure:security',
-              'system-test': 'ci-failure:system-test',
             }
 
             const issueLabels = ['ci-failure']
@@ -255,7 +253,6 @@ jobs:
               'ci-failure:job-check':    'e99695',
               'ci-failure:route-check':  'f9d0c4',
               'ci-failure:security':     'b60205',
-              'ci-failure:system-test':  'fbca04',
             }
             for (const [name, color] of Object.entries(LABEL_COLORS)) {
               try {
