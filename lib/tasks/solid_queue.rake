@@ -182,6 +182,139 @@ namespace :solid_queue do
     puts "Discarded #{count} FailedExecution records with UnknownJobClassError"
   end
 
+  desc "Diagnose SolidQueue health (live processes, recurring tasks, recent activity). SLACK=1 to also notify Slack jobs channel."
+  task diagnose: :environment do
+    lines = []
+    lines << "=== SolidQueue Diagnose @ #{Time.current.iso8601} (#{Rails.env}) ==="
+
+    # 1) Live processes registered by the supervisor
+    begin
+      processes = SolidQueue::Process.order(:kind, :name).to_a
+      lines << "[processes] count=#{processes.size}"
+      kind_counts = processes.group_by(&:kind).transform_values(&:size)
+      %w[Supervisor Dispatcher Worker Scheduler].each do |kind|
+        lines << "  - #{kind}: #{kind_counts[kind] || 0}"
+      end
+      processes.each do |p|
+        lines << "  · pid=#{p.pid} kind=#{p.kind} name=#{p.name} last_heartbeat_at=#{p.last_heartbeat_at}"
+      end
+      if (kind_counts["Scheduler"] || 0).zero?
+        lines << "  !! WARNING: no Scheduler process running. Recurring tasks (config/recurring.yml) will NOT fire."
+      end
+    rescue StandardError => e
+      lines << "[processes] ERROR: #{e.class}: #{e.message}"
+    end
+
+    # 2) Recurring tasks registered (DB side)
+    begin
+      tasks = SolidQueue::RecurringTask.order(:key).to_a
+      lines << "[recurring_tasks] count=#{tasks.size}"
+      tasks.first(50).each do |t|
+        lines << "  · #{t.key} class=#{t.class_name} schedule=#{t.schedule}"
+      end
+      lines << "  ... (#{tasks.size - 50} more tasks omitted)" if tasks.size > 50
+      if tasks.empty?
+        lines << "  !! WARNING: no recurring tasks registered in DB. Scheduler may not have booted."
+      end
+    rescue StandardError => e
+      lines << "[recurring_tasks] ERROR: #{e.class}: #{e.message}"
+    end
+
+    # 3) Recent recurring executions (last 60 minutes)
+    begin
+      window_start = 60.minutes.ago
+      recent = SolidQueue::RecurringExecution.where("created_at >= ?", window_start).count
+      lines << "[recurring_executions last_60min] count=#{recent}"
+      last = SolidQueue::RecurringExecution.order(created_at: :desc).first
+      lines << "  · most_recent_at=#{last&.created_at || 'none'} task_key=#{last&.task_key}"
+      if recent.zero?
+        lines << "  !! WARNING: no recurring executions in the last 60 minutes."
+      end
+    rescue StandardError => e
+      lines << "[recurring_executions] ERROR: #{e.class}: #{e.message}"
+    end
+
+    # 4) Job throughput (last 24h)
+    begin
+      enqueued_24h = SolidQueue::Job.where("created_at >= ?", 24.hours.ago).count
+      finished_24h = SolidQueue::Job.where("finished_at >= ?", 24.hours.ago).count
+      pending = SolidQueue::Job.where(finished_at: nil).count
+      failed_open = SolidQueue::FailedExecution.count
+      lines << "[jobs last_24h] enqueued=#{enqueued_24h} finished=#{finished_24h} pending_total=#{pending} failed_executions_open=#{failed_open}"
+      if enqueued_24h.zero?
+        lines << "  !! WARNING: zero jobs enqueued in last 24h. SolidQueue scheduler is almost certainly stalled."
+      end
+    rescue StandardError => e
+      lines << "[jobs] ERROR: #{e.class}: #{e.message}"
+    end
+
+    # 5) ENV sanity (mask secrets)
+    %w[RAILS_ENV SOLID_QUEUE_IN_PUMA].each do |k|
+      lines << "[env] #{k}=#{ENV[k].inspect}"
+    end
+    %w[SLACK_WEBHOOK_URL SLACK_WEBHOOK_URL_ERROR SLACK_WEBHOOK_URL_JOBS].each do |k|
+      lines << "[env] #{k}=#{ENV[k].present? ? 'set' : 'unset'}"
+    end
+
+    output = lines.join("\n")
+    puts output
+
+    if ENV["SLACK"] == "1"
+      warnings = lines.count { |l| l.include?("!! WARNING") }
+      color = warnings.positive? ? :danger : :success
+      channel = warnings.positive? ? :error : :jobs
+      # Reserve room for the closing code fence so truncation never breaks markdown.
+      body_limit = 2500
+      body = output.length > body_limit ? "#{output[0, body_limit - 20]}\n... (truncated)" : output
+      SlackNotifierService.notify(
+        text: ":mag: *SolidQueue diagnose* (warnings=#{warnings})\n```\n#{body}\n```",
+        color: color,
+        channel: channel
+      )
+    end
+  end
+
+  desc "Alert via Slack if SolidQueue appears stalled (no jobs enqueued in WINDOW_MINUTES, default 30)."
+  task check_alive: :environment do
+    window_minutes = ENV.fetch("WINDOW_MINUTES", "30").to_i
+    threshold = window_minutes.minutes.ago
+
+    enqueued = begin
+      SolidQueue::Job.where("created_at >= ?", threshold).count
+    rescue StandardError => e
+      Rails.logger.error("[solid_queue:check_alive] query failed: #{e.message}")
+      -1
+    end
+
+    scheduler_count = begin
+      SolidQueue::Process.where(kind: "Scheduler").count
+    rescue StandardError
+      -1
+    end
+
+    if enqueued.zero? || scheduler_count.zero?
+      reason = []
+      reason << "no jobs enqueued in last #{window_minutes}min" if enqueued.zero?
+      reason << "no Scheduler process alive" if scheduler_count.zero?
+      msg = ":rotating_light: *SolidQueue stall detected* — #{reason.join(' / ')}"
+      Rails.logger.error("[solid_queue:check_alive] #{msg}")
+      SlackNotifierService.notify(
+        text: msg,
+        color: :danger,
+        channel: :error,
+        fields: [
+          { title: "enqueued_in_window", value: enqueued.to_s },
+          { title: "scheduler_processes", value: scheduler_count.to_s },
+          { title: "window_minutes",     value: window_minutes.to_s },
+          { title: "host",               value: (ENV["HOSTNAME"] || `hostname`.strip).to_s }
+        ]
+      )
+      exit 1
+    else
+      puts "OK: enqueued=#{enqueued} (last #{window_minutes}min), schedulers=#{scheduler_count}"
+    end
+  end
+
   desc "Verify required job class constants are loaded"
   task verify_required_job_constants: :environment do
     missing = REQUIRED_JOB_CLASSES.reject { |name| name.safe_constantize }

@@ -52,7 +52,15 @@ plugin :tmp_restart
 # Use async mode (threads in same process) instead of fork mode to avoid
 # fork-related class loading issues that cause ActiveJob::UnknownJobClassError
 # after deploys.
-if ENV["SOLID_QUEUE_IN_PUMA"]
+#
+# Auto-enable in production (production environments need recurring jobs to fire
+# unconditionally — silent total stalls happened previously when this was gated
+# behind `if ENV["SOLID_QUEUE_IN_PUMA"]` and .env failed to load).
+# Outside production, require explicit opt-in via SOLID_QUEUE_IN_PUMA.
+production = ENV["RAILS_ENV"] == "production" || ENV["RACK_ENV"] == "production"
+opt_out    = ENV["SOLID_QUEUE_IN_PUMA"] == "0"
+opt_in     = ENV["SOLID_QUEUE_IN_PUMA"].to_s.match?(/\A(1|true)\z/i)
+if (production && !opt_out) || opt_in
   plugin :solid_queue
   solid_queue_mode :async
 end

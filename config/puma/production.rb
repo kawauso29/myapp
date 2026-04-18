@@ -29,7 +29,13 @@ plugin :tmp_restart
 # Use async mode (threads in same process) instead of fork mode to avoid
 # fork-related class loading issues that cause ActiveJob::UnknownJobClassError
 # after deploys.
-if ENV["SOLID_QUEUE_IN_PUMA"]
+#
+# NOTE: This file is only loaded in production, so we always start SolidQueue
+# here. Previously this was gated behind `if ENV["SOLID_QUEUE_IN_PUMA"]`, but
+# that caused silent total stalls when .env failed to load (no scheduler →
+# no recurring jobs → no MonitorFailedJobsJob → no Slack notifications at all).
+# Opting out is now done by setting SOLID_QUEUE_IN_PUMA=0 explicitly.
+unless ENV["SOLID_QUEUE_IN_PUMA"] == "0"
   plugin :solid_queue
   solid_queue_mode :async
 end
