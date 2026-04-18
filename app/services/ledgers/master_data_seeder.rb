@@ -69,17 +69,17 @@ module Ledgers
         h.next_run_at = 1.month.from_now
       end
 
-      # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義
+      # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義（ai_sns に統合済み）
       ui_check = MeetingDefinition.find_or_create_by!(meeting_key: "ui_check") do |d|
         d.meeting_type = :weekly
         d.scope_level = :service
-        d.service_id = "ai_sns_ui"
+        d.service_id = "ai_sns"
         d.chair_role = "business_owner"
         d.participant_roles = %w[planning dev audit business_owner]
         d.writes_ledgers = %w[meeting_ledger ticket_ledger]
       end
 
-      ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns_ui") do |h|
+      ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns") do |h|
         h.due_cycle = :weekly
         h.status = :active
         h.next_run_at = 2.days.from_now
@@ -142,18 +142,11 @@ module Ledgers
         end
       end
 
-      # Phase 42 / UI伴走管理: ai_sns_ui サービスを ServiceLedger に登録
-      ServiceLedger.find_or_create_by!(service_id: "ai_sns_ui") do |s|
-        s.scope_level = :service
-        s.business_owner = "unassigned_business_owner"
-        s.status = :active
-      end
-
-      # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）
+      # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）は ai_sns サービスに統合済み
       [
-        { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns_ui",
+        { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 90.0, "warning" => 60.0, "direction" => "higher_better" } },
-        { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns_ui",
+        { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 0.5, "warning" => 2.0, "direction" => "lower_better" } }
       ].each do |attrs|
         KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |k|
@@ -199,7 +192,7 @@ module Ledgers
         BODY
         ledger.status = :accepted
         ledger.accepted_at = Time.current
-        ledger.tags = { "service_id" => "ai_sns_ui", "version" => "v1", "screens" => 7 }
+        ledger.tags = { "service_id" => "ai_sns", "version" => "v1", "screens" => 7 }
       end
     end
   end

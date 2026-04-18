@@ -12,7 +12,7 @@ RSpec.describe UiCheckLedgerRunJob, type: :job do
 
       described_class.perform_now
 
-      expect(Ledgers::WeeklyDeptRunner).to have_received(:call).with(service_id: "ai_sns_ui", ticket_inputs: nil)
+      expect(Ledgers::WeeklyDeptRunner).to have_received(:call).with(service_id: "ai_sns", ticket_inputs: nil)
       expect(Ledgers::RunOutputFormatter).to have_received(:format).with(meeting:, operation: "ui_check")
       expect(Ledgers::SlackNotifier).to have_received(:notify).with(payload)
     end
@@ -25,7 +25,7 @@ RSpec.describe UiCheckLedgerRunJob, type: :job do
 
       described_class.perform_now(ticket_inputs: custom_inputs)
 
-      expect(Ledgers::WeeklyDeptRunner).to have_received(:call).with(service_id: "ai_sns_ui", ticket_inputs: custom_inputs)
+      expect(Ledgers::WeeklyDeptRunner).to have_received(:call).with(service_id: "ai_sns", ticket_inputs: custom_inputs)
     end
   end
 end

@@ -2,7 +2,7 @@ class UiCheckLedgerRunJob < ApplicationJob
   include Ledgers::JobIdempotency
   queue_as :default
 
-  SERVICE_ID = "ai_sns_ui".freeze
+  SERVICE_ID = "ai_sns".freeze
 
   # Phase 42 / UI伴走管理: AI SNS UI サービスの定期チェックサイクルを実行する。
   # WeeklyDeptRunner を ai_sns_ui に対して呼び出し、画面稼働率・クラッシュ率等の
