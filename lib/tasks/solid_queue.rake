@@ -262,12 +262,15 @@ namespace :solid_queue do
     if ENV["SLACK"] == "1"
       warnings = lines.count { |l| l.include?("!! WARNING") }
       color = warnings.positive? ? :danger : :success
-      channel = warnings.positive? ? :error : :jobs
+      jobs_webhook_missing = ENV["SLACK_WEBHOOK_URL_JOBS"].blank?
+      fallback_to_error = warnings.zero? && jobs_webhook_missing
+      channel = warnings.positive? || fallback_to_error ? :error : :jobs
       # Reserve room for the closing code fence so truncation never breaks markdown.
       body_limit = 2500
       body = output.length > body_limit ? "#{output[0, body_limit - 20]}\n... (truncated)" : output
+      fallback_note = fallback_to_error ? "\n(slack routing: jobs webhook is unset, fallback to error channel)" : ""
       SlackNotifierService.notify(
-        text: ":mag: *SolidQueue diagnose* (warnings=#{warnings})\n```\n#{body}\n```",
+        text: ":mag: *SolidQueue diagnose* (warnings=#{warnings})#{fallback_note}\n```\n#{body}\n```",
         color: color,
         channel: channel
       )
