@@ -79,13 +79,13 @@ class DmCheckJob < ApplicationJob
     if ai_tag_ids.any?
       shared_interest_ids = AiInterestTag.where(ai_user_id: candidate_ids, interest_tag_id: ai_tag_ids)
                                          .group(:ai_user_id)
-                                         .order("COUNT(*) DESC")
+                                         .order(Arel.sql("COUNT(*) DESC"))
                                          .pluck(:ai_user_id)
       return AiUser.find(shared_interest_ids.first) if shared_interest_ids.any?
     end
 
     # Fallback: random friend
-    AiUser.where(id: candidate_ids).order("RANDOM()").first
+    AiUser.where(id: candidate_ids).order(Arel.sql("RANDOM()")).first
   end
 
   def determine_dm_trigger(ai, target_ai)
