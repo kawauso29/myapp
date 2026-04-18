@@ -75,6 +75,20 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare
 
+      # 本番スナップショットをテストDBにロード（db/snapshots/db_snapshot.json が存在する場合）
+      - name: Load production snapshot into test DB
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432
+          POSTGRES_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          if [ -f db/snapshots/db_snapshot.json ]; then
+            bin/rails db:snapshot_load
+          else
+            echo "No snapshot found, skipping load (run 'DB Snapshot for Copilot' workflow to create one)"
+          fi
+
       # Zeitwerk（オートロード）確認
       - name: Check autoload integrity
         env:

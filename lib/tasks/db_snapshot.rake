@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 namespace :db do
-  desc "Export DB snapshot as JSON to stdout (used by GitHub Actions for Claude)"
+  SNAPSHOT_PATH = Rails.root.join("db/snapshots/db_snapshot.json")
+
+  desc "Export DB snapshot as JSON to stdout (used by GitHub Actions for Copilot)"
   task snapshot: :environment do
     require "json"
 
@@ -40,5 +42,51 @@ namespace :db do
     }
 
     puts JSON.pretty_generate(snapshot)
+  end
+
+  desc "Load DB snapshot JSON into the current environment's database (for Copilot dev/test)"
+  task snapshot_load: :environment do
+    require "json"
+
+    unless SNAPSHOT_PATH.exist?
+      abort "Snapshot not found: #{SNAPSHOT_PATH}\nRun the 'DB Snapshot for Copilot' workflow to generate one."
+    end
+
+    data = JSON.parse(SNAPSHOT_PATH.read)
+    puts "Loading snapshot generated at: #{data['generated_at']} (env: #{data['environment']})"
+
+    # モデル名 → クラスのマッピング（外部キー依存順）
+    model_map = {
+      "users"            => User,
+      "ai_users"         => AiUser,
+      "ai_profiles"      => AiProfile,
+      "ai_daily_states"  => AiDailyState,
+      "ai_posts"         => AiPost,
+      "market_snapshots" => MarketSnapshot,
+      "trade_decisions"  => TradeDecision,
+      "trade_results"    => TradeResult,
+      "analysis_reports" => AnalysisReport
+    }
+
+    model_map.each do |key, klass|
+      rows = data.dig("recent", key)
+      next if rows.blank?
+
+      valid_cols = klass.column_names
+      records = rows.filter_map do |row|
+        sliced = row.slice(*valid_cols)
+        next if sliced.blank?
+        sliced
+      end
+
+      next if records.empty?
+
+      klass.upsert_all(records, unique_by: :id)
+      puts "  #{key}: #{records.size} records loaded"
+    rescue StandardError => e
+      puts "  #{key}: skipped (#{e.message})"
+    end
+
+    puts "Snapshot load complete."
   end
 end
