@@ -14,6 +14,12 @@ RSpec.describe Ledgers::ImprovementDetector do
 
     before do
       allow(Ledgers::SlackNotifier).to receive(:notify)
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
     end
 
     it "triggers high_overdue_rate rule" do
@@ -113,6 +119,7 @@ RSpec.describe Ledgers::ImprovementDetector do
 
     describe "detect_stale_ui_check" do
       it "triggers stale_ui_check rule when ui_check meeting not held within threshold" do
+        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns_ui").delete_all
         result = described_class.call
 
         ticket = TicketLedger.ticket_type_improvement.last
@@ -139,6 +146,7 @@ RSpec.describe Ledgers::ImprovementDetector do
       end
 
       it "does not create duplicate ticket when stale_ui_check is already open" do
+        MeetingLedger.where(meeting_key: "ui_check", service_id: "ai_sns_ui").delete_all
         existing = create(:ticket_ledger,
                           ticket_type: :improvement,
                           status: :waiting_review,
