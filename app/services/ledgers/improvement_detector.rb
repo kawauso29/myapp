@@ -7,7 +7,7 @@ module Ledgers
     OPEN_STATUSES = %i[waiting_review overdue].freeze
     # Phase 42 / UI伴走管理: UI チェック会議が連続して未実施の場合に検知する閾値
     UI_CHECK_STALE_DAYS = 3
-    UI_CHECK_SERVICE_ID = "ai_sns_ui".freeze
+    UI_CHECK_SERVICE_ID = "ai_sns".freeze
 
     def self.call
       new.call

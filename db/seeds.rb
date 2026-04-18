@@ -50,13 +50,13 @@ def seed_ledger_definitions_and_heartbeats!
   ui_check = MeetingDefinition.find_or_create_by!(meeting_key: "ui_check") do |definition|
     definition.meeting_type = :weekly
     definition.scope_level = :service
-    definition.service_id = "ai_sns_ui"
+    definition.service_id = "ai_sns"
     definition.chair_role = "business_owner"
     definition.participant_roles = %w[planning dev audit business_owner]
     definition.writes_ledgers = %w[meeting_ledger ticket_ledger]
   end
 
-  ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns_ui") do |heartbeat|
+  ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns") do |heartbeat|
     heartbeat.due_cycle = :weekly
     heartbeat.status = :active
     heartbeat.next_run_at = 2.days.from_now
@@ -122,18 +122,12 @@ def seed_lane_capacity_caps!
     end
   end
 
-  # Phase 42 / UI伴走管理: ai_sns_ui サービスを ServiceLedger に登録
-  ServiceLedger.find_or_create_by!(service_id: "ai_sns_ui") do |service_ledger|
-    service_ledger.scope_level = :service
-    service_ledger.business_owner = "unassigned_business_owner"
-    service_ledger.status = :active
-  end
-
+  # Phase 42 / UI伴走管理: UI KPI は ai_sns サービスに統合済み（ai_sns_ui は廃止）
   # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）
   [
-    { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns_ui",
+    { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns",
       thresholds: { "healthy" => 90.0, "warning" => 60.0, "direction" => "higher_better" } },
-    { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns_ui",
+    { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns",
       thresholds: { "healthy" => 0.5, "warning" => 2.0, "direction" => "lower_better" } }
   ].each do |attrs|
     KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |kpi_ledger|
@@ -179,7 +173,7 @@ def seed_ui_knowledge_adr!
     BODY
     ledger.status = :accepted
     ledger.accepted_at = Time.current
-    ledger.tags = { "service_id" => "ai_sns_ui", "version" => "v1", "screens" => 7 }
+    ledger.tags = { "service_id" => "ai_sns", "version" => "v1", "screens" => 7 }
   end
 end
 
