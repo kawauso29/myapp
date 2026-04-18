@@ -422,6 +422,7 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - `enum :status, { pending: 0, ... }, prefix: true` のようにprefixオプションを付けたenumのスコープ名は `model.pending` ではなく `model.status_pending` になる。specでモックする場合も `receive_message_chain(:status_pending, :count)` のようにprefixつきスコープ名を使う（`prefix: true` を見落としてスコープ名を誤るとCI失敗の原因になる）
 - `Ledgers::ImprovementDetector` のspecで個別ルールの検知件数を1件に固定して検証する場合、`stale_ui_check` ルールの副作用を避けるため `ui_check` の直近開催データを先に作成する（未作成だと `result[:detected]` が +1 される）
 - `weekly_pdca.yml` の `WIP_COUNT=$(grep -c ... || echo 0)` は `0\n0` になり GITHUB_OUTPUT 書き込みが `Invalid format '0'` で落ちる → `|| true` + `${WIP_COUNT:-0}` に修正する
+- self-hosted runner の CI で `db:test:prepare` だけを実行すると、新規 migration 追加直後に `ActiveRecord::PendingMigrationError` で `job-check` / `route-check` / `test` が同時に落ちることがある → `ci.yml` の各ジョブで `bin/rails db:migrate && bin/rails db:test:prepare` の順に実行する
 - self-hosted runner（sakura-vps）には `jq` が入っていない → self-hosted で動くワークフロー内では `jq` の代わりに `python3 -c "import json, os ..."` で JSON 生成・パースする
 - `pr_ci_fix.yml` / `auto_fix.yml` / `ai_sns_plan.yml` で Copilot に自動修正を依頼するメンションは `@github-copilot` ではなく **`@copilot`** を使う。`@github-copilot` では Copilot coding agent が反応しない
 - `GITHUB_TOKEN` で作成したコメント/Issueは GitHub Apps（Copilot coding agent）の Webhook をトリガーしない（GitHub のループ防止仕様）。`@copilot` メンションを含むコメントは必ず `DEPLOY_TOKEN`（fine-grained PAT）で投稿する。**`DEPLOY_TOKEN` には `Issues: Read and Write` スコープが必須**。403 が出る場合は GitHub Settings → Developer settings → Personal access tokens → DEPLOY_TOKEN を `Issues: Read and Write` スコープで再発行すること（デプロイ用途の PAT とスコープが分離されている場合は注意）
