@@ -133,12 +133,10 @@ GitHub Actions（`.github/workflows/ci.yml`）で以下のジョブが `push` / 
 | ジョブ | 内容 |
 |--------|------|
 | `scan_ruby` | Brakeman（Rails静的解析）+ bundler-audit（gem脆弱性スキャン） |
-| `scan_js` | importmap audit（JS依存関係の脆弱性スキャン） |
 | `lint` | RuboCop（コードスタイルチェック） |
 | `job-check` | `zeitwerk:check` + `spec/jobs`（ジョブの自動読み込み・実行系の早期検知） |
 | `route-check` | `spec/routing/controller_action_integrity_spec.rb`（controller/action と URL ルート整合性） |
 | `test` | RSpec（PostgreSQL 16 + Redis 7 サービスコンテナ付き） |
-| `system-test` | Rails システムテスト（Capybara/Selenium） |
 
 ## ディレクトリ構成
 

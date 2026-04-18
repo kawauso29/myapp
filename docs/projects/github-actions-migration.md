@@ -68,7 +68,7 @@
 
 | ワークフロー | 理由 |
 |---|---|
-| `ci.yml` (テスト/lint 7ジョブ: scan_ruby, scan_js, lint, job-check, route-check, test, system-test) | PostgreSQL/Redis のサービスコンテナを使用。7ジョブの並列実行が必要。本番環境との分離 |
+| `ci.yml` (テスト/lint 5ジョブ: scan_ruby, lint, job-check, route-check, test) | PostgreSQL/Redis のサービスコンテナを使用。本番環境との分離 |
 | `deploy.yml` (build_frontendジョブ) | Node.js/Expo ビルドの負荷（本番VPSでの同時実行リスク） |
 | `copilot-setup-steps.yml` | Copilot coding agent の要件。GitHub ホステッドで実行が必須 |
 

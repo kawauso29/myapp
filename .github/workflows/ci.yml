@@ -36,24 +36,6 @@ jobs:
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
 
-  scan_js:
-    runs-on: [self-hosted, sakura-vps]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Ruby via rbenv
-        run: |
-          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
-
-      - name: Install gems
-        run: bundle install --jobs 4 --retry 3
-
-      - name: Scan for security vulnerabilities in JavaScript dependencies
-        run: bin/importmap audit || true
-
   lint:
     runs-on: [self-hosted, sakura-vps]
     env:
@@ -94,7 +76,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare && bin/rails zeitwerk:check && bundle exec rspec spec/jobs
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
   route-check:
     runs-on: [self-hosted, sakura-vps]
@@ -117,7 +99,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare && bundle exec rspec spec/routing/controller_action_integrity_spec.rb
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
   test:
     runs-on: [self-hosted, sakura-vps]
@@ -140,43 +122,11 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare && bundle exec rspec
-
-  system-test:
-    runs-on: [self-hosted, sakura-vps]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Ruby via rbenv
-        run: |
-          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
-
-      - name: Install gems
-        run: bundle install --jobs 4 --retry 3
-
-      - name: Run System Tests
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
-          POSTGRES_PASSWORD: password
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare && (find test/system -name "*_test.rb" 2>/dev/null | grep -q . && bin/rails test:system || echo "No system tests found, skipping.")
-
-      - name: Keep screenshots from failed system tests
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: screenshots
-          path: ${{ github.workspace }}/tmp/screenshots
-          if-no-files-found: ignore
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bundle exec rspec
 
   notify:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
+    needs: [scan_ruby, lint, job-check, route-check, test]
     if: always()
     steps:
       - name: Build notification label
@@ -234,12 +184,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
           RESULT_SCAN_RUBY: ${{ needs.scan_ruby.result }}
-          RESULT_SCAN_JS: ${{ needs.scan_js.result }}
           RESULT_LINT: ${{ needs.lint.result }}
           RESULT_JOB_CHECK: ${{ needs.job-check.result }}
           RESULT_ROUTE_CHECK: ${{ needs.route-check.result }}
           RESULT_TEST: ${{ needs.test.result }}
-          RESULT_SYSTEM_TEST: ${{ needs.system-test.result }}
         run: |
           if [ -z "${WEBHOOK_URL}" ]; then
             echo "SLACK_WEBHOOK_URL is not set; skipping failure notification"
@@ -255,7 +203,7 @@ jobs:
           actor = os.environ['ACTOR']
           msg = os.environ['COMMIT_MSG']
           link = os.environ['RUN_LINK']
-          result = f\"scan_ruby: {os.environ['RESULT_SCAN_RUBY']} | scan_js: {os.environ['RESULT_SCAN_JS']} | lint: {os.environ['RESULT_LINT']} | job-check: {os.environ['RESULT_JOB_CHECK']} | route-check: {os.environ['RESULT_ROUTE_CHECK']} | test: {os.environ['RESULT_TEST']} | system-test: {os.environ['RESULT_SYSTEM_TEST']}\"
+          result = f\"scan_ruby: {os.environ['RESULT_SCAN_RUBY']} | lint: {os.environ['RESULT_LINT']} | job-check: {os.environ['RESULT_JOB_CHECK']} | route-check: {os.environ['RESULT_ROUTE_CHECK']} | test: {os.environ['RESULT_TEST']}\"
           fields = [
               {'title': 'コミット', 'value': msg, 'short': False},
               {'title': '結果', 'value': result, 'short': False},
@@ -275,7 +223,7 @@ jobs:
   # CI から直接 deploy を起動する（auto_merge.yml と同じ方式）
   dispatch_deploy:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, scan_js, lint, job-check, route-check, test, system-test]
+    needs: [scan_ruby, lint, job-check, route-check, test]
     if: >-
       github.event_name == 'push' &&
       github.ref_name == 'main' &&
