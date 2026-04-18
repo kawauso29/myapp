@@ -14,11 +14,11 @@ RSpec.describe Reinforcements::Planner do
       )
     end
 
-    it "creates a draft improvement ticket when KPI actual < target * UNDERPERFORM_RATIO" do
+    it "creates a waiting_review improvement ticket when KPI actual < target * UNDERPERFORM_RATIO" do
       expect { described_class.call }.to change { TicketLedger.ticket_type_improvement.count }.by(1)
 
       ticket = TicketLedger.ticket_type_improvement.last
-      expect(ticket.status).to eq("draft")
+      expect(ticket.status).to eq("waiting_review")
       expect(ticket.assignee).to eq("reinforcements_planner")
       expect(ticket.improvement_pattern_key).to eq("planner:kpi_underperform:kpi:ai_sns_wau")
       expect(ticket.linked_kpis).to eq([ "kpi:ai_sns_wau" ])

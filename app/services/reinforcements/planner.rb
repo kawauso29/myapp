@@ -99,7 +99,7 @@ module Reinforcements
         linked_kpis: [ kpi.kpi_key ],
         linked_artifacts: [],
         priority: :medium,
-        status: :draft,
+        status: :waiting_review,
         assignee: "reinforcements_planner",
         due_date: Date.current + DEFAULT_DUE_DAYS.days,
         due_cycle: :weekly,
