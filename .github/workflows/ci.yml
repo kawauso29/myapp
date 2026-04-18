@@ -76,7 +76,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:prepare && bin/rails zeitwerk:check && bundle exec rspec spec/jobs
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
   route-check:
     runs-on: [self-hosted, sakura-vps]
@@ -99,7 +99,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:prepare && bundle exec rspec spec/routing/controller_action_integrity_spec.rb
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
   test:
     runs-on: [self-hosted, sakura-vps]
@@ -122,7 +122,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:prepare && bundle exec rspec
+        run: bin/rails db:migrate && bin/rails db:test:prepare && bundle exec rspec
 
   notify:
     runs-on: [self-hosted, sakura-vps]
