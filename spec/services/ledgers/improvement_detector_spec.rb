@@ -17,6 +17,12 @@ RSpec.describe Ledgers::ImprovementDetector do
     end
 
     it "triggers high_overdue_rate rule" do
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
       create_list(:ticket_ledger, 3, status: :approved, created_at: 2.days.ago)
       create_list(:ticket_ledger, 2, status: :overdue, created_at: 2.days.ago)
 
@@ -29,6 +35,12 @@ RSpec.describe Ledgers::ImprovementDetector do
     end
 
     it "triggers missing_kpi_definition rule" do
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
       create(:meeting_ledger,
              meeting_definition: weekly_definition,
              meeting_key: "weekly_dept",
@@ -44,6 +56,12 @@ RSpec.describe Ledgers::ImprovementDetector do
     end
 
     it "triggers stale_service rule per stale service" do
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
       ServiceLedger.create!(service_id: "ai_sns", scope_level: :service, business_owner: "owner", status: :active)
       ServiceLedger.create!(service_id: "trade_ops", scope_level: :service, business_owner: "owner", status: :active)
       create(:meeting_ledger,
@@ -63,6 +81,12 @@ RSpec.describe Ledgers::ImprovementDetector do
 
     it "triggers monthly_hold_accumulation rule" do
       create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
+      create(:meeting_ledger,
              meeting_definition: monthly_definition,
              meeting_key: "monthly_ops",
              hold_items: [ { reason: "a" }, { reason: "b" }, { reason: "c" } ],
@@ -76,6 +100,12 @@ RSpec.describe Ledgers::ImprovementDetector do
     end
 
     it "does not create duplicate improvement ticket for same rule" do
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns_ui",
+             held_at: 1.day.ago,
+             status: :closed)
       create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review, linked_kpis: { rule: "high_overdue_rate" })
       create_list(:ticket_ledger, 4, status: :approved, created_at: 2.days.ago)
       create_list(:ticket_ledger, 2, status: :overdue, created_at: 2.days.ago)
