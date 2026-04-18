@@ -1,4 +1,16 @@
 namespace :ledgers do
+  desc "Idempotently seed all required ledger master data (MeetingDefinition / ServiceLedger / KpiLedger / LaneCapacityCap). Safe to run on every deploy."
+  task seed_master_data: :environment do
+    Ledgers::MasterDataSeeder.call
+    result = Ledgers::SeedValidator.call
+    if result.ok?
+      puts "ledgers:seed_master_data: OK - all required records present"
+    else
+      $stderr.puts "ledgers:seed_master_data: MISSING records after seed: #{result.errors_text}"
+      exit 1
+    end
+  end
+
   desc "Run weekly_dept ledger flow for a service"
   task :run_weekly_dept, [ :service_id ] => :environment do |_task, args|
     service_id = args[:service_id].presence || "ai_sns"

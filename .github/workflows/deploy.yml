@@ -154,6 +154,7 @@ jobs:
           git reset --hard origin/main
           bundle install
           RAILS_ENV=production bin/rails db:migrate
+          RAILS_ENV=production bin/rails ledgers:seed_master_data
           RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
           RAILS_ENV=production bin/rails assets:precompile
           rm -rf ~/myapp/public/app
@@ -267,6 +268,7 @@ jobs:
           git reset --hard "$PRE_SHA"
           bundle install
           RAILS_ENV=production bin/rails db:migrate
+          RAILS_ENV=production bin/rails ledgers:seed_master_data || true
           rm -rf tmp/cache && mkdir -p tmp/cache
           STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
           if [ -n "$STANDALONE_SQ_PIDS" ]; then
