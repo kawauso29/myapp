@@ -22,7 +22,7 @@ class ConsolidateAiSnsUiIntoAiSns < ActiveRecord::Migration[8.1]
     execute <<~SQL
       UPDATE ticket_ledgers
       SET linked_kpis = jsonb_set(linked_kpis, '{service_id}', '"ai_sns"')
-      WHERE linked_kpis->>'service_id' = 'ai_sns_ui'
+      WHERE linked_kpis IS NOT NULL AND linked_kpis->>'service_id' = 'ai_sns_ui'
     SQL
 
     # meeting_ledgers
@@ -34,7 +34,7 @@ class ConsolidateAiSnsUiIntoAiSns < ActiveRecord::Migration[8.1]
     execute <<~SQL
       UPDATE knowledge_ledgers
       SET tags = jsonb_set(tags, '{service_id}', '"ai_sns"')
-      WHERE tags->>'service_id' = 'ai_sns_ui'
+      WHERE tags IS NOT NULL AND tags->>'service_id' = 'ai_sns_ui'
     SQL
 
     # service_ledgers: ai_sns_ui 行を削除（ai_sns は既存）
