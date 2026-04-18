@@ -1,0 +1,49 @@
+#!/bin/bash
+# SolidQueue 死活監視スクリプト（VPS cron から実行）
+#
+# crontab 設定例 (deploy.yml の Setup VPS cron jobs で自動登録):
+#   */5 * * * * $HOME/myapp/bin/check_solid_queue_alive >> /tmp/solid_queue_alive.log 2>&1
+#
+# 動作:
+#   1. `bin/rails solid_queue:check_alive` を実行
+#   2. SolidQueue Scheduler が死亡 / 直近30分にジョブ enqueue ゼロを検知すると
+#      rake タスク側で Slack ERROR 通知 + exit 1 を返す
+#   3. 連続通知防止のため 1 時間クールダウンする
+#
+# 環境変数:
+#   SLACK_WEBHOOK_URL_ERROR - エラー通知用 Slack Webhook URL（rake タスク内で参照）
+
+set -a
+# shellcheck source=/dev/null
+source "$HOME/myapp/.env" 2>/dev/null || true
+set +a
+
+LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
+COOLDOWN_FILE="/tmp/solid_queue_alive_last_notify"
+COOLDOWN_SECONDS=3600  # 1時間
+
+cd "$HOME/myapp" || { echo "${LOG_PREFIX} ERROR: cannot cd ~/myapp"; exit 1; }
+
+export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+
+# rake タスクを実行（健康なら exit 0、異常なら exit 1 + Slack 通知）
+if RAILS_ENV=production WINDOW_MINUTES=30 bin/rails solid_queue:check_alive >> /tmp/solid_queue_alive.log 2>&1; then
+  rm -f "$COOLDOWN_FILE"
+  exit 0
+fi
+
+# 異常検知時のクールダウン管理（rake 側でも通知済みだが、cron ログ抑制のため）
+if [ -f "$COOLDOWN_FILE" ]; then
+  LAST_NOTIFY=$(cat "$COOLDOWN_FILE" 2>/dev/null || echo 0)
+  NOW=$(date +%s)
+  ELAPSED=$((NOW - LAST_NOTIFY))
+  if [ "$ELAPSED" -lt "$COOLDOWN_SECONDS" ]; then
+    REMAINING=$(( (COOLDOWN_SECONDS - ELAPSED) / 60 ))
+    echo "${LOG_PREFIX} クールダウン中（残り約${REMAINING}分）、再通知抑制"
+    exit 1
+  fi
+fi
+
+date +%s > "$COOLDOWN_FILE"
+echo "${LOG_PREFIX} SolidQueue 異常検知 → Slack 通知済み（次回通知まで${COOLDOWN_SECONDS}秒クールダウン）"
+exit 1

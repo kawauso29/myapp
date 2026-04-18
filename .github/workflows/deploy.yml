@@ -117,6 +117,7 @@ jobs:
         # GitHub schedule トリガーは高負荷時に遅延・スキップが発生するため VPS cron で確実に実行
         # 前提: DEPLOY_TOKEN に Actions: Read and Write スコープが必要
         # runner ヘルスチェックを5分おきに実行し、停止時は Slack 通知
+        # SolidQueue 死活監視を5分おきに実行し、scheduler 停止時は Slack 通知
         run: |
           chmod +x ~/myapp/bin/dispatch_weekly_pdca
           if [ -f ~/myapp/bin/check_runner_health ]; then
@@ -124,14 +125,22 @@ jobs:
           else
             echo "check_runner_health not found; skipping"
           fi
+          if [ -f ~/myapp/bin/check_solid_queue_alive ]; then
+            chmod +x ~/myapp/bin/check_solid_queue_alive
+          else
+            echo "check_solid_queue_alive not found; skipping"
+          fi
           # 既存のエントリを削除してから追加（重複防止）
-          (crontab -l 2>/dev/null | grep -Ev "dispatch_weekly_pdca|check_runner_health") | crontab - || true
+          (crontab -l 2>/dev/null | grep -Ev "dispatch_weekly_pdca|check_runner_health|check_solid_queue_alive") | crontab - || true
           (crontab -l 2>/dev/null; echo "*/10 * * * * \$HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1") | crontab -
           if [ -f ~/myapp/bin/check_runner_health ]; then
             (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
           fi
+          if [ -f ~/myapp/bin/check_solid_queue_alive ]; then
+            (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_solid_queue_alive >> /tmp/solid_queue_alive.log 2>&1") | crontab -
+          fi
           echo "✅ VPS cron 設定完了:"
-          crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health" || true
+          crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health|check_solid_queue_alive" || true
 
       - name: Deploy Rails + frontend
         id: deploy_rails
@@ -217,6 +226,9 @@ jobs:
           echo "Waiting 10s for any remaining transient failures to settle..."
           sleep 10
           RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
+          # Diagnose SolidQueue health and report to Slack jobs channel.
+          # If scheduler is down or zero jobs in last 24h, the rake task posts to error channel.
+          RAILS_ENV=production SLACK=1 bin/rails solid_queue:diagnose || true
 
       - name: Health check after deploy
         id: health_check
