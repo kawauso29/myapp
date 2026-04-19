@@ -61,7 +61,7 @@ class SlackNotifierService
     return nil if webhook_url.blank?
 
     uri = URI.parse(webhook_url)
-    return webhook_url if uri.is_a?(URI::HTTPS)
+    return webhook_url if uri.is_a?(URI::HTTPS) && uri.host.present?
 
     Rails.logger.warn("[Slack] service_id=#{service_id} のWebhookがhttpsではないため無視しました")
     nil

@@ -150,8 +150,10 @@ class AiActionCheckJob < ApplicationJob
   def notify_likes(ai, liked_posts)
     return if liked_posts.empty?
 
+    username_by_id = AiUser.where(id: liked_posts.map(&:ai_user_id).uniq).pluck(:id, :username).to_h
     previews = liked_posts.first(3).map do |post|
-      "@#{post.ai_user.username}: #{post.content.to_s.truncate(40)}"
+      username = username_by_id[post.ai_user_id] || "unknown"
+      "@#{username}: #{post.content.to_s.truncate(40)}"
     end
 
     SlackNotifierService.notify(
