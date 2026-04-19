@@ -2,7 +2,7 @@
 # MeetingDefinition の participant_roles（JSONB 文字列配列）をマスタテーブルで検証可能にする。
 class CreateOrganizationRoles < ActiveRecord::Migration[8.1]
   def change
-    create_table :organization_roles do |t|
+    create_table :organization_roles, if_not_exists: true do |t|
       t.string  :role_key,    null: false  # ユニークキー（例: "planning", "dev"）
       t.string  :display_name, null: false # 表示名
       t.integer :scope_level,  null: false # enum: company/portfolio/service/cross_service
@@ -13,8 +13,8 @@ class CreateOrganizationRoles < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :organization_roles, :role_key, unique: true
-    add_index :organization_roles, :active
-    add_index :organization_roles, :scope_level
+    add_index :organization_roles, :role_key, unique: true, if_not_exists: true
+    add_index :organization_roles, :active, if_not_exists: true
+    add_index :organization_roles, :scope_level, if_not_exists: true
   end
 end
