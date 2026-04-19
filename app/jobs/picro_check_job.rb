@@ -8,6 +8,7 @@ class PicroCheckJob < ApplicationJob
     result = PicroScraperService.new.call
     unless result.success
       Rails.logger.error("[PicroCheckJob] スクレイピング失敗: #{result.error}")
+      notify_error("Picroスクレイピング失敗: #{result.error}")
       return
     end
 
@@ -37,7 +38,13 @@ class PicroCheckJob < ApplicationJob
     end
 
     # 4. LINE通知
-    LineNotifierService.new.notify_new_messages(new_messages)
+    begin
+      LineNotifierService.new.notify_new_messages(new_messages)
+    rescue => e
+      Rails.logger.error("[PicroCheckJob] LINE通知失敗: #{e.message}")
+      notify_error("LINE通知失敗（#{new_messages.size}件未配信）: #{e.message}")
+      return
+    end
 
     # 5. 通知済みフラグを更新
     PicroMessage.where(message_id: new_ids).update_all(notified: true)
@@ -54,5 +61,17 @@ class PicroCheckJob < ApplicationJob
     )
 
     Rails.logger.info("[PicroCheckJob] 完了: #{new_messages.size}件の新着を通知")
+  end
+
+  private
+
+  def notify_error(message)
+    SlackNotifierService.notify(
+      text: "🚨 [PicroCheckJob] #{message}",
+      color: :danger,
+      channel: :error
+    )
+  rescue => e
+    Rails.logger.error("[PicroCheckJob] Slackエラー通知も失敗: #{e.message}")
   end
 end
