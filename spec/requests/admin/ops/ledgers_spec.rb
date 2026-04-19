@@ -96,21 +96,39 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it "認証ありで台帳一覧が表示される" do
+    it "認証ありでダッシュボードが表示される" do
       get "/admin/ops/ledgers", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("Ops Ledger Viewer (Read Only)")
+      # ダッシュボードタイトル
+      expect(response.body).to include("Ledger Dashboard")
+      # cadence カード
+      expect(response.body).to include("weekly_dept")
+      expect(response.body).to include("daily")
+      # サービス概要（ai_sns サービスのミーティングが存在するため表示される）
+      expect(response.body).to include("ai_sns")
+      # アラート表示（overdue チケットが存在するため待ちレビュー or 期限超過が出る）
+      expect(response.body).to include("待ちレビュー")
+      expect(response.body).to include("improvement")
+      # 最近の実行ログに monthly_ops の行が出る
+      expect(response.body).to include("monthly_ops")
+      expect(response.body).to include("quarterly_review")
+    end
+
+    it "meeting_key で絞込むと cadence 実行履歴とチケットが表示される" do
+      get "/admin/ops/ledgers",
+          params: { meeting_key: "weekly_dept" },
+          headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
       expect(response.body).to include("weekly_dept")
       expect(response.body).to include(weekly_ticket.id.to_s)
       expect(response.body).to include("overdue")
-      expect(response.body).to include("monthly_ops_runner")
-      expect(response.body).to include("quarterly_review")
-      expect(response.body).to include(quarterly_ticket.id.to_s)
-      expect(response.body).to include("meetings_held")
       expect(response.body).to include("Open improvements:")
       expect(response.body).to include("improvement")
       expect(response.body).to include(improvement_ticket.id.to_s)
+      # monthly_ops のチケットは出ない
+      expect(response.body).not_to include(monthly_ticket.id.to_s)
     end
 
     it "service_id と meeting_key で絞り込みできる" do
@@ -120,11 +138,21 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("weekly_dept")
-      expect(response.body).not_to include("monthly_ops")
+      expect(response.body).not_to include("monthly_ops 実行履歴")
 
       ticket_ids = extract_ticket_table_ids(response.body)
       expect(ticket_ids).to include(weekly_ticket.id.to_s)
       expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
+    end
+
+    it "show で MeetingLedger 詳細が表示される" do
+      get "/admin/ops/ledgers/#{weekly_meeting.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("weekly_dept")
+      expect(response.body).to include(weekly_meeting.id.to_s)
+      expect(response.body).to include("hold_items")
+      expect(response.body).to include(weekly_ticket.id.to_s)
     end
   end
 
