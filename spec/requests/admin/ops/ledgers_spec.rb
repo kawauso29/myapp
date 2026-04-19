@@ -101,15 +101,15 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
 
       expect(response).to have_http_status(:ok)
       # ダッシュボードタイトル
-      expect(response.body).to include("Ledger Dashboard")
+      expect(response.body).to include("台帳ダッシュボード")
       # cadence カード
       expect(response.body).to include("weekly_dept")
       expect(response.body).to include("daily")
       # サービス概要（ai_sns サービスのミーティングが存在するため表示される）
       expect(response.body).to include("ai_sns")
       # アラート表示（overdue チケットが存在するため待ちレビュー or 期限超過が出る）
-      expect(response.body).to include("待ちレビュー")
-      expect(response.body).to include("improvement")
+      expect(response.body).to include("改善レビュー待ち")
+      expect(response.body).to include("改善")
       # 最近の実行ログに monthly_ops の行が出る
       expect(response.body).to include("monthly_ops")
       expect(response.body).to include("quarterly_review")
@@ -123,12 +123,14 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("weekly_dept")
       expect(response.body).to include(weekly_ticket.id.to_s)
-      expect(response.body).to include("overdue")
-      expect(response.body).to include("Open improvements:")
-      expect(response.body).to include("improvement")
+      expect(response.body).to include("期限超過")
+      expect(response.body).to include("未対応改善チケット:")
+      expect(response.body).to include("改善")
       expect(response.body).to include(improvement_ticket.id.to_s)
+      ticket_ids = extract_ticket_table_ids(response.body)
+      expect(ticket_ids).to include(weekly_ticket.id.to_s)
       # monthly_ops のチケットは出ない
-      expect(response.body).not_to include(monthly_ticket.id.to_s)
+      expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
     end
 
     it "service_id と meeting_key で絞り込みできる" do

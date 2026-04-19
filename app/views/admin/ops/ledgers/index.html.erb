@@ -1,4 +1,4 @@
-<% content_for :title, @meeting_key ? "Ledger: #{@meeting_key}" : "Ledger Dashboard" %>
+<% content_for :title, @meeting_key ? "台帳: #{@meeting_key}" : "台帳ダッシュボード" %>
 
 <%
   def cadence_age_label(seconds)
@@ -25,24 +25,33 @@
 
   status_icon  = { healthy: "✅", late: "⚠️", stale: "🔴", missing: "❌" }
   status_color = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }
+  status_label = { healthy: "正常", late: "要注意", stale: "停滞", missing: "未実行" }
+  ticket_status_label = {
+    draft: "下書き",
+    waiting_review: "レビュー待ち",
+    overdue: "期限超過",
+    approved: "承認済み",
+    rejected: "却下",
+    cancelled: "取消"
+  }
 %>
 
 <%# ===== ナビゲーションバー ===== %>
 <div class="card" style="padding:10px 16px;">
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <% if @meeting_key.present? %>
-      <%= link_to "← Dashboard", admin_ops_ledgers_path(service_id: @service_id), class: "btn btn-sm", style: "background:#2d3748; color:#a0aec0;" %>
+      <%= link_to "← ダッシュボードへ", admin_ops_ledgers_path(service_id: @service_id), class: "btn btn-sm", style: "background:#2d3748; color:#a0aec0;" %>
       <strong style="color:#e2e8f0; font-size:1.1em;"><%= @meeting_key %></strong>
       <span style="color:#718096; font-size:0.85em;">実行履歴</span>
     <% else %>
-      <strong style="color:#e2e8f0; font-size:1.1em;">Ledger Dashboard</strong>
+      <strong style="color:#e2e8f0; font-size:1.1em;">台帳ダッシュボード</strong>
     <% end %>
     <div style="flex:1;"></div>
     <%# service_id フィルタ %>
     <%= form_with url: admin_ops_ledgers_path, method: :get, local: true do |f| %>
       <%= f.hidden_field :meeting_key, value: @meeting_key %>
       <div style="display:flex; gap:6px;">
-        <%= f.text_field :service_id, value: @service_id, placeholder: "service_id", style: "width:160px; padding:5px 8px; border-radius:5px; border:1px solid #2d3748; background:#1a202c; color:#e2e8f0; font-size:0.85em;" %>
+        <%= f.text_field :service_id, value: @service_id, placeholder: "サービスID", style: "width:160px; padding:5px 8px; border-radius:5px; border:1px solid #2d3748; background:#1a202c; color:#e2e8f0; font-size:0.85em;" %>
         <%= f.submit "絞込", class: "btn btn-sm", style: "background:#2d3748; color:#e2e8f0;" %>
         <%= link_to "全表示", admin_ops_ledgers_path(meeting_key: @meeting_key), class: "btn btn-sm", style: "background:#1a202c; color:#718096; border:1px solid #2d3748;" %>
       </div>
@@ -59,7 +68,7 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap; padding:8px 0;">
     <div style="flex:1; display:flex; gap:8px; flex-wrap:wrap;">
       <% [
-        [:waiting_review, "待ちレビュー", "#f6ad55"],
+        [:waiting_review, "改善レビュー待ち", "#f6ad55"],
         [:overdue, "期限超過", "#fc8181"],
         [:non_approval, "非承認", "#f6ad55"],
         [:active_stop, "稼働停止", "#fc8181"]
@@ -74,13 +83,13 @@
     <% if has_alerts %>
       <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         <% if @alert_summary[:overdue].to_i > 0 || @alert_summary[:waiting_review].to_i > 0 %>
-          <%= link_to "Tickets →", admin_ops_ledgers_path, class: "btn btn-sm", style: "background:#744210; color:#f6ad55;" %>
+          <%= link_to "チケットへ →", admin_ops_ledgers_path, class: "btn btn-sm", style: "background:#744210; color:#f6ad55;" %>
         <% end %>
         <% if @alert_summary[:non_approval].to_i > 0 %>
-          <%= link_to "Audit →", admin_ops_audit_decisions_path, class: "btn btn-sm", style: "background:#744210; color:#f6ad55;" %>
+          <%= link_to "監査へ →", admin_ops_audit_decisions_path, class: "btn btn-sm", style: "background:#744210; color:#f6ad55;" %>
         <% end %>
         <% if @alert_summary[:active_stop].to_i > 0 %>
-          <%= link_to "Stops →", admin_ops_stops_path, class: "btn btn-danger btn-sm" %>
+          <%= link_to "停止一覧へ →", admin_ops_stops_path, class: "btn btn-danger btn-sm" %>
         <% end %>
       </div>
     <% end %>
@@ -91,11 +100,17 @@
 <% if @cadence_health.present? %>
   <div class="card">
     <h2 style="margin-bottom:12px;">
-      Cadence 稼働状況
+      実行周期の稼働状況
       <% if @meeting_key.present? %>
         — <span style="color:#a0aec0;"><%= @meeting_key %></span>
       <% end %>
     </h2>
+    <div style="font-size:0.78em; color:#a0aec0; margin-bottom:10px; display:flex; gap:10px; flex-wrap:wrap;">
+      <span>✅ 正常（周期の2倍以内）</span>
+      <span>⚠️ 要注意（2倍超〜5倍以内）</span>
+      <span>🔴 停滞（5倍超）</span>
+      <span>❌ 未実行（履歴なし）</span>
+    </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <% @cadence_health.each do |h| %>
         <%
@@ -107,7 +122,7 @@
         <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:130px; <%= card_border %> flex:1;">
           <div style="font-size:0.75em; color:#718096; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;"><%= cadence_interval_label(h[:interval]) %>周期</div>
           <div style="font-size:1.05em; font-weight:700; color:#e2e8f0; margin-bottom:2px;"><%= h[:cadence] %></div>
-          <div style="font-size:1.3em; margin-bottom:4px;"><%= status_icon[h[:status]] %> <span style="font-size:0.7em; color:<%= status_color[h[:status]] %>; vertical-align:middle;"><%= h[:status] %></span></div>
+          <div style="font-size:1.3em; margin-bottom:4px;"><%= status_icon[h[:status]] %> <span style="font-size:0.7em; color:<%= status_color[h[:status]] %>; vertical-align:middle;"><%= status_label.fetch(h[:status], h[:status].to_s) %></span></div>
           <div style="font-size:0.8em; color:#a0aec0; margin-bottom:2px;">
             最終: <%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "なし" %>
           </div>
@@ -126,7 +141,7 @@
             </div>
           <% end %>
           <div style="display:flex; gap:6px;">
-            <%= link_to "一覧 →", admin_ops_ledgers_path(link_params), class: "btn btn-sm", style: "background:#2d3748; color:#a0aec0; font-size:0.75em; padding:3px 8px; #{is_current ? "background:#2b6cb0; color:#bee3f8;" : ""}" %>
+            <%= link_to "履歴一覧 →", admin_ops_ledgers_path(link_params), class: "btn btn-sm", style: "background:#2d3748; color:#a0aec0; font-size:0.75em; padding:3px 8px; #{is_current ? "background:#2b6cb0; color:#bee3f8;" : ""}" %>
             <% if h[:last_id] %>
               <%= link_to "最新 ↗", admin_ops_ledger_path(h[:last_id]), class: "btn btn-sm", style: "background:#1a365d; color:#63b3ed; font-size:0.75em; padding:3px 8px;" %>
             <% end %>
@@ -149,9 +164,9 @@
         <div style="background:#1a202c; border-radius:8px; padding:12px 16px; flex:1; min-width:140px; border:1px solid <%= stops > 0 ? "#fc818155" : "#2d374855" %>;">
           <div style="font-weight:700; color:#e2e8f0; font-size:1.05em; margin-bottom:8px;"><%= svc %></div>
           <div style="display:flex; gap:12px; font-size:0.85em; margin-bottom:10px;">
-            <div><span style="color:#718096;">Meetings </span><strong style="color:#e2e8f0;"><%= meetings %></strong></div>
-            <div><span style="color:#718096;">Tickets </span><strong style="color:#e2e8f0;"><%= tickets %></strong></div>
-            <div><span style="color:#718096;">Stops </span><strong style="color:<%= stops > 0 ? "#fc8181" : "#68d391" %>; font-weight:700;"><%= stops %></strong></div>
+            <div><span style="color:#718096;">会議 </span><strong style="color:#e2e8f0;"><%= meetings %></strong></div>
+            <div><span style="color:#718096;">チケット </span><strong style="color:#e2e8f0;"><%= tickets %></strong></div>
+            <div><span style="color:#718096;">停止 </span><strong style="color:<%= stops > 0 ? "#fc8181" : "#68d391" %>; font-weight:700;"><%= stops %></strong></div>
           </div>
           <%= link_to "詳細 →", admin_ops_ledgers_path(service_id: svc), class: "btn btn-sm", style: "background:#2d3748; color:#a0aec0; font-size:0.75em;" %>
         </div>
@@ -168,19 +183,19 @@
       <%= @meeting_key %> 実行履歴
       <span style="font-size:0.75em; color:#718096; font-weight:normal; margin-left:8px;">（直近 <%= @meeting_ledgers.size %> 件）</span>
       <% if @service_id.present? %>
-        <span style="font-size:0.75em; color:#a0aec0; font-weight:normal;"> / service: <%= @service_id %></span>
+        <span style="font-size:0.75em; color:#a0aec0; font-weight:normal;"> / サービス: <%= @service_id %></span>
       <% end %>
     </h2>
     <table>
       <thead>
         <tr>
           <th>ID</th>
-          <th>held_at</th>
-          <th>service_id</th>
-          <th>status</th>
-          <th>hold_items</th>
-          <th>carry_over</th>
-          <th>health</th>
+          <th>実行日時</th>
+          <th>サービスID</th>
+          <th>状態</th>
+          <th>保留項目</th>
+          <th>繰越</th>
+          <th>健全性</th>
           <th>詳細</th>
         </tr>
       </thead>
@@ -194,7 +209,7 @@
             <td><%= m.held_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "-" %></td>
             <td><%= m.service_id.presence || "-" %></td>
             <td>
-              <span style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status %></span>
+              <span style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status_closed? ? "完了" : "進行中" %></span>
             </td>
             <td>
               <% if hold_items.empty? %>
@@ -232,18 +247,18 @@
       <h2>
         関連チケット
         <span style="font-size:0.75em; color:#718096; font-weight:normal; margin-left:8px;">（<%= @ticket_ledgers.size %> 件）</span>
-        <span style="font-size:0.75em; color:#a0aec0; font-weight:normal; margin-left:4px;">Open improvements: <%= @open_improvement_count %></span>
+        <span style="font-size:0.75em; color:#a0aec0; font-weight:normal; margin-left:4px;">未対応改善チケット: <%= @open_improvement_count %></span>
       </h2>
       <table>
         <thead>
           <tr>
             <th>ID</th>
-            <th>ticket_type</th>
-            <th>service_id</th>
-            <th>status</th>
-            <th>assignee</th>
-            <th>due_date</th>
-            <th>resolved_at</th>
+            <th>種別</th>
+            <th>サービスID</th>
+            <th>状態</th>
+            <th>担当</th>
+            <th>期限</th>
+            <th>解決日時</th>
           </tr>
         </thead>
         <tbody>
@@ -252,7 +267,7 @@
               <td style="color:#718096;"><%= t.id %></td>
               <td>
                 <% if t.ticket_type_improvement? %>
-                  <span class="ticket-type-badge-improvement">improvement</span>
+                  <span class="ticket-type-badge-improvement">改善</span>
                 <% else %>
                   <span style="font-size:0.85em;"><%= t.ticket_type %></span>
                 <% end %>
@@ -260,11 +275,11 @@
               <td><%= t.service_id.presence || "-" %></td>
               <td>
                 <% if t.status_overdue? %>
-                  <span style="color:#f56565; font-weight:600;">overdue</span>
+                    <span style="color:#f56565; font-weight:600;">期限超過</span>
                 <% elsif t.status_waiting_review? %>
-                  <span style="color:#f6ad55;">waiting_review</span>
+                    <span style="color:#f6ad55;">レビュー待ち</span>
                 <% else %>
-                  <span style="color:#a0aec0; font-size:0.85em;"><%= t.status %></span>
+                    <span style="color:#a0aec0; font-size:0.85em;"><%= ticket_status_label.fetch(t.status.to_s.to_sym, t.status.to_s) %></span>
                 <% end %>
               </td>
               <td style="font-size:0.85em;"><%= t.assignee.presence || "-" %></td>
@@ -288,11 +303,11 @@
       <table>
         <thead>
           <tr>
-            <th>cadence</th>
-            <th>held_at</th>
-            <th>service_id</th>
-            <th>status</th>
-            <th>hold_items</th>
+            <th>周期</th>
+            <th>実行日時</th>
+            <th>サービスID</th>
+            <th>状態</th>
+            <th>保留項目</th>
             <th>詳細</th>
           </tr>
         </thead>
@@ -307,7 +322,7 @@
               <td><%= m.held_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "-" %></td>
               <td style="font-size:0.85em; color:#a0aec0;"><%= m.service_id.presence || "-" %></td>
               <td>
-                <span style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status %></span>
+                <span style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status_closed? ? "完了" : "進行中" %></span>
               </td>
               <td>
                 <% if hold_items.empty? %>
