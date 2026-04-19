@@ -14,8 +14,11 @@ Rails.application.reloader.to_prepare do
     WeeklyKpiSnapshotJob
     WeeklyDeptLedgerRunJob
     MonthlyOpsLedgerRunJob
+    DailyLedgerRunJob
     TicketOverdueCheckJob
     ImprovementDetectorJob
+    ImprovementResolverJob
+    ImprovementEscalationJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob
@@ -29,9 +32,6 @@ Rails.application.reloader.to_prepare do
     AnnualPlanLedgerRunJob
     HrEvaluationRunJob
     PortfolioRebalanceRunJob
-    ImprovementDetectorJob
-    ImprovementResolverJob
-    ImprovementEscalationJob
     ExperimentAutoDeciderJob
     SlaSweepJob
     KpiAutoCollectJob

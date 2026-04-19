@@ -1,13 +1,14 @@
 module Ledgers
   class WeeklyDeptRunner
-    def self.call(service_id:, ticket_inputs: nil, present_roles: nil)
-      new(service_id:, ticket_inputs:, present_roles:).call
+    def self.call(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
+      new(service_id:, ticket_inputs:, present_roles:, meeting_key:).call
     end
 
-    def initialize(service_id:, ticket_inputs: nil, present_roles: nil)
+    def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
       @service_id = service_id
       @ticket_inputs = ticket_inputs.presence || default_ticket_inputs
       @present_roles = present_roles
+      @meeting_key = meeting_key
     end
 
     def call
@@ -25,8 +26,9 @@ module Ledgers
         held_at: Time.current,
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
-          prefix: "weekly_dept",
-          parts: [ service_id ]
+          prefix: @meeting_key,
+          parts: [ service_id ],
+          cadence: :weekly
         )
       )
 
@@ -85,7 +87,7 @@ module Ledgers
       # Phase 31c: 会議の議事要約を成果物台帳に自動記録する
       Ledgers::RunnerArtifactPublisher.publish_for!(
         meeting: meeting,
-        runner: :weekly_dept,
+        runner: @meeting_key.to_sym,
         service_id: service_id
       )
 
@@ -97,18 +99,18 @@ module Ledgers
     attr_reader :service_id, :ticket_inputs
 
     def meeting_definition!
-      MeetingDefinition.find_by!(meeting_key: "weekly_dept", scope_level: :service)
+      MeetingDefinition.find_by!(meeting_key: @meeting_key, scope_level: :service)
     end
 
     def default_ticket_inputs
       [
         {
           ticket_type: "operations",
-          title: "weekly_dept default ticket for #{service_id}",
+          title: "#{@meeting_key} default ticket for #{service_id}",
           linked_kpis: [ "kpi:service_health" ],
           audit_ok: true,
           owner_dept: "planning",
-          owner_agent: "weekly_dept_runner"
+          owner_agent: "#{@meeting_key}_runner"
         }
       ]
     end
@@ -130,7 +132,7 @@ module Ledgers
         priority: attrs[:priority] || :medium,
         status: audit_ok ? :approved : :waiting_review,
         assignee: service_id,
-        due_date: Date.current + 7.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:weekly),
         due_cycle: :weekly,
         escalation_to: audit_ok ? nil : :monthly
       )

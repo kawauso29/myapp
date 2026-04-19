@@ -35,7 +35,7 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
       expect(waiting_ticket.reload).to be_status_cancelled
       expect(waiting_ticket.resolved_at).to be_present
       expect(waiting_ticket.assignee).to eq("monthly_ops_runner")
-      expect(waiting_ticket.due_date).to eq(Date.current + 30.days)
+      expect(waiting_ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:monthly))
       expect(waiting_ticket.escalation_to).to be_nil
       expect(meeting.decisions).to include(a_hash_including("ticket_id" => waiting_ticket.id, "resolution" => "cancelled"))
     end
@@ -45,6 +45,16 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
 
       expect(Ledgers::ImprovementResolver).to have_received(:call)
       expect(Ledgers::ImprovementEscalator).to have_received(:call)
+    end
+
+    it "carries over hold_items from previous weekly_dept meeting (補強8)" do
+      weekly_def = create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
+      prev_weekly = create(:meeting_ledger, meeting_definition: weekly_def, meeting_key: "weekly_dept",
+                           meeting_type: :weekly, hold_items: [ { "title" => "pending item" } ])
+
+      meeting = described_class.call(resolution_map: {})
+
+      expect(meeting.carry_over_items).to eq([ { "title" => "pending item" } ])
     end
   end
 end

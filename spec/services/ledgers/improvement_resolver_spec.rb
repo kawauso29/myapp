@@ -8,6 +8,9 @@ RSpec.describe Ledgers::ImprovementResolver do
     let!(:monthly_definition) do
       create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil)
     end
+    let!(:ui_check_definition) do
+      create(:meeting_definition, meeting_key: "ui_check", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
+    end
 
     it "resolves high_overdue_rate when overdue rate is cleared" do
       ticket = create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review, linked_kpis: { rule: "high_overdue_rate" })
@@ -82,6 +85,39 @@ RSpec.describe Ledgers::ImprovementResolver do
       expect(result[:resolved]).to eq(0)
       expect(ticket.reload).to be_status_waiting_review
       expect(ticket.linked_kpis["resolution"]).to be_nil
+    end
+
+    it "resolves stale_ui_check when ui_check meeting was recently held" do
+      ticket = create(:ticket_ledger,
+                      ticket_type: :improvement,
+                      status: :waiting_review,
+                      service_id: "ai_sns",
+                      linked_kpis: { rule: "stale_ui_check", service_id: "ai_sns" })
+      create(:meeting_ledger,
+             meeting_definition: ui_check_definition,
+             meeting_key: "ui_check",
+             service_id: "ai_sns",
+             held_at: 1.day.ago,
+             status: :closed)
+
+      result = described_class.call
+
+      expect(result[:resolved]).to eq(1)
+      expect(ticket.reload).to be_status_approved
+      expect(ticket.linked_kpis["resolution"]["last_check_at"]).to be_present
+    end
+
+    it "does not resolve stale_ui_check when ui_check is still stale" do
+      ticket = create(:ticket_ledger,
+                      ticket_type: :improvement,
+                      status: :waiting_review,
+                      service_id: "ai_sns",
+                      linked_kpis: { rule: "stale_ui_check", service_id: "ai_sns" })
+
+      result = described_class.call
+
+      expect(result[:resolved]).to eq(0)
+      expect(ticket.reload).to be_status_waiting_review
     end
   end
 end

@@ -20,10 +20,10 @@ RSpec.describe "recurring schedule config" do
 
     expect(config.dig(:production, :weekly_dept_ledger_run, :class)).to eq("WeeklyDeptLedgerRunJob")
     expect(config.dig(:production, :weekly_dept_ledger_run, :args)).to eq([ "ai_sns" ])
-    expect(config.dig(:production, :weekly_dept_ledger_run, :schedule)).to eq("0 0 * * 1")
+    expect(config.dig(:production, :weekly_dept_ledger_run, :schedule)).to eq("0 */4 * * *")
 
     expect(config.dig(:production, :monthly_ops_ledger_run, :class)).to eq("MonthlyOpsLedgerRunJob")
-    expect(config.dig(:production, :monthly_ops_ledger_run, :schedule)).to eq("0 0 1 * *")
+    expect(config.dig(:production, :monthly_ops_ledger_run, :schedule)).to eq("0 */12 * * *")
 
     expect(config.dig(:production, :ticket_overdue_check, :class)).to eq("TicketOverdueCheckJob")
     expect(config.dig(:production, :ticket_overdue_check, :schedule)).to eq("0 21 * * *")

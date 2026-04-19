@@ -30,5 +30,37 @@ RSpec.describe Ledgers::IdempotencyKey do
 
       expect(key).to eq("weekly_dept:2026-04-17")
     end
+
+    context "with cadence:" do
+      it "uses Ledgers::TimeAxis.slot_token instead of date for the trailing segment" do
+        at = Time.utc(2026, 4, 19, 13, 30, 0)
+        allow(Time).to receive(:current).and_return(at)
+
+        key = described_class.for_meeting(prefix: "weekly_dept", parts: [ "ai_sns" ], cadence: :weekly)
+
+        # weekly = 4 時間 slot → [12:00, 16:00)
+        expect(key).to eq("weekly_dept:ai_sns:2026-04-19T12:00:00Z")
+      end
+
+      it "produces the same key for two calls within the same cadence slot (idempotent)" do
+        allow(Time).to receive(:current).and_return(Time.utc(2026, 4, 19, 0, 5, 0))
+        key_a = described_class.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+
+        allow(Time).to receive(:current).and_return(Time.utc(2026, 4, 19, 11, 59, 59))
+        key_b = described_class.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+
+        expect(key_a).to eq(key_b)
+      end
+
+      it "produces different keys for calls across the cadence slot boundary" do
+        allow(Time).to receive(:current).and_return(Time.utc(2026, 4, 19, 11, 59, 59))
+        key_a = described_class.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+
+        allow(Time).to receive(:current).and_return(Time.utc(2026, 4, 19, 12, 0, 1))
+        key_b = described_class.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+
+        expect(key_a).not_to eq(key_b)
+      end
+    end
   end
 end

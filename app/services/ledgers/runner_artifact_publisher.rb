@@ -11,7 +11,9 @@ module Ledgers
   class RunnerArtifactPublisher
     # runner 識別子ごとの artifact タイトル接頭辞
     TITLE_PREFIXES = {
+      daily: "Daily Summary",
       weekly_dept: "Weekly Dept Minutes Summary",
+      ui_check: "UI Check Minutes Summary",
       monthly_ops: "Monthly Ops Minutes Summary",
       quarterly_review: "Quarterly Review Summary",
       annual_plan: "Annual Plan Summary"
@@ -69,7 +71,7 @@ module Ledgers
     def build_title
       prefix = TITLE_PREFIXES.fetch(@runner, "Runner Output")
       case @runner
-      when :weekly_dept
+      when :daily, :weekly_dept, :ui_check
         "#{prefix} (#{@service_id})"
       else
         prefix
@@ -78,7 +80,7 @@ module Ledgers
 
     def scope_level
       case @runner
-      when :weekly_dept
+      when :daily, :weekly_dept, :ui_check
         :service
       else
         :company

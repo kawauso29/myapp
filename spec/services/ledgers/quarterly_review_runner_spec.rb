@@ -23,17 +23,21 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
         escalated_quarterly: 0,
         details: []
       )
-      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 10.days.ago, held_at: 10.days.ago)
-      create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops", meeting_type: :monthly, created_at: 20.days.ago, held_at: 20.days.ago)
-      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 100.days.ago, held_at: 100.days.ago)
+      # 圧縮 quarterly = 2 日が range_start。範囲内 / 範囲外の境界をテストする
+      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 6.hours.ago, held_at: 6.hours.ago)
+      create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops", meeting_type: :monthly, created_at: 1.day.ago, held_at: 1.day.ago)
+      # 範囲外（2 日より前）: カウントされない
+      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 5.days.ago, held_at: 5.days.ago)
 
-      create(:ticket_ledger, status: :approved, created_at: 10.days.ago)
-      create(:ticket_ledger, status: :cancelled, created_at: 5.days.ago)
-      create(:ticket_ledger, status: :overdue, created_at: 2.days.ago)
-      create(:ticket_ledger, status: :approved, created_at: 120.days.ago)
+      create(:ticket_ledger, status: :approved, created_at: 6.hours.ago)
+      create(:ticket_ledger, status: :cancelled, created_at: 12.hours.ago)
+      create(:ticket_ledger, status: :overdue, created_at: 1.day.ago)
+      # 範囲外: カウントされない
+      create(:ticket_ledger, status: :approved, created_at: 5.days.ago)
 
-      create(:kpi_snapshot, recorded_on: 14.days.ago.to_date)
-      create(:kpi_snapshot, recorded_on: 120.days.ago.to_date)
+      create(:kpi_snapshot, recorded_on: 1.day.ago.to_date)
+      # 範囲外
+      create(:kpi_snapshot, recorded_on: 5.days.ago.to_date)
     end
 
     it "creates quarterly review meeting and summary ticket" do
@@ -46,7 +50,7 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
       expect(ticket.title).to match(/^Q\d #{Date.current.year} Review Summary$/)
       expect(ticket).to be_status_approved
       expect(ticket.assignee).to eq("quarterly_review_runner")
-      expect(ticket.due_date).to eq(Date.current + 90.days)
+      expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:quarterly))
       expect(ticket.resolved_at).to be_present
       expect(ticket.linked_kpis).to include(
         "meetings_held" => 2,
@@ -58,6 +62,15 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
       expect(ticket.linked_artifacts.size).to eq(1)
       expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => ticket.id))
       expect(Ledgers::ImprovementEscalator).to have_received(:call)
+    end
+
+    it "carries over hold_items from previous monthly_ops meeting (補強8)" do
+      monthly = create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops",
+                       meeting_type: :monthly, hold_items: [ { "title" => "monthly pending" } ])
+
+      meeting = described_class.call
+
+      expect(meeting.carry_over_items).to eq([ { "title" => "monthly pending" } ])
     end
   end
 end

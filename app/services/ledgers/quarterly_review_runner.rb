@@ -25,7 +25,8 @@ module Ledgers
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
           prefix: "quarterly_review",
-          parts: [ Date.current.year, "q#{quarter_number}" ]
+          parts: [ Date.current.year, "q#{quarter_number}" ],
+          cadence: :quarterly
         )
       )
 
@@ -44,7 +45,7 @@ module Ledgers
         priority: :medium,
         status: :approved,
         assignee: DEFAULT_ASSIGNEE,
-        due_date: Date.current + 90.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:quarterly),
         due_cycle: :quarterly,
         resolved_at: Time.current
       )
@@ -52,6 +53,7 @@ module Ledgers
       meeting.update!(
         decisions: [ { summary_ticket_id: ticket.id, metrics: } ],
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
+        carry_over_items: previous_hold_items,
         status: :closed
       )
       Ledgers::ImprovementEscalator.call
@@ -100,7 +102,15 @@ module Ledgers
     end
 
     def range_start
-      @range_start ||= 90.days.ago
+      @range_start ||= Ledgers::TimeAxis.interval_for(:quarterly).ago
+    end
+
+    # 補強8: 前回 monthly_ops 会議の hold_items を引き継ぐ
+    def previous_hold_items
+      prev = MeetingLedger.where(meeting_key: "monthly_ops")
+                          .order(held_at: :desc)
+                          .first
+      prev&.hold_items || []
     end
   end
 end

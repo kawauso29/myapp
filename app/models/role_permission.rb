@@ -32,7 +32,7 @@ class RolePermission < ApplicationRecord
     company: 0,
     portfolio: 1,
     service: 2,
-    short_term: 3
+    cross_service: 3
   }, prefix: true
 
   enum :approver_role, {

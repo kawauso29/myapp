@@ -25,7 +25,8 @@ module Ledgers
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
           prefix: "annual_plan",
-          parts: [ "fy#{Date.current.year}" ]
+          parts: [ "fy#{Date.current.year}" ],
+          cadence: :annual
         )
       )
       @current_meeting_id = meeting.id
@@ -42,7 +43,7 @@ module Ledgers
         priority: :medium,
         status: :approved,
         assignee: DEFAULT_ASSIGNEE,
-        due_date: Date.current + 365.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:annual),
         due_cycle: :annual,
         resolved_at: Time.current
       )
@@ -50,6 +51,7 @@ module Ledgers
       meeting.update!(
         decisions: [ { summary_ticket_id: ticket.id, metrics: } ],
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
+        carry_over_items: previous_hold_items,
         status: :closed
       )
 
@@ -107,7 +109,15 @@ module Ledgers
     end
 
     def range_start
-      @range_start ||= 365.days.ago
+      @range_start ||= Ledgers::TimeAxis.interval_for(:annual).ago
+    end
+
+    # 補強8: 前回 quarterly_review 会議の hold_items を引き継ぐ
+    def previous_hold_items
+      prev = MeetingLedger.where(meeting_key: "quarterly_review")
+                          .order(held_at: :desc)
+                          .first
+      prev&.hold_items || []
     end
   end
 end

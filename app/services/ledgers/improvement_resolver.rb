@@ -4,6 +4,8 @@ module Ledgers
     STALE_SERVICE_DAYS = 14
     OVERDUE_RATE_THRESHOLD = 0.2
     OPEN_STATUSES = %i[waiting_review overdue].freeze
+    UI_CHECK_STALE_DAYS = 3
+    UI_CHECK_SERVICE_ID = "ai_sns".freeze
 
     def self.call
       new.call
@@ -51,6 +53,8 @@ module Ledgers
         stale_service_cleared?(ticket)
       when "monthly_hold_accumulation"
         monthly_hold_count < 3
+      when "stale_ui_check"
+        ui_check_recent?
       else
         false
       end
@@ -74,6 +78,8 @@ module Ledgers
         { "last_audit_at" => last_audit_at(service_id: linked_service_id(ticket))&.iso8601 }
       when "monthly_hold_accumulation"
         { "hold_count" => monthly_hold_count }
+      when "stale_ui_check"
+        { "last_check_at" => last_ui_check_at&.iso8601 }
       else
         {}
       end
@@ -117,6 +123,16 @@ module Ledgers
       return 0 unless meeting
 
       Array(meeting.hold_items).count
+    end
+
+    def ui_check_recent?
+      MeetingLedger.where(meeting_key: "ui_check", service_id: UI_CHECK_SERVICE_ID)
+                   .where(held_at: UI_CHECK_STALE_DAYS.days.ago..Time.current)
+                   .exists?
+    end
+
+    def last_ui_check_at
+      MeetingLedger.where(meeting_key: "ui_check", service_id: UI_CHECK_SERVICE_ID).maximum(:held_at)
     end
 
     def current_overdue_rate

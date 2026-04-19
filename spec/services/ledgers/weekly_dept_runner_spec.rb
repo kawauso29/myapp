@@ -35,7 +35,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(ticket).to be_escalation_to_monthly
       expect(ticket.linked_kpis).to eq([ "kpi:risk" ])
       expect(ticket.assignee).to eq("ai_sns")
-      expect(ticket.due_date).to eq(Date.current + 7.days)
+      expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:weekly))
       expect(ticket.resolved_at).to be_nil
       expect(ticket.source_meeting).to eq(meeting)
       expect(meeting.escalations.size).to eq(1)
@@ -60,7 +60,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(ticket).to be_status_approved
       expect(ticket.resolved_at).to be_present
       expect(ticket.assignee).to eq("ai_sns")
-      expect(ticket.due_date).to eq(Date.current + 7.days)
+      expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:weekly))
     end
 
     it "holds ticket creation when linked_kpis is empty" do
@@ -133,7 +133,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         present_roles: %w[planning dev audit]
       )
 
-      expected_key = "weekly_dept:ai_sns:#{Date.current.iso8601}"
+      expected_key = "weekly_dept:ai_sns:#{Ledgers::TimeAxis.slot_token(:weekly)}"
       expect(meeting.idempotency_key).to eq(expected_key)
       # definition has 5 participant_roles, so 3 / 5 = 0.6
       expect(meeting.role_fill_rate.to_f).to be_within(0.0001).of(0.6)
@@ -151,6 +151,31 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       meeting = MeetingLedger.last
       expect(meeting.hold_items).to be_present
       expect(meeting.carry_over_items).to eq(meeting.hold_items)
+    end
+
+    context "when meeting_key is ui_check" do
+      let!(:ui_check_definition) do
+        create(:meeting_definition,
+               meeting_key: "ui_check",
+               meeting_type: :weekly,
+               scope_level: :service,
+               service_id: "ai_sns")
+      end
+
+      it "creates MeetingLedger with meeting_key: ui_check and correct idempotency_key" do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+        meeting = described_class.call(
+          service_id: "ai_sns",
+          meeting_key: "ui_check",
+          ticket_inputs: [
+            { ticket_type: "ops", title: "ui check ticket", linked_kpis: [ "kpi:service_health" ], audit_ok: true }
+          ]
+        )
+
+        expect(meeting.meeting_key).to eq("ui_check")
+        expect(meeting.idempotency_key).to eq("ui_check:ai_sns:#{Ledgers::TimeAxis.slot_token(:weekly)}")
+      end
     end
   end
 end
