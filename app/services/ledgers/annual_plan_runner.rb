@@ -51,6 +51,7 @@ module Ledgers
       meeting.update!(
         decisions: [ { summary_ticket_id: ticket.id, metrics: } ],
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
+        carry_over_items: previous_hold_items,
         status: :closed
       )
 
@@ -109,6 +110,14 @@ module Ledgers
 
     def range_start
       @range_start ||= Ledgers::TimeAxis.interval_for(:annual).ago
+    end
+
+    # 補強8: 前回 quarterly_review 会議の hold_items を引き継ぐ
+    def previous_hold_items
+      prev = MeetingLedger.where(meeting_key: "quarterly_review")
+                          .order(held_at: :desc)
+                          .first
+      prev&.hold_items || []
     end
   end
 end

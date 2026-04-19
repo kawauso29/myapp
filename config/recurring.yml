@@ -135,6 +135,13 @@ production:
   # 各 Runner は `idempotency_key` に cadence ベースの slot を含めるため、
   # cron が同 slot 内に複数回ヒットしても 2 回目以降は DB ユニーク制約で弾かれる。
 
+  # daily = 30分 → 30 分ごと（設計書 §12.6: 会議なし種別の速報・異常検知・KPI スナップショット）
+  daily_ledger_run:
+    class: DailyLedgerRunJob
+    queue: default
+    args: [ "ai_sns" ]
+    schedule: "*/30 * * * *"
+
   # weekly = 4時間 → 4 時間ごと（00, 04, 08, 12, 16, 20 UTC）
   weekly_dept_ledger_run:
     class: WeeklyDeptLedgerRunJob

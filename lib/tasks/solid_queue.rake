@@ -14,6 +14,7 @@ namespace :solid_queue do
     WeeklyKpiSnapshotJob
     WeeklyDeptLedgerRunJob
     MonthlyOpsLedgerRunJob
+    DailyLedgerRunJob
     TicketOverdueCheckJob
     ImprovementDetectorJob
     PicroCheckJob

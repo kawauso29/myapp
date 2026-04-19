@@ -56,5 +56,14 @@ RSpec.describe Ledgers::AnnualPlanRunner do
       )
       expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => ticket.id))
     end
+
+    it "carries over hold_items from previous quarterly_review meeting (補強8)" do
+      prev_quarterly = create(:meeting_ledger, meeting_definition: quarterly_definition, meeting_key: "quarterly_review",
+                              meeting_type: :quarterly_review, hold_items: [ { "title" => "quarterly pending" } ])
+
+      meeting = described_class.call
+
+      expect(meeting.carry_over_items).to eq([ { "title" => "quarterly pending" } ])
+    end
   end
 end

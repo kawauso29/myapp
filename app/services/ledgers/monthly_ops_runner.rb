@@ -52,7 +52,8 @@ module Ledgers
         details: Array(resolver_result.fetch(:details, [])) + Array(escalation_result.fetch(:details, []))
       }
 
-      meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed)
+      meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed,
+                     carry_over_items: previous_hold_items)
 
       # Phase 31c: 月次会議の議事要約を成果物台帳に自動記録する
       Ledgers::RunnerArtifactPublisher.publish_for!(meeting: meeting, runner: :monthly_ops)
@@ -75,6 +76,14 @@ module Ledgers
       return resolution if ALLOWED_RESOLUTIONS.include?(resolution)
 
       "approved"
+    end
+
+    # 補強8: 前回 weekly_dept 会議の hold_items を引き継ぐ
+    def previous_hold_items
+      prev = MeetingLedger.where(meeting_key: "weekly_dept")
+                          .order(held_at: :desc)
+                          .first
+      prev&.hold_items || []
     end
   end
 end

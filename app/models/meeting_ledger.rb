@@ -9,7 +9,8 @@ class MeetingLedger < ApplicationRecord
     weekly: 4,
     incident: 5,
     quarterly_review: 6,
-    annual_plan: 7
+    annual_plan: 7,
+    daily: 8
   }, prefix: true
 
   enum :scope_level, {

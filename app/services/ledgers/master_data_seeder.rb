@@ -24,6 +24,17 @@ module Ledgers
     private
 
     def seed_meeting_definitions!
+      # 設計書 §12.6 選択肢A: daily（圧縮 30分周期）は会議なし種別。
+      # KPI スナップショットと異常検知を自動記録する。
+      MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+        d.writes_ledgers = %w[meeting_ledger]
+      end
+
       weekly = MeetingDefinition.find_or_create_by!(meeting_key: "weekly_dept") do |d|
         d.meeting_type = :weekly
         d.scope_level = :service

@@ -63,5 +63,14 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
       expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => ticket.id))
       expect(Ledgers::ImprovementEscalator).to have_received(:call)
     end
+
+    it "carries over hold_items from previous monthly_ops meeting (補強8)" do
+      monthly = create(:meeting_ledger, meeting_definition: monthly_definition, meeting_key: "monthly_ops",
+                       meeting_type: :monthly, hold_items: [ { "title" => "monthly pending" } ])
+
+      meeting = described_class.call
+
+      expect(meeting.carry_over_items).to eq([ { "title" => "monthly pending" } ])
+    end
   end
 end

@@ -14,6 +14,7 @@ Rails.application.reloader.to_prepare do
     WeeklyKpiSnapshotJob
     WeeklyDeptLedgerRunJob
     MonthlyOpsLedgerRunJob
+    DailyLedgerRunJob
     TicketOverdueCheckJob
     ImprovementDetectorJob
     ImprovementResolverJob

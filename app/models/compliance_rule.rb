@@ -13,7 +13,8 @@ class ComplianceRule < ApplicationRecord
   enum :scope_level, {
     company: 0,
     portfolio: 1,
-    service: 2
+    service: 2,
+    cross_service: 3
   }, prefix: true
 
   enum :severity, {

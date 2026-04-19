@@ -5,7 +5,8 @@ class TicketLedger < ApplicationRecord
   enum :scope_level, {
     company: 0,
     portfolio: 1,
-    service: 2
+    service: 2,
+    cross_service: 3
   }, prefix: true
 
   enum :source_meeting_type, {
@@ -14,7 +15,8 @@ class TicketLedger < ApplicationRecord
     quarterly: 2,
     monthly: 3,
     weekly: 4,
-    incident: 5
+    incident: 5,
+    daily: 6
   }, prefix: true
 
   # Phase 36 / §13: 28日運営レーン

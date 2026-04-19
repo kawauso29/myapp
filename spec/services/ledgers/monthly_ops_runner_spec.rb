@@ -46,5 +46,15 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
       expect(Ledgers::ImprovementResolver).to have_received(:call)
       expect(Ledgers::ImprovementEscalator).to have_received(:call)
     end
+
+    it "carries over hold_items from previous weekly_dept meeting (補強8)" do
+      weekly_def = create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns")
+      prev_weekly = create(:meeting_ledger, meeting_definition: weekly_def, meeting_key: "weekly_dept",
+                           meeting_type: :weekly, hold_items: [ { "title" => "pending item" } ])
+
+      meeting = described_class.call(resolution_map: {})
+
+      expect(meeting.carry_over_items).to eq([ { "title" => "pending item" } ])
+    end
   end
 end
