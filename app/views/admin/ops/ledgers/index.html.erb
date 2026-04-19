@@ -1,6 +1,89 @@
 <% content_for :title, "Ops Ledgers" %>
 
-<%# ===== アラートサマリー（全体表示時のみ） ===== %>
+<%# ===== Ledger cadence 稼働状況 ===== %>
+<% if @cadence_health.present? %>
+  <%
+    def cadence_age_label(seconds)
+      return "-" if seconds.nil?
+      if seconds < 3600
+        "#{(seconds / 60).to_i}分前"
+      elsif seconds < 86400
+        "#{(seconds / 3600).round(1)}時間前"
+      else
+        "#{(seconds / 86400).round(1)}日前"
+      end
+    end
+
+    def cadence_interval_label(duration)
+      sec = duration.to_i
+      if sec < 3600
+        "#{sec / 60}分"
+      elsif sec < 86400
+        "#{sec / 3600}時間"
+      else
+        "#{sec / 86400}日"
+      end
+    end
+
+    status_icon = { healthy: "✅", late: "⚠️", stale: "🔴", missing: "❌" }
+    status_color = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }
+    any_problem = @cadence_health.any? { |h| %i[late stale missing].include?(h[:status]) }
+  %>
+  <div class="card" style="<%= any_problem ? 'border-color:#f56565;' : '' %>">
+    <h2 style="<%= any_problem ? 'color:#fc8181;' : 'color:#68d391;' %>">
+      Ledger cadence 稼働状況
+      <% if @service_id.present? %>
+        <span style="font-size:0.8em; color:#a0aec0;">(service: <%= @service_id %>)</span>
+      <% end %>
+    </h2>
+    <table>
+      <thead>
+        <tr>
+          <th>cadence</th>
+          <th>interval</th>
+          <th>最終実行</th>
+          <th>経過時間</th>
+          <th>状態</th>
+          <th>直近10周期の件数</th>
+          <th>直近ジョブ（10件）成否</th>
+          <th>失敗数</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @cadence_health.each do |h| %>
+          <tr>
+            <td style="font-weight:600; color:#e2e8f0;"><%= h[:cadence] %></td>
+            <td style="color:#a0aec0;"><%= cadence_interval_label(h[:interval]) %></td>
+            <td><%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "-" %></td>
+            <td style="color:<%= h[:age_seconds] ? (h[:age_seconds] > h[:interval].to_i * 2 ? '#f6ad55' : '#68d391') : '#fc8181' %>">
+              <%= cadence_age_label(h[:age_seconds]) %>
+            </td>
+            <td style="color:<%= status_color[h[:status]] %>; font-weight:600;">
+              <%= status_icon[h[:status]] %> <%= h[:status] %>
+            </td>
+            <td><%= h[:recent_count] %></td>
+            <td>
+              <% if h[:job_rows].empty? %>
+                <span style="color:#4a5568;">記録なし</span>
+              <% else %>
+                <% h[:job_rows].each do |jr| %>
+                  <span title="<%= jr[:at]&.in_time_zone('Tokyo')&.strftime('%m/%d %H:%M') %>">
+                    <%= jr[:failed] ? "❌" : "✅" %>
+                  </span>
+                <% end %>
+              <% end %>
+            </td>
+            <td style="<%= h[:fail_count] > 0 ? 'color:#fc8181; font-weight:600;' : 'color:#68d391;' %>">
+              <%= h[:fail_count] %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+
 <% if @alert_summary.present? %>
   <% has_alerts = @alert_summary.values.any? { |v| v.to_i > 0 } %>
   <div class="card" style="<%= has_alerts ? 'border-color:#f56565;' : '' %>">
