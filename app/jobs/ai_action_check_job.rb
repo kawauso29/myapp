@@ -151,7 +151,10 @@ class AiActionCheckJob < ApplicationJob
     return if liked_posts.empty?
 
     previews = liked_posts.first(3).map do |post|
-      "ai_user_id=#{post.ai_user_id}: #{post.content.to_s.truncate(40)}"
+      assoc = post.association(:ai_user)
+      username = assoc.loaded? ? assoc.target&.username : nil
+      actor = username.present? ? "@#{username}" : "ai_user_id=#{post.ai_user_id}"
+      "#{actor}: #{post.content.to_s.truncate(40)}"
     end
 
     SlackNotifierService.notify(
