@@ -2,7 +2,7 @@
 # サービス追加時に自動的にスケジュールが生成される仕組み。
 class CreateServiceScheduleDefinitions < ActiveRecord::Migration[8.1]
   def change
-    create_table :service_schedule_definitions do |t|
+    create_table :service_schedule_definitions, if_not_exists: true do |t|
       t.string  :job_key,    null: false  # ユニークキー（例: "daily_ledger_run:ai_sns"）
       t.string  :job_class,  null: false  # ActiveJob クラス名
       t.string  :queue,      null: false, default: "default"
@@ -16,8 +16,8 @@ class CreateServiceScheduleDefinitions < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :service_schedule_definitions, :job_key, unique: true
-    add_index :service_schedule_definitions, :enabled
-    add_index :service_schedule_definitions, :service_id
+    add_index :service_schedule_definitions, :job_key, unique: true, if_not_exists: true
+    add_index :service_schedule_definitions, :enabled, if_not_exists: true
+    add_index :service_schedule_definitions, :service_id, if_not_exists: true
   end
 end

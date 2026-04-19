@@ -3,7 +3,7 @@
 # 未登録の cadence は `Ledgers::TimeAxis::INTERVALS` のデフォルト定数にフォールバックする。
 class CreateServiceTimeAxisSettings < ActiveRecord::Migration[8.1]
   def change
-    create_table :service_time_axis_settings do |t|
+    create_table :service_time_axis_settings, if_not_exists: true do |t|
       t.string  :service_id,       null: false
       t.integer :cadence,          null: false  # enum: daily/weekly/monthly/quarterly/annual/long_term
       t.integer :interval_seconds, null: false  # 圧縮 interval（秒）
@@ -13,6 +13,6 @@ class CreateServiceTimeAxisSettings < ActiveRecord::Migration[8.1]
     end
 
     add_index :service_time_axis_settings, %i[service_id cadence], unique: true,
-              name: "idx_stas_service_cadence"
+              name: "idx_stas_service_cadence", if_not_exists: true
   end
 end
