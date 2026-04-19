@@ -119,7 +119,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
     @chaired_defs   = MeetingDefinition.where(chair_role: @role.role_key)
     @participant_defs = MeetingDefinition
-                          .where("participant_roles @> ?", "[\"#{@role.role_key}\"]")
+                          .where("participant_roles @> ?", [ @role.role_key ].to_json)
     @all_defs = (@chaired_defs + @participant_defs).uniq
 
     @recent_meetings = MeetingLedger
@@ -214,13 +214,13 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   # POST: cadence ジョブを即時 enqueue
   def run_job
     job_class_name = params[:job_class].to_s.strip
-    allowed = LEDGER_CADENCE_CONFIG.map { |c| c[:job_class] }
-    unless allowed.include?(job_class_name)
+    cfg = LEDGER_CADENCE_CONFIG.find { |c| c[:job_class] == job_class_name }
+    unless cfg
       redirect_to admin_ops_ledger_operations_path, alert: "不正なジョブクラス: #{job_class_name}"
       return
     end
 
-    klass = job_class_name.constantize
+    klass = cfg[:job_class].constantize
     klass.perform_later
     redirect_to admin_ops_ledger_operations_path, notice: "#{job_class_name} をエンキューしました"
   rescue NameError
