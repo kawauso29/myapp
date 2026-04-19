@@ -25,6 +25,7 @@ class MeetingDefinition < ApplicationRecord
 
   validates :meeting_key, :meeting_type, :scope_level, :chair_role, presence: true
   validate :allowed_cycles_valid
+  validate :participant_roles_known
 
   # R1: scope_level ごとに許可される周期を allowed_cycles で制御する。
   # 空配列は「全周期許可」と同義（後方互換）。
@@ -43,5 +44,21 @@ class MeetingDefinition < ApplicationRecord
     return if invalid.empty?
 
     errors.add(:allowed_cycles, "contains invalid cycles: #{invalid.join(', ')}")
+  end
+
+  # Phase 44d: participant_roles のマスタ検証。
+  # OrganizationRole テーブルにデータが存在する場合のみ検証する（後方互換）。
+  # テーブル未作成やデータ未投入の環境ではスキップする。
+  def participant_roles_known
+    return if participant_roles.blank?
+    return unless OrganizationRole.table_exists? && OrganizationRole.exists?
+
+    unknown = OrganizationRole.validate_roles(participant_roles)
+    return if unknown.empty?
+
+    errors.add(:participant_roles, "contains unknown roles: #{unknown.join(', ')}")
+  rescue ActiveRecord::StatementInvalid
+    # テーブル未作成の環境（migration 前）ではスキップ
+    nil
   end
 end

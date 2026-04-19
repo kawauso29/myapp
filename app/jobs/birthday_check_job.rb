@@ -29,6 +29,10 @@ class BirthdayCheckJob < ApplicationJob
     end
 
     Rails.logger.info("[BirthdayCheckJob] Completed")
+  rescue StandardError => e
+    Rails.logger.error("[BirthdayCheckJob] 全体エラー: #{e.message}")
+    notify_error("BirthdayCheckJob 全体エラー: #{e.message}")
+    raise
   end
 
   private
@@ -106,5 +110,15 @@ class BirthdayCheckJob < ApplicationJob
       params.public_send(:"#{key}=", (current + d).clamp(0, 100))
     end
     params.save!
+  end
+
+  def notify_error(message)
+    SlackNotifierService.notify(
+      text: "🚨 [BirthdayCheckJob] #{message}",
+      color: :danger,
+      channel: :error
+    )
+  rescue => e
+    Rails.logger.error("[BirthdayCheckJob] Slackエラー通知も失敗: #{e.message}")
   end
 end

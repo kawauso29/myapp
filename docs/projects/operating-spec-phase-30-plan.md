@@ -33,7 +33,7 @@
 | 41 | ポートフォリオ層の稼働 | §4.2 | 大 | ✅ 完了（モデル層 + `Portfolio::Rebalancer`（service KPI grade ベース分類）+ `PortfolioRebalanceRunJob`（四半期）） |
 | 42 | 圧縮時間軸の cron / Runner 統合 | §11 | 中 | ✅ 完了（`Ledgers::TimeAxis::INTERVALS` を正本に cron / Runner / idempotency_key を統一） |
 | 43 | 設計ギャップ修正（daily / carry_over / scope_level） | §12.6 / §33.2 / §4 | 中 | ✅ 完了（PR: copilot/check-auto-process）→ 下記「Phase 43 詳細」参照 |
-| 44 | 残設計ギャップ（DB化・heartbeat駆動等） | §11.3 / §12 / §19 | 大 | 🔜 未着手 → 下記「Phase 44 残件」参照 |
+| 44 | 残設計ギャップ（DB化・heartbeat駆動等） | §11.3 / §12 / §19 | 大 | ✅ 完了 → 下記「Phase 44 詳細」参照 |
 
 ## 依存関係
 
@@ -238,14 +238,51 @@ PR: `copilot/check-auto-process` で以下を修正済み。
 - No-op migration（schema version bump のみ）: `20260419000001`
 - spec: DailyRunner / DailyLedgerRunJob / carry_over_items テスト追加
 
-## Phase 44 残件（次セッション向け）
+## Phase 44 詳細（DB 化・heartbeat 駆動・enforce ON）
 
-以下は DB スキーマ刷新を伴う大型変更のため、別セッションで腰を据えて対応する。
+### 44a: `service_time_axis_settings` テーブル（圧縮時間軸の DB 化）
+- `service_time_axis_settings` テーブル作成（`service_id` + `cadence` ユニーク、`interval_seconds` で圧縮率を保持）
+- `ServiceTimeAxisSetting` モデル作成（enum cadence、`.interval_for(service_id:, cadence:)` クラスメソッド）
+- `Ledgers::TimeAxis.interval_for` に `service_id:` オプション追加。DB に設定があれば優先、なければ `INTERVALS` 定数にフォールバック
+- `MasterDataSeeder#seed_time_axis_defaults!` で `ai_sns` サービスのデフォルト値を DB に投入
 
-| # | 内容 | 根拠 | 補足 |
-|---|---|---|---|
-| 44a | `service_time_axis_settings` テーブル（圧縮時間軸の DB 化） | §11.3.3 | 現在 `Ledgers::TimeAxis::INTERVALS` にハードコード。サービス毎に異なる圧縮率をサポートするにはDB化が必要 |
-| 44b | heartbeat `next_run_at` 駆動 | §12 | 現在は cron ベース。`ServiceHeartbeat.next_run_at` を起点にジョブを動的スケジュールする仕組みが未実装 |
-| 44c | `service_schedule_definitions` + `job_key` 拡張 | §12 | recurring.yml のジョブ定義を DB 化し、サービス追加時に自動的に cron が生成される仕組み |
-| 44d | 組織ロール定義マスタ | §19 | `RolePermission` の participant_roles が文字列配列のまま。マスタテーブル化してバリデーションを強化 |
-| 44e | 本番での enforce ON | §33.2 補強9 | `ENFORCE_TEMPLATE=1` / `ENFORCE_AUDIT_REASON=1` のタイミング決定と切り替え手順の整備 |
+### 44b: heartbeat `next_run_at` 駆動
+- `HeartbeatSchedulerJob` 新規作成 — `ServiceHeartbeat` の `next_run_at <= Time.current` かつ `status: active` を検出し、対応する `ServiceScheduleDefinition` のジョブを起動
+- ジョブ実行後に `next_run_at` を次の interval 分だけ進め、`last_run_at` を更新
+- `config/recurring.yml` に 5 分毎の `heartbeat_scheduler` エントリ追加
+- `required_job_classes.rb` / `solid_queue.rake` に `HeartbeatSchedulerJob` 追加
+
+### 44c: `service_schedule_definitions` + `job_key` 拡張
+- `service_schedule_definitions` テーブル作成（`job_key` ユニーク、`job_class` / `cron` / `service_id` / `cadence` / `args` / `enabled`）
+- `ServiceScheduleDefinition` モデル作成（`.active` スコープ、`#job_klass` メソッド）
+- `MasterDataSeeder#seed_schedule_definitions!` で Ledger 系 8 ジョブを DB に投入
+- `HeartbeatSchedulerJob` が `ServiceScheduleDefinition` を参照して動的にジョブを起動
+
+### 44d: 組織ロール定義マスタ
+- `organization_roles` テーブル作成（`role_key` ユニーク、`display_name` / `scope_level` / `category` / `active`）
+- `OrganizationRole` モデル作成（`.validate_roles(role_keys)` でマスタ検証）
+- `MeetingDefinition` に `participant_roles_known` バリデーション追加（マスタデータ存在時のみ検証、後方互換）
+- `MasterDataSeeder#seed_organization_roles!` で 12 ロール（executive 6 + department 4 + specialist 2）を投入
+
+### 44e: 本番での enforce ON
+- `TicketLedger.enforce_template` class_attribute 追加 + `before_create :assert_template_present!` コールバック
+  - `ENFORCE_TEMPLATE=1` で有効化。`skip_template_guard = true` で個別 bypass 可能
+- `AuditDecisionLedger.enforce_audit_reason` class_attribute 追加 + `validate :reason_detail_required_when_enforced`
+  - `ENFORCE_AUDIT_REASON=1` で有効化。非承認判断（reject/request_changes/abstain）に `reason_detail` を必須化
+  - `skip_audit_reason_detail = true` で個別 bypass 可能
+- `config/initializers/ticket_stop_guard.rb` に 2 つの ENV トグルを追加
+
+### 切り替え手順
+
+```bash
+# Step 1: 警告ログで十分なデータ収集を確認後、VPS .env に追記
+echo "ENFORCE_TEMPLATE=1" >> /home/ubuntu/myapp/.env
+echo "ENFORCE_AUDIT_REASON=1" >> /home/ubuntu/myapp/.env
+
+# Step 2: Puma 再起動で反映
+sudo systemctl restart puma
+
+# Step 3: ロールバック（問題発生時）
+# .env から該当行を削除して再起動
+```
+
