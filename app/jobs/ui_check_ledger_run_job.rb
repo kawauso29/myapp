@@ -11,7 +11,8 @@ class UiCheckLedgerRunJob < ApplicationJob
     self.class.with_job_idempotency("ui_check:#{SERVICE_ID}:#{Date.current.iso8601}") do
       meeting = Ledgers::WeeklyDeptRunner.call(
         service_id: SERVICE_ID,
-        ticket_inputs: ticket_inputs
+        ticket_inputs: ticket_inputs,
+        meeting_key: "ui_check"
       )
       payload = JSON.parse(Ledgers::RunOutputFormatter.format(meeting:, operation: "ui_check"))
       Ledgers::SlackNotifier.notify(payload)

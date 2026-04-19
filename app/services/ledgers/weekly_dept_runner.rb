@@ -1,13 +1,14 @@
 module Ledgers
   class WeeklyDeptRunner
-    def self.call(service_id:, ticket_inputs: nil, present_roles: nil)
-      new(service_id:, ticket_inputs:, present_roles:).call
+    def self.call(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
+      new(service_id:, ticket_inputs:, present_roles:, meeting_key:).call
     end
 
-    def initialize(service_id:, ticket_inputs: nil, present_roles: nil)
+    def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
       @service_id = service_id
       @ticket_inputs = ticket_inputs.presence || default_ticket_inputs
       @present_roles = present_roles
+      @meeting_key = meeting_key
     end
 
     def call
@@ -25,7 +26,7 @@ module Ledgers
         held_at: Time.current,
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
-          prefix: "weekly_dept",
+          prefix: @meeting_key,
           parts: [ service_id ]
         )
       )
@@ -97,7 +98,7 @@ module Ledgers
     attr_reader :service_id, :ticket_inputs
 
     def meeting_definition!
-      MeetingDefinition.find_by!(meeting_key: "weekly_dept", scope_level: :service)
+      MeetingDefinition.find_by!(meeting_key: @meeting_key, scope_level: :service)
     end
 
     def default_ticket_inputs
