@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe "Phase 44e: enforce_template on TicketLedger", type: :model do
   let(:meeting) do
     md = MeetingDefinition.create!(
-      meeting_key: "weekly_dept_enforce_test",
+      meeting_key: "weekly_dept_enforce_tmpl_test",
       meeting_type: :weekly,
       scope_level: :service,
       service_id: "ai_sns",
@@ -11,9 +11,13 @@ RSpec.describe "Phase 44e: enforce_template on TicketLedger", type: :model do
     )
     MeetingLedger.create!(
       meeting_definition: md,
+      meeting_key: md.meeting_key,
       meeting_type: :weekly,
       scope_level: :service,
       service_id: "ai_sns",
+      chair: md.chair_role,
+      held_at: Time.current,
+      status: :open,
       idempotency_key: "enforce-template-test-#{SecureRandom.hex(4)}"
     )
   end
@@ -73,7 +77,7 @@ end
 RSpec.describe "Phase 44e: enforce_audit_reason on AuditDecisionLedger", type: :model do
   let(:meeting) do
     md = MeetingDefinition.create!(
-      meeting_key: "audit_enforce_test",
+      meeting_key: "audit_enforce_reason_test",
       meeting_type: :weekly,
       scope_level: :service,
       service_id: "ai_sns",
@@ -81,9 +85,13 @@ RSpec.describe "Phase 44e: enforce_audit_reason on AuditDecisionLedger", type: :
     )
     MeetingLedger.create!(
       meeting_definition: md,
+      meeting_key: md.meeting_key,
       meeting_type: :weekly,
       scope_level: :service,
       service_id: "ai_sns",
+      chair: md.chair_role,
+      held_at: Time.current,
+      status: :open,
       idempotency_key: "enforce-audit-test-#{SecureRandom.hex(4)}"
     )
   end

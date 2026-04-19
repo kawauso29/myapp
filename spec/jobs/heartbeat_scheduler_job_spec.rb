@@ -7,8 +7,7 @@ RSpec.describe HeartbeatSchedulerJob, type: :job do
       meeting_type: :weekly,
       scope_level: :service,
       service_id: "ai_sns",
-      chair_role: "business_owner",
-      participant_roles: %w[planning dev]
+      chair_role: "business_owner"
     )
   end
 
@@ -34,11 +33,15 @@ RSpec.describe HeartbeatSchedulerJob, type: :job do
     )
   end
 
+  before do
+    allow(WeeklyDeptLedgerRunJob).to receive(:perform_later)
+  end
+
   describe "#perform" do
     it "enqueues jobs for due heartbeats and advances next_run_at" do
-      expect {
-        described_class.new.perform
-      }.to have_enqueued_job(WeeklyDeptLedgerRunJob).with("ai_sns")
+      described_class.new.perform
+
+      expect(WeeklyDeptLedgerRunJob).to have_received(:perform_later).with("ai_sns")
 
       heartbeat.reload
       expect(heartbeat.next_run_at).to be > Time.current
@@ -48,34 +51,32 @@ RSpec.describe HeartbeatSchedulerJob, type: :job do
     it "does not enqueue jobs for future heartbeats" do
       heartbeat.update!(next_run_at: 1.hour.from_now)
 
-      expect {
-        described_class.new.perform
-      }.not_to have_enqueued_job(WeeklyDeptLedgerRunJob)
+      described_class.new.perform
+
+      expect(WeeklyDeptLedgerRunJob).not_to have_received(:perform_later)
     end
 
     it "does not enqueue jobs for paused heartbeats" do
       heartbeat.update!(status: :paused)
 
-      expect {
-        described_class.new.perform
-      }.not_to have_enqueued_job(WeeklyDeptLedgerRunJob)
+      described_class.new.perform
+
+      expect(WeeklyDeptLedgerRunJob).not_to have_received(:perform_later)
     end
 
-    it "returns 0 in dry_run mode without enqueuing" do
-      count = nil
-      expect {
-        count = described_class.new.perform(dry_run: true)
-      }.not_to have_enqueued_job(WeeklyDeptLedgerRunJob)
+    it "returns scheduled count in dry_run mode without enqueuing" do
+      count = described_class.new.perform(dry_run: true)
 
       expect(count).to eq(1)
+      expect(WeeklyDeptLedgerRunJob).not_to have_received(:perform_later)
     end
 
     it "skips heartbeats without matching schedule definition" do
       schedule_def.destroy!
 
-      expect {
-        described_class.new.perform
-      }.not_to have_enqueued_job(WeeklyDeptLedgerRunJob)
+      described_class.new.perform
+
+      expect(WeeklyDeptLedgerRunJob).not_to have_received(:perform_later)
     end
   end
 end
