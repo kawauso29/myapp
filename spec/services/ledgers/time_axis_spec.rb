@@ -27,6 +27,21 @@ RSpec.describe Ledgers::TimeAxis do
     it "raises ArgumentError for unknown cadence" do
       expect { described_class.interval_for(:bogus) }.to raise_error(ArgumentError, /Unknown cadence/)
     end
+
+    context "with service_id (Phase 44a: DB override)" do
+      it "returns DB value when setting exists" do
+        ServiceTimeAxisSetting.create!(service_id: "custom_svc", cadence: :weekly, interval_seconds: 7200)
+        expect(described_class.interval_for(:weekly, service_id: "custom_svc")).to eq(7200.seconds)
+      end
+
+      it "falls back to default when no DB setting exists" do
+        expect(described_class.interval_for(:weekly, service_id: "no_setting_svc")).to eq(4.hours)
+      end
+
+      it "falls back to default when service_id is nil" do
+        expect(described_class.interval_for(:weekly, service_id: nil)).to eq(4.hours)
+      end
+    end
   end
 
   describe ".slot_start" do

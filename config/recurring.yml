@@ -188,6 +188,12 @@ production:
     queue: default
     schedule: "0 0 */2 * *"
 
+  # Phase 44b: heartbeat 駆動スケジューラ（5分毎に next_run_at を検査）
+  heartbeat_scheduler:
+    class: HeartbeatSchedulerJob
+    queue: default
+    schedule: "*/5 * * * *"
+
   # 毎日 6:00 JST (= 前日 21:00 UTC): 期限超過チケットを検出
   ticket_overdue_check:
     class: TicketOverdueCheckJob
