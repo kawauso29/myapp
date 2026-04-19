@@ -10,8 +10,7 @@ class HrEvaluationRunJob < ApplicationJob
   EVALUATION_PERIOD_DAYS = 90
 
   def perform
-    quarter_number = ((Date.current.month - 1) / 3) + 1
-    key = "hr_evaluation:#{Date.current.year}:q#{quarter_number}"
+    key = "hr_evaluation:#{Ledgers::TimeAxis.slot_token(:quarterly)}"
 
     self.class.with_job_idempotency(key) do
       period_end = Date.current - 1

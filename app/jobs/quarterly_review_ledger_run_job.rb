@@ -3,9 +3,11 @@ class QuarterlyReviewLedgerRunJob < ApplicationJob
   queue_as :default
 
   def perform
-    quarter_number = ((Date.current.month - 1) / 3) + 1
-    self.class.with_job_idempotency("quarterly_review:#{Date.current.year}:q#{quarter_number}") do
-      Ledgers::QuarterlyReviewRunner.call
+    self.class.with_job_idempotency("quarterly_review:#{Ledgers::TimeAxis.slot_token(:quarterly)}") do
+      meeting = Ledgers::QuarterlyReviewRunner.call
+      payload = JSON.parse(Ledgers::RunOutputFormatter.format(meeting:, operation: "quarterly_review"))
+      Ledgers::SlackNotifier.notify(payload)
+      meeting
     end
   end
 end
