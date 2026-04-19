@@ -18,7 +18,8 @@ RSpec.describe MeetingDefinition, type: :model do
         "weekly",
         "incident",
         "quarterly_review",
-        "annual_plan"
+        "annual_plan",
+        "daily"
       )
     end
 

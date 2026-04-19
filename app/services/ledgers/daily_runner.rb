@@ -40,8 +40,8 @@ module Ledgers
       hold_items = []
       hold_items.concat(anomalies.map { |a| { type: "anomaly", **a } }) if anomalies.present?
 
-      # 直前 weekly meeting の hold_items を引き継ぐ
-      previous_daily = previous_daily_meeting
+      # 直前 daily meeting の hold_items を引き継ぐ（自分自身を除外）
+      previous_daily = previous_daily_meeting(exclude_id: meeting.id)
       carry_over = previous_daily&.hold_items || []
 
       meeting.update!(
@@ -84,11 +84,13 @@ module Ledgers
       end
     end
 
-    def previous_daily_meeting
-      MeetingLedger.where(
+    def previous_daily_meeting(exclude_id: nil)
+      scope = MeetingLedger.where(
         meeting_type: :daily,
         service_id: @service_id
-      ).order(held_at: :desc).first
+      )
+      scope = scope.where.not(id: exclude_id) if exclude_id
+      scope.order(held_at: :desc).first
     end
   end
 end
