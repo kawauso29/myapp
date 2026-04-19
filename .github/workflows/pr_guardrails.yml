@@ -53,11 +53,12 @@ jobs:
             re.compile(r"^\s*TODO\s*$", re.IGNORECASE),
           )
 
-          # 自動運用ブランチは §31 メタ検証をスキップする（運用ルールに合わせる）。
+          # 自動運用ブランチは本文テンプレ検証/§31メタ検証をスキップする（運用ルールに合わせる）。
           AUTO_BRANCH_PREFIXES = (
             "copilot/auto-",
             "copilot/ai-sns-",
             "auto-fix/",
+            "deploy-failure/",
             "dependabot/",
           )
 
@@ -102,6 +103,7 @@ jobs:
           body = pr.get("body") or ""
           pr_url = pr.get("html_url", "")
           head_ref = (pr.get("head") or {}).get("ref") or ""
+          skip_template_validation = head_ref.startswith(AUTO_BRANCH_PREFIXES)
           skip_meta = head_ref.startswith(AUTO_BRANCH_PREFIXES)
 
           if not body.strip():
@@ -123,15 +125,16 @@ jobs:
           missing_sections = []
           empty_sections = []
 
-          for display_name, candidate_keys in normalized_required.items():
-            matched_key = next((key for key in candidate_keys if key in normalized_sections), None)
+          if not skip_template_validation:
+            for display_name, candidate_keys in normalized_required.items():
+              matched_key = next((key for key in candidate_keys if key in normalized_sections), None)
 
-            if matched_key is None:
-              missing_sections.append(display_name)
-              continue
+              if matched_key is None:
+                missing_sections.append(display_name)
+                continue
 
-            if not normalized_sections[matched_key].strip():
-              empty_sections.append(display_name)
+              if not normalized_sections[matched_key].strip():
+                empty_sections.append(display_name)
 
           if missing_sections or empty_sections:
             print("::error title=PR Guardrails::PR本文の必須セクションが不足または未記入です。")
@@ -195,7 +198,10 @@ jobs:
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
             print("### ✅ PR Guardrails 成功", file=summary)
-            print("- 必須セクションがすべて確認できました。", file=summary)
+            if skip_template_validation:
+              print(f"- 本文テンプレ検証: skip（自動運用ブランチ: `{head_ref}`）", file=summary)
+            else:
+              print("- 必須セクションがすべて確認できました。", file=summary)
             if skip_meta:
               print(f"- §31 メタ情報検証: skip（自動運用ブランチ: `{head_ref}`）", file=summary)
             else:
