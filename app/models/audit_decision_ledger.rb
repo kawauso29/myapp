@@ -32,10 +32,19 @@ class AuditDecisionLedger < ApplicationRecord
     other
   ].freeze
 
+  # Phase 44e / §33.2 補強9: 非承認判断時に reason_detail（詳細理由テキスト）を必須化する。
+  # true の場合、reject / request_changes / abstain で reason_detail が blank だと
+  # バリデーションエラーにする（`skip_audit_reason_detail = true` で bypass 可能）。
+  # デフォルト OFF。`ENFORCE_AUDIT_REASON=1` で段階的に有効化する。
+  class_attribute :enforce_audit_reason, instance_accessor: false, default: false
+
+  attr_accessor :skip_audit_reason_detail
+
   validates :reason_code, presence: true, inclusion: { in: VALID_REASON_CODES }
   validates :audit_role, :scope_level, :decided_at, presence: true
 
   validate :reason_code_must_match_decision
+  validate :reason_detail_required_when_enforced
 
   scope :non_approvals, -> { where.not(decision: decisions[:approve]) }
 
@@ -54,5 +63,15 @@ class AuditDecisionLedger < ApplicationRecord
     if decision_abstain? && reason_code&.start_with?("approved_")
       errors.add(:reason_code, "cannot be an approval code when decision=abstain")
     end
+  end
+
+  # Phase 44e: enforce_audit_reason が有効な場合、非承認判断には reason_detail を必須化する。
+  def reason_detail_required_when_enforced
+    return unless self.class.enforce_audit_reason
+    return if skip_audit_reason_detail
+    return if decision_approve?
+    return if reason_detail.present?
+
+    errors.add(:reason_detail, "is required for non-approval decisions when enforce_audit_reason is enabled")
   end
 end

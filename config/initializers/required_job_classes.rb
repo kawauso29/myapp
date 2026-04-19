@@ -47,6 +47,7 @@ Rails.application.reloader.to_prepare do
     OwnerScoreUpdateJob
     RelationshipMemoryUpdateJob
     RoutingHealthCheckJob
+    HeartbeatSchedulerJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e
