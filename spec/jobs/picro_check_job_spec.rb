@@ -49,8 +49,13 @@ RSpec.describe PicroCheckJob, type: :job do
       end
 
       it "LINE通知を送信する" do
+        notifier = instance_double(LineNotifierService)
+        allow(LineNotifierService).to receive(:new).and_return(notifier)
+        allow(notifier).to receive(:notify_new_messages)
+
         described_class.new.perform
-        expect_any_instance_of(LineNotifierService).to have_received(:notify_new_messages)
+
+        expect(notifier).to have_received(:notify_new_messages)
       end
 
       it "Slack成功通知を送信する" do
