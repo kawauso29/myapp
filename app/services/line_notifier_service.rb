@@ -7,25 +7,52 @@ class LineNotifierService
     return if messages.empty?
 
     text = build_message_text(messages)
-    client = Line::Bot::Client.new do |config|
-      config.channel_secret = line_credentials[:channel_secret]
-      config.channel_token  = line_credentials[:channel_token]
-    end
-
-    # broadcast: ビジネスアカウントの友達全員に送信
-    response = client.broadcast([ { type: "text", text: text } ])
-    Rails.logger.info("[LineNotifierService] broadcast: code=#{response.code} body=#{response.body}")
+    response = send_line_message(text)
+    Rails.logger.info("[LineNotifierService] #{send_method_label}: code=#{response.code} body=#{response.body}")
     unless response.code == "200"
-      raise "LINE broadcast失敗: code=#{response.code} body=#{response.body}"
+      raise "LINE #{send_method_label}失敗: code=#{response.code} body=#{response.body}"
     end
 
-    Rails.logger.info("[LineNotifierService] #{messages.size}件通知送信完了")
+    Rails.logger.info("[LineNotifierService] #{messages.size}件通知送信完了（#{send_method_label}）")
   end
 
   private
 
+  def send_line_message(text)
+    message_payload = [{ type: "text", text: text }]
+
+    friend_ids = Array(line_credentials[:friend_ids]).select(&:present?)
+    user_id    = line_credentials[:user_id].presence
+
+    if friend_ids.any?
+      @send_method = :multicast
+      client.multicast(friend_ids, message_payload)
+    elsif user_id.present?
+      @send_method = :push
+      client.push_message(user_id, message_payload)
+    else
+      @send_method = :broadcast
+      client.broadcast(message_payload)
+    end
+  end
+
+  def client
+    @client ||= Line::Bot::Client.new do |config|
+      config.channel_secret = line_credentials[:channel_secret]
+      config.channel_token  = line_credentials[:channel_token]
+    end
+  end
+
+  def send_method_label
+    case @send_method
+    when :multicast then "multicast（#{Array(line_credentials[:friend_ids]).size}人）"
+    when :push      then "push_message"
+    else                 "broadcast"
+    end
+  end
+
   def build_message_text(messages)
-    lines = [ "📬 Picroに#{messages.size}件の新着メッセージがあります\n" ]
+    lines = ["📬 Picroに#{messages.size}件の新着メッセージがあります\n"]
     messages.first(5).each do |msg|
       title   = msg[:title].presence || "(件名なし)"
       preview = msg[:preview].presence
@@ -37,6 +64,6 @@ class LineNotifierService
   end
 
   def line_credentials
-    Rails.application.credentials.line!
+    @line_credentials ||= Rails.application.credentials.line!
   end
 end
