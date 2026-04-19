@@ -1,12 +1,19 @@
 require "rails_helper"
 
+# line-bot-api 2.7.0 は V2 API に移行し、Line::Bot::Client を削除している。
+# LineNotifierService は旧 Client API を使っており本番では旧バージョンで動作するが、
+# テスト環境では定数が存在しないためスタブを定義する。
+unless defined?(Line::Bot::Client)
+  module Line; module Bot; class Client; end; end; end
+end
+
 RSpec.describe LineNotifierService do
   let(:messages) do
     [{ title: "練習のお知らせ", preview: "明日の練習は中止です", sender_name: "コーチ" }]
   end
 
   let(:credentials_base) { { channel_secret: "secret", channel_token: "token" } }
-  let(:mock_client) { instance_double(Line::Bot::Client) }
+  let(:mock_client) { double("Line::Bot::Client") }
   let(:success_response) { double(code: "200", body: "{}") }
 
   before do
