@@ -1,0 +1,119 @@
+<% content_for :title, "Ledger — エラーログ" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<%# ===== 稼働停止 ===== %>
+<% if @active_stops.present? %>
+  <div class="card" style="border-color:#fc8181;">
+    <h2 style="color:#fc8181;">🛑 稼働停止中 (<%= @active_stops.size %>)</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>trigger</th><th>scope</th><th>service</th><th>started_at</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% @active_stops.each do |s| %>
+          <tr style="background:#1a0808;">
+            <td style="color:#fc8181; font-weight:700;"><%= s.id %></td>
+            <td style="font-size:0.85em;"><%= s.trigger_type %></td>
+            <td style="font-size:0.82em;"><%= s.scope_level %></td>
+            <td style="font-size:0.82em;"><%= s.service_id.presence || "-" %></td>
+            <td style="font-size:0.82em;"><%= s.started_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+            <td><%= link_to "Lift →", admin_ops_stops_path, style: "font-size:0.78em; color:#fc8181; text-decoration:none;" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<%# ===== Stale Cadences ===== %>
+<% if @stale_cadences.present? %>
+  <div class="card" style="border-color:#f6ad55;">
+    <h2 style="color:#f6ad55;">⚠️ 滞留 Cadence (<%= @stale_cadences.size %>)</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <% @stale_cadences.each do |h| %>
+        <div style="background:#2d2000; border-radius:6px; padding:8px 14px; border:1px solid #f6ad5544;">
+          <div style="font-weight:600; color:#f6ad55;"><%= h[:cadence] %></div>
+          <div style="font-size:0.8em; color:#a0aec0;"><%= h[:status] %></div>
+          <div style="font-size:0.75em; color:#718096;"><%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "なし" %></div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ===== SolidQueue Failed Jobs ===== %>
+<div class="card">
+  <h2>SolidQueue 失敗ジョブ (直近 <%= @failed_jobs.size %>)</h2>
+
+  <% if @failed_by_class.present? %>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+      <% @failed_by_class.sort_by { |_, v| -v }.each do |klass, count| %>
+        <div style="background:#2d1515; border-radius:6px; padding:6px 12px; border:1px solid #fc818133;">
+          <span style="font-size:0.85em; color:#fc8181; font-weight:700;"><%= count %></span>
+          <span style="font-size:0.75em; color:#a0aec0; margin-left:6px;"><%= klass %></span>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if @failed_jobs.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>ジョブクラス</th>
+          <th>失敗日時</th>
+          <th>エラー (先頭 120字)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @failed_jobs.each do |f| %>
+          <tr>
+            <td style="font-size:0.82em; color:#fc8181; font-family:monospace;"><%= f[:class_name] || "(unknown)" %></td>
+            <td style="font-size:0.82em;"><%= f[:created_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M:%S") %></td>
+            <td style="font-size:0.78em; color:#718096; max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace;" title="<%= f[:error].to_s.gsub('"', '&quot;') %>">
+              <%= truncate(f[:error].to_s, length: 120) %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">失敗ジョブなし 🎉</p>
+  <% end %>
+</div>
+
+<%# ===== Anomaly Hold Items ===== %>
+<div class="card">
+  <h2>異常検知 (hold_items: anomaly) — 直近 <%= @anomaly_meetings.size %> 件</h2>
+  <% if @anomaly_meetings.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>meeting_key</th>
+          <th>service_id</th>
+          <th>held_at</th>
+          <th>hold_items</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @anomaly_meetings.each do |m| %>
+          <% anomalies = Array(m.hold_items).select { |i| (i["type"] || i[:type]).to_s == "anomaly" } %>
+          <tr>
+            <td style="color:#718096;"><%= m.id %></td>
+            <td style="font-weight:600; color:#f6ad55;"><%= m.meeting_key %></td>
+            <td style="font-size:0.82em; color:#a0aec0;"><%= m.service_id.presence || "-" %></td>
+            <td style="font-size:0.82em;"><%= m.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+            <td style="font-size:0.78em; color:#fc8181; font-family:monospace; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <%= truncate(anomalies.map { |a| a["message"] || a[:message] || a.inspect }.join(", "), length: 100) %>
+            </td>
+            <td><%= link_to "↗", admin_ops_ledger_path(m), style: "color:#63b3ed; text-decoration:none;" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">異常検知なし</p>
+  <% end %>
+</div>

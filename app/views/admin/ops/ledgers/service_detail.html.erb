@@ -1,0 +1,157 @@
+<% content_for :title, "Ledger — #{@service_id} 詳細" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+  <%= link_to "← サービス一覧", admin_ops_ledger_services_path,
+        style: "font-size:0.8em; color:#63b3ed; text-decoration:none;" %>
+  <h1 style="font-size:1.3em; font-weight:700; color:#e2e8f0;"><%= @service_id %></h1>
+  <% if @service_ledger %>
+    <span style="font-size:0.8em; padding:3px 8px; border-radius:8px; background:<%= @service_ledger.status_active? ? "#1c4532" : "#2d3748" %>; color:<%= @service_ledger.status_active? ? "#68d391" : "#718096" %>;">
+      <%= @service_ledger.status %>
+    </span>
+  <% end %>
+  <div style="flex:1;"></div>
+  <% if @service_id == "ai_sns" %>
+    <%= link_to "AI SNS管理 ↗", admin_ai_sns_path,
+          style: "font-size:0.8em; background:#1a365d; color:#63b3ed; padding:6px 12px; border-radius:6px; text-decoration:none;" %>
+  <% elsif @service_id == "trading" %>
+    <%= link_to "Trading管理 ↗", admin_trading_path,
+          style: "font-size:0.8em; background:#1a365d; color:#63b3ed; padding:6px 12px; border-radius:6px; text-decoration:none;" %>
+  <% end %>
+</div>
+
+<% if @alert_summary.present? %>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+    <% [
+      [:waiting_review, "待ちレビュー", "#f6ad55"],
+      [:overdue,        "期限超過",     "#fc8181"],
+      [:active_stop,    "停止中",       "#fc8181"]
+    ].each do |key, label, color| %>
+      <% count = @alert_summary[key].to_i %>
+      <div style="background:#2d3748; border-radius:6px; padding:5px 10px; border:1px solid <%= count > 0 ? color + "88" : "#1a202c" %>;">
+        <span style="font-size:1.1em; font-weight:700; color:<%= count > 0 ? color : "#4a5568" %>;"><%= count %></span>
+        <span style="font-size:0.78em; color:#718096; margin-left:4px;"><%= label %></span>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<%# KPI %>
+<div class="card">
+  <h2>KPI (<%= @kpis.size %>)</h2>
+  <% if @kpis.present? %>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <% @kpis.each do |kpi| %>
+        <%
+          gcolor = { "healthy" => "#68d391", "warning" => "#f6ad55", "critical" => "#fc8181" }[kpi.grade] || "#a0aec0"
+          val    = kpi.current_value.is_a?(Hash) ? (kpi.current_value["value"] || "-") : kpi.current_value
+          tgt    = kpi.numeric_target_value
+        %>
+        <div style="background:#1a202c; border-radius:6px; padding:10px 14px; min-width:150px; border-left:3px solid <%= gcolor %>;">
+          <div style="font-size:0.7em; color:#718096; margin-bottom:2px; text-transform:uppercase;"><%= kpi.kpi_key %></div>
+          <div style="font-size:1.2em; font-weight:700; color:#e2e8f0;"><%= val %></div>
+          <div style="font-size:0.75em; color:#a0aec0; margin-top:2px;">目標: <%= tgt&.to_s || "-" %></div>
+          <div style="font-size:0.7em; margin-top:4px;">
+            <span style="color:<%= gcolor %>; font-weight:600;"><%= kpi.grade || "-" %></span>
+            <span style="color:#4a5568; margin-left:6px;"><%= kpi.graded_at&.in_time_zone("Tokyo")&.strftime("%m/%d") %></span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p style="color:#4a5568;">KPI データなし</p>
+  <% end %>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+  <%# オープンチケット %>
+  <div class="card">
+    <h2>オープンチケット (<%= @open_tickets.size %>)</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>タイプ</th><th>ステータス</th><th>期限</th></tr>
+      </thead>
+      <tbody>
+        <% @open_tickets.first(20).each do |t| %>
+          <tr>
+            <td style="color:#718096;"><%= t.id %></td>
+            <td style="font-size:0.85em;"><%= t.ticket_type %></td>
+            <td style="color:<%= t.status_overdue? ? "#fc8181" : t.status_waiting_review? ? "#f6ad55" : "#a0aec0" %>; font-size:0.85em;"><%= t.status %></td>
+            <td style="font-size:0.82em; color:<%= t.due_date && t.due_date < Date.current ? "#fc8181" : "#718096" %>"><%= t.due_date&.strftime("%m/%d") || "-" %></td>
+          </tr>
+        <% end %>
+        <% if @open_tickets.empty? %>
+          <tr><td colspan="4" style="text-align:center; color:#4a5568;">なし</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <%# 実験 %>
+  <div class="card">
+    <h2>実験 (ExperimentLedger) (<%= @experiments.size %>)</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>仮説</th><th>状態</th><th>期限</th></tr>
+      </thead>
+      <tbody>
+        <% @experiments.each do |e| %>
+          <tr>
+            <td style="color:#718096;"><%= e.id %></td>
+            <td style="font-size:0.82em; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= e.hypothesis %></td>
+            <td style="font-size:0.85em; color:<%= e.status_active? ? "#68d391" : "#a0aec0" %>;"><%= e.status %></td>
+            <td style="font-size:0.82em; color:<%= e.deadline < Date.current ? "#fc8181" : "#718096" %>"><%= e.deadline.strftime("%m/%d") %></td>
+          </tr>
+        <% end %>
+        <% if @experiments.empty? %>
+          <tr><td colspan="4" style="text-align:center; color:#4a5568;">なし</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%# 直近会議 %>
+<div class="card">
+  <h2>直近会議 (<%= @recent_meetings.size %>)</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>meeting_key</th><th>held_at</th><th>status</th><th>hold_items</th><th>health</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% @recent_meetings.each do |m| %>
+        <tr>
+          <td style="color:#718096;"><%= m.id %></td>
+          <td style="font-weight:600;"><%= m.meeting_key %></td>
+          <td><%= m.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          <td style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status %></td>
+          <td style="color:<%= Array(m.hold_items).size > 0 ? "#f6ad55" : "#4a5568" %>"><%= Array(m.hold_items).size %></td>
+          <td><%= m.meeting_health_score&.round(2) || "-" %></td>
+          <td><%= link_to "↗", admin_ops_ledger_path(m), style: "color:#63b3ed; text-decoration:none;" %></td>
+        </tr>
+      <% end %>
+      <% if @recent_meetings.empty? %>
+        <tr><td colspan="7" style="text-align:center; color:#4a5568;">なし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%# Cadence 稼働状況 %>
+<% if @cadence_health.present? %>
+  <div class="card">
+    <h2>Cadence 稼働</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <% @cadence_health.each do |h| %>
+        <%
+          sc = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }[h[:status]]
+        %>
+        <div style="background:#1a202c; border-radius:6px; padding:8px 12px; border:1px solid <%= sc %>33;">
+          <div style="font-size:0.75em; color:#718096;"><%= h[:cadence] %></div>
+          <div style="color:<%= sc %>; font-weight:700; font-size:0.9em;"><%= h[:status] %></div>
+          <div style="font-size:0.75em; color:#a0aec0;"><%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "なし" %></div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
