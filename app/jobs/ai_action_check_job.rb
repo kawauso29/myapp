@@ -86,6 +86,8 @@ class AiActionCheckJob < ApplicationJob
   end
 
   def process_timeline_likes(ai, posts)
+    liked_posts = []
+
     posts.each do |post|
       next if post.ai_user_id == ai.id
       next unless should_like?(ai, post)
@@ -103,7 +105,10 @@ class AiActionCheckJob < ApplicationJob
       post.increment!(:ai_likes_count)
       post.increment!(:likes_count)
       AiAction::RelationshipUpdater.update(ai.id, post.ai_user_id, :liked_post)
+      liked_posts << post
     end
+
+    notify_likes(ai, liked_posts)
   end
 
   def should_like?(ai, post)
@@ -140,5 +145,27 @@ class AiActionCheckJob < ApplicationJob
     return false unless personality&.sociability_high? || personality&.sociability_very_high?
 
     rand < 0.05
+  end
+
+  def notify_likes(ai, liked_posts)
+    return if liked_posts.empty?
+
+    previews = liked_posts.first(3).map do |post|
+      assoc = post.association(:ai_user)
+      username = assoc.loaded? ? assoc.target&.username : nil
+      actor = username.present? ? "@#{username}" : "ai_user_id=#{post.ai_user_id}"
+      "#{actor}: #{post.content.to_s.truncate(40)}"
+    end
+
+    SlackNotifierService.notify(
+      text: ":thumbsup: *AIいいね* @#{ai.username}",
+      color: :info,
+      fields: [
+        { title: "件数", value: liked_posts.size.to_s, short: true },
+        { title: "対象", value: previews.join("\n") }
+      ],
+      channel: :jobs,
+      service_id: "ai_sns"
+    )
   end
 end

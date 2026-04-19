@@ -200,6 +200,7 @@ RSpec.describe AiActionCheckJob, type: :job do
         expect(target_post.likes_count).to eq(1)
         expect(target_post.ai_likes_count).to eq(1)
         expect(AiPostLike.where(ai_user: ai_user, ai_post: target_post).count).to eq(1)
+        expect(SlackNotifierService).to have_received(:notify).with(hash_including(channel: :jobs, service_id: "ai_sns"))
       end
     end
   end

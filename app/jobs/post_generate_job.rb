@@ -71,7 +71,8 @@ class PostGenerateJob < ApplicationJob
         { title: "モチベーション", value: motivation[:primary].to_s, short: true },
         { title: "気分",           value: post.mood_expressed.to_s, short: true }
       ],
-      channel: :jobs
+      channel: :jobs,
+      service_id: "ai_sns"
     )
   end
 
