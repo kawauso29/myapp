@@ -26,21 +26,20 @@ class LineNotifierService
 
     if friend_ids.any?
       @send_method = :multicast
-      client.multicast(friend_ids, message_payload)
+      body, status, = client.multicast_with_http_info(multicast_request: { to: friend_ids, messages: message_payload })
     elsif user_id.present?
       @send_method = :push
-      client.push_message(user_id, message_payload)
+      body, status, = client.push_message_with_http_info(push_message_request: { to: user_id, messages: message_payload })
     else
       @send_method = :broadcast
-      client.broadcast(message_payload)
+      body, status, = client.broadcast_with_http_info(broadcast_request: { messages: message_payload })
     end
+
+    Struct.new(:code, :body).new(status.to_s, body.to_s)
   end
 
   def client
-    @client ||= Line::Bot::Client.new do |config|
-      config.channel_secret = line_credentials[:channel_secret]
-      config.channel_token  = line_credentials[:channel_token]
-    end
+    @client ||= Line::Bot::V2::MessagingApi::ApiClient.new(channel_access_token: line_credentials[:channel_token])
   end
 
   def send_method_label
