@@ -14,9 +14,11 @@ RSpec.describe PicroCheckJob, type: :job do
   let(:scraper_failure) do
     PicroScraperService::Result.new(success: false, messages: [], error: "ログイン失敗")
   end
+  let(:line_notifier) { instance_spy(LineNotifierService, notify_new_messages: nil) }
 
   before do
     allow(SlackNotifierService).to receive(:notify)
+    allow(LineNotifierService).to receive(:new).and_return(line_notifier)
   end
 
   describe "#perform" do
@@ -50,7 +52,7 @@ RSpec.describe PicroCheckJob, type: :job do
 
       it "LINE通知を送信する" do
         described_class.new.perform
-        expect_any_instance_of(LineNotifierService).to have_received(:notify_new_messages)
+        expect(line_notifier).to have_received(:notify_new_messages)
       end
 
       it "Slack成功通知を送信する" do
@@ -68,8 +70,8 @@ RSpec.describe PicroCheckJob, type: :job do
       end
 
       it "LINE通知を送信しない" do
-        expect_any_instance_of(LineNotifierService).not_to receive(:notify_new_messages)
         described_class.new.perform
+        expect(line_notifier).not_to have_received(:notify_new_messages)
       end
     end
 

@@ -6,10 +6,15 @@ RSpec.describe LineNotifierService do
   end
 
   let(:credentials_base) { { channel_secret: "secret", channel_token: "token" } }
-  let(:mock_client) { instance_double(Line::Bot::Client) }
+  let(:mock_client) { instance_double("Line::Bot::Client") }
   let(:success_response) { double(code: "200", body: "{}") }
 
   before do
+    unless defined?(Line::Bot::Client)
+      stub_const("Line", Module.new) unless defined?(Line)
+      Line.const_set(:Bot, Module.new) unless defined?(Line::Bot)
+      stub_const("Line::Bot::Client", Class.new)
+    end
     allow(Line::Bot::Client).to receive(:new).and_return(mock_client)
   end
 
