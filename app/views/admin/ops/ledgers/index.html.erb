@@ -274,13 +274,12 @@
               </td>
               <td><%= t.service_id.presence || "-" %></td>
               <td>
-                <% ticket_status_key = t.status.to_s.to_sym %>
                 <% if t.status_overdue? %>
                     <span style="color:#f56565; font-weight:600;">期限超過</span>
                 <% elsif t.status_waiting_review? %>
                     <span style="color:#f6ad55;">レビュー待ち</span>
                 <% else %>
-                    <span style="color:#a0aec0; font-size:0.85em;"><%= ticket_status_label.fetch(ticket_status_key, t.status.to_s) %></span>
+                    <span style="color:#a0aec0; font-size:0.85em;"><%= ticket_status_label.fetch(t.status.to_s.to_sym, t.status.to_s) %></span>
                 <% end %>
               </td>
               <td style="font-size:0.85em;"><%= t.assignee.presence || "-" %></td>
