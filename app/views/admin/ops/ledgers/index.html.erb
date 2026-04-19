@@ -23,8 +23,8 @@
     end
   end
 
-  STATUS_ICON  = { healthy: "✅", late: "⚠️", stale: "🔴", missing: "❌" }.freeze
-  STATUS_COLOR = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }.freeze
+  status_icon  = { healthy: "✅", late: "⚠️", stale: "🔴", missing: "❌" }
+  status_color = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }
 %>
 
 <%# ===== ナビゲーションバー ===== %>
@@ -100,14 +100,14 @@
       <% @cadence_health.each do |h| %>
         <%
           is_current = @meeting_key == h[:meeting_key]
-          card_border = is_current ? "border:2px solid #4299e1;" : "border:1px solid #{STATUS_COLOR[h[:status]]}33;"
+          card_border = is_current ? "border:2px solid #4299e1;" : "border:1px solid #{status_color[h[:status]]}33;"
           link_params = { meeting_key: h[:meeting_key] }
           link_params[:service_id] = @service_id if @service_id.present?
         %>
         <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:130px; <%= card_border %> flex:1;">
           <div style="font-size:0.75em; color:#718096; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;"><%= cadence_interval_label(h[:interval]) %>周期</div>
           <div style="font-size:1.05em; font-weight:700; color:#e2e8f0; margin-bottom:2px;"><%= h[:cadence] %></div>
-          <div style="font-size:1.3em; margin-bottom:4px;"><%= STATUS_ICON[h[:status]] %> <span style="font-size:0.7em; color:<%= STATUS_COLOR[h[:status]] %>; vertical-align:middle;"><%= h[:status] %></span></div>
+          <div style="font-size:1.3em; margin-bottom:4px;"><%= status_icon[h[:status]] %> <span style="font-size:0.7em; color:<%= status_color[h[:status]] %>; vertical-align:middle;"><%= h[:status] %></span></div>
           <div style="font-size:0.8em; color:#a0aec0; margin-bottom:2px;">
             最終: <%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "なし" %>
           </div>
