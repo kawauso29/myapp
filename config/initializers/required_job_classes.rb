@@ -16,6 +16,8 @@ Rails.application.reloader.to_prepare do
     MonthlyOpsLedgerRunJob
     TicketOverdueCheckJob
     ImprovementDetectorJob
+    ImprovementResolverJob
+    ImprovementEscalationJob
     PicroCheckJob
     DefeatAnalysisJob
     MonthlyReportJob
@@ -29,9 +31,6 @@ Rails.application.reloader.to_prepare do
     AnnualPlanLedgerRunJob
     HrEvaluationRunJob
     PortfolioRebalanceRunJob
-    ImprovementDetectorJob
-    ImprovementResolverJob
-    ImprovementEscalationJob
     ExperimentAutoDeciderJob
     SlaSweepJob
     KpiAutoCollectJob

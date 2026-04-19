@@ -2,12 +2,10 @@ class ImprovementDetectorJob < ApplicationJob
   queue_as :default
 
   def perform
-    detector_result = Ledgers::ImprovementDetector.call
-    resolver_result = Ledgers::ImprovementResolver.call
+    result = Ledgers::ImprovementDetector.call
 
     {
-      detected: detector_result.fetch(:detected, 0),
-      resolved: resolver_result.fetch(:resolved, 0)
+      detected: result.fetch(:detected, 0)
     }
   end
 end
