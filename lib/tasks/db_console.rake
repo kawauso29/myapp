@@ -49,7 +49,7 @@ namespace :db do
   task :sample_data, [ :limit ] => :environment do |_t, args|
     require "json"
 
-    limit = (args[:limit] || 5).to_i
+    limit = [ (args[:limit] || 5).to_i, 1000 ].min
     conn = ActiveRecord::Base.connection
     tables = conn.tables.sort
     sensitive = %w[encrypted_password reset_password_token stripe_customer_id stripe_subscription_id]
@@ -58,8 +58,10 @@ namespace :db do
     tables.each do |table|
       cols = conn.columns(table).map(&:name) - sensitive
       quoted_cols = cols.map { |c| "\"#{c}\"" }.join(", ")
+      has_id = cols.include?("id")
+      order_clause = has_id ? "ORDER BY id DESC" : ""
       rows = conn.execute(
-        "SELECT #{quoted_cols} FROM \"#{table}\" ORDER BY id DESC LIMIT #{limit}"
+        "SELECT #{quoted_cols} FROM \"#{table}\" #{order_clause} LIMIT #{limit}"
       ).to_a
       result[table] = rows
     rescue StandardError => e
@@ -69,6 +71,9 @@ namespace :db do
     puts JSON.pretty_generate(result)
   end
 
+  SAFE_SQL_PATTERN = /\A\s*(SELECT|EXPLAIN|SHOW|WITH\s)/i
+  UNSAFE_SQL_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|REPLACE|GRANT|REVOKE)\b/i
+
   desc "任意の SQL を実行して結果を JSON で出力する（読み取り専用推奨）。例: bin/rails \"db:query[SELECT * FROM ai_users LIMIT 3]\""
   task :query, [ :sql ] => :environment do |_t, args|
     require "json"
@@ -76,6 +81,17 @@ namespace :db do
     sql = args[:sql]
     if sql.blank?
       puts "Usage: bin/rails \"db:query[SELECT * FROM table LIMIT 5]\""
+      exit 1
+    end
+
+    unless sql.match?(SAFE_SQL_PATTERN)
+      $stderr.puts "Warning: Non-SELECT statement detected. Only read operations are recommended."
+      $stderr.puts "         Proceed with caution. Use RAILS_ENV=test to avoid affecting production data."
+    end
+
+    if sql.match?(UNSAFE_SQL_KEYWORDS)
+      $stderr.puts "Blocked: Destructive SQL keywords detected (#{sql.match(UNSAFE_SQL_KEYWORDS)[0].upcase})."
+      $stderr.puts "         Use bin/rails runner for write operations if intentional."
       exit 1
     end
 
