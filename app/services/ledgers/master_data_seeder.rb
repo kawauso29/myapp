@@ -15,10 +15,13 @@ module Ledgers
     end
 
     def call
+      seed_organization_roles!
       seed_meeting_definitions!
       seed_service_and_kpi_ledgers!
       seed_lane_capacity_caps!
       seed_ui_knowledge_adr!
+      seed_schedule_definitions!
+      seed_time_axis_defaults!
     end
 
     private
@@ -207,6 +210,92 @@ module Ledgers
         ledger.status = :accepted
         ledger.accepted_at = Time.current
         ledger.tags = { "service_id" => "ai_sns", "version" => "v1", "screens" => 7 }
+      end
+    end
+
+    # Phase 44d: 組織ロール定義マスタの初期データ投入
+    def seed_organization_roles!
+      return unless OrganizationRole.table_exists?
+
+      # 既存の participant_roles 文字列を網羅するマスタデータ
+      [
+        # Executive roles（会社レベル）
+        { role_key: "ceo", display_name: "CEO", scope_level: :company, category: :executive },
+        { role_key: "cto", display_name: "CTO", scope_level: :company, category: :executive },
+        { role_key: "executive_planning", display_name: "Executive Planning", scope_level: :company, category: :executive },
+        { role_key: "executive_development", display_name: "Executive Development", scope_level: :company, category: :executive },
+        { role_key: "executive_audit", display_name: "Executive Audit", scope_level: :company, category: :executive },
+        { role_key: "executive_hr", display_name: "Executive HR", scope_level: :company, category: :executive },
+        # Department roles（サービスレベル）
+        { role_key: "business_owner", display_name: "Business Owner", scope_level: :service, category: :department },
+        { role_key: "planning", display_name: "Planning", scope_level: :service, category: :department },
+        { role_key: "dev", display_name: "Development", scope_level: :service, category: :department },
+        { role_key: "audit", display_name: "Audit", scope_level: :service, category: :department },
+        { role_key: "cs", display_name: "Customer Success", scope_level: :service, category: :specialist },
+        # System role（会議なし種別用）
+        { role_key: "system", display_name: "System (Automated)", scope_level: :company, category: :specialist }
+      ].each do |attrs|
+        OrganizationRole.find_or_create_by!(role_key: attrs[:role_key]) do |r|
+          r.display_name = attrs[:display_name]
+          r.scope_level = attrs[:scope_level]
+          r.category = attrs[:category]
+          r.active = true
+        end
+      end
+    end
+
+    # Phase 44c: Ledger 系ジョブのスケジュール定義を DB に投入
+    def seed_schedule_definitions!
+      return unless ServiceScheduleDefinition.table_exists?
+
+      [
+        { job_key: "daily_ledger_run:ai_sns", job_class: "DailyLedgerRunJob",
+          cron: "*/30 * * * *", service_id: "ai_sns", cadence: :daily,
+          args: ["ai_sns"], description: "daily = 30分周期（§12.6: 会議なし種別の速報・KPIスナップショット）" },
+        { job_key: "weekly_dept_ledger_run:ai_sns", job_class: "WeeklyDeptLedgerRunJob",
+          cron: "0 */4 * * *", service_id: "ai_sns", cadence: :weekly,
+          args: ["ai_sns"], description: "weekly = 4時間周期" },
+        { job_key: "monthly_ops_ledger_run", job_class: "MonthlyOpsLedgerRunJob",
+          cron: "0 */12 * * *", service_id: nil, cadence: :monthly,
+          args: [], description: "monthly = 12時間周期" },
+        { job_key: "quarterly_review_ledger_run", job_class: "QuarterlyReviewLedgerRunJob",
+          cron: "0 6 */2 * *", service_id: nil, cadence: :quarterly,
+          args: [], description: "quarterly = 2日周期" },
+        { job_key: "annual_plan_ledger_run", job_class: "AnnualPlanLedgerRunJob",
+          cron: "0 8 * * 0", service_id: nil, cadence: :annual,
+          args: [], description: "annual = 7日周期（毎週日曜）" },
+        { job_key: "hr_evaluation_run", job_class: "HrEvaluationRunJob",
+          cron: "30 6 */2 * *", service_id: nil, cadence: :quarterly,
+          args: [], description: "quarterly = 2日周期（quarterly_reviewの30分後）" },
+        { job_key: "portfolio_rebalance_run", job_class: "PortfolioRebalanceRunJob",
+          cron: "0 7 */2 * *", service_id: nil, cadence: :quarterly,
+          args: [], description: "quarterly = 2日周期（quarterly_reviewの1時間後）" },
+        { job_key: "ui_check_ledger_run", job_class: "UiCheckLedgerRunJob",
+          cron: "0 0 */2 * *", service_id: "ai_sns", cadence: :quarterly,
+          args: [], description: "UI伴走管理: 2日周期チェック" }
+      ].each do |attrs|
+        ServiceScheduleDefinition.find_or_create_by!(job_key: attrs[:job_key]) do |s|
+          s.job_class = attrs[:job_class]
+          s.cron = attrs[:cron]
+          s.queue = "default"
+          s.service_id = attrs[:service_id]
+          s.cadence = attrs[:cadence]
+          s.args = attrs[:args]
+          s.enabled = true
+          s.description = attrs[:description]
+        end
+      end
+    end
+
+    # Phase 44a: デフォルト圧縮時間軸設定を DB に投入（ai_sns サービス）
+    def seed_time_axis_defaults!
+      return unless ServiceTimeAxisSetting.table_exists?
+
+      Ledgers::TimeAxis::INTERVALS.each do |cadence, duration|
+        ServiceTimeAxisSetting.find_or_create_by!(service_id: "ai_sns", cadence: cadence) do |s|
+          s.interval_seconds = duration.to_i
+          s.description = "Default: #{cadence} = #{duration.inspect}"
+        end
       end
     end
   end

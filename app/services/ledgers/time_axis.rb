@@ -11,8 +11,8 @@ module Ledgers
   #   annual      = 7日
   #   long_term   = 28日  (= 4年相当)
   #
-  # 値を変更する場合は必ずこのファイル1か所のみで行う（cron / Runner / spec /
-  # ドキュメントの「DBとコードの乖離」防止 = 設計書 §11.3.3 の方針）。
+  # Phase 44a: サービス固有の設定は `ServiceTimeAxisSetting` テーブルに DB 化。
+  # DB に設定がなければこのデフォルト定数にフォールバックする。
   module TimeAxis
     INTERVALS = {
       daily: 30.minutes,
@@ -26,11 +26,19 @@ module Ledgers
     CADENCES = INTERVALS.keys.freeze
 
     # @param cadence [Symbol, String]
+    # @param service_id [String, nil] サービス固有の設定を参照する場合に指定
     # @return [ActiveSupport::Duration]
-    def self.interval_for(cadence)
-      INTERVALS.fetch(cadence.to_sym) do
-        raise ArgumentError, "Unknown cadence: #{cadence.inspect} (allowed: #{CADENCES.join(', ')})"
+    def self.interval_for(cadence, service_id: nil)
+      cadence_sym = cadence.to_sym
+      raise ArgumentError, "Unknown cadence: #{cadence.inspect} (allowed: #{CADENCES.join(', ')})" unless CADENCES.include?(cadence_sym)
+
+      # Phase 44a: DB にサービス固有の設定があればそちらを優先
+      if service_id.present?
+        db_interval = ServiceTimeAxisSetting.interval_for(service_id: service_id, cadence: cadence_sym)
+        return db_interval if db_interval
       end
+
+      INTERVALS.fetch(cadence_sym)
     end
 
     # 与えられた時刻を cadence の interval で切り捨てた "slot 開始時刻" を返す。

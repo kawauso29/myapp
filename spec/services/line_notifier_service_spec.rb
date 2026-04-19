@@ -6,11 +6,11 @@ RSpec.describe LineNotifierService do
   end
 
   let(:credentials_base) { { channel_secret: "secret", channel_token: "token" } }
-  let(:mock_client) { instance_double(Line::Bot::Client) }
-  let(:success_response) { double(code: "200", body: "{}") }
+  let(:mock_client) { instance_double(Line::Bot::V2::MessagingApi::ApiClient) }
+  let(:success_response) { ["{}", 200, {}] }
 
   before do
-    allow(Line::Bot::Client).to receive(:new).and_return(mock_client)
+    allow(Line::Bot::V2::MessagingApi::ApiClient).to receive(:new).and_return(mock_client)
   end
 
   describe "#notify_new_messages" do
@@ -23,7 +23,9 @@ RSpec.describe LineNotifierService do
       end
 
       it "multicastで送信する" do
-        expect(mock_client).to receive(:multicast).with(friend_ids, anything).and_return(success_response)
+        expect(mock_client).to receive(:multicast_with_http_info).with(
+          multicast_request: hash_including(to: friend_ids, messages: anything)
+        ).and_return(success_response)
         described_class.new.notify_new_messages(messages)
       end
     end
@@ -35,7 +37,9 @@ RSpec.describe LineNotifierService do
       end
 
       it "push_messageで送信する" do
-        expect(mock_client).to receive(:push_message).with("U_owner", anything).and_return(success_response)
+        expect(mock_client).to receive(:push_message_with_http_info).with(
+          push_message_request: hash_including(to: "U_owner", messages: anything)
+        ).and_return(success_response)
         described_class.new.notify_new_messages(messages)
       end
     end
@@ -47,7 +51,9 @@ RSpec.describe LineNotifierService do
       end
 
       it "broadcastで送信する" do
-        expect(mock_client).to receive(:broadcast).with(anything).and_return(success_response)
+        expect(mock_client).to receive(:broadcast_with_http_info).with(
+          broadcast_request: hash_including(messages: anything)
+        ).and_return(success_response)
         described_class.new.notify_new_messages(messages)
       end
     end
@@ -58,7 +64,7 @@ RSpec.describe LineNotifierService do
       before do
         allow(Rails.application.credentials).to receive(:line!)
           .and_return(credentials_base.merge(user_id: nil, friend_ids: nil))
-        allow(mock_client).to receive(:broadcast).and_return(error_response)
+        allow(mock_client).to receive(:broadcast_with_http_info).and_return([error_response.body, error_response.code.to_i, {}])
       end
 
       it "例外をraiseする" do
@@ -74,9 +80,9 @@ RSpec.describe LineNotifierService do
       end
 
       it "何も送信しない" do
-        expect(mock_client).not_to receive(:broadcast)
-        expect(mock_client).not_to receive(:multicast)
-        expect(mock_client).not_to receive(:push_message)
+        expect(mock_client).not_to receive(:broadcast_with_http_info)
+        expect(mock_client).not_to receive(:multicast_with_http_info)
+        expect(mock_client).not_to receive(:push_message_with_http_info)
         described_class.new.notify_new_messages([])
       end
     end
