@@ -26,6 +26,14 @@
   status_icon  = { healthy: "✅", late: "⚠️", stale: "🔴", missing: "❌" }
   status_color = { healthy: "#68d391", late: "#f6ad55", stale: "#fc8181", missing: "#fc8181" }
   status_label = { healthy: "正常", late: "要注意", stale: "停滞", missing: "未実行" }
+  ticket_status_label = {
+    draft: "下書き",
+    waiting_review: "レビュー待ち",
+    overdue: "期限超過",
+    approved: "承認済み",
+    rejected: "却下",
+    cancelled: "取消"
+  }
 %>
 
 <%# ===== ナビゲーションバー ===== %>
@@ -60,7 +68,7 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap; padding:8px 0;">
     <div style="flex:1; display:flex; gap:8px; flex-wrap:wrap;">
       <% [
-        [:waiting_review, "待ちレビュー", "#f6ad55"],
+        [:waiting_review, "改善レビュー待ち", "#f6ad55"],
         [:overdue, "期限超過", "#fc8181"],
         [:non_approval, "非承認", "#f6ad55"],
         [:active_stop, "稼働停止", "#fc8181"]
@@ -114,7 +122,7 @@
         <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:130px; <%= card_border %> flex:1;">
           <div style="font-size:0.75em; color:#718096; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;"><%= cadence_interval_label(h[:interval]) %>周期</div>
           <div style="font-size:1.05em; font-weight:700; color:#e2e8f0; margin-bottom:2px;"><%= h[:cadence] %></div>
-          <div style="font-size:1.3em; margin-bottom:4px;"><%= status_icon[h[:status]] %> <span style="font-size:0.7em; color:<%= status_color[h[:status]] %>; vertical-align:middle;"><%= status_label[h[:status]] %></span></div>
+          <div style="font-size:1.3em; margin-bottom:4px;"><%= status_icon[h[:status]] %> <span style="font-size:0.7em; color:<%= status_color[h[:status]] %>; vertical-align:middle;"><%= status_label.fetch(h[:status], h[:status].to_s) %></span></div>
           <div style="font-size:0.8em; color:#a0aec0; margin-bottom:2px;">
             最終: <%= h[:last_held_at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "なし" %>
           </div>
@@ -266,12 +274,13 @@
               </td>
               <td><%= t.service_id.presence || "-" %></td>
               <td>
+                <% ticket_status_key = t.status.to_s.to_sym %>
                 <% if t.status_overdue? %>
                     <span style="color:#f56565; font-weight:600;">期限超過</span>
                 <% elsif t.status_waiting_review? %>
                     <span style="color:#f6ad55;">レビュー待ち</span>
                 <% else %>
-                    <span style="color:#a0aec0; font-size:0.85em;"><%= t.status_approved? ? "承認済み" : t.status %></span>
+                    <span style="color:#a0aec0; font-size:0.85em;"><%= ticket_status_label.fetch(ticket_status_key, t.status.to_s) %></span>
                 <% end %>
               </td>
               <td style="font-size:0.85em;"><%= t.assignee.presence || "-" %></td>
