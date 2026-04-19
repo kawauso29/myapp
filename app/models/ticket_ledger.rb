@@ -153,13 +153,20 @@ class TicketLedger < ApplicationRecord
   # デフォルト OFF。
   class_attribute :enforce_pr_guardrail, instance_accessor: false, default: false
 
+  # Phase 44e / §33.2 補強9: 起票時に template_id の設定を強制する。
+  # true の場合、template_id が blank な TicketLedger.create は `errors.add` + `throw(:abort)`
+  # でキャンセルする（`skip_template_guard = true` で例外的に bypass 可能）。
+  # デフォルト OFF。`ENFORCE_TEMPLATE=1` で段階的に有効化する。
+  class_attribute :enforce_template, instance_accessor: false, default: false
+
   # Runner や呼び出し側で「このレコードだけは例外的に guard をスキップしたい」場合に
   # `ticket.skip_stop_guard = true` を指定できる。
-  attr_accessor :skip_stop_guard, :skip_lane_capacity_guard, :skip_pr_guardrail
+  attr_accessor :skip_stop_guard, :skip_lane_capacity_guard, :skip_pr_guardrail, :skip_template_guard
 
   before_create :assert_no_active_stop!, if: :stop_guard_applies?
   before_create :assert_lane_capacity!, if: :enforce_lane_capacity_applies?
   before_create :assert_pr_guardrail!, if: :enforce_pr_guardrail_applies?
+  before_create :assert_template_present!, if: :enforce_template_applies?
   after_create :warn_if_lane_over_capacity, if: :warn_lane_capacity_applies?
   after_create :warn_if_pr_guardrail_missing, if: :warn_pr_guardrail_applies?
 
@@ -309,5 +316,19 @@ class TicketLedger < ApplicationRecord
     )
   rescue StandardError => e
     Rails.logger.warn("[PrGuardrail] check failed for ticket=##{id}: #{e.message}")
+  end
+
+  # Phase 44e: template_id enforce の適用判定
+  def enforce_template_applies?
+    return false if skip_template_guard
+
+    self.class.enforce_template
+  end
+
+  def assert_template_present!
+    return if template_id.present?
+
+    errors.add(:template_id, "is required when enforce_template is enabled")
+    throw(:abort)
   end
 end
