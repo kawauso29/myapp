@@ -21,10 +21,10 @@ class LineNotifierService
   def send_line_message(text)
     message_payload = [{ type: "text", text: text }]
 
-    friend_ids = line_credentials[:friend_ids].presence
+    friend_ids = Array(line_credentials[:friend_ids]).select(&:present?)
     user_id    = line_credentials[:user_id].presence
 
-    if friend_ids.is_a?(Array) && friend_ids.any?
+    if friend_ids.any?
       @send_method = :multicast
       client.multicast(friend_ids, message_payload)
     elsif user_id.present?
@@ -45,7 +45,7 @@ class LineNotifierService
 
   def send_method_label
     case @send_method
-    when :multicast then "multicast（#{line_credentials[:friend_ids].size}人）"
+    when :multicast then "multicast（#{Array(line_credentials[:friend_ids]).size}人）"
     when :push      then "push_message"
     else                 "broadcast"
     end

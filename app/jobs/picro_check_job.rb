@@ -40,7 +40,7 @@ class PicroCheckJob < ApplicationJob
     # 4. LINE通知
     begin
       LineNotifierService.new.notify_new_messages(new_messages)
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error("[PicroCheckJob] LINE通知失敗: #{e.message}")
       notify_error("LINE通知失敗（#{new_messages.size}件未配信）: #{e.message}")
       return
