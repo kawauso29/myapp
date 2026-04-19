@@ -18,14 +18,17 @@ RSpec.describe Ledgers::AnnualPlanRunner do
     let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns") }
 
     before do
-      quarterly = create(:meeting_ledger, meeting_definition: quarterly_definition, meeting_key: "quarterly_review", meeting_type: :quarterly_review, created_at: 200.days.ago, held_at: 200.days.ago)
-      weekly_recent = create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 50.days.ago, held_at: 50.days.ago)
-      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 400.days.ago, held_at: 400.days.ago)
+      # 圧縮 annual = 7 日が range_start
+      quarterly = create(:meeting_ledger, meeting_definition: quarterly_definition, meeting_key: "quarterly_review", meeting_type: :quarterly_review, created_at: 3.days.ago, held_at: 3.days.ago)
+      weekly_recent = create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 1.day.ago, held_at: 1.day.ago)
+      # 範囲外（7 日より前）: カウントされない
+      create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 30.days.ago, held_at: 30.days.ago)
 
-      create(:ticket_ledger, ticket_type: "quarterly_review", status: :approved, created_at: 100.days.ago, source_meeting: quarterly)
-      create(:ticket_ledger, status: :approved, created_at: 30.days.ago, source_meeting: weekly_recent)
-      create(:ticket_ledger, status: :overdue, created_at: 20.days.ago, source_meeting: weekly_recent)
-      create(:ticket_ledger, status: :cancelled, created_at: 500.days.ago, source_meeting: weekly_recent)
+      create(:ticket_ledger, ticket_type: "quarterly_review", status: :approved, created_at: 4.days.ago, source_meeting: quarterly)
+      create(:ticket_ledger, status: :approved, created_at: 2.days.ago, source_meeting: weekly_recent)
+      create(:ticket_ledger, status: :overdue, created_at: 1.day.ago, source_meeting: weekly_recent)
+      # 範囲外
+      create(:ticket_ledger, status: :cancelled, created_at: 30.days.ago, source_meeting: weekly_recent)
     end
 
     it "creates annual plan meeting and summary ticket" do
@@ -38,7 +41,7 @@ RSpec.describe Ledgers::AnnualPlanRunner do
       expect(ticket.title).to eq("FY#{Date.current.year} Annual Plan")
       expect(ticket).to be_status_approved
       expect(ticket.assignee).to eq("annual_plan_runner")
-      expect(ticket.due_date).to eq(Date.current + 365.days)
+      expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:annual))
       expect(ticket.resolved_at).to be_present
       expect(ticket.linked_kpis).to include(
         "total_meetings" => 2,

@@ -35,7 +35,7 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
       expect(waiting_ticket.reload).to be_status_cancelled
       expect(waiting_ticket.resolved_at).to be_present
       expect(waiting_ticket.assignee).to eq("monthly_ops_runner")
-      expect(waiting_ticket.due_date).to eq(Date.current + 30.days)
+      expect(waiting_ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:monthly))
       expect(waiting_ticket.escalation_to).to be_nil
       expect(meeting.decisions).to include(a_hash_including("ticket_id" => waiting_ticket.id, "resolution" => "cancelled"))
     end

@@ -27,7 +27,8 @@ module Ledgers
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
           prefix: @meeting_key,
-          parts: [ service_id ]
+          parts: [ service_id ],
+          cadence: :weekly
         )
       )
 
@@ -131,7 +132,7 @@ module Ledgers
         priority: attrs[:priority] || :medium,
         status: audit_ok ? :approved : :waiting_review,
         assignee: service_id,
-        due_date: Date.current + 7.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:weekly),
         due_cycle: :weekly,
         escalation_to: audit_ok ? nil : :monthly
       )

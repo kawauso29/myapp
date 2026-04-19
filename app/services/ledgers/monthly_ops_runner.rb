@@ -25,7 +25,7 @@ module Ledgers
         role_fill_rate: preflight.role_fill_rate,
         held_at: Time.current,
         status: :open,
-        idempotency_key: Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops")
+        idempotency_key: Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops", cadence: :monthly)
       )
 
       decisions = []
@@ -34,7 +34,7 @@ module Ledgers
         ticket.update!(
           status: resolution,
           assignee: ticket.assignee.presence || DEFAULT_ASSIGNEE,
-          due_date: ticket.due_date || (Date.current + 30.days),
+          due_date: ticket.due_date || Ledgers::TimeAxis.due_date_for(:monthly),
           due_cycle: resolution == "draft" ? :weekly : ticket.due_cycle,
           escalation_to: nil
         )

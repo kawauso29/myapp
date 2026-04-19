@@ -25,7 +25,8 @@ module Ledgers
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
           prefix: "annual_plan",
-          parts: [ "fy#{Date.current.year}" ]
+          parts: [ "fy#{Date.current.year}" ],
+          cadence: :annual
         )
       )
       @current_meeting_id = meeting.id
@@ -42,7 +43,7 @@ module Ledgers
         priority: :medium,
         status: :approved,
         assignee: DEFAULT_ASSIGNEE,
-        due_date: Date.current + 365.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:annual),
         due_cycle: :annual,
         resolved_at: Time.current
       )
@@ -107,7 +108,7 @@ module Ledgers
     end
 
     def range_start
-      @range_start ||= 365.days.ago
+      @range_start ||= Ledgers::TimeAxis.interval_for(:annual).ago
     end
   end
 end

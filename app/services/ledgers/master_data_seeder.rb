@@ -60,13 +60,15 @@ module Ledgers
       ServiceHeartbeat.find_or_create_by!(meeting_definition: weekly, service_id: "ai_sns") do |h|
         h.due_cycle = :weekly
         h.status = :active
-        h.next_run_at = 1.week.from_now
+        # 圧縮時間軸: weekly = 4 時間後
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:weekly).from_now
       end
 
       ServiceHeartbeat.find_or_create_by!(meeting_definition: monthly, service_id: nil) do |h|
         h.due_cycle = :monthly
         h.status = :active
-        h.next_run_at = 1.month.from_now
+        # 圧縮時間軸: monthly = 12 時間後
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:monthly).from_now
       end
 
       # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義（ai_sns に統合済み）
@@ -82,7 +84,8 @@ module Ledgers
       ServiceHeartbeat.find_or_create_by!(meeting_definition: ui_check, service_id: "ai_sns") do |h|
         h.due_cycle = :weekly
         h.status = :active
-        h.next_run_at = 2.days.from_now
+        # UI 伴走管理は 2 日周期（quarterly cadence と同等の interval）
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:quarterly).from_now
       end
     end
 

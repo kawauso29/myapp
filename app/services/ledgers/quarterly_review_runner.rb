@@ -25,7 +25,8 @@ module Ledgers
         status: :open,
         idempotency_key: Ledgers::IdempotencyKey.for_meeting(
           prefix: "quarterly_review",
-          parts: [ Date.current.year, "q#{quarter_number}" ]
+          parts: [ Date.current.year, "q#{quarter_number}" ],
+          cadence: :quarterly
         )
       )
 
@@ -44,7 +45,7 @@ module Ledgers
         priority: :medium,
         status: :approved,
         assignee: DEFAULT_ASSIGNEE,
-        due_date: Date.current + 90.days,
+        due_date: Ledgers::TimeAxis.due_date_for(:quarterly),
         due_cycle: :quarterly,
         resolved_at: Time.current
       )
@@ -100,7 +101,7 @@ module Ledgers
     end
 
     def range_start
-      @range_start ||= 90.days.ago
+      @range_start ||= Ledgers::TimeAxis.interval_for(:quarterly).ago
     end
   end
 end

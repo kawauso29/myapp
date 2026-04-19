@@ -99,6 +99,42 @@
 
 （本 PR で上記をすべて実装済み。残件は本番での enforce モード ON タイミングのみ）
 
+## Phase 42: 圧縮時間軸（4 年 = 28 日）の実装定着
+
+設計書 `thu_apr_16_2026_自律運営型ai企業体の設計.md` §11（line 2309 で確定）の固定値:
+
+| cadence | 圧縮 interval | 実時間軸での意味 |
+|---|---|---|
+| daily | 30 分 | 1 日相当 |
+| weekly | 4 時間 | 1 週相当 |
+| monthly | 12 時間 | 1 ヶ月相当 |
+| quarterly | 2 日 | 3 ヶ月相当 |
+| annual | 7 日 | 1 年相当 |
+| long_term | 28 日 | 4 年相当 |
+
+### 何を直したか
+
+- `Ledgers::TimeAxis` 定数モジュールを追加し、6 cadence の固定 interval を一元管理（`INTERVALS` / `interval_for` / `slot_start` / `slot_token` / `due_date_for`）
+- `Ledgers::IdempotencyKey.for_meeting` に `cadence:` オプションを追加。指定すると trailing が `Date#iso8601` ではなく `slot_token`（slot 開始時刻）になり、同 slot 内の複数起動だけが冪等弾きされる
+- `config/recurring.yml` の Ledger 系 cron を圧縮スケジュールに更新:
+  - `weekly_dept_ledger_run`: 週1（毎週月曜）→ **4 時間ごと**
+  - `monthly_ops_ledger_run`: 月1（毎月1日）→ **12 時間ごと**
+  - `quarterly_review_ledger_run`: 年4（1/4/7/10月）→ **2 日ごと**
+  - `annual_plan_ledger_run`: 年1（1/1）→ **7 日ごと（毎週日曜）**
+  - `hr_evaluation_run` / `portfolio_rebalance_run`: 年4 → 2 日ごと
+- 4 つの Runner（WeeklyDept / MonthlyOps / QuarterlyReview / AnnualPlan）の `idempotency_key` 生成に cadence を渡す
+- 4 つの Runner の `due_date` を `Ledgers::TimeAxis.due_date_for(cadence)` に統一（サブ日 cadence は今日 / 今夜のうちの締切）
+- `QuarterlyReviewRunner#range_start`: `90.days.ago` → `interval_for(:quarterly).ago`（= 2.days.ago）
+- `AnnualPlanRunner#range_start`: `365.days.ago` → `interval_for(:annual).ago`（= 7.days.ago）
+- `Ledgers::MasterDataSeeder` の `ServiceHeartbeat#next_run_at` を圧縮 interval 起算に更新
+
+### なぜ重要か
+
+- これまで `quarterly_review` は年4回しか起動せず、1ヶ月（圧縮 4 年）シミュレーション中に 0〜1 回しか発火しなかった → ledger が回らないので、ledger が管理する AI SNS の運営 PDCA も実質的に止まっていた
+- 圧縮スケジュールに揃えることで、1ヶ月 = 4 年の運営シミュレーションが期待どおり動く
+- DB / コード / cron / spec のあらゆる場所で `Ledgers::TimeAxis::INTERVALS` を **唯一の正本** として参照するため、設計書（§11.3.3）の「DB とコードの乖離防止」方針に整合
+
+
 
 ## 検出したギャップの詳細（参考）
 
