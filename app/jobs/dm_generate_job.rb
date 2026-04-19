@@ -68,7 +68,8 @@ class DmGenerateJob < ApplicationJob
         { title: "種別",   value: message.dm_type.to_s, short: true },
         { title: "きっかけ", value: trigger.to_s.presence || "返信", short: true }
       ],
-      channel: :jobs
+      channel: :jobs,
+      service_id: "ai_sns"
     )
   end
 
