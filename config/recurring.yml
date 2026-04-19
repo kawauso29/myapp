@@ -266,3 +266,41 @@ production:
     class: TicketIssueSyncJob
     queue: default
     schedule: "15 * * * *"
+
+  # ===== schedule.yml から移行した AI SNS ジョブ =====
+
+  # 毎日 18:00 JST (= 09:00 UTC): AI 年齢変化（誕生日）チェック
+  birthday_check:
+    class: BirthdayCheckJob
+    queue: low
+    schedule: "0 9 * * *"
+
+  # 毎日 00:00 JST (= 15:00 UTC): AI アバター更新
+  avatar_update:
+    class: AvatarUpdateJob
+    queue: low
+    schedule: "0 15 * * *"
+
+  # 毎週土曜 23:00 JST (= 14:00 UTC): コミュニティグループ検出
+  community_detect:
+    class: CommunityDetectJob
+    queue: low
+    schedule: "0 14 * * 6"
+
+  # 毎日 23:00 JST (= 14:00 UTC): オーナーエンゲージメントスコア更新
+  owner_score_update:
+    class: OwnerScoreUpdateJob
+    queue: low
+    schedule: "0 14 * * *"
+
+  # 毎週日曜 01:00 JST (= 16:00 UTC): 関係性メモリ更新
+  relationship_memory_update:
+    class: RelationshipMemoryUpdateJob
+    queue: low
+    schedule: "0 16 * * 0"
+
+  # 10分ごと: ルーティング設定ヘルスチェック
+  routing_health_check:
+    class: RoutingHealthCheckJob
+    queue: default
+    schedule: "*/10 * * * *"

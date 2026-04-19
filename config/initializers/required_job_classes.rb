@@ -41,6 +41,12 @@ Rails.application.reloader.to_prepare do
     PlannerJob
     TicketIssueSyncJob
     UiCheckLedgerRunJob
+    BirthdayCheckJob
+    AvatarUpdateJob
+    CommunityDetectJob
+    OwnerScoreUpdateJob
+    RelationshipMemoryUpdateJob
+    RoutingHealthCheckJob
     HeartbeatSchedulerJob
   ].each do |job_class_name|
     job_class_name.constantize
