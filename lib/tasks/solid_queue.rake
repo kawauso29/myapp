@@ -42,6 +42,12 @@ namespace :solid_queue do
     PlannerJob
     TicketIssueSyncJob
     UiCheckLedgerRunJob
+    BirthdayCheckJob
+    AvatarUpdateJob
+    CommunityDetectJob
+    OwnerScoreUpdateJob
+    RelationshipMemoryUpdateJob
+    RoutingHealthCheckJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob
