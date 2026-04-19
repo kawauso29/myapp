@@ -17,7 +17,10 @@ RSpec.describe PicroCheckJob, type: :job do
 
   before do
     allow(SlackNotifierService).to receive(:notify)
+    allow(LineNotifierService).to receive(:new).and_return(line_notifier)
   end
+
+  let(:line_notifier) { instance_double(LineNotifierService, notify_new_messages: true) }
 
   describe "#perform" do
     context "スクレイピング失敗時" do
@@ -37,11 +40,8 @@ RSpec.describe PicroCheckJob, type: :job do
     end
 
     context "新着メッセージがある場合" do
-      let(:line_response) { double(code: "200", body: "{}") }
-
       before do
         allow_any_instance_of(PicroScraperService).to receive(:call).and_return(scraper_success)
-        allow_any_instance_of(LineNotifierService).to receive(:notify_new_messages)
       end
 
       it "PicroMessageを保存する" do
@@ -50,7 +50,7 @@ RSpec.describe PicroCheckJob, type: :job do
 
       it "LINE通知を送信する" do
         described_class.new.perform
-        expect_any_instance_of(LineNotifierService).to have_received(:notify_new_messages)
+        expect(line_notifier).to have_received(:notify_new_messages)
       end
 
       it "Slack成功通知を送信する" do
@@ -68,7 +68,7 @@ RSpec.describe PicroCheckJob, type: :job do
       end
 
       it "LINE通知を送信しない" do
-        expect_any_instance_of(LineNotifierService).not_to receive(:notify_new_messages)
+        expect(line_notifier).not_to receive(:notify_new_messages)
         described_class.new.perform
       end
     end
@@ -76,8 +76,7 @@ RSpec.describe PicroCheckJob, type: :job do
     context "LINE通知が失敗した場合" do
       before do
         allow_any_instance_of(PicroScraperService).to receive(:call).and_return(scraper_success)
-        allow_any_instance_of(LineNotifierService).to receive(:notify_new_messages)
-          .and_raise("LINE broadcast失敗: code=429 body=rate limit")
+        allow(line_notifier).to receive(:notify_new_messages).and_raise("LINE broadcast失敗: code=429 body=rate limit")
       end
 
       it "Slackエラー通知を送信する" do

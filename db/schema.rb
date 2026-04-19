@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_19_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_19_060200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -714,6 +714,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_19_000001) do
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
+  create_table "organization_roles", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.integer "category", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "display_name", null: false
+    t.string "role_key", null: false
+    t.integer "scope_level", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_organization_roles_on_active"
+    t.index ["role_key"], name: "index_organization_roles_on_role_key", unique: true
+    t.index ["scope_level"], name: "index_organization_roles_on_scope_level"
+  end
+
   create_table "operator_override_ledgers", force: :cascade do |t|
     t.integer "action", null: false
     t.datetime "created_at", null: false
@@ -833,6 +847,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_19_000001) do
     t.index ["meeting_definition_id", "service_id"], name: "idx_on_meeting_definition_id_service_id_4057f53616", unique: true
     t.index ["meeting_definition_id"], name: "index_service_heartbeats_on_meeting_definition_id"
     t.index ["status", "next_run_at"], name: "index_service_heartbeats_on_status_and_next_run_at"
+  end
+
+  create_table "service_schedule_definitions", force: :cascade do |t|
+    t.jsonb "args", default: [], null: false
+    t.integer "cadence"
+    t.datetime "created_at", null: false
+    t.string "cron", null: false
+    t.text "description"
+    t.boolean "enabled", default: true, null: false
+    t.string "job_class", null: false
+    t.string "job_key", null: false
+    t.string "queue", default: "default", null: false
+    t.string "service_id"
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_service_schedule_definitions_on_enabled"
+    t.index ["job_key"], name: "index_service_schedule_definitions_on_job_key", unique: true
+    t.index ["service_id"], name: "index_service_schedule_definitions_on_service_id"
+  end
+
+  create_table "service_time_axis_settings", force: :cascade do |t|
+    t.integer "cadence", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.integer "interval_seconds", null: false
+    t.string "service_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["service_id", "cadence"], name: "idx_stas_service_cadence", unique: true
   end
 
   create_table "service_ledgers", force: :cascade do |t|
