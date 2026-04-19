@@ -428,6 +428,7 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - `GITHUB_TOKEN` で作成したコメント/Issueは GitHub Apps（Copilot coding agent）の Webhook をトリガーしない（GitHub のループ防止仕様）。`@copilot` メンションを含むコメントは必ず `DEPLOY_TOKEN`（fine-grained PAT）で投稿する。**`DEPLOY_TOKEN` には `Issues: Read and Write` スコープが必須**。403 が出る場合は GitHub Settings → Developer settings → Personal access tokens → DEPLOY_TOKEN を `Issues: Read and Write` スコープで再発行すること（デプロイ用途の PAT とスコープが分離されている場合は注意）
 - `ai_sns_plan.yml` で `git commit --allow-empty` を使うと空PRが作成され、auto_mergeがCopilot実装前に空PRをマージしてしまう → **正しい対処**: ①`auto_merge.yml` にマージ前の変更ファイル数チェック（空PRガード）を追加、②PRは `draft: true` で作成、③`--allow-empty` の代わりに `started_at` タイムスタンプ等の実ファイル変更をコミットする
 - `ai_sns_plan.yml` で `@copilot` をPR本文（body）に書いても Copilot coding agent は起動しない → **正しい対処**: PR作成後に `issues.createComment` で別途PRコメントとして `@copilot` メンションを投稿する
+- `pr_guardrails.yml` の必須セクション検証を全PR一律にすると、`copilot/ai-sns-*` / `auto-fix/*` / `deploy-failure/*` の自動起票PRが失敗する → **正しい対処**: 自動運用ブランチは本文テンプレ検証と §31 メタ検証を skip し、通常セッションPRのみ厳格検証する
 - `plan_review.yml` でも同様に `@copilot` をIssue本文（body）に書いても起動しない → **正しい対処**: Issue作成後に `issues.createComment` で別途Issueコメントとして `@copilot` メンションを投稿する（DEPLOY_TOKEN使用）
 - `plan_review.yml` の open Issue 重複チェックは7日超の古い Issue を自動クローズしてから新規作成する。Copilot 無反応で Issue が永久に open になり計画レビューがブロックされるのを防止する
 - `weekly_pdca.yml` は `in_progress` 項目の `started_at` が7日以上前なら自動で `todo` にリセットする。Copilot 実装失敗やPR放置で WIP 上限に永久に達してしまうのを防止する
