@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate-pr-description:
     name: Validate required PR metadata
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - name: Check required sections
         env:
