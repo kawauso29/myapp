@@ -179,6 +179,52 @@ docker compose up
 - Redis: localhost:6379
 - 設定: `docker-compose.yml` + `Dockerfile.dev`
 
+## DB操作ガイド（テスト環境）
+
+Copilot coding agent のセッション中は **`RAILS_ENV=test bin/rails ...`** でテストDBに対してDB操作が可能。
+テストDBは `copilot-setup-steps.yml` でセットアップ済み（`db:test:prepare` + 本番スナップショットのロード）。
+
+### 構造確認
+
+```bash
+# 全テーブルのカラム定義・件数を一覧表示
+RAILS_ENV=test bin/rails db:structure
+
+# 任意のテーブルのカラム情報
+RAILS_ENV=test bin/rails runner "AiUser.columns.each { |c| puts \"#{c.name}: #{c.sql_type}\" }"
+```
+
+### データ確認
+
+```bash
+# 各テーブルの最新5件を JSON で出力（引数でN件指定可）
+RAILS_ENV=test bin/rails db:sample_data
+RAILS_ENV=test bin/rails "db:sample_data[10]"
+
+# 任意SQL（SELECT推奨）を実行してJSON出力
+RAILS_ENV=test bin/rails "db:query[SELECT * FROM ai_users LIMIT 3]"
+RAILS_ENV=test bin/rails "db:query[SELECT count(*) FROM ai_posts]"
+
+# ActiveRecord で絞り込み
+RAILS_ENV=test bin/rails runner "puts AiUser.where(active: true).last(3).to_json"
+```
+
+### データ作成・検証
+
+```bash
+# テストデータを作成して構造を確認
+RAILS_ENV=test bin/rails runner "u = AiUser.create!(name: 'test'); puts u.to_json"
+
+# 本番スナップショットをテストDBに再ロード（db/snapshots/db_snapshot.json が必要）
+RAILS_ENV=test bin/rails db:snapshot_load
+```
+
+### ポイント
+
+- テストDBなので壊しても問題なし。実装前の構造確認・実装後のデータ検証に積極的に使う
+- スナップショット（`db/snapshots/db_snapshot.json`）があれば本番に近いデータで動作確認できる
+- `db:structure` / `db:sample_data` / `db:query` は `lib/tasks/db_console.rake` で定義
+
 ## Slack通知 3カテゴリ設計
 
 通知ルーティングの正本は `docs/slack-notification-routing.md`。
