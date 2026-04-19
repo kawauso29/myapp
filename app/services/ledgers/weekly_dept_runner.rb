@@ -86,7 +86,7 @@ module Ledgers
       # Phase 31c: 会議の議事要約を成果物台帳に自動記録する
       Ledgers::RunnerArtifactPublisher.publish_for!(
         meeting: meeting,
-        runner: :weekly_dept,
+        runner: @meeting_key.to_sym,
         service_id: service_id
       )
 
@@ -105,11 +105,11 @@ module Ledgers
       [
         {
           ticket_type: "operations",
-          title: "weekly_dept default ticket for #{service_id}",
+          title: "#{@meeting_key} default ticket for #{service_id}",
           linked_kpis: [ "kpi:service_health" ],
           audit_ok: true,
           owner_dept: "planning",
-          owner_agent: "weekly_dept_runner"
+          owner_agent: "#{@meeting_key}_runner"
         }
       ]
     end

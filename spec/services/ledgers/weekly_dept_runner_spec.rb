@@ -152,5 +152,30 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(meeting.hold_items).to be_present
       expect(meeting.carry_over_items).to eq(meeting.hold_items)
     end
+
+    context "when meeting_key is ui_check" do
+      let!(:ui_check_definition) do
+        create(:meeting_definition,
+               meeting_key: "ui_check",
+               meeting_type: :weekly,
+               scope_level: :service,
+               service_id: "ai_sns")
+      end
+
+      it "creates MeetingLedger with meeting_key: ui_check and correct idempotency_key" do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+        meeting = described_class.call(
+          service_id: "ai_sns",
+          meeting_key: "ui_check",
+          ticket_inputs: [
+            { ticket_type: "ops", title: "ui check ticket", linked_kpis: [ "kpi:service_health" ], audit_ok: true }
+          ]
+        )
+
+        expect(meeting.meeting_key).to eq("ui_check")
+        expect(meeting.idempotency_key).to eq("ui_check:ai_sns:#{Date.current.iso8601}")
+      end
+    end
   end
 end
