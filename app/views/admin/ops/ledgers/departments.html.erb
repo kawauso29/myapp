@@ -13,7 +13,7 @@
           <%
             chair_count  = @meeting_def_counts[role.role_key] || 0
             hr_count     = @hr_eval_counts[role.role_key] || 0
-            role_profile = (@role_profiles_by_key || {})[role.role_key] || {}
+            role_profile = @role_profiles_by_key[role.role_key] || {}
             role_name = role_profile[:display_name].presence || role.display_name
           %>
           <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:180px; flex:1; border:1px solid #2d3748;">

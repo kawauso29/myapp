@@ -18,7 +18,7 @@
     <span style="margin-right:8px;">分類: <strong style="color:#e2e8f0;"><%= category_labels[@role.category] || @role.category %></strong></span>
     <span>スコープ: <strong style="color:#e2e8f0;"><%= scope_labels[@role.scope_level] || @role.scope_level %></strong></span>
   </div>
-  <div style="font-size:0.88em; color:#a0aec0;"><%= @role_profile[:summary].presence || @role.description.presence || "この役割の概要は未設定です。" %></div>
+  <div style="font-size:0.88em; color:#a0aec0;"><%= @role_profile[:summary] %></div>
 </div>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">

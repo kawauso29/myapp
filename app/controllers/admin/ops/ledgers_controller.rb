@@ -8,6 +8,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   ].freeze
 
   LEDGER_SERVICES = %w[ai_sns trading picro].freeze
+  ROLE_SUMMARY_FALLBACK = "この役割の概要は未設定です。".freeze
   ROLE_PROFILE_BY_KEY = {
     "ceo" => {
       display_name: "社長",
@@ -312,6 +313,11 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     end
   rescue StandardError => e
     Rails.logger.warn("LedgersController#departments: #{e.message}")
+    @roles_by_category ||= {}
+    @meeting_def_counts ||= {}
+    @hr_eval_counts ||= {}
+    @org_change_counts ||= {}
+    @role_profiles_by_key ||= {}
   end
 
   def department_detail
@@ -575,7 +581,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     profile = ROLE_PROFILE_BY_KEY[role.role_key] || {}
     {
       display_name: profile[:display_name].presence || role.display_name,
-      summary: profile[:summary].presence || role.description.presence || "この役割の概要は未設定です。",
+      summary: profile[:summary].presence || role.description.presence || ROLE_SUMMARY_FALLBACK,
       responsibilities: Array(profile[:responsibilities]).presence || default_responsibilities_for(role),
       tasks: Array(profile[:tasks]).presence || default_tasks_for(role)
     }
