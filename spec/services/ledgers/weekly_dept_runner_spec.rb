@@ -178,7 +178,6 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(meeting.decisions).to include(a_hash_including("result" => "held_for_active_stop"))
     end
 
-
     context "when meeting_key is ui_check" do
       let!(:ui_check_definition) do
         create(:meeting_definition,
