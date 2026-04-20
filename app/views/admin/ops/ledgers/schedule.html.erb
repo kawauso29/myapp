@@ -1,0 +1,118 @@
+<% content_for :title, "Ledger — スケジュール" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<%# ===== 次回 Heartbeat タイムライン ===== %>
+<div class="card">
+  <h2>次回 Heartbeat 予定（7日先まで）</h2>
+  <% if @upcoming_heartbeats.present? %>
+    <% days_grouped = @upcoming_heartbeats
+         .select { |hb| hb.next_run_at <= 7.days.from_now }
+         .group_by { |hb| hb.next_run_at.in_time_zone("Tokyo").to_date }
+    %>
+    <% if days_grouped.any? %>
+      <% days_grouped.each do |date, hbs| %>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:0.8em; font-weight:700; color:#63b3ed; background:#1a2744; padding:4px 10px; border-radius:4px; margin-bottom:6px; display:inline-block;">
+            <%= date.strftime("%Y/%m/%d (%a)") %>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <% hbs.each do |hb| %>
+              <div style="display:flex; align-items:center; gap:10px; background:#1a202c; border-radius:6px; padding:8px 12px;">
+                <span style="font-size:0.9em; color:#68d391; font-weight:700; min-width:50px;">
+                  <%= hb.next_run_at.in_time_zone("Tokyo").strftime("%H:%M") %>
+                </span>
+                <span style="font-weight:600; color:#e2e8f0; min-width:160px;">
+                  <%= hb.meeting_definition&.meeting_key || "?" %>
+                </span>
+                <span style="font-size:0.8em; color:#a0aec0; min-width:80px;"><%= hb.due_cycle %></span>
+                <span style="font-size:0.8em; color:#718096;">
+                  <%= hb.service_id.presence || "(会社全体)" %>
+                </span>
+                <span style="font-size:0.75em; color:#4a5568; margin-left:auto;">
+                  <%= hb.meeting_definition&.scope_level %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <p style="color:#4a5568;">7日以内に予定されたイベントなし</p>
+    <% end %>
+  <% else %>
+    <p style="color:#4a5568;">ServiceHeartbeat データなし</p>
+  <% end %>
+</div>
+
+<%# ===== 直近 24h の実行結果 ===== %>
+<div class="card">
+  <h2>直近 24h の実行結果</h2>
+  <% if @recent_meetings.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>held_at</th>
+          <th>meeting_key</th>
+          <th>service_id</th>
+          <th>status</th>
+          <th>hold_items</th>
+          <th>health</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_meetings.each do |m| %>
+          <tr>
+            <td style="color:#63b3ed;"><%= m.held_at.in_time_zone("Tokyo").strftime("%H:%M") %></td>
+            <td style="font-weight:600;"><%= m.meeting_key %></td>
+            <td style="font-size:0.85em; color:#a0aec0;"><%= m.service_id.presence || "-" %></td>
+            <td style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status %></td>
+            <td style="color:<%= Array(m.hold_items).size > 0 ? "#f6ad55" : "#4a5568" %>"><%= Array(m.hold_items).size %></td>
+            <td><%= m.meeting_health_score&.round(2) || "-" %></td>
+            <td><%= link_to "↗", admin_ops_ledger_path(m), style: "color:#63b3ed; text-decoration:none;" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">過去 24h の会議実行なし</p>
+  <% end %>
+</div>
+
+<%# ===== オープンチケット一覧 ===== %>
+<div class="card">
+  <h2>オープンチケット (<%= @open_tickets.size %>)</h2>
+  <% if @open_tickets.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>タイプ</th>
+          <th>サービス</th>
+          <th>ステータス</th>
+          <th>優先度</th>
+          <th>期限</th>
+          <th>タイトル</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @open_tickets.each do |t| %>
+          <%
+            is_overdue = t.due_date && t.due_date < Date.current && !%w[completed cancelled].include?(t.status.to_s)
+          %>
+          <tr style="<%= is_overdue ? "background:#1a0a0a;" : "" %>">
+            <td style="color:#718096;"><%= t.id %></td>
+            <td style="font-size:0.82em;"><%= t.ticket_type %></td>
+            <td style="font-size:0.82em; color:#a0aec0;"><%= t.service_id.presence || "-" %></td>
+            <td style="color:<%= t.status_overdue? ? "#fc8181" : t.status_waiting_review? ? "#f6ad55" : "#a0aec0" %>; font-size:0.82em;"><%= t.status %></td>
+            <td style="font-size:0.82em; color:<%= t.priority_high? ? "#fc8181" : t.priority_medium? ? "#f6ad55" : "#718096" %>"><%= t.priority %></td>
+            <td style="font-size:0.82em; color:<%= is_overdue ? "#fc8181" : "#718096" %>"><%= t.due_date&.strftime("%m/%d") || "-" %></td>
+            <td style="font-size:0.82em; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= t.title %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">オープンチケットなし</p>
+  <% end %>
+</div>

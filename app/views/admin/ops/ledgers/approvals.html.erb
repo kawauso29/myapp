@@ -1,0 +1,150 @@
+<% content_for :title, "Ledger — 承認ログ" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<%# ===== フィルタ ===== %>
+<div class="card">
+  <h2>フィルタ</h2>
+  <%= form_with url: admin_ops_ledger_approvals_path, method: :get, local: true do |f| %>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <%= f.select :decision,
+            options_for_select([["(all decisions)", ""]] + AuditDecisionLedger.decisions.keys.map { |k| [k, k] }, @decision_filter),
+            {}, style: "padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0;" %>
+      <%= f.text_field :service_id, value: @service_filter, placeholder: "service_id",
+            style: "padding:6px; border-radius:6px; border:1px solid #2d3748; background:#232637; color:#e2e8f0; width:160px;" %>
+      <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
+      <%= link_to "Reset", admin_ops_ledger_approvals_path, class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
+    </div>
+  <% end %>
+</div>
+
+<%# ===== Decision 分布 ===== %>
+<div class="card">
+  <h2>Decision 分布</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <% (@decision_counts || {}).each do |decision, count| %>
+      <%
+        dc = decision.to_s
+        bg = dc == "approve" ? "#1c4532" : dc.start_with?("reject") ? "#4a1942" : "#2d3748"
+        fg = dc == "approve" ? "#68d391" : dc.start_with?("reject") ? "#fc8181" : "#f6ad55"
+      %>
+      <div style="background:<%= bg %>; border-radius:6px; padding:8px 16px; text-align:center;">
+        <div style="font-size:1.4em; font-weight:700; color:<%= fg %>;"><%= count %></div>
+        <div style="font-size:0.75em; color:#a0aec0; margin-top:2px;"><%= dc %></div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<%# ===== 稼働停止（OperatorOverride） ===== %>
+<% if @active_halts.any? %>
+  <div class="card" style="border-color:#fc8181;">
+    <h2 style="color:#fc8181;">⚠️ 稼働停止中 (<%= @active_halts.count %>)</h2>
+    <table>
+      <thead>
+        <tr><th>action</th><th>scope</th><th>service</th><th>operator</th><th>started_at</th><th>reason</th></tr>
+      </thead>
+      <tbody>
+        <% @active_halts.each do |o| %>
+          <tr style="background:#2d1515;">
+            <td style="color:#fc8181; font-weight:700;"><%= o.action %></td>
+            <td style="font-size:0.85em;"><%= o.scope_level %></td>
+            <td style="font-size:0.85em;"><%= o.service_id.presence || "-" %></td>
+            <td style="font-size:0.85em; color:#a0aec0;"><%= o.operator %></td>
+            <td style="font-size:0.82em;"><%= o.started_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+            <td style="font-size:0.82em; max-width:200px; overflow:hidden; text-overflow:ellipsis;"><%= o.reason %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<%# ===== Audit Decisions ===== %>
+<div class="card">
+  <h2>Audit Decisions (<%= @audit_decisions.size %>)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>decision</th>
+        <th>reason_code</th>
+        <th>audit_role</th>
+        <th>scope</th>
+        <th>service</th>
+        <th>ticket</th>
+        <th>decided_at</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @audit_decisions.each do |d| %>
+        <tr>
+          <td style="color:#718096;"><%= d.id %></td>
+          <td style="font-weight:600; color:<%= d.decision_approve? ? "#68d391" : "#fc8181" %>;"><%= d.decision %></td>
+          <td style="font-size:0.82em; color:#a0aec0;"><%= d.reason_code %></td>
+          <td style="font-size:0.82em;"><%= d.audit_role %></td>
+          <td style="font-size:0.82em; color:#718096;"><%= d.scope_level %></td>
+          <td style="font-size:0.82em; color:#718096;"><%= d.service_id.presence || "-" %></td>
+          <td style="font-size:0.82em; color:#63b3ed;"><%= d.target_ticket_id %></td>
+          <td style="font-size:0.82em;"><%= d.decided_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") %></td>
+        </tr>
+      <% end %>
+      <% if @audit_decisions.empty? %>
+        <tr><td colspan="8" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%# ===== Operator Overrides ===== %>
+<div class="card">
+  <h2>Operator Override 履歴 (<%= @operator_overrides.size %>)</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>action</th><th>scope</th><th>service</th><th>operator</th><th>started_at</th><th>lifted_at</th></tr>
+    </thead>
+    <tbody>
+      <% @operator_overrides.each do |o| %>
+        <tr>
+          <td style="color:#718096;"><%= o.id %></td>
+          <td style="font-size:0.85em; color:<%= o.action.to_s.start_with?("halt") ? "#fc8181" : "#68d391" %>;"><%= o.action %></td>
+          <td style="font-size:0.82em;"><%= o.scope_level %></td>
+          <td style="font-size:0.82em; color:#a0aec0;"><%= o.service_id.presence || "-" %></td>
+          <td style="font-size:0.82em;"><%= o.operator %></td>
+          <td style="font-size:0.82em;"><%= o.started_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          <td style="font-size:0.82em; color:#718096;"><%= o.lifted_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "継続中" %></td>
+        </tr>
+      <% end %>
+      <% if @operator_overrides.empty? %>
+        <tr><td colspan="7" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%# ===== Stop Ledger ===== %>
+<div class="card">
+  <h2>Stop Ledger 直近 (<%= @recent_stops.size %>)
+    <%= link_to "→ 詳細管理", admin_ops_stops_path,
+          style: "font-size:0.8em; color:#63b3ed; text-decoration:none; margin-left:10px; font-weight:normal;" %>
+  </h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>trigger</th><th>scope</th><th>service</th><th>status</th><th>started_at</th></tr>
+    </thead>
+    <tbody>
+      <% @recent_stops.each do |s| %>
+        <tr>
+          <td style="color:#718096;"><%= s.id %></td>
+          <td style="font-size:0.85em;"><%= s.trigger_type %></td>
+          <td style="font-size:0.82em;"><%= s.scope_level %></td>
+          <td style="font-size:0.82em; color:#a0aec0;"><%= s.service_id.presence || "-" %></td>
+          <td style="font-size:0.82em; color:<%= s.status_active? ? "#fc8181" : "#68d391" %>;"><%= s.status %></td>
+          <td style="font-size:0.82em;"><%= s.started_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+        </tr>
+      <% end %>
+      <% if @recent_stops.empty? %>
+        <tr><td colspan="6" style="text-align:center; color:#4a5568;">データなし</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

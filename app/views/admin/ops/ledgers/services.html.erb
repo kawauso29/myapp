@@ -1,0 +1,94 @@
+<% content_for :title, "Ledger — サービス別サマリ" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<div style="display:flex; gap:12px; flex-wrap:wrap;">
+  <% @services_data.each do |svc| %>
+    <%
+      sid         = svc[:service_id]
+      sl          = svc[:service_ledger]
+      kpis        = Array(svc[:kpis])
+      open_cnt    = svc[:open_tickets].to_i
+      exp_cnt     = svc[:experiments].to_i
+      next_hb     = svc[:next_heartbeat]
+      last_m      = svc[:last_meeting]
+      svc_status  = sl&.status || "unknown"
+      is_active   = svc_status.to_s == "active"
+    %>
+    <div style="background:#1a1d2e; border:1px solid #2d3748; border-radius:10px; padding:16px; flex:1; min-width:260px;">
+
+      <%# ヘッダ %>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-size:1.2em; font-weight:700; color:#e2e8f0;"><%= sid %></div>
+        <span style="font-size:0.75em; font-weight:700; padding:3px 8px; border-radius:10px; background:<%= is_active ? "#1c4532" : "#2d3748" %>; color:<%= is_active ? "#68d391" : "#718096" %>;">
+          <%= svc_status %>
+        </span>
+      </div>
+
+      <% if sl&.business_owner.present? %>
+        <div style="font-size:0.8em; color:#a0aec0; margin-bottom:10px;">Owner: <strong><%= sl.business_owner %></strong></div>
+      <% end %>
+
+      <%# KPI サマリ %>
+      <% if kpis.present? %>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.7em; text-transform:uppercase; color:#718096; margin-bottom:4px;">KPI</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <% kpis.first(6).each do |kpi| %>
+              <%
+                gcolor = { "healthy" => "#68d391", "warning" => "#f6ad55", "critical" => "#fc8181" }[kpi.grade] || "#a0aec0"
+                val    = kpi.current_value.is_a?(Hash) ? (kpi.current_value["value"] || "-") : kpi.current_value
+              %>
+              <div style="background:#151823; border-radius:4px; padding:4px 8px; border-left:2px solid <%= gcolor %>;">
+                <div style="font-size:0.7em; color:#718096;"><%= kpi.kpi_key %></div>
+                <div style="font-size:0.9em; font-weight:600; color:#e2e8f0;"><%= val %></div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% else %>
+        <div style="font-size:0.8em; color:#4a5568; margin-bottom:12px;">KPI なし</div>
+      <% end %>
+
+      <%# 数値サマリ %>
+      <div style="display:flex; gap:12px; font-size:0.85em; margin-bottom:12px;">
+        <div>
+          <span style="color:#718096;">Open Tickets </span>
+          <strong style="color:<%= open_cnt > 0 ? "#f6ad55" : "#68d391" %>"><%= open_cnt %></strong>
+        </div>
+        <div>
+          <span style="color:#718096;">実験 </span>
+          <strong style="color:#63b3ed;"><%= exp_cnt %></strong>
+        </div>
+      </div>
+
+      <%# 次回 heartbeat %>
+      <% if next_hb %>
+        <div style="font-size:0.78em; color:#a0aec0; margin-bottom:6px;">
+          🕐 次回:
+          <strong><%= next_hb.next_run_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></strong>
+          <span style="color:#718096;">(<%= next_hb.meeting_definition&.meeting_key || "?" %>)</span>
+        </div>
+      <% end %>
+
+      <%# 直近会議 %>
+      <% if last_m %>
+        <div style="font-size:0.78em; color:#718096; margin-bottom:10px;">
+          直近会議: <%= last_m.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %> — <%= last_m.meeting_key %>
+        </div>
+      <% end %>
+
+      <%# アクション %>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+        <%= link_to "詳細 →", admin_ops_ledger_service_path(service_id: sid),
+              style: "font-size:0.78em; background:#2b6cb0; color:#bee3f8; padding:5px 10px; border-radius:5px; text-decoration:none; font-weight:600;" %>
+        <% if sid == "ai_sns" %>
+          <%= link_to "AI SNS管理 ↗", admin_ai_sns_path,
+                style: "font-size:0.78em; background:#1a365d; color:#63b3ed; padding:5px 10px; border-radius:5px; text-decoration:none;" %>
+        <% elsif sid == "trading" %>
+          <%= link_to "Trading ↗", admin_trading_path,
+                style: "font-size:0.78em; background:#1a365d; color:#63b3ed; padding:5px 10px; border-radius:5px; text-decoration:none;" %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>
