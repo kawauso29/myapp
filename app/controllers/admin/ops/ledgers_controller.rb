@@ -495,18 +495,19 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   # POST: cadence または自律成長ループ ジョブを即時 enqueue
   def run_job
     job_class_name = params[:job_class].to_s.strip
-    cadence_ok = LEDGER_CADENCE_CONFIG.any? { |c| c[:job_class] == job_class_name }
-    autonomous_ok = AUTONOMOUS_JOBS.any? { |c| c[:job_class] == job_class_name }
-    unless cadence_ok || autonomous_ok
+    # ホワイトリストからジョブ設定を取得し、constantize はホワイトリスト値に対してのみ呼ぶ
+    all_configs = LEDGER_CADENCE_CONFIG + AUTONOMOUS_JOBS
+    cfg = all_configs.find { |c| c[:job_class] == job_class_name }
+    unless cfg
       redirect_to admin_ops_ledger_operations_path, alert: "不正なジョブクラス: #{job_class_name}"
       return
     end
 
-    klass = job_class_name.constantize
+    klass = cfg[:job_class].constantize
     klass.perform_later
-    redirect_to admin_ops_ledger_operations_path, notice: "#{job_class_name} をエンキューしました"
+    redirect_to admin_ops_ledger_operations_path, notice: "#{cfg[:job_class]} をエンキューしました"
   rescue NameError
-    redirect_to admin_ops_ledger_operations_path, alert: "ジョブクラスが見つかりません: #{job_class_name}"
+    redirect_to admin_ops_ledger_operations_path, alert: "ジョブクラスが見つかりません: #{cfg&.dig(:job_class)}"
   end
 
   private
