@@ -55,6 +55,17 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  workflow-check:
+    runs-on: [self-hosted, sakura-vps]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check workflow YAML integrity
+        run: |
+          ruby -e 'require "yaml"; Dir.glob(".github/workflows/*.yml").sort.each { |f| YAML.safe_load_file(f, permitted_classes: [], aliases: true) }; puts "Workflow YAML integrity check passed"'
+
   job-check:
     runs-on: [self-hosted, sakura-vps]
 
@@ -135,7 +146,7 @@ jobs:
 
   notify:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, lint, job-check, route-check, test]
+    needs: [scan_ruby, lint, workflow-check, job-check, route-check, test]
     if: always()
     steps:
       - name: Build notification label
@@ -232,7 +243,7 @@ jobs:
   # CI から直接 deploy を起動する（auto_merge.yml と同じ方式）
   dispatch_deploy:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, lint, job-check, route-check, test]
+    needs: [scan_ruby, lint, workflow-check, job-check, route-check, test]
     if: >-
       github.event_name == 'push' &&
       github.ref_name == 'main' &&

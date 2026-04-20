@@ -43,6 +43,7 @@ jobs:
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
+          bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
           bin/rails db:test:prepare
 
