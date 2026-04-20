@@ -22,6 +22,10 @@ module ActiveJobUnknownClassRetry
     begin
       super
     rescue ActiveJob::UnknownJobClassError => e
+      # Re-raise if we already tried once to prevent infinite retries.
+      # If a *different* exception type is raised (e.g. from eager_load! itself),
+      # it will propagate naturally without being caught by this rescue clause —
+      # that is intentional; we only retry for UnknownJobClassError.
       raise if retried
 
       retried = true

@@ -484,7 +484,11 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     job_class_name = job.class_name
     if job_class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
       payload = job.arguments
-      payload = JSON.parse(payload) if payload.is_a?(String)
+      begin
+        payload = JSON.parse(payload) if payload.is_a?(String)
+      rescue JSON::ParserError
+        payload = nil
+      end
       payload = payload.first if payload.is_a?(Array)
       job_class_name = (payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)).presence || job_class_name
     end
