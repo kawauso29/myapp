@@ -143,6 +143,135 @@
   </div>
 <% end %>
 
+<%# ===== KPI 状況（ダッシュボードモードのみ） ===== %>
+<% if !@meeting_key.present? && @kpi_overview&.dig(:kpis)&.any? %>
+  <div class="card">
+    <%
+      kpi_grade_color = { "healthy" => "#68d391", "warning" => "#f6ad55", "critical" => "#fc8181" }
+    %>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+      <h2 style="margin:0;">KPI 状況</h2>
+      <div style="display:flex; gap:8px;">
+        <% [["healthy", "#68d391", "✅"], ["warning", "#f6ad55", "⚠️"], ["critical", "#fc8181", "🔴"]].each do |grade, color, icon| %>
+          <% count = @kpi_overview[:"#{grade}_count"].to_i %>
+          <span style="font-size:0.82em; padding:3px 8px; border-radius:12px; background:#1a202c; border:1px solid <%= color %>33; color:<%= count > 0 ? color : "#4a5568" %>;">
+            <%= icon %> <%= grade %> <%= count %>
+          </span>
+        <% end %>
+        <% if @kpi_overview[:uncollected_count].to_i > 0 %>
+          <span style="font-size:0.82em; padding:3px 8px; border-radius:12px; background:#1a202c; border:1px solid #4a556888; color:#718096;">
+            ⬜ 未収集 <%= @kpi_overview[:uncollected_count] %>
+          </span>
+        <% end %>
+      </div>
+      <% if @kpi_overview[:uncollected_count].to_i > 0 %>
+        <span style="font-size:0.78em; color:#718096; font-style:italic;">※ KPI値が未収集です。Ops画面から「KPI 自動収集」を実行してください</span>
+      <% end %>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <% @kpi_overview[:kpis].each do |kpi| %>
+        <%
+          gcolor = kpi_grade_color[kpi.grade] || "#718096"
+          val    = kpi.current_value.is_a?(Hash) ? kpi.current_value["value"] : kpi.current_value
+          tgt    = kpi.numeric_target_value
+        %>
+        <div style="background:#1a202c; border-radius:6px; padding:10px 14px; min-width:145px; border-left:3px solid <%= gcolor %>; flex:1;">
+          <div style="font-size:0.68em; color:#4a5568; margin-bottom:2px; font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= kpi.kpi_key %>"><%= kpi.kpi_key.sub("kpi:", "") %></div>
+          <div style="font-size:0.7em; color:#718096; margin-bottom:4px;"><%= kpi.service_id.presence || "company" %></div>
+          <% if val.present? %>
+            <div style="font-size:1.3em; font-weight:700; color:<%= gcolor %>;"><%= val.is_a?(Float) ? val.round(1) : val %></div>
+          <% else %>
+            <div style="font-size:1.1em; color:#4a5568; font-style:italic;">未収集</div>
+          <% end %>
+          <div style="font-size:0.73em; color:#4a5568; margin-top:2px;">目標: <%= tgt&.to_s || "-" %> <%= kpi.current_value.is_a?(Hash) ? kpi.current_value["unit"].to_s : "" %></div>
+          <div style="font-size:0.7em; margin-top:4px;">
+            <span style="color:<%= gcolor %>; font-weight:600;"><%= kpi.grade || "未評価" %></span>
+            <% if kpi.graded_at %>
+              <span style="color:#4a5568; margin-left:6px;"><%= kpi.graded_at.in_time_zone("Tokyo").strftime("%m/%d") %></span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ===== PDCA フロー（ダッシュボードモードのみ） ===== %>
+<% if !@meeting_key.present? && @pdca_summary.present? %>
+  <div class="card">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+      <h2 style="margin:0;">PDCA フロー</h2>
+      <div style="font-size:0.78em; color:#718096;">KPI 未達 → 検知 → 改善チケット → GitHub Issue → Copilot 実装</div>
+    </div>
+
+    <%# パイプラインサマリ %>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+      <% [
+        ["改善チケット 合計", @pdca_summary[:total_improvement], "#a0aec0"],
+        ["待ちレビュー", @pdca_summary[:waiting_review], "#f6ad55"],
+        ["承認済み", @pdca_summary[:approved], "#68d391"],
+        ["30日完了", @pdca_summary[:completed_30d], "#63b3ed"]
+      ].each do |label, count, color| %>
+        <div style="background:#1a202c; border-radius:6px; padding:8px 14px; min-width:90px; text-align:center; border:1px solid #2d374855;">
+          <div style="font-size:1.5em; font-weight:700; color:<%= color %>;"><%= count %></div>
+          <div style="font-size:0.72em; color:#718096; margin-top:2px;"><%= label %></div>
+        </div>
+      <% end %>
+    </div>
+
+    <%# 最終実行情報 %>
+    <div style="display:flex; gap:12px; margin-bottom:14px; font-size:0.78em; color:#718096; flex-wrap:wrap;">
+      <span>
+        KPI収集: <%= @pdca_summary[:last_kpi_collect] ? @pdca_summary[:last_kpi_collect].in_time_zone("Tokyo").strftime("%m/%d %H:%M") : "未実行" %>
+        <% if @pdca_summary[:last_kpi_collect].nil? %>
+          <span style="color:#f6ad55; margin-left:4px;">← まず Ops 画面から「KPI 自動収集」を実行してください</span>
+        <% end %>
+      </span>
+      <span>Planner: <%= @pdca_summary[:last_planner_run] ? @pdca_summary[:last_planner_run].in_time_zone("Tokyo").strftime("%m/%d %H:%M") : "未実行" %></span>
+    </div>
+
+    <%# 直近の改善チケット %>
+    <% if @pdca_summary[:recent_tickets].present? %>
+      <table>
+        <thead>
+          <tr>
+            <th>チケット</th>
+            <th>ステータス</th>
+            <th>担当</th>
+            <th>KPI</th>
+            <th>期限</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @pdca_summary[:recent_tickets].each do |t| %>
+            <tr>
+              <td style="font-size:0.82em; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= t.title %>"><%= t.title %></td>
+              <td>
+                <% sc = { "waiting_review" => "#f6ad55", "approved" => "#68d391", "completed" => "#63b3ed", "overdue" => "#fc8181" }[t.status] || "#a0aec0" %>
+                <span style="color:<%= sc %>; font-size:0.82em;"><%= t.status %></span>
+              </td>
+              <td style="font-size:0.78em; color:#718096;"><%= t.assignee.presence || "-" %></td>
+              <td style="font-size:0.75em; color:#4a5568; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <%= Array(t.linked_kpis).join(", ") %>
+              </td>
+              <td style="font-size:0.78em; color:<%= t.due_date && t.due_date < Date.current ? "#fc8181" : "#718096" %>"><%= t.due_date&.strftime("%m/%d") || "-" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <div style="margin-top:8px; font-size:0.78em;">
+        <%= link_to "全チケット →", admin_ops_ledgers_path(meeting_key: "weekly_dept"), style: "color:#63b3ed; text-decoration:none;" %>
+        <%= link_to "Ops（手動実行）→", admin_ops_ledger_operations_path, style: "color:#63b3ed; text-decoration:none; margin-left:12px;" %>
+      </div>
+    <% else %>
+      <p style="color:#4a5568; font-size:0.85em;">
+        改善チケットなし —
+        KPI が収集され grade が warning/critical になると Planner が自動起票します
+      </p>
+    <% end %>
+  </div>
+<% end %>
+
 <%# ===== サービス別概要（ダッシュボードモードのみ） ===== %>
 <% if @service_overview&.any? %>
   <div class="card">
@@ -177,6 +306,13 @@
         <span style="font-size:0.75em; color:#a0aec0; font-weight:normal;"> / service: <%= @service_id %></span>
       <% end %>
     </h2>
+    <% if @meeting_key == "daily" %>
+      <div style="margin-bottom:10px; padding:8px 12px; background:#1a202c; border-radius:6px; border-left:3px solid #4a5568; font-size:0.8em; color:#718096;">
+        📊 <strong style="color:#a0aec0;">監視モード（30分毎自動実行）</strong>
+        — このcadenceはKPIスナップショット取得・異常検知のみを行います。<br>
+        チケット起票はしません。KPI が critical になった場合に hold_items が増加し、weekly cadence に引き継がれます。
+      </div>
+    <% end %>
     <table>
       <thead>
         <tr>
@@ -305,10 +441,14 @@
         <tbody>
           <% @recent_runs.each do |m| %>
             <% hold_items = Array(m.hold_items)
-               anomaly_count = hold_items.count { |i| (i["type"] || i[:type]).to_s == "anomaly" } %>
+               anomaly_count = hold_items.count { |i| (i["type"] || i[:type]).to_s == "anomaly" }
+               is_monitoring = m.meeting_key == "daily" %>
             <tr>
               <td>
                 <%= link_to m.meeting_key, admin_ops_ledgers_path(meeting_key: m.meeting_key, service_id: @service_id), style: "color:#63b3ed; font-weight:600;" %>
+                <% if is_monitoring %>
+                  <span style="font-size:0.7em; background:#1a202c; color:#718096; padding:1px 5px; border-radius:8px; margin-left:4px; border:1px solid #2d3748;" title="KPIスナップショット取得のみ。アクション不要です">📊 監視</span>
+                <% end %>
               </td>
               <td><%= m.held_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") || "-" %></td>
               <td style="font-size:0.85em; color:#a0aec0;"><%= m.service_id.presence || "-" %></td>

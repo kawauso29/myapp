@@ -29,6 +29,37 @@
   </div>
 </div>
 
+<%# ===== 自律成長ループ ジョブ手動実行 ===== %>
+<div class="card">
+  <h2>自律成長ループ ジョブ手動実行</h2>
+  <div style="margin-bottom:12px; padding:10px 14px; background:#1a2744; border-radius:6px; border-left:3px solid #4299e1; font-size:0.82em; color:#a0aec0; line-height:1.7;">
+    <strong style="color:#63b3ed;">KPI → 異常検知 → チケット起票 → Issue同期</strong> の自律成長ループを手動で起動できます。<br>
+    通常はスケジュール実行されますが、初期設定時や即時確認に使用してください。
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <% (@autonomous_jobs || Admin::Ops::LedgersController::AUTONOMOUS_JOBS).each do |cfg| %>
+      <div style="background:#1a202c; border-radius:8px; padding:12px 16px; flex:1; min-width:200px; border:1px solid #2b6cb033;">
+        <div style="font-size:0.9em; font-weight:700; color:#e2e8f0; margin-bottom:2px;"><%= cfg[:label] %></div>
+        <div style="font-size:0.72em; color:#4a5568; font-family:monospace; margin-bottom:4px;"><%= cfg[:job_class] %></div>
+        <div style="font-size:0.75em; color:#718096; margin-bottom:8px;"><%= cfg[:description] %></div>
+        <% if cfg[:job_rows].present? %>
+          <div style="display:flex; gap:2px; margin-bottom:8px;">
+            <% cfg[:job_rows].each do |jr| %>
+              <span title="<%= jr[:at]&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") %>" style="font-size:0.85em;"><%= jr[:failed] ? "❌" : "✅" %></span>
+            <% end %>
+          </div>
+        <% end %>
+        <%= form_with url: admin_ops_ledger_run_job_path, method: :post, local: true do |f| %>
+          <%= f.hidden_field :job_class, value: cfg[:job_class] %>
+          <%= f.submit "今すぐ実行", class: "btn btn-sm",
+                style: "background:#1c4532; color:#68d391; font-size:0.8em; padding:4px 10px; width:100%;",
+                data: { confirm: "#{cfg[:job_class]} を即時実行しますか？" } %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
 <%# ===== Cadence ジョブ手動実行 ===== %>
 <div class="card">
   <h2>Cadence ジョブ手動実行</h2>
