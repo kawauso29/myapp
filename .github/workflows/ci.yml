@@ -70,22 +70,22 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="${{ github.base_ref }}"
             if ! git fetch --no-tags origin "${BASE_REF}"; then
-              echo "Warning: failed to fetch origin/${BASE_REF}; falling back to HEAD~1...HEAD"
-              DIFF_RANGE="HEAD~1...HEAD"
+              echo "Warning: failed to fetch origin/${BASE_REF}; falling back to HEAD~1..HEAD"
+              DIFF_RANGE="HEAD~1..HEAD"
             else
-              if BASE_COMMIT=$(git merge-base HEAD "origin/${BASE_REF}"); then
-                DIFF_RANGE="${BASE_COMMIT}...HEAD"
+              if BASE_COMMIT=$(git merge-base "HEAD" "origin/${BASE_REF}"); then
+                DIFF_RANGE="${BASE_COMMIT}..HEAD"
               else
-                echo "Warning: failed to calculate merge-base with origin/${BASE_REF}; falling back to HEAD~1...HEAD"
-                DIFF_RANGE="HEAD~1...HEAD"
+                echo "Warning: failed to calculate merge-base with origin/${BASE_REF}; falling back to HEAD~1..HEAD"
+                DIFF_RANGE="HEAD~1..HEAD"
               fi
             fi
           else
             BEFORE_SHA="${{ github.event.before }}"
             if [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "${ZERO_SHA}" ]; then
-              DIFF_RANGE="${BEFORE_SHA}...HEAD"
+              DIFF_RANGE="${BEFORE_SHA}..HEAD"
             else
-              DIFF_RANGE="HEAD~1...HEAD"
+              DIFF_RANGE="HEAD~1..HEAD"
             fi
           fi
 
