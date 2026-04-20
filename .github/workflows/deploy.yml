@@ -33,9 +33,13 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
+        env:
+          NODE_OPTIONS: --max-old-space-size=512
         run: cd frontend && npm ci
 
       - name: Build Expo web
+        env:
+          NODE_OPTIONS: --max-old-space-size=512
         run: cd frontend && npx expo export --platform web
 
       - name: Create tarball

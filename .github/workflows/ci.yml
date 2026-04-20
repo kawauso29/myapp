@@ -28,7 +28,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
@@ -50,7 +50,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
@@ -133,7 +133,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Check job autoload and run job specs
         env:
@@ -160,7 +160,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Check controller and API route integrity
         env:
@@ -187,7 +187,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Run tests
         env:

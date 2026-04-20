@@ -63,7 +63,7 @@ jobs:
 
       - name: Install gems
         if: steps.lint_check.outputs.lint_failed == 'true'
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Run RuboCop autocorrect
         if: steps.lint_check.outputs.lint_failed == 'true'
