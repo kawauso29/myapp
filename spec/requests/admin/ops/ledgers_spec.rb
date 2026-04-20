@@ -165,6 +165,6 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
 
   def extract_ticket_table_ids(html)
     document = Nokogiri::HTML(html)
-    document.css("div.card table tbody").last.css("tr td:first-child").map { |cell| cell.text.strip }
+    document.css("table[data-testid='ticket-ledger-table'] tbody tr td:first-child").map { |cell| cell.text.strip }
   end
 end
