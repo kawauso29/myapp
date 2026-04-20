@@ -648,14 +648,27 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   end
 
   def fetch_recent_ledger_jobs(job_class)
-    recent_jobs = SolidQueue::Job
+    # 成功ジョブ: finished_at が設定されている（SolidQueue は成功時に finished_at を設定する）
+    finished_jobs = SolidQueue::Job
+                      .where(class_name: job_class)
+                      .where.not(finished_at: nil)
+                      .order(finished_at: :desc)
+                      .limit(10)
+    success_rows = finished_jobs.map { |j| { at: j.finished_at, failed: false } }
+
+    # 失敗ジョブ: FailedExecution に紐づくジョブ（finished_at は NULL）
+    failed_jobs = SolidQueue::Job
+                    .joins("INNER JOIN solid_queue_failed_executions ON solid_queue_failed_executions.job_id = solid_queue_jobs.id")
                     .where(class_name: job_class)
-                    .where.not(finished_at: nil)
-                    .order(finished_at: :desc)
+                    .select("solid_queue_jobs.*, solid_queue_failed_executions.created_at AS failed_at")
+                    .order("solid_queue_failed_executions.created_at DESC")
                     .limit(10)
-    failed_ids = SolidQueue::FailedExecution.where(job_id: recent_jobs.select(:id)).pluck(:job_id).to_set
-    rows = recent_jobs.map { |j| { at: j.finished_at, failed: failed_ids.include?(j.id) } }
-    [ rows, failed_ids.size ]
+    fail_rows = failed_jobs.map { |j| { at: j.failed_at, failed: true } }
+
+    # 成功・失敗を時系列でマージし、直近 10 件に絞る
+    rows = (success_rows + fail_rows).sort_by { |r| r[:at] || Time.at(0) }.reverse.first(10)
+    fail_count = fail_rows.size
+    [ rows, fail_count ]
   rescue StandardError
     [ [], 0 ]
   end

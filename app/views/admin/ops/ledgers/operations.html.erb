@@ -60,7 +60,11 @@
           <% if last_failed %>
             <span style="color:#fc8181;">(失敗)</span>
           <% end %>
-          | 失敗 <%= cfg[:fail_count] %>
+          | <% if cfg[:fail_count].to_i > 0 %>
+            <span style="color:#fc8181; font-weight:bold;">失敗 <%= cfg[:fail_count] %></span>
+          <% else %>
+            失敗 0
+          <% end %>
         </div>
 
         <%= form_with url: admin_ops_ledger_run_job_path, method: :post, local: true do |f| %>
