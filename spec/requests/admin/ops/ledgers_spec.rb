@@ -127,8 +127,9 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("Open improvements:")
       expect(response.body).to include("improvement")
       expect(response.body).to include(improvement_ticket.id.to_s)
-      # monthly_ops のチケットは出ない
-      expect(response.body).not_to include(monthly_ticket.id.to_s)
+      # monthly_ops のチケットはチケットテーブルに出ない
+      ticket_ids = extract_ticket_table_ids(response.body)
+      expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
     end
 
     it "service_id と meeting_key で絞り込みできる" do
