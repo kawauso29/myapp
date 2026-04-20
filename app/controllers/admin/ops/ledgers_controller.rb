@@ -371,11 +371,29 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
   # ⑥ エラーログ
   def errors
-    failed_jobs = SolidQueue::FailedExecution
-                    .joins(:job)
-                    .order("solid_queue_failed_executions.created_at DESC")
-                    .limit(50)
-    @failed_jobs = failed_jobs.map { |fe|
+    failed_executions = SolidQueue::FailedExecution
+                          .joins(:job)
+                          .order("solid_queue_failed_executions.created_at DESC")
+                          .limit(50)
+
+    # Auto-discard transient UnknownJobClassError failures where the class is now loadable.
+    # These are typically caused by class-loading race conditions immediately after a deploy.
+    loadable_cache = {}
+    kept = []
+    failed_executions.each do |fe|
+      if transient_unknown_class_failure_for_errors?(fe, loadable_cache)
+        begin
+          fe.discard
+        rescue StandardError => e
+          Rails.logger.warn("[LedgersController#errors] Auto-discard failed for execution #{fe.id}: #{e.message}")
+          kept << fe
+        end
+      else
+        kept << fe
+      end
+    end
+
+    @failed_jobs = kept.map { |fe|
       { id: fe.id, job_id: fe.job_id, class_name: fe.job&.class_name,
         created_at: fe.created_at, error: fe.error }
     }
@@ -435,6 +453,54 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   end
 
   private
+
+  # Returns true if the execution is a transient UnknownJobClassError where
+  # the job class is now loadable (i.e., the failure was caused by a deploy-time
+  # race condition and can be safely discarded).
+  # loadable_cache is an optional Hash used to avoid redundant safe_constantize calls.
+  def transient_unknown_class_failure_for_errors?(execution, loadable_cache = {})
+    error_data = case execution.error
+    when Hash then execution.error.stringify_keys
+    when String
+                   begin
+                     parsed = JSON.parse(execution.error)
+                     parsed.is_a?(Hash) ? parsed.stringify_keys : {}
+                   rescue JSON::ParserError
+                     {}
+                   end
+    else
+                   {}
+    end
+
+    exception_class = error_data["exception_class"].to_s
+    message = error_data["message"].to_s
+    return false unless exception_class == "ActiveJob::UnknownJobClassError" ||
+                        message.include?("UnknownJobClassError") ||
+                        message.include?("Failed to instantiate job")
+
+    job = execution.job
+    return false unless job
+
+    job_class_name = job.class_name
+    if job_class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
+      payload = job.arguments
+      begin
+        payload = JSON.parse(payload) if payload.is_a?(String)
+      rescue JSON::ParserError
+        payload = nil
+      end
+      payload = payload.first if payload.is_a?(Array)
+      job_class_name = (payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)).presence || job_class_name
+    end
+    return false if job_class_name.blank?
+
+    unless loadable_cache.key?(job_class_name)
+      loadable_cache[job_class_name] = job_class_name.safe_constantize.present?
+    end
+    loadable_cache[job_class_name]
+  rescue StandardError
+    false
+  end
 
   def build_alert_summary(service_id: nil)
     scope_tickets = service_id ? TicketLedger.where(service_id: service_id) : TicketLedger
