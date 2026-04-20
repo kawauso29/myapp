@@ -53,6 +53,13 @@ module Ledgers
           next
         end
 
+        entry_check = Stops::EntryGuard.check(scope_level: :service, service_id:)
+        if entry_check.blocked?
+          hold_items << hold_payload(attrs, reason: "entry_guard_blocked")
+          decisions << { title: attrs[:title], result: "held_for_active_stop" }
+          next
+        end
+
         ticket = create_ticket!(meeting:, attrs:)
         created << { ticket_id: ticket.id, title: ticket.title, status: ticket.status }
         decisions << { ticket_id: ticket.id, result: ticket.status }
