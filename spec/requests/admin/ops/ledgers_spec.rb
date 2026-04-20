@@ -70,6 +70,14 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       status: :approved
     )
   end
+  let!(:planning_role) do
+    OrganizationRole.find_or_create_by!(role_key: "planning") do |role|
+      role.display_name = "Planning"
+      role.scope_level = :service
+      role.category = :department
+      role.active = true
+    end
+  end
   let!(:improvement_ticket) do
     create(
       :ticket_ledger,
@@ -146,6 +154,24 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include(weekly_meeting.id.to_s)
       expect(response.body).to include("hold_items")
       expect(response.body).to include(weekly_ticket.id.to_s)
+    end
+
+    it "departments ページで日本語の役割名と状態が表示される" do
+      get "/admin/ops/ledgers/departments", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("企画部")
+      expect(response.body).to include("有効")
+    end
+
+    it "department_detail ページで役割概要・主責務・主要タスクが表示される" do
+      get "/admin/ops/ledgers/departments/#{planning_role.role_key}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("役割概要")
+      expect(response.body).to include("主責務")
+      expect(response.body).to include("主要タスク")
+      expect(response.body).to include("市場・顧客分析")
     end
   end
 

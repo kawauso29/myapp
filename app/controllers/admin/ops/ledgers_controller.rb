@@ -8,6 +8,201 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   ].freeze
 
   LEDGER_SERVICES = %w[ai_sns trading picro].freeze
+  ROLE_SUMMARY_FALLBACK = "この役割の概要は未設定です。".freeze
+  ROLE_PROFILE_BY_KEY = {
+    "ceo" => {
+      display_name: "社長",
+      summary: "理念整合を守りながら、全社の最終意思決定と長期戦略を担う経営責任者。",
+      responsibilities: [
+        "理念と長期ビジョンの維持",
+        "全社ポートフォリオの最終判断",
+        "緊急時の最終指揮",
+        "主要KPIと収益責任の監督"
+      ],
+      tasks: [
+        "年次・四半期の方針決定",
+        "重大リスク時の是正判断",
+        "役員層への優先順位提示",
+        "長期KPIの達成状況レビュー"
+      ]
+    },
+    "cto" => {
+      display_name: "CTO",
+      summary: "技術戦略と実装基盤の責任者として、速度・品質・コストの最適化を統括する。",
+      responsibilities: [
+        "技術戦略の策定と更新",
+        "開発生産性と品質の両立",
+        "AI/サーバーコストの最適化",
+        "技術負債の管理方針策定"
+      ],
+      tasks: [
+        "技術ロードマップの策定",
+        "アーキテクチャ判断と標準化",
+        "運用指標のモニタリング",
+        "技術的リスクの早期是正"
+      ]
+    },
+    "executive_planning" => {
+      display_name: "役員（企画）",
+      summary: "理念を市場価値と体験価値へ翻訳し、中期施策へ接続する責任者。",
+      responsibilities: [
+        "市場機会の整理と優先順位化",
+        "体験価値仮説の定義",
+        "中期KPI設計",
+        "事業部要求の整理"
+      ],
+      tasks: [
+        "仮説検証テーマの設計",
+        "企画会議アジェンダの提示",
+        "サービス横断の整合調整",
+        "ロードマップ更新"
+      ]
+    },
+    "executive_development" => {
+      display_name: "役員（開発）",
+      summary: "企画要求を継続可能な技術実装へ変換し、運用品質を担保する責任者。",
+      responsibilities: [
+        "開発組織の実行優先順位管理",
+        "品質・可用性の維持",
+        "開発効率の継続改善",
+        "実装制約の可視化"
+      ],
+      tasks: [
+        "重要案件の実装判断",
+        "リリース品質のゲート管理",
+        "障害再発防止の推進",
+        "技術改善の投資配分調整"
+      ]
+    },
+    "executive_audit" => {
+      display_name: "役員（監査）",
+      summary: "理念・安全性・整合性の監督を担い、重大リスクを未然に防ぐ責任者。",
+      responsibilities: [
+        "理念逸脱リスクの監査",
+        "KPI整合性の監査",
+        "重大インシデントの統制",
+        "停止/再開判断の監督"
+      ],
+      tasks: [
+        "監査論点の定義と更新",
+        "承認ログと差し戻し理由の監視",
+        "緊急停止時の判断支援",
+        "是正完了の確認"
+      ]
+    },
+    "executive_hr" => {
+      display_name: "役員（人事）",
+      summary: "組織性能を継続改善するため、評価・配置・再編の方針を統括する責任者。",
+      responsibilities: [
+        "組織健全性の維持",
+        "評価制度の運用監督",
+        "配置最適化の方針策定",
+        "組織再編判断の支援"
+      ],
+      tasks: [
+        "評価サイクルのレビュー",
+        "人員配置案の作成支援",
+        "再編提案の妥当性確認",
+        "能力開発課題の優先順位化"
+      ]
+    },
+    "business_owner" => {
+      display_name: "事業責任者",
+      summary: "担当サービスの売上・利益・体験価値に対して直接責任を持つ経営責任者。",
+      responsibilities: [
+        "サービス別KPI達成責任",
+        "収益性と成長性の両立",
+        "優先順位の最終決定",
+        "共通部門への要求定義"
+      ],
+      tasks: [
+        "週次の事業進捗レビュー",
+        "改善テーマの意思決定",
+        "撤退/拡大の一次提案",
+        "重要課題のエスカレーション"
+      ]
+    },
+    "planning" => {
+      display_name: "企画部",
+      summary: "ユーザー価値と市場機会を設計し、施策を実行可能な計画へ落とし込む部門。",
+      responsibilities: [
+        "市場・顧客分析",
+        "体験価値仮説の設計",
+        "施策要件の定義",
+        "ロードマップ策定支援"
+      ],
+      tasks: [
+        "仮説検証の設計",
+        "要件定義ドキュメント作成",
+        "優先度案の提示",
+        "会議向け論点整理"
+      ]
+    },
+    "dev" => {
+      display_name: "開発部",
+      summary: "企画を高品質な実装へ変換し、安定運用と継続改善を担う実行部門。",
+      responsibilities: [
+        "技術設計と実装",
+        "テストと品質保証",
+        "デプロイと運用改善",
+        "技術負債管理"
+      ],
+      tasks: [
+        "仕様に基づく開発実行",
+        "不具合修正と再発防止",
+        "運用監視と性能改善",
+        "技術記録の更新"
+      ]
+    },
+    "audit" => {
+      display_name: "監査部",
+      summary: "理念・安全性・KPI整合を守るために、監査と差し戻し判断を担う統制部門。",
+      responsibilities: [
+        "理念整合監査",
+        "セキュリティ監査",
+        "リスク分類と評価",
+        "承認/差し戻し判断"
+      ],
+      tasks: [
+        "監査観点の定期見直し",
+        "非承認案件の追跡",
+        "重大リスクの即時通知",
+        "改善完了の監査"
+      ]
+    },
+    "cs" => {
+      display_name: "顧客成功部",
+      summary: "顧客接点から得た知見を運用と開発へ還流し、体験品質を高める部門。",
+      responsibilities: [
+        "問い合わせ対応品質の維持",
+        "FAQ/ヘルプ資産の整備",
+        "VOC分析と示唆抽出",
+        "顧客知見の社内展開"
+      ],
+      tasks: [
+        "問い合わせ傾向の分析",
+        "改善要求の起票",
+        "リリース案内の運用",
+        "顧客理解不足の解消提案"
+      ]
+    },
+    "system" => {
+      display_name: "システム（自動運用）",
+      summary: "会議なしの日次監視・異常検知・速報生成を自動で実行する運用ロール。",
+      responsibilities: [
+        "日次KPIスナップショット取得",
+        "異常の早期検知",
+        "定期ジョブの安定実行",
+        "運用ログの記録"
+      ],
+      tasks: [
+        "DailyRunnerの実行",
+        "Heartbeat監視",
+        "異常検知結果の通知",
+        "定期実行の健全性チェック"
+      ]
+    }
+  }.freeze
 
   # ① 会社全体サマリ（トップページ）
   def index
@@ -110,12 +305,24 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     @meeting_def_counts = MeetingDefinition.group(:chair_role).count
     @hr_eval_counts     = HrEvaluationLedger.group(:subject_role).count
     @org_change_counts  = OrgChangeLedger.group(:scope_level).count
+    @role_profiles_by_key = {}
+    @roles_by_category.each_value do |roles|
+      roles.each do |role|
+        @role_profiles_by_key[role.role_key] = role_profile_for(role)
+      end
+    end
   rescue StandardError => e
     Rails.logger.warn("LedgersController#departments: #{e.message}")
+    @roles_by_category ||= {}
+    @meeting_def_counts ||= {}
+    @hr_eval_counts ||= {}
+    @org_change_counts ||= {}
+    @role_profiles_by_key ||= {}
   end
 
   def department_detail
     @role = OrganizationRole.find_by!(role_key: params[:role_key])
+    @role_profile = role_profile_for(@role)
 
     @chaired_defs   = MeetingDefinition.where(chair_role: @role.role_key)
     @participant_defs = MeetingDefinition
@@ -368,5 +575,31 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     { job:, failed: }
   rescue StandardError
     nil
+  end
+
+  def role_profile_for(role)
+    profile = ROLE_PROFILE_BY_KEY[role.role_key] || {}
+    {
+      display_name: profile[:display_name].presence || role.display_name,
+      summary: profile[:summary].presence || role.description.presence || ROLE_SUMMARY_FALLBACK,
+      responsibilities: Array(profile[:responsibilities]).presence || default_responsibilities_for(role),
+      tasks: Array(profile[:tasks]).presence || default_tasks_for(role)
+    }
+  end
+
+  def default_responsibilities_for(role)
+    [
+      "#{role.display_name}領域の運用品質を維持する",
+      "関連会議での論点整理と意思決定を支援する",
+      "担当領域のKPI進捗を継続監視する"
+    ]
+  end
+
+  def default_tasks_for(role)
+    [
+      "定例会議のインプット更新",
+      "改善タスクの優先度見直し",
+      "未完了チケットのフォローアップ"
+    ]
   end
 end
