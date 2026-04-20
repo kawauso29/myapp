@@ -77,6 +77,7 @@ jobs:
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
+          bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
           bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
@@ -102,6 +103,7 @@ jobs:
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
+          bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
           bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
@@ -127,6 +129,7 @@ jobs:
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
+          bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
           bundle exec rspec
 
