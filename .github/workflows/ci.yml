@@ -73,8 +73,7 @@ jobs:
               echo "Warning: failed to fetch origin/${BASE_REF}; falling back to HEAD~1...HEAD"
               DIFF_RANGE="HEAD~1...HEAD"
             else
-              BASE_COMMIT=$(git merge-base HEAD "origin/${BASE_REF}" || true)
-              if [ -n "${BASE_COMMIT}" ]; then
+              if BASE_COMMIT=$(git merge-base HEAD "origin/${BASE_REF}"); then
                 DIFF_RANGE="${BASE_COMMIT}...HEAD"
               else
                 echo "Warning: failed to calculate merge-base with origin/${BASE_REF}; falling back to HEAD~1...HEAD"
@@ -90,7 +89,10 @@ jobs:
             fi
           fi
 
-          CHANGED_WORKFLOWS=$(git diff --name-only "${DIFF_RANGE}" -- .github/workflows || true)
+          if ! CHANGED_WORKFLOWS=$(git diff --name-only "${DIFF_RANGE}" -- .github/workflows); then
+            echo "Warning: git diff failed for ${DIFF_RANGE}; skipping workflow YAML integrity check"
+            CHANGED_WORKFLOWS=""
+          fi
           CHANGED_WORKFLOWS=$(printf '%s\n' "${CHANGED_WORKFLOWS}" | grep -E '\.ya?ml$' || true)
           if [ -z "${CHANGED_WORKFLOWS}" ]; then
             echo "No workflow changes detected (${DIFF_RANGE}); skipping workflow YAML integrity check"
