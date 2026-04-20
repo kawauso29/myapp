@@ -1,4 +1,7 @@
 class KpiLedger < ApplicationRecord
+  # DB migration 未反映環境でも enum 定義時に型解決できるように明示する。
+  attribute :grade, :integer
+
   enum :scope_level, {
     company: 0,
     portfolio: 1,
