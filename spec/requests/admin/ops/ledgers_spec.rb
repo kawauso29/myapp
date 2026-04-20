@@ -131,6 +131,33 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("improvement")
     end
 
+    it "KPI が存在する場合、ダッシュボードに KPI 状況セクションが表示される" do
+      create(:kpi_ledger,
+             kpi_key: "kpi:ai_sns_wau",
+             scope_level: :service,
+             service_id: "ai_sns",
+             name: "WAU",
+             status: :active,
+             current_value: { "value" => 42 },
+             thresholds: { "healthy" => 30, "warning" => 15 },
+             grade: :healthy)
+
+      get "/admin/ops/ledgers", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("KPI 状況")
+      expect(response.body).to include("healthy")
+    end
+
+    it "改善チケットが存在する場合、ダッシュボードに PDCA フローセクションが表示される" do
+      get "/admin/ops/ledgers", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      # improvement_ticket が let! で作られているので PDCA フローが描画される
+      expect(response.body).to include("PDCA フロー")
+      expect(response.body).to include("改善チケット 合計")
+    end
+
     it "schedule ページで heartbeat と open チケットが表示される" do
       get "/admin/ops/ledgers/schedule", headers: basic_auth_headers
 

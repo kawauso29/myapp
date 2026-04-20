@@ -79,6 +79,7 @@ jobs:
         run: |
           bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:test:prepare
           bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
   route-check:
@@ -105,6 +106,7 @@ jobs:
         run: |
           bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:test:prepare
           bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
   test:
@@ -131,6 +133,7 @@ jobs:
         run: |
           bin/rails db:create
           bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:test:prepare
           bundle exec rspec
 
   notify:
