@@ -91,6 +91,15 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       assignee: "improvement_detector"
     )
   end
+  let!(:weekly_heartbeat) do
+    create(
+      :service_heartbeat,
+      meeting_definition: weekly_definition,
+      service_id: "ai_sns",
+      due_cycle: :weekly,
+      next_run_at: 10.days.from_now
+    )
+  end
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -127,6 +136,7 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("スケジュール")
+      expect(response.body).to include("Ledger 圧縮期間設定")
       expect(response.body).to include("オープンチケット")
       expect(response.body).to include("overdue")
       expect(response.body).to include(weekly_ticket.id.to_s)
@@ -173,6 +183,33 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("主責務")
       expect(response.body).to include("主要タスク")
       expect(response.body).to include("市場・顧客分析")
+    end
+  end
+
+  describe "POST /admin/ops/ledgers/time_axis" do
+    it "認証ありで圧縮期間を更新できる" do
+      ServiceTimeAxisSetting.create!(service_id: "ai_sns", cadence: :weekly, interval_seconds: 14_400)
+
+      post "/admin/ops/ledgers/time_axis",
+           params: { service_id: "ai_sns", cadence: "weekly", interval_seconds: 7200 },
+           headers: basic_auth_headers
+
+      expect(response).to redirect_to("/admin/ops/ledgers/schedule")
+
+      setting = ServiceTimeAxisSetting.find_by!(service_id: "ai_sns", cadence: :weekly)
+      expect(setting.interval_seconds).to eq(7200)
+      expect(weekly_heartbeat.reload.next_run_at).to be_within(10.seconds).of(2.hours.from_now)
+    end
+
+    it "不正なサービスIDは更新せずリダイレクトする" do
+      ServiceTimeAxisSetting.create!(service_id: "ai_sns", cadence: :weekly, interval_seconds: 14_400)
+
+      post "/admin/ops/ledgers/time_axis",
+           params: { service_id: "unknown", cadence: "weekly", interval_seconds: 7200 },
+           headers: basic_auth_headers
+
+      expect(response).to redirect_to("/admin/ops/ledgers/schedule")
+      expect(ServiceTimeAxisSetting.find_by!(service_id: "ai_sns", cadence: :weekly).interval_seconds).to eq(14_400)
     end
   end
 

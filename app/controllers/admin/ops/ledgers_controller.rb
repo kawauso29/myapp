@@ -295,8 +295,44 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
                       .where.not(status: %i[completed cancelled].map { |s| TicketLedger.statuses[s] })
                       .order(Arel.sql("due_date IS NULL ASC, due_date ASC"))
                       .limit(100)
+    @time_axis_rows = build_time_axis_rows
   rescue StandardError => e
     Rails.logger.warn("LedgersController#schedule: #{e.message}")
+    @time_axis_rows ||= []
+  end
+
+  # ③-2 圧縮時間軸の手動更新
+  def update_time_axis
+    service_id = params[:service_id].to_s.strip
+    cadence = params[:cadence].to_s
+    interval_seconds_raw = params[:interval_seconds].to_s.strip
+    description = params[:description].to_s.strip
+
+    unless LEDGER_SERVICES.include?(service_id)
+      redirect_to admin_ops_ledger_schedule_path, alert: "不明なサービス: #{service_id.presence || '(blank)'}"
+      return
+    end
+
+    unless ServiceTimeAxisSetting.cadences.key?(cadence)
+      redirect_to admin_ops_ledger_schedule_path, alert: "不正な cadence: #{cadence.presence || '(blank)'}"
+      return
+    end
+
+    unless interval_seconds_raw.match?(/\A[1-9]\d*\z/)
+      redirect_to admin_ops_ledger_schedule_path, alert: "interval_seconds は 1 以上の整数で指定してください"
+      return
+    end
+
+    setting = ServiceTimeAxisSetting.find_or_initialize_by(service_id:, cadence:)
+    setting.interval_seconds = interval_seconds_raw.to_i
+    setting.description = description.presence
+    setting.save!
+
+    refresh_heartbeat_next_run!(service_id:, cadence:, interval_seconds: setting.interval_seconds)
+    redirect_to admin_ops_ledger_schedule_path,
+                notice: "圧縮期間を更新しました: #{service_id} / #{cadence} = #{human_interval_label(setting.interval_seconds)}"
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to admin_ops_ledger_schedule_path, alert: "更新に失敗しました: #{e.record.errors.full_messages.join(', ')}"
   end
 
   # ④ 各部毎の情報
@@ -667,5 +703,58 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
       "改善タスクの優先度見直し",
       "未完了チケットのフォローアップ"
     ]
+  end
+
+  def build_time_axis_rows
+    services = LEDGER_SERVICES
+    cadences = Ledgers::TimeAxis::CADENCES
+    existing = ServiceTimeAxisSetting.where(service_id: services, cadence: cadences).index_by { |s| [ s.service_id, s.cadence ] }
+
+    services.flat_map do |service_id|
+      cadences.map do |cadence|
+        cadence_key = cadence.to_s
+        setting = existing[[ service_id, cadence_key ]]
+        default_seconds = Ledgers::TimeAxis::INTERVALS.fetch(cadence).to_i
+        current_seconds = setting&.interval_seconds || default_seconds
+
+        {
+          service_id: service_id,
+          cadence: cadence_key,
+          interval_seconds: current_seconds,
+          interval_label: human_interval_label(current_seconds),
+          default_seconds: default_seconds,
+          default_label: human_interval_label(default_seconds),
+          source: setting ? "db" : "default",
+          description: setting&.description.to_s
+        }
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.warn("LedgersController#build_time_axis_rows: #{e.message}")
+    []
+  end
+
+  def human_interval_label(seconds)
+    sec = seconds.to_i
+    return "#{sec / 1.day}日" if sec.positive? && (sec % 1.day).zero?
+    return "#{sec / 1.hour}時間" if sec.positive? && (sec % 1.hour).zero?
+    return "#{sec / 1.minute}分" if sec.positive? && (sec % 1.minute).zero?
+
+    "#{sec}秒"
+  end
+
+  def refresh_heartbeat_next_run!(service_id:, cadence:, interval_seconds:)
+    interval_sec = interval_seconds.to_i
+    return unless interval_sec.positive?
+
+    heartbeat_scope = ServiceHeartbeat.status_active.where(service_id:, due_cycle: cadence)
+    return if heartbeat_scope.none?
+
+    now = Time.current
+    next_run_at = now + interval_sec.seconds
+
+    heartbeat_scope.find_each do |heartbeat|
+      heartbeat.update!(next_run_at:)
+    end
   end
 end

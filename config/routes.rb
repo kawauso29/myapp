@@ -55,6 +55,7 @@ Rails.application.routes.draw do
       get  "ledgers/errors",                to: "ledgers#errors",            as: "ledger_errors"
       get  "ledgers/operations",            to: "ledgers#operations",        as: "ledger_operations"
       post "ledgers/run_job",               to: "ledgers#run_job",           as: "ledger_run_job"
+      post "ledgers/time_axis",             to: "ledgers#update_time_axis",  as: "ledger_time_axis"
       resources :ledgers, only: [ :index, :show ]
       resources :artifacts, only: [ :index ]
       resources :audit_decisions, only: [ :index ]

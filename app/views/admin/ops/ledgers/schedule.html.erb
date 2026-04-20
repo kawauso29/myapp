@@ -1,6 +1,56 @@
 <% content_for :title, "Ledger — スケジュール" %>
 <%= render "admin/ops/ledgers/nav" %>
 
+<div class="card">
+  <h2>Ledger 圧縮期間設定（管理画面編集）</h2>
+  <p style="font-size:0.82em; color:#a0aec0; margin-bottom:12px;">
+    サービスごとに cadence の圧縮間隔（秒）を更新できます。更新後は対象 Heartbeat の次回実行時刻を再計算します。
+  </p>
+  <% if @time_axis_rows.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>service</th>
+          <th>cadence</th>
+          <th>現在値</th>
+          <th>デフォルト</th>
+          <th>説明</th>
+          <th>更新</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @time_axis_rows.each do |row| %>
+          <tr>
+            <td style="font-size:0.82em;"><%= row[:service_id] %></td>
+            <td style="font-size:0.82em;"><%= row[:cadence] %></td>
+            <td style="font-size:0.82em; color:<%= row[:source] == "db" ? "#68d391" : "#a0aec0" %>;">
+              <%= row[:interval_seconds] %>s (<%= row[:interval_label] %>) <%= row[:source] == "db" ? "[DB]" : "[default]" %>
+            </td>
+            <td style="font-size:0.8em; color:#718096;"><%= row[:default_seconds] %>s (<%= row[:default_label] %>)</td>
+            <td style="max-width:260px;">
+              <span style="font-size:0.78em; color:#a0aec0;"><%= row[:description].presence || "-" %></span>
+            </td>
+            <td style="min-width:260px;">
+              <%= form_with url: admin_ops_ledger_time_axis_path, method: :post, local: true do |f| %>
+                <%= f.hidden_field :service_id, value: row[:service_id] %>
+                <%= f.hidden_field :cadence, value: row[:cadence] %>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <%= f.number_field :interval_seconds, value: row[:interval_seconds], min: 1, step: 1, style: "width:110px; background:#1a202c; border:1px solid #2d3748; color:#e2e8f0; border-radius:4px; padding:6px 8px; font-size:0.82em;" %>
+                  <button type="submit" style="background:#3182ce; color:white; border:none; border-radius:4px; padding:6px 10px; cursor:pointer; font-size:0.82em;">
+                    保存
+                  </button>
+                </div>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">圧縮期間設定データなし</p>
+  <% end %>
+</div>
+
 <%# ===== 次回 Heartbeat タイムライン ===== %>
 <div class="card">
   <h2>次回 Heartbeat 予定（7日先まで）</h2>
