@@ -66,13 +66,14 @@ jobs:
 
       - name: Check workflow YAML integrity
         run: |
-          CHANGED_WORKFLOWS=$(git diff --name-only HEAD~1 HEAD -- ':(glob).github/workflows/**/*.yml' || true)
+          CHANGED_WORKFLOWS=$(git diff --name-only HEAD~1 HEAD -- .github/workflows || true)
+          CHANGED_WORKFLOWS=$(printf '%s\n' "${CHANGED_WORKFLOWS}" | grep -E '\.ya?ml$' || true)
           if [ -z "${CHANGED_WORKFLOWS}" ]; then
             echo "No workflow changes in this commit; skipping workflow YAML integrity check"
             exit 0
           fi
 
-          printf '%s\n' "${CHANGED_WORKFLOWS}" | ruby -e '
+          ruby -e '
             require "yaml"
             errors = []
             STDIN.each_line do |line|
@@ -91,7 +92,7 @@ jobs:
               warn errors.join("\n")
               exit 1
             end
-          '
+          ' <<< "${CHANGED_WORKFLOWS}"
 
   job-check:
     runs-on: [self-hosted, sakura-vps]
