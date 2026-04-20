@@ -55,8 +55,7 @@ jobs:
 
           # 自動運用ブランチは本文テンプレ検証/§31メタ検証をスキップする（運用ルールに合わせる）。
           AUTO_BRANCH_PREFIXES = (
-            "copilot/auto-",
-            "copilot/ai-sns-",
+            "copilot/",
             "auto-fix/",
             "deploy-failure/",
             "dependabot/",
