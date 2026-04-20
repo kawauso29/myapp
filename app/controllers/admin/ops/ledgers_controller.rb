@@ -8,6 +8,15 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   ].freeze
 
   LEDGER_SERVICES = %w[ai_sns trading picro].freeze
+
+  # 自律成長ループ: Cadence 以外の手動実行可能ジョブ
+  AUTONOMOUS_JOBS = [
+    { job_class: "KpiAutoCollectJob",   label: "KPI 自動収集",       description: "実DB値を KpiLedger.current_value に投入する" },
+    { job_class: "KpiGradeEvaluateJob", label: "KPI グレード評価",    description: "current_value と閾値を比較して grade を更新する" },
+    { job_class: "PlannerJob",          label: "Planner（改善起票）",  description: "KPI 未達から improvement チケットを最大3件起票する" },
+    { job_class: "TicketIssueSyncJob",  label: "チケット→Issue 同期",  description: "approved/planned チケットを GitHub Issue に同期する" }
+  ].freeze
+
   ROLE_SUMMARY_FALLBACK = "この役割の概要は未設定です。".freeze
   ROLE_PROFILE_BY_KEY = {
     "ceo" => {
@@ -232,6 +241,12 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     end
 
     @open_improvement_count = TicketLedger.ticket_type_improvement.status_waiting_review.count
+
+    # ダッシュボードモードのみ KPI 概要と PDCA サマリを構築
+    unless @meeting_key.present?
+      @kpi_overview = build_kpi_overview
+      @pdca_summary = build_pdca_summary
+    end
   end
 
   # 既存: 単一 MeetingLedger 詳細
@@ -468,14 +483,21 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
       rows, fail_cnt = fetch_recent_ledger_jobs(cfg[:job_class])
       cfg.merge(job_rows: rows, fail_count: fail_cnt)
     end
+
+    @autonomous_jobs = AUTONOMOUS_JOBS.map do |cfg|
+      rows, fail_cnt = fetch_recent_ledger_jobs(cfg[:job_class])
+      cfg.merge(job_rows: rows, fail_count: fail_cnt)
+    end
   rescue StandardError => e
     Rails.logger.warn("LedgersController#operations: #{e.message}")
   end
 
-  # POST: cadence ジョブを即時 enqueue
+  # POST: cadence または自律成長ループ ジョブを即時 enqueue
   def run_job
     job_class_name = params[:job_class].to_s.strip
-    cfg = LEDGER_CADENCE_CONFIG.find { |c| c[:job_class] == job_class_name }
+    # ホワイトリストからジョブ設定を取得し、constantize はホワイトリスト値に対してのみ呼ぶ
+    all_configs = LEDGER_CADENCE_CONFIG + AUTONOMOUS_JOBS
+    cfg = all_configs.find { |c| c[:job_class] == job_class_name }
     unless cfg
       redirect_to admin_ops_ledger_operations_path, alert: "不正なジョブクラス: #{job_class_name}"
       return
@@ -483,9 +505,9 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
     klass = cfg[:job_class].constantize
     klass.perform_later
-    redirect_to admin_ops_ledger_operations_path, notice: "#{job_class_name} をエンキューしました"
+    redirect_to admin_ops_ledger_operations_path, notice: "#{cfg[:job_class]} をエンキューしました"
   rescue NameError
-    redirect_to admin_ops_ledger_operations_path, alert: "ジョブクラスが見つかりません: #{job_class_name}"
+    redirect_to admin_ops_ledger_operations_path, alert: "ジョブクラスが見つかりません: #{cfg&.dig(:job_class)}"
   end
 
   private
@@ -769,5 +791,40 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     heartbeat_scope.find_each do |heartbeat|
       heartbeat.update!(next_run_at:)
     end
+  end
+
+  # KPI 概要: 全サービスの KpiLedger をまとめて返す
+  def build_kpi_overview
+    kpis = KpiLedger.order(:service_id, :kpi_key)
+    by_grade = kpis.group_by(&:grade).transform_values(&:size)
+    {
+      kpis: kpis,
+      healthy_count:  by_grade["healthy"].to_i,
+      warning_count:  by_grade["warning"].to_i,
+      critical_count: by_grade["critical"].to_i,
+      uncollected_count: kpis.count { |k| k.current_value.blank? }
+    }
+  rescue StandardError => e
+    Rails.logger.warn("LedgersController#build_kpi_overview: #{e.message}")
+    { kpis: [], healthy_count: 0, warning_count: 0, critical_count: 0, uncollected_count: 0 }
+  end
+
+  # PDCA サマリ: 改善チケットのパイプライン状況
+  def build_pdca_summary
+    improvement_tickets = TicketLedger.ticket_type_improvement.order(created_at: :desc).limit(10)
+    planner_tickets     = TicketLedger.where("improvement_pattern_key LIKE ?", "planner:%").order(created_at: :desc).limit(5)
+    {
+      total_improvement: TicketLedger.ticket_type_improvement.count,
+      waiting_review:    TicketLedger.ticket_type_improvement.status_waiting_review.count,
+      approved:          TicketLedger.ticket_type_improvement.status_approved.count,
+      completed_30d:     TicketLedger.ticket_type_improvement.where("resolved_at > ?", 30.days.ago).count,
+      recent_tickets:    improvement_tickets,
+      planner_tickets:   planner_tickets,
+      last_kpi_collect:  SolidQueue::Job.where(class_name: "KpiAutoCollectJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at,
+      last_planner_run:  SolidQueue::Job.where(class_name: "PlannerJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at
+    }
+  rescue StandardError => e
+    Rails.logger.warn("LedgersController#build_pdca_summary: #{e.message}")
+    { total_improvement: 0, waiting_review: 0, approved: 0, completed_30d: 0, recent_tickets: [], planner_tickets: [] }
   end
 end
