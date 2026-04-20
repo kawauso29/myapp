@@ -41,7 +41,16 @@ RSpec.describe Ledgers::DailyRunner do
       expect(meeting.decisions.first["anomaly_count"]).to eq(1)
     end
 
-    it "carries over hold_items from previous daily meeting" do
+    it "carries over hold_items from previous daily meeting when anomaly still active" do
+      # kpi:old_issue が引き続き critical なら carry_over される
+      create(:kpi_ledger,
+             kpi_key: "kpi:old_issue",
+             scope_level: :service,
+             service_id: "ai_sns",
+             status: :active,
+             current_value: { "value" => 0.0 },
+             grade: "critical")
+
       previous = described_class.call(service_id: "ai_sns")
       previous.update!(hold_items: [ { "type" => "anomaly", "kpi_key" => "kpi:old_issue" } ],
                        idempotency_key: "daily:ai_sns:old")
@@ -49,6 +58,18 @@ RSpec.describe Ledgers::DailyRunner do
       new_meeting = described_class.call(service_id: "ai_sns")
 
       expect(new_meeting.carry_over_items).to include(a_hash_including("kpi_key" => "kpi:old_issue"))
+    end
+
+    it "removes resolved anomalies from carry_over when KPI is no longer critical" do
+      previous = described_class.call(service_id: "ai_sns")
+      previous.update!(hold_items: [ { "type" => "anomaly", "kpi_key" => "kpi:service_health" } ],
+                       idempotency_key: "daily:ai_sns:old")
+
+      # service_health は healthy（critical ではない）→ carry_over から除去される
+      new_meeting = described_class.call(service_id: "ai_sns")
+
+      anomaly_keys = new_meeting.carry_over_items.select { |i| i["type"] == "anomaly" }.map { |i| i["kpi_key"] }
+      expect(anomaly_keys).not_to include("kpi:service_health")
     end
 
     it "publishes artifact via RunnerArtifactPublisher" do
