@@ -44,6 +44,9 @@ module Ledgers
       previous_daily = previous_daily_meeting(exclude_id: meeting.id)
       carry_over = previous_daily&.hold_items || []
 
+      # Ledger自体の改善: 解消済み anomaly（KPIがcriticalでなくなった）をcarry_overから除去
+      carry_over = filter_resolved_anomalies(carry_over, kpi_snapshot)
+
       meeting.update!(
         decisions: [ { kpi_snapshot:, anomaly_count: anomalies.size } ],
         hold_items: carry_over + hold_items,
@@ -91,6 +94,22 @@ module Ledgers
       )
       scope = scope.where.not(id: exclude_id) if exclude_id
       scope.order(held_at: :desc).first
+    end
+
+    # 解消済み anomaly を carry_over から除去する。
+    # JSONB から読み込んだ hold_items は string key、新規作成分は symbol key なので両方対応する。
+    # anomaly 以外の hold_item（escalation 等）はそのまま残す。
+    def filter_resolved_anomalies(carry_over, kpi_snapshot)
+      current_critical_keys = kpi_snapshot
+        .select { |kpi| kpi[:grade] == "critical" }
+        .map { |kpi| kpi[:kpi_key] }
+        .to_set
+
+      carry_over.reject do |item|
+        item_type = item["type"] || item[:type]
+        item_kpi  = item["kpi_key"] || item[:kpi_key]
+        item_type == "anomaly" && item_kpi.present? && !current_critical_keys.include?(item_kpi)
+      end
     end
   end
 end
