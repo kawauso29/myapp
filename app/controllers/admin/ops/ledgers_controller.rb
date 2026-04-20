@@ -204,34 +204,34 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     }
   }.freeze
 
-  # ① 会社全体サマリ（トップページ）
+  # ① ダッシュボード or cadence/service 別実行一覧
   def index
+    @service_id  = params[:service_id].presence
+    @meeting_key = params[:meeting_key].presence
+
     @cadence_health  = build_cadence_health
-    @alert_summary   = build_alert_summary_extended
+    @alert_summary   = build_alert_summary
+    @service_overview = build_service_overview unless @meeting_key.present?
 
-    @company_kpis    = KpiLedger.scope_level_company.order(:kpi_key)
-    @all_kpis        = KpiLedger.order(:scope_level, :kpi_key)
+    if @meeting_key.present?
+      # cadence 詳細モード: 当該 meeting_key の実行履歴一覧
+      @cadence_cfg = LEDGER_CADENCE_CONFIG.find { |c| c[:meeting_key] == @meeting_key }
+      scope = MeetingLedger.where(meeting_key: @meeting_key)
+      scope = scope.where(service_id: @service_id) if @service_id.present?
+      @meeting_ledgers = scope.order(held_at: :desc).limit(50)
 
-    @last_major_meetings = {
-      annual:    MeetingLedger.where(meeting_key: "annual_plan").order(held_at: :desc).first,
-      quarterly: MeetingLedger.where(meeting_key: "quarterly_review").order(held_at: :desc).first,
-      monthly:   MeetingLedger.where(meeting_key: "monthly_ops").order(held_at: :desc).first
-    }
+      ticket_scope = TicketLedger.joins(:source_meeting)
+                                 .where(meeting_ledgers: { meeting_key: @meeting_key })
+      ticket_scope = ticket_scope.where(ticket_ledgers: { service_id: @service_id }) if @service_id.present?
+      @ticket_ledgers = ticket_scope.includes(:source_meeting).order(created_at: :desc).limit(100)
+    else
+      # ダッシュボードモード: 最新 20 件（全cadence）
+      scope = MeetingLedger.order(held_at: :desc)
+      scope = scope.where(service_id: @service_id) if @service_id.present?
+      @recent_runs = scope.limit(20)
+    end
 
-    @annual_directives   = Array(@last_major_meetings[:annual]&.directives).reject(&:blank?)
-    @quarterly_directives = Array(@last_major_meetings[:quarterly]&.directives).reject(&:blank?)
-
-    @next_heartbeats = ServiceHeartbeat
-                         .status_active
-                         .where.not(next_run_at: nil)
-                         .where("next_run_at > ?", Time.current)
-                         .order(:next_run_at)
-                         .includes(:meeting_definition)
-                         .limit(10)
-
-    @service_overview = build_service_overview
-  rescue StandardError => e
-    Rails.logger.warn("LedgersController#index: #{e.message}")
+    @open_improvement_count = TicketLedger.ticket_type_improvement.status_waiting_review.count
   end
 
   # 既存: 単一 MeetingLedger 詳細

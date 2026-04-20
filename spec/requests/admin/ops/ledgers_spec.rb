@@ -108,6 +108,8 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       get "/admin/ops/ledgers", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
+      # ダッシュボードタイトル
+      expect(response.body).to include("Ledger Dashboard")
       # Cadence 稼働状況セクション
       expect(response.body).to include("Cadence 稼働状況")
       # cadence カード（cadence 名は :weekly / :daily 等）
@@ -117,8 +119,7 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("ai_sns")
       # アラート表示（overdue チケットが存在するため待ちレビュー or 期限超過が出る）
       expect(response.body).to include("待ちレビュー")
-      # 主要会議セクション
-      expect(response.body).to include("主要会議")
+      expect(response.body).to include("improvement")
     end
 
     it "schedule ページで heartbeat と open チケットが表示される" do
@@ -179,5 +180,10 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
     {
       "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("ops", "secret")
     }
+  end
+
+  def extract_ticket_table_ids(html)
+    document = Nokogiri::HTML(html)
+    document.css("table[data-testid='ticket-ledger-table'] tbody tr td:first-child").map { |cell| cell.text.strip }
   end
 end
