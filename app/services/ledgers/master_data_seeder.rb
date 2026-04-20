@@ -29,7 +29,7 @@ module Ledgers
     def seed_meeting_definitions!
       # 設計書 §12.6 選択肢A: daily（圧縮 30分周期）は会議なし種別。
       # KPI スナップショットと異常検知を自動記録する。
-      MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+      daily = MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
         d.meeting_type = :daily
         d.scope_level = :service
         d.service_id = "ai_sns"
@@ -55,7 +55,7 @@ module Ledgers
         d.writes_ledgers = %w[meeting_ledger ticket_ledger]
       end
 
-      MeetingDefinition.find_or_create_by!(meeting_key: "quarterly_review") do |d|
+      quarterly = MeetingDefinition.find_or_create_by!(meeting_key: "quarterly_review") do |d|
         d.meeting_type = :quarterly_review
         d.scope_level = :company
         d.chair_role = "cto"
@@ -63,12 +63,19 @@ module Ledgers
         d.writes_ledgers = %w[meeting_ledger ticket_ledger]
       end
 
-      MeetingDefinition.find_or_create_by!(meeting_key: "annual_plan") do |d|
+      annual = MeetingDefinition.find_or_create_by!(meeting_key: "annual_plan") do |d|
         d.meeting_type = :annual_plan
         d.scope_level = :company
         d.chair_role = "ceo"
         d.participant_roles = %w[executive_planning executive_development executive_audit executive_hr business_owner]
         d.writes_ledgers = %w[meeting_ledger ticket_ledger]
+      end
+
+      # daily（圧縮 30分周期）: 会議なし種別の速報・異常検知用
+      ServiceHeartbeat.find_or_create_by!(meeting_definition: daily, service_id: "ai_sns") do |h|
+        h.due_cycle = :daily
+        h.status = :active
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:daily).from_now
       end
 
       ServiceHeartbeat.find_or_create_by!(meeting_definition: weekly, service_id: "ai_sns") do |h|
@@ -83,6 +90,20 @@ module Ledgers
         h.status = :active
         # 圧縮時間軸: monthly = 12 時間後
         h.next_run_at = Ledgers::TimeAxis.interval_for(:monthly).from_now
+      end
+
+      # quarterly（圧縮 2日周期）: 四半期レビュー
+      ServiceHeartbeat.find_or_create_by!(meeting_definition: quarterly, service_id: nil) do |h|
+        h.due_cycle = :quarterly
+        h.status = :active
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:quarterly).from_now
+      end
+
+      # annual（圧縮 7日周期）: 年次計画
+      ServiceHeartbeat.find_or_create_by!(meeting_definition: annual, service_id: nil) do |h|
+        h.due_cycle = :annual
+        h.status = :active
+        h.next_run_at = Ledgers::TimeAxis.interval_for(:annual).from_now
       end
 
       # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義（ai_sns に統合済み）
