@@ -1,0 +1,124 @@
+<% content_for :title, "Ledger — #{@role.display_name}" %>
+<%= render "admin/ops/ledgers/nav" %>
+
+<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+  <%= link_to "← 各部一覧", admin_ops_ledger_departments_path,
+        style: "font-size:0.8em; color:#63b3ed; text-decoration:none;" %>
+  <h1 style="font-size:1.3em; font-weight:700; color:#e2e8f0;"><%= @role.display_name %></h1>
+  <span style="font-size:0.75em; color:#4a5568; font-family:monospace;"><%= @role.role_key %></span>
+  <span style="font-size:0.75em; padding:2px 8px; border-radius:8px; background:<%= @role.active? ? "#1c4532" : "#2d3748" %>; color:<%= @role.active? ? "#68d391" : "#718096" %>;"><%= @role.active? ? "active" : "inactive" %></span>
+</div>
+
+<% if @role.description.present? %>
+  <div class="card" style="font-size:0.88em; color:#a0aec0; padding:10px 16px;"><%= @role.description %></div>
+<% end %>
+
+<%# 会議定義 %>
+<div class="card">
+  <h2>関連会議定義 (<%= @all_defs.size %>)</h2>
+  <% if @all_defs.present? %>
+    <table>
+      <thead>
+        <tr>
+          <th>meeting_key</th>
+          <th>meeting_type</th>
+          <th>scope_level</th>
+          <th>service_id</th>
+          <th>役割</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @all_defs.each do |d| %>
+          <tr>
+            <td style="font-weight:600;"><%= d.meeting_key %></td>
+            <td style="font-size:0.85em;"><%= d.meeting_type %></td>
+            <td style="font-size:0.85em; color:#a0aec0;"><%= d.scope_level %></td>
+            <td style="font-size:0.85em; color:#718096;"><%= d.service_id.presence || "-" %></td>
+            <td style="font-size:0.82em;">
+              <% if d.chair_role == @role.role_key %>
+                <span style="color:#63b3ed; font-weight:600;">議長</span>
+              <% else %>
+                <span style="color:#718096;">参加者</span>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">関連する会議定義なし</p>
+  <% end %>
+</div>
+
+<%# 直近会議（このロールが議長） %>
+<div class="card">
+  <h2>直近会議（議長として、直近 <%= @recent_meetings.size %> 件）</h2>
+  <% if @recent_meetings.present? %>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>meeting_key</th><th>held_at</th><th>status</th><th>hold_items</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% @recent_meetings.each do |m| %>
+          <tr>
+            <td style="color:#718096;"><%= m.id %></td>
+            <td><%= m.meeting_key %></td>
+            <td><%= m.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+            <td style="color:<%= m.status_closed? ? "#68d391" : "#f6ad55" %>; font-size:0.85em;"><%= m.status %></td>
+            <td style="color:<%= Array(m.hold_items).size > 0 ? "#f6ad55" : "#4a5568" %>"><%= Array(m.hold_items).size %></td>
+            <td><%= link_to "↗", admin_ops_ledger_path(m), style: "color:#63b3ed; text-decoration:none;" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568;">議長として主催した会議の記録なし</p>
+  <% end %>
+</div>
+
+<%# HR 評価 %>
+<% if @hr_evals.present? %>
+  <div class="card">
+    <h2>HR 評価 (<%= @hr_evals.size %>)</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>期間</th><th>score</th><th>status</th></tr>
+      </thead>
+      <tbody>
+        <% @hr_evals.each do |e| %>
+          <tr>
+            <td style="color:#718096;"><%= e.id %></td>
+            <td style="font-size:0.85em;"><%= e.period_start %> 〜 <%= e.period_end %></td>
+            <td style="font-weight:600; color:<%= e.score ? (e.score >= 0.7 ? "#68d391" : e.score >= 0.4 ? "#f6ad55" : "#fc8181") : "#4a5568" %>">
+              <%= e.score&.round(2) || "-" %>
+            </td>
+            <td style="font-size:0.85em; color:#a0aec0;"><%= e.status %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<%# 組織変更 %>
+<% if @org_changes.present? %>
+  <div class="card">
+    <h2>組織変更 (直近 <%= @org_changes.size %> 件)</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>変更タイプ</th><th>scope</th><th>status</th><th>作成日時</th></tr>
+      </thead>
+      <tbody>
+        <% @org_changes.each do |o| %>
+          <tr>
+            <td style="color:#718096;"><%= o.id %></td>
+            <td style="font-size:0.85em;"><%= o.change_type %></td>
+            <td style="font-size:0.85em; color:#a0aec0;"><%= o.scope_level %></td>
+            <td style="font-size:0.85em; color:<%= o.status_in_effect? ? "#68d391" : "#a0aec0" %>;"><%= o.status %></td>
+            <td style="font-size:0.82em; color:#718096;"><%= o.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>

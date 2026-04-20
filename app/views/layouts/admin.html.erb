@@ -169,18 +169,32 @@
     <span class="logo">Admin</span>
 
     <%# ===== LEDGER グループ ===== %>
-    <% ledger_active = controller_path.start_with?('admin/ops') %>
+    <% ledger_active = controller_path.start_with?('admin/ops/ledgers') %>
     <% active_stop_count = StopLedger.status_active.count rescue 0 %>
+    <% failed_jobs_count = SolidQueue::FailedExecution.count rescue 0 %>
     <div class="nav-group ledger-group <%= 'active-group' if ledger_active %>">
-      <span class="nav-group-label">台帳</span>
-      <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if controller_path == 'admin/ops/ledgers' %>">会議/チケット</a>
-      <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">成果物</a>
-      <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">監査</a>
-      <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">
-        停止中<% if active_stop_count > 0 %><span class="nav-stop-badge"><%= active_stop_count %></span><% end %>
+      <span class="nav-group-label">Ledger</span>
+      <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'index' %>">会社</a>
+      <a href="<%= admin_ops_ledger_services_path %>" class="<%= 'active' if ledger_active && %w[services service_detail].include?(controller.action_name) %>">SVC</a>
+      <a href="<%= admin_ops_ledger_schedule_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'schedule' %>">予定</a>
+      <a href="<%= admin_ops_ledger_departments_path %>" class="<%= 'active' if ledger_active && %w[departments department_detail].include?(controller.action_name) %>">各部</a>
+      <a href="<%= admin_ops_ledger_approvals_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'approvals' %>">承認</a>
+      <a href="<%= admin_ops_ledger_errors_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'errors' %>">
+        エラー<% if failed_jobs_count > 0 || active_stop_count > 0 %><span class="nav-stop-badge"><%= failed_jobs_count + active_stop_count %></span><% end %>
       </a>
-      <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">ナレッジ</a>
+      <a href="<%= admin_ops_ledger_operations_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'operations' %>">操作</a>
     </div>
+    <% unless ledger_active %>
+    <div class="nav-group" style="border:1px solid #2d3748; border-radius:6px; padding:4px 6px; margin-right:4px;">
+      <span class="nav-group-label" style="font-size:9px; color:#4a5568;">OPS</span>
+      <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">Artifacts</a>
+      <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">Audits</a>
+      <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">
+        Stops<% if active_stop_count > 0 %><span class="nav-stop-badge"><%= active_stop_count %></span><% end %>
+      </a>
+      <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">Knowledge</a>
+    </div>
+    <% end %>
 
     <span class="nav-divider"></span>
 
@@ -190,12 +204,12 @@
     <span class="nav-divider"></span>
 
     <%# ===== 独立系統 ===== %>
-    <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path.start_with?('admin/dashboard') %>">トレーディング</a>
+    <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path.start_with?('admin/dashboard') %>">Trading</a>
     <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
 
     <span class="nav-divider"></span>
 
-    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">全体管理</a>
+    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
   </nav>
   <main>
     <% if flash[:notice] %>

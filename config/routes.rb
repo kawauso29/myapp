@@ -45,6 +45,16 @@ Rails.application.routes.draw do
 
     resources :users, only: [ :index ]
     namespace :ops do
+      # Ledger sub-pages (defined before resources to prevent route conflicts)
+      get  "ledgers/services",              to: "ledgers#services",          as: "ledger_services"
+      get  "ledgers/services/:service_id",  to: "ledgers#service_detail",    as: "ledger_service"
+      get  "ledgers/schedule",              to: "ledgers#schedule",          as: "ledger_schedule"
+      get  "ledgers/departments",           to: "ledgers#departments",       as: "ledger_departments"
+      get  "ledgers/departments/:role_key", to: "ledgers#department_detail", as: "ledger_department"
+      get  "ledgers/approvals",             to: "ledgers#approvals",         as: "ledger_approvals"
+      get  "ledgers/errors",                to: "ledgers#errors",            as: "ledger_errors"
+      get  "ledgers/operations",            to: "ledgers#operations",        as: "ledger_operations"
+      post "ledgers/run_job",               to: "ledgers#run_job",           as: "ledger_run_job"
       resources :ledgers, only: [ :index, :show ]
       resources :artifacts, only: [ :index ]
       resources :audit_decisions, only: [ :index ]

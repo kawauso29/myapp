@@ -100,51 +100,42 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       get "/admin/ops/ledgers", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
-      # ダッシュボードタイトル
-      expect(response.body).to include("台帳ダッシュボード")
-      # cadence カード
-      expect(response.body).to include("weekly_dept")
+      # Cadence 稼働状況セクション
+      expect(response.body).to include("Cadence 稼働状況")
+      # cadence カード（cadence 名は :weekly / :daily 等）
+      expect(response.body).to include("weekly")
       expect(response.body).to include("daily")
       # サービス概要（ai_sns サービスのミーティングが存在するため表示される）
       expect(response.body).to include("ai_sns")
       # アラート表示（overdue チケットが存在するため待ちレビュー or 期限超過が出る）
-      expect(response.body).to include("改善レビュー待ち")
-      expect(response.body).to include("改善")
-      # 最近の実行ログに monthly_ops の行が出る
-      expect(response.body).to include("monthly_ops")
-      expect(response.body).to include("quarterly_review")
+      expect(response.body).to include("待ちレビュー")
+      # 主要会議セクション
+      expect(response.body).to include("主要会議")
     end
 
-    it "meeting_key で絞込むと cadence 実行履歴とチケットが表示される" do
-      get "/admin/ops/ledgers",
-          params: { meeting_key: "weekly_dept" },
-          headers: basic_auth_headers
+    it "schedule ページで heartbeat と open チケットが表示される" do
+      get "/admin/ops/ledgers/schedule", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("weekly_dept")
+      expect(response.body).to include("スケジュール")
+      expect(response.body).to include("オープンチケット")
+      expect(response.body).to include("overdue")
       expect(response.body).to include(weekly_ticket.id.to_s)
-      expect(response.body).to include("期限超過")
-      expect(response.body).to include("未対応改善チケット:")
-      expect(response.body).to include("改善")
-      expect(response.body).to include(improvement_ticket.id.to_s)
-      ticket_ids = extract_ticket_table_ids(response.body)
-      expect(ticket_ids).to include(weekly_ticket.id.to_s)
-      # monthly_ops のチケットは出ない
-      expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
     end
 
-    it "service_id と meeting_key で絞り込みできる" do
-      get "/admin/ops/ledgers",
-          params: { service_id: "ai_sns", meeting_key: "weekly_dept" },
-          headers: basic_auth_headers
+    it "services ページで ai_sns サービスカードが表示される" do
+      get "/admin/ops/ledgers/services", headers: basic_auth_headers
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("weekly_dept")
-      expect(response.body).not_to include("monthly_ops 実行履歴")
+      expect(response.body).to include("ai_sns")
+      expect(response.body).to include("trading")
+    end
 
-      ticket_ids = extract_ticket_table_ids(response.body)
-      expect(ticket_ids).to include(weekly_ticket.id.to_s)
-      expect(ticket_ids).not_to include(monthly_ticket.id.to_s)
+    it "service_detail で ai_sns サービス詳細が表示される" do
+      get "/admin/ops/ledgers/services/ai_sns", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("ai_sns")
     end
 
     it "show で MeetingLedger 詳細が表示される" do
@@ -162,10 +153,5 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
     {
       "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("ops", "secret")
     }
-  end
-
-  def extract_ticket_table_ids(html)
-    document = Nokogiri::HTML(html)
-    document.css("div.card table tbody").last.css("tr td:first-child").map { |cell| cell.text.strip }
   end
 end
