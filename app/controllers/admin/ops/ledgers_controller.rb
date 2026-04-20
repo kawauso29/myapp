@@ -802,7 +802,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     {
       total_improvement: TicketLedger.ticket_type_improvement.count,
       waiting_review:    TicketLedger.ticket_type_improvement.status_waiting_review.count,
-      approved:          TicketLedger.ticket_type_improvement.where(status: TicketLedger.statuses[:approved]).count,
+      approved:          TicketLedger.ticket_type_improvement.status_approved.count,
       completed_30d:     TicketLedger.ticket_type_improvement.where("resolved_at > ?", 30.days.ago).count,
       recent_tickets:    improvement_tickets,
       planner_tickets:   planner_tickets,

@@ -144,7 +144,7 @@
 <% end %>
 
 <%# ===== KPI 状況（ダッシュボードモードのみ） ===== %>
-<% if !@meeting_key.present? && @kpi_overview&.dig(:kpis)&.any? %>
+<% if @meeting_key.blank? && @kpi_overview&.dig(:kpis)&.any? %>
   <div class="card">
     <%
       kpi_grade_color = { "healthy" => "#68d391", "warning" => "#f6ad55", "critical" => "#fc8181" }
@@ -197,7 +197,7 @@
 <% end %>
 
 <%# ===== PDCA フロー（ダッシュボードモードのみ） ===== %>
-<% if !@meeting_key.present? && @pdca_summary.present? %>
+<% if @meeting_key.blank? && @pdca_summary.present? %>
   <div class="card">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
       <h2 style="margin:0;">PDCA フロー</h2>
