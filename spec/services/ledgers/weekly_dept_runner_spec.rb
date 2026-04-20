@@ -153,6 +153,31 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(meeting.carry_over_items).to eq(meeting.hold_items)
     end
 
+    it "holds ticket creation when entry guard is blocked by an active stop" do
+      create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+      blocked_result = instance_double(Stops::EntryGuard::Result, allowed?: false, blocked?: true)
+      allow(Stops::EntryGuard).to receive(:check).and_return(blocked_result)
+
+      expect do
+        described_class.call(
+          service_id: "ai_sns",
+          ticket_inputs: [
+            {
+              ticket_type: "ops",
+              title: "blocked by stop",
+              linked_kpis: [ "kpi:service_health" ],
+              audit_ok: true
+            }
+          ]
+        )
+      end.not_to change(TicketLedger, :count)
+
+      meeting = MeetingLedger.last
+      expect(meeting.hold_items).to include(a_hash_including("reason" => "entry_guard_blocked"))
+      expect(meeting.decisions).to include(a_hash_including("result" => "held_for_active_stop"))
+    end
+
     context "when meeting_key is ui_check" do
       let!(:ui_check_definition) do
         create(:meeting_definition,

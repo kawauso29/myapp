@@ -37,6 +37,8 @@ module Ledgers
       escalations = []
       decisions = []
 
+      entry_check = Stops::EntryGuard.check(scope_level: :service, service_id:)
+
       ticket_inputs.each do |input|
         attrs = input.symbolize_keys
         linked_kpis = Array(attrs[:linked_kpis]).compact
@@ -50,6 +52,12 @@ module Ledgers
         if missing_kpi_keys.present?
           hold_items << hold_payload(attrs, reason: "missing_kpi_definition", missing_kpi_keys:)
           decisions << { title: attrs[:title], result: "held_for_missing_kpi_definition" }
+          next
+        end
+
+        if entry_check.blocked?
+          hold_items << hold_payload(attrs, reason: "entry_guard_blocked")
+          decisions << { title: attrs[:title], result: "held_for_active_stop" }
           next
         end
 
