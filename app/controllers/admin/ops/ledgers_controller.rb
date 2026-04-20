@@ -306,7 +306,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     service_id = params[:service_id].to_s.strip
     cadence = params[:cadence].to_s
     interval_seconds_raw = params[:interval_seconds].to_s.strip
-    description = params[:description].to_s.strip if params.key?(:description)
+    description = params[:description].to_s.strip
 
     unless LEDGER_SERVICES.include?(service_id)
       redirect_to admin_ops_ledger_schedule_path, alert: "不明なサービス: #{service_id.presence || '(blank)'}"
@@ -325,7 +325,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
     setting = ServiceTimeAxisSetting.find_or_initialize_by(service_id:, cadence:)
     setting.interval_seconds = interval_seconds_raw.to_i
-    setting.description = description.presence if params.key?(:description)
+    setting.description = description.presence
     setting.save!
 
     refresh_heartbeat_next_run!(service_id:, cadence:, interval_seconds: setting.interval_seconds)
@@ -678,10 +678,17 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   end
 
   def refresh_heartbeat_next_run!(service_id:, cadence:, interval_seconds:)
+    interval_sec = interval_seconds.to_i
+    return unless interval_sec.positive?
+
     heartbeat_scope = ServiceHeartbeat.status_active.where(service_id:, due_cycle: cadence)
     return if heartbeat_scope.none?
 
     now = Time.current
-    heartbeat_scope.update_all(next_run_at: now + interval_seconds.seconds, updated_at: now)
+    next_run_at = now + interval_sec.seconds
+
+    heartbeat_scope.find_each do |heartbeat|
+      heartbeat.update!(next_run_at:)
+    end
   end
 end
