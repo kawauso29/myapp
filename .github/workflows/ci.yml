@@ -66,7 +66,7 @@ jobs:
 
       - name: Check workflow YAML integrity
         run: |
-          CHANGED_WORKFLOWS=$(git diff --name-only HEAD~1 HEAD -- '.github/workflows/*.yml' || true)
+          CHANGED_WORKFLOWS=$(git diff --name-only HEAD~1 HEAD -- '.github/workflows/**/*.yml' '.github/workflows/*.yml' || true)
           if [ -z "${CHANGED_WORKFLOWS}" ]; then
             echo "No workflow changes in this commit; skipping workflow YAML integrity check"
             exit 0
@@ -81,7 +81,7 @@ jobs:
               begin
                 YAML.safe_load_file(file, permitted_classes: [], aliases: true)
               rescue StandardError => e
-                errors << "#{file}: #{e.message.lines.first&.strip || e.message}"
+                errors << "#{file}: #{e.message}"
               end
             end
 
