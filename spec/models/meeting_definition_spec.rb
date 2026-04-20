@@ -62,4 +62,22 @@ RSpec.describe MeetingDefinition, type: :model do
       expect(definition.cycle_allowed?("monthly")).to be false
     end
   end
+
+  describe "backward compatibility without allowed_cycles column" do
+    before do
+      names_without_allowed_cycles = described_class.attribute_names - ["allowed_cycles"]
+      allow(described_class).to receive(:attribute_names).and_return(names_without_allowed_cycles)
+    end
+
+    it "does not raise on validation" do
+      definition = build(:meeting_definition)
+      expect { definition.valid? }.not_to raise_error
+      expect(definition).to be_valid
+    end
+
+    it "treats cycles as allowed" do
+      definition = build(:meeting_definition)
+      expect(definition.cycle_allowed?(:daily)).to be true
+    end
+  end
 end
