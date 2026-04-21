@@ -93,6 +93,107 @@
   </div>
 <% end %>
 
+<%# ===== Cadence フロー図（ダッシュボードモードのみ） ===== %>
+<% if @meeting_key.blank? && @cadence_health.present? %>
+  <%
+    cadence_node_style = ->(cadence_key) {
+      h = @cadence_health.find { |c| c[:cadence].to_s == cadence_key.to_s }
+      border_color = h ? (status_color[h[:status]] || "#4a5568") : "#4a5568"
+      "background:#1a202c; border-radius:8px; padding:12px 14px; border:1px solid #{border_color}55; min-width:170px; flex:1;"
+    }
+    cadence_link = ->(meeting_key_param) {
+      link_params = { meeting_key: meeting_key_param }
+      link_params[:service_id] = @service_id if @service_id.present?
+      admin_ops_ledgers_path(link_params)
+    }
+  %>
+  <div class="card">
+    <h2 style="margin-bottom:12px;">📊 Cadence フロー図</h2>
+    <div style="font-size:0.78em; color:#718096; margin-bottom:14px;">
+      daily → weekly → monthly → quarterly → annual の順に情報が集約・引き継がれます
+    </div>
+
+    <%# フロー横並び %>
+    <div style="display:flex; gap:6px; align-items:stretch; overflow-x:auto; flex-wrap:wrap;">
+
+      <%# daily %>
+      <div style="<%= cadence_node_style.call(:daily) %>">
+        <a href="<%= cadence_link.call("daily") %>" style="text-decoration:none;">
+          <div style="font-size:0.7em; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">30分周期</div>
+          <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin:2px 0;">daily</div>
+          <div style="font-size:0.78em; color:#a0aec0; margin-bottom:4px;">KPIスナップショット<br>異常検知（anomaly）</div>
+          <div style="font-size:0.72em; color:#4a5568;">会議なし・自動監視</div>
+        </a>
+      </div>
+
+      <%# 矢印 daily → weekly %>
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:40px; padding:0 4px;">
+        <div style="font-size:1.1em; color:#63b3ed;">→</div>
+        <div style="font-size:0.62em; color:#4a5568; text-align:center; line-height:1.3;">anomaly<br>carry_over</div>
+      </div>
+
+      <%# weekly %>
+      <div style="<%= cadence_node_style.call(:weekly) %>">
+        <a href="<%= cadence_link.call("weekly_dept") %>" style="text-decoration:none;">
+          <div style="font-size:0.7em; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">4時間周期</div>
+          <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin:2px 0;">weekly</div>
+          <div style="font-size:0.78em; color:#a0aec0; margin-bottom:4px;">チケット起票<br>改善検知・解消</div>
+          <div style="font-size:0.72em; color:#4a5568;">保留→monthly<br>エスカレーション</div>
+        </a>
+      </div>
+
+      <%# 矢印 weekly → monthly %>
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:40px; padding:0 4px;">
+        <div style="font-size:1.1em; color:#63b3ed;">→</div>
+        <div style="font-size:0.62em; color:#4a5568; text-align:center; line-height:1.3;">tickets<br>エスカレーション</div>
+      </div>
+
+      <%# monthly %>
+      <div style="<%= cadence_node_style.call(:monthly) %>">
+        <a href="<%= cadence_link.call("monthly_ops") %>" style="text-decoration:none;">
+          <div style="font-size:0.7em; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">12時間周期</div>
+          <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin:2px 0;">monthly</div>
+          <div style="font-size:0.78em; color:#a0aec0; margin-bottom:4px;">waiting_review確定<br>改善エスカレーション</div>
+          <div style="font-size:0.72em; color:#4a5568;">weekly hold_items<br>carry_over_items経由</div>
+        </a>
+      </div>
+
+      <%# 矢印 monthly → quarterly %>
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:40px; padding:0 4px;">
+        <div style="font-size:1.1em; color:#63b3ed;">→</div>
+        <div style="font-size:0.62em; color:#4a5568; text-align:center; line-height:1.3;">monthly<br>carry_over</div>
+      </div>
+
+      <%# quarterly %>
+      <div style="<%= cadence_node_style.call(:quarterly) %>">
+        <a href="<%= cadence_link.call("quarterly_review") %>" style="text-decoration:none;">
+          <div style="font-size:0.7em; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">2日周期</div>
+          <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin:2px 0;">quarterly</div>
+          <div style="font-size:0.78em; color:#a0aec0; margin-bottom:4px;">期間集計<br>KPIサマリレビュー</div>
+          <div style="font-size:0.72em; color:#4a5568;">tickets/meetings<br>集計サマリ</div>
+        </a>
+      </div>
+
+      <%# 矢印 quarterly → annual %>
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:40px; padding:0 4px;">
+        <div style="font-size:1.1em; color:#63b3ed;">→</div>
+        <div style="font-size:0.62em; color:#4a5568; text-align:center; line-height:1.3;">quarterly<br>carry_over</div>
+      </div>
+
+      <%# annual %>
+      <div style="<%= cadence_node_style.call(:annual) %>">
+        <a href="<%= cadence_link.call("annual_plan") %>" style="text-decoration:none;">
+          <div style="font-size:0.7em; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">7日周期</div>
+          <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin:2px 0;">annual</div>
+          <div style="font-size:0.78em; color:#a0aec0; margin-bottom:4px;">年次計画<br>overdue率算出</div>
+          <div style="font-size:0.72em; color:#4a5568;">全cadence集計<br>FY計画チケット</div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+<% end %>
+
 <%# ===== Cadence ステータスカード ===== %>
 <% if @cadence_health.present? %>
   <div class="card">

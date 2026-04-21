@@ -1,14 +1,15 @@
 module Ledgers
   class WeeklyDeptRunner
-    def self.call(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
-      new(service_id:, ticket_inputs:, present_roles:, meeting_key:).call
+    def self.call(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept", use_daily_anomalies: true)
+      new(service_id:, ticket_inputs:, present_roles:, meeting_key:, use_daily_anomalies:).call
     end
 
-    def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept")
+    def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept", use_daily_anomalies: true)
       @service_id = service_id
       @ticket_inputs = ticket_inputs.presence || default_ticket_inputs
       @present_roles = present_roles
       @meeting_key = meeting_key
+      @use_daily_anomalies = use_daily_anomalies
     end
 
     def call
@@ -39,7 +40,9 @@ module Ledgers
 
       entry_check = Stops::EntryGuard.check(scope_level: :service, service_id:)
 
-      ticket_inputs.each do |input|
+      all_ticket_inputs = ticket_inputs + daily_anomaly_inputs
+
+      all_ticket_inputs.each do |input|
         attrs = input.symbolize_keys
         linked_kpis = Array(attrs[:linked_kpis]).compact
         if linked_kpis.blank?
@@ -161,13 +164,49 @@ module Ledgers
 
     def existing_kpi_keys
       @existing_kpi_keys ||= begin
-        requested_kpi_keys = ticket_inputs.flat_map { |input| Array(input.symbolize_keys[:linked_kpis]).compact }.uniq
+        all_inputs = ticket_inputs + daily_anomaly_inputs
+        requested_kpi_keys = all_inputs.flat_map { |input| Array(input.symbolize_keys[:linked_kpis]).compact }.uniq
         if requested_kpi_keys.blank?
           []
         else
           KpiLedger.where(kpi_key: requested_kpi_keys).pluck(:kpi_key)
         end
       end
+    end
+
+    def daily_anomaly_inputs
+      return [] unless @use_daily_anomalies
+
+      @daily_anomaly_inputs ||= fetch_daily_anomaly_inputs
+    end
+
+    def fetch_daily_anomaly_inputs
+      latest_daily = MeetingLedger
+                       .where(meeting_type: :daily, service_id: @service_id)
+                       .order(held_at: :desc)
+                       .first
+      return [] unless latest_daily
+
+      existing_titles = ticket_inputs.map { |i| i.symbolize_keys[:title].to_s }
+
+      Array(latest_daily.hold_items)
+        .select { |item| (item["type"] || item[:type]).to_s == "anomaly" }
+        .filter_map do |item|
+          kpi_key = (item["kpi_key"] || item[:kpi_key]).to_s
+          next if kpi_key.blank?
+
+          anomaly_title = "Anomaly: #{kpi_key}"
+          next if existing_titles.include?(anomaly_title)
+
+          {
+            ticket_type: "operations",
+            title: anomaly_title,
+            linked_kpis: [ kpi_key ],
+            audit_ok: false,
+            owner_dept: "system",
+            owner_agent: "daily_runner"
+          }
+        end
     end
   end
 end

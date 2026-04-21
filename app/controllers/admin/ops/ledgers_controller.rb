@@ -255,6 +255,13 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     @cadence_cfg = LEDGER_CADENCE_CONFIG.find { |c| c[:meeting_key] == @meeting.meeting_key }
     @related_tickets = TicketLedger.where(source_meeting: @meeting).order(:id)
     @job_row = fetch_job_row_for_meeting(@meeting)
+    if @meeting.meeting_type_daily?
+      @next_weekly_meeting = MeetingLedger
+                               .where(meeting_type: :weekly, service_id: @meeting.service_id)
+                               .where("held_at > ?", @meeting.held_at)
+                               .order(held_at: :asc)
+                               .first
+    end
   end
 
   # ② サービス別サマリ
