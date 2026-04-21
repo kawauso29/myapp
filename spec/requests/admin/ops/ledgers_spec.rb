@@ -233,19 +233,21 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
     end
 
     it "show で daily meeting に anomaly hold_items がある場合、daily → weekly 引き継ぎパネルを表示する（PR-3）" do
-      daily_definition = create(:meeting_definition,
-                                meeting_key: "daily",
-                                meeting_type: :daily,
-                                scope_level: :service,
-                                service_id: "ai_sns",
-                                chair_role: "system",
-                                participant_roles: [])
+      daily_definition = MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+      end
+      # weekly_meeting（let!）は held_at: Time.current。それより未来に設定することで
+      # @next_weekly_meeting = nil になり「まだ次の weekly は実行されていません」が表示される
       daily_meeting = create(:meeting_ledger,
                              meeting_definition: daily_definition,
                              meeting_key: "daily",
                              meeting_type: :daily,
                              service_id: "ai_sns",
-                             held_at: 2.hours.ago,
+                             held_at: 1.minute.from_now,
                              hold_items: [ { "type" => "anomaly", "kpi_key" => "kpi:service_health", "grade" => "critical" } ],
                              status: :closed)
 
@@ -257,13 +259,13 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
     end
 
     it "show で daily meeting の後に weekly が実行済みの場合、次の weekly へのリンクを表示する（PR-3 @next_weekly_meeting）" do
-      daily_definition = create(:meeting_definition,
-                                meeting_key: "daily",
-                                meeting_type: :daily,
-                                scope_level: :service,
-                                service_id: "ai_sns",
-                                chair_role: "system",
-                                participant_roles: [])
+      daily_definition = MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+      end
       daily_meeting = create(:meeting_ledger,
                              meeting_definition: daily_definition,
                              meeting_key: "daily",

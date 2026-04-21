@@ -46,6 +46,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
 
       described_class.call(
         service_id: "ai_sns",
+        use_daily_anomalies: false,
         ticket_inputs: [
           {
             ticket_type: "ops",
@@ -56,7 +57,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         ]
       )
 
-      ticket = TicketLedger.last
+      ticket = TicketLedger.find_by!(title: "approved by weekly audit")
       expect(ticket).to be_status_approved
       expect(ticket.resolved_at).to be_present
       expect(ticket.assignee).to eq("ai_sns")
@@ -205,13 +206,13 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
 
     context "when daily anomaly hold_items exist" do
       let!(:daily_definition) do
-        create(:meeting_definition,
-               meeting_key: "daily",
-               meeting_type: :daily,
-               scope_level: :service,
-               service_id: "ai_sns",
-               chair_role: "system",
-               participant_roles: [])
+        MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+          d.meeting_type = :daily
+          d.scope_level = :service
+          d.service_id = "ai_sns"
+          d.chair_role = "system"
+          d.participant_roles = []
+        end
       end
 
       let!(:kpi_anomaly) { create(:kpi_ledger, kpi_key: "kpi:anomaly_target", scope_level: :service, service_id: "ai_sns") }

@@ -18,6 +18,9 @@ RSpec.describe Ledgers::AnnualPlanRunner do
     let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns") }
 
     before do
+      # スナップショットDBの既存 MeetingLedger がカウントに混入しないよう事前に除去する
+      MeetingLedger.delete_all
+      TicketLedger.delete_all
       # 圧縮 annual = 7 日が range_start
       quarterly = create(:meeting_ledger, meeting_definition: quarterly_definition, meeting_key: "quarterly_review", meeting_type: :quarterly_review, created_at: 3.days.ago, held_at: 3.days.ago)
       weekly_recent = create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 1.day.ago, held_at: 1.day.ago)
