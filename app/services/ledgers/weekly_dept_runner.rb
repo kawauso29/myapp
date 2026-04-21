@@ -65,7 +65,14 @@ module Ledgers
           next
         end
 
-        ticket = create_ticket!(meeting:, attrs:)
+        begin
+          ticket = create_ticket!(meeting:, attrs:)
+        rescue ActiveRecord::RecordNotSaved => e
+          reason = ticket_blocked_reason(e.record)
+          hold_items << hold_payload(attrs, reason:)
+          decisions << { title: attrs[:title], result: "held_for_#{reason}" }
+          next
+        end
         created << { ticket_id: ticket.id, title: ticket.title, status: ticket.status }
         decisions << { ticket_id: ticket.id, result: ticket.status }
 
@@ -148,6 +155,17 @@ module Ledgers
         due_cycle: :weekly,
         escalation_to: audit_ok ? nil : :monthly
       )
+    end
+
+    def ticket_blocked_reason(record)
+      return "callback_blocked" unless record.is_a?(TicketLedger)
+
+      base_msgs = record.errors.full_messages
+      if base_msgs.any? { |m| m.include?("lane capacity exceeded") }
+        "lane_capacity_exceeded"
+      else
+        "callback_blocked"
+      end
     end
 
     def hold_payload(attrs, reason: "missing_linked_kpis", missing_kpi_keys: nil)

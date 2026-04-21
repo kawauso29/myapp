@@ -179,6 +179,70 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       expect(meeting.decisions).to include(a_hash_including("result" => "held_for_active_stop"))
     end
 
+    context "when lane capacity is exceeded during ticket creation" do
+      around do |example|
+        TicketLedger.enforce_lane_capacity = true
+        example.run
+      ensure
+        TicketLedger.enforce_lane_capacity = false
+      end
+
+      before do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+      end
+
+      it "holds the ticket instead of raising an error when RecordNotSaved has lane_capacity_exceeded" do
+        blocked_ticket = TicketLedger.new
+        blocked_ticket.errors.add(:base, "lane capacity exceeded for weekly_improvement (scope=service, service=ai_sns)")
+        not_saved_error = ActiveRecord::RecordNotSaved.new("Failed to save the record", blocked_ticket)
+        allow(TicketLedger).to receive(:create!).and_raise(not_saved_error)
+
+        expect do
+          described_class.call(
+            service_id: "ai_sns",
+            use_daily_anomalies: false,
+            ticket_inputs: [
+              {
+                ticket_type: "operations",
+                title: "over capacity ticket",
+                linked_kpis: [ "kpi:service_health" ],
+                audit_ok: true
+              }
+            ]
+          )
+        end.not_to raise_error
+
+        meeting = MeetingLedger.last
+        expect(meeting.hold_items).to include(a_hash_including("reason" => "lane_capacity_exceeded"))
+        expect(meeting.decisions).to include(a_hash_including("result" => "held_for_lane_capacity_exceeded"))
+      end
+
+      it "holds the ticket with callback_blocked reason when RecordNotSaved has unknown cause" do
+        blocked_ticket = TicketLedger.new
+        blocked_ticket.errors.add(:base, "ticket creation is blocked by active stops: #1:manual/service(ai_sns)")
+        not_saved_error = ActiveRecord::RecordNotSaved.new("Failed to save the record", blocked_ticket)
+        allow(TicketLedger).to receive(:create!).and_raise(not_saved_error)
+
+        expect do
+          described_class.call(
+            service_id: "ai_sns",
+            use_daily_anomalies: false,
+            ticket_inputs: [
+              {
+                ticket_type: "operations",
+                title: "blocked ticket",
+                linked_kpis: [ "kpi:service_health" ],
+                audit_ok: true
+              }
+            ]
+          )
+        end.not_to raise_error
+
+        meeting = MeetingLedger.last
+        expect(meeting.hold_items).to include(a_hash_including("reason" => "callback_blocked"))
+      end
+    end
+
     context "when meeting_key is ui_check" do
       let!(:ui_check_definition) do
         create(:meeting_definition,
