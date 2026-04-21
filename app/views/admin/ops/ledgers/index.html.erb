@@ -312,8 +312,8 @@
       has_warning_kpi = @kpi_overview.present? && (@kpi_overview[:warning_count].to_i + @kpi_overview[:critical_count].to_i) > 0
       has_tickets     = @pdca_summary[:total_improvement].to_i > 0
       planner_ran     = @pdca_summary[:last_planner_run].present?
-      last_daily      = MeetingLedger.where(meeting_type: :daily).order(held_at: :desc).first rescue nil
-      daily_recent    = last_daily && last_daily.held_at > 2.hours.ago
+      last_daily_at   = @pdca_summary[:last_daily_run]
+      daily_recent    = last_daily_at.present? && last_daily_at > 2.hours.ago
 
       # ループが止まっている箇所を特定
       loop_steps = [
@@ -328,7 +328,7 @@
           id: :daily_runner,
           label: "② Daily Runner",
           ok: daily_recent,
-          detail: last_daily ? "最終: #{last_daily.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M")}" : "未実行",
+          detail: last_daily_at ? "最終: #{last_daily_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M")}" : "未実行",
           fix: "SolidQueue scheduler が停止している可能性。Ops画面「Daily Runner」を手動実行、またはPumaを再起動"
         },
         {

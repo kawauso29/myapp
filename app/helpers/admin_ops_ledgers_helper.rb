@@ -53,7 +53,7 @@ module AdminOpsLedgersHelper
     recorded = val["recorded_at"] || val[:recorded_at]
     return nil unless recorded
 
-    Time.zone.parse(recorded.to_s).in_time_zone("Tokyo").strftime("%m/%d %H:%M")
+    Time.zone.parse(recorded.to_s).strftime("%m/%d %H:%M")
   rescue ArgumentError
     nil
   end
