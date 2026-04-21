@@ -7,8 +7,9 @@
 # 動作:
 #   1. `bin/rails solid_queue:check_alive` を実行
 #   2. SolidQueue Scheduler が死亡 / 直近30分にジョブ enqueue ゼロを検知すると
-#      rake タスク側で Slack ERROR 通知 + exit 1 を返す
-#   3. 連続通知防止のため 1 時間クールダウンする
+#      Puma 自動再起動を試みる（30分クールダウン）
+#   3. rake タスク側で Slack ERROR 通知 + exit 1 を返す
+#   4. 連続通知防止のため 1 時間クールダウンする
 #
 # 環境変数:
 #   SLACK_WEBHOOK_URL_ERROR - エラー通知用 Slack Webhook URL（rake タスク内で参照）
@@ -21,16 +22,61 @@ set +a
 LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
 COOLDOWN_FILE="/tmp/solid_queue_alive_last_notify"
 COOLDOWN_SECONDS=3600  # 1時間
+RESTART_COOLDOWN_FILE="/tmp/solid_queue_restart_last"
+RESTART_COOLDOWN_SECONDS=1800  # 30分
 
 cd "$HOME/myapp" || { echo "${LOG_PREFIX} ERROR: cannot cd ~/myapp"; exit 1; }
 
 export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
 
+# Puma 再起動を試みる（30分クールダウン付き）
+attempt_puma_restart() {
+  if [ -f "$RESTART_COOLDOWN_FILE" ]; then
+    LAST_RESTART=$(cat "$RESTART_COOLDOWN_FILE" 2>/dev/null || echo 0)
+    NOW=$(date +%s)
+    ELAPSED=$((NOW - LAST_RESTART))
+    if [ "$ELAPSED" -lt "$RESTART_COOLDOWN_SECONDS" ]; then
+      REMAINING=$(( (RESTART_COOLDOWN_SECONDS - ELAPSED) / 60 ))
+      echo "${LOG_PREFIX} 再起動クールダウン中（残り約${REMAINING}分）、スキップ"
+      return
+    fi
+  fi
+
+  echo "${LOG_PREFIX} Puma 再起動を試みます（SolidQueue scheduler を復旧）..."
+  date +%s > "$RESTART_COOLDOWN_FILE"
+
+  if sudo systemctl restart puma 2>&1; then
+    echo "${LOG_PREFIX} Puma 再起動完了 → SolidQueue scheduler も再起動されました"
+    # Slack 通知（python3 で JSON 生成: jq 未インストール環境対応）
+    if [ -n "$SLACK_WEBHOOK_URL_ERROR" ]; then
+      PAYLOAD=$(python3 -c "
+import json
+print(json.dumps({
+  'text': ':arrows_counterclockwise: *SolidQueue 自動復旧* — scheduler 停止を検知しPumaを再起動しました',
+  'attachments': [{'color': 'warning', 'fields': [
+    {'title': 'host', 'value': '$(hostname)', 'short': True},
+    {'title': 'action', 'value': 'sudo systemctl restart puma', 'short': True}
+  ]}]
+}))
+" 2>/dev/null)
+      if [ -n "$PAYLOAD" ]; then
+        curl -s -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL_ERROR" > /dev/null 2>&1 || true
+      fi
+    fi
+  else
+    echo "${LOG_PREFIX} Puma 再起動失敗（sudo 権限またはサービス名を確認してください）"
+  fi
+}
+
 # rake タスクを実行（健康なら exit 0、異常なら exit 1 + Slack 通知）
 if RAILS_ENV=production WINDOW_MINUTES=30 bin/rails solid_queue:check_alive >> /tmp/solid_queue_alive.log 2>&1; then
   rm -f "$COOLDOWN_FILE"
+  rm -f "$RESTART_COOLDOWN_FILE"
   exit 0
 fi
+
+# 異常検知: まず Puma 再起動を試みる
+attempt_puma_restart
 
 # 異常検知時のクールダウン管理（rake 側でも通知済みだが、cron ログ抑制のため）
 if [ -f "$COOLDOWN_FILE" ]; then

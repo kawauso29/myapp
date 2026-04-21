@@ -305,6 +305,88 @@
       <div style="font-size:0.78em; color:#718096;">KPI 未達 → 検知 → 改善チケット → GitHub Issue → Copilot 実装</div>
     </div>
 
+    <%# ループ診断パネル %>
+    <%
+      kpi_collected   = @pdca_summary[:last_kpi_collect].present?
+      kpi_recent      = kpi_collected && @pdca_summary[:last_kpi_collect] > 36.hours.ago
+      has_warning_kpi = @kpi_overview.present? && (@kpi_overview[:warning_count].to_i + @kpi_overview[:critical_count].to_i) > 0
+      has_tickets     = @pdca_summary[:total_improvement].to_i > 0
+      planner_ran     = @pdca_summary[:last_planner_run].present?
+      last_daily      = MeetingLedger.where(meeting_type: :daily).order(held_at: :desc).first rescue nil
+      daily_recent    = last_daily && last_daily.held_at > 2.hours.ago
+
+      # ループが止まっている箇所を特定
+      loop_steps = [
+        {
+          id: :kpi_collect,
+          label: "① KPI 収集",
+          ok: kpi_collected && kpi_recent,
+          detail: kpi_collected ? "最終: #{@pdca_summary[:last_kpi_collect].in_time_zone("Tokyo").strftime("%m/%d %H:%M")}" : "未実行",
+          fix: "Ops画面「KPI自動収集」を実行 または KpiAutoCollectJob（20:30 UTC 毎日）を確認"
+        },
+        {
+          id: :daily_runner,
+          label: "② Daily Runner",
+          ok: daily_recent,
+          detail: last_daily ? "最終: #{last_daily.held_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M")}" : "未実行",
+          fix: "SolidQueue scheduler が停止している可能性。Ops画面「Daily Runner」を手動実行、またはPumaを再起動"
+        },
+        {
+          id: :kpi_grade,
+          label: "③ KPI グレード評価",
+          ok: has_warning_kpi,
+          detail: has_warning_kpi ? "warning/critical あり" : "全KPI healthy または未評価",
+          fix: "KPI値が収集されていれば自動評価される。Ops画面「KPIグレード評価」を実行"
+        },
+        {
+          id: :ticket,
+          label: "④ チケット起票",
+          ok: has_tickets,
+          detail: has_tickets ? "#{@pdca_summary[:total_improvement]}件" : "起票なし",
+          fix: "Planner が未起票。KPIが warning/critical になっていること、ImprovementDetectorJob/PlannerJobを確認"
+        },
+        {
+          id: :planner,
+          label: "⑤ Planner実行",
+          ok: planner_ran,
+          detail: planner_ran ? "最終: #{@pdca_summary[:last_planner_run].in_time_zone("Tokyo").strftime("%m/%d %H:%M")}" : "未実行",
+          fix: "Ops画面「Planner（改善起票）」を実行"
+        }
+      ]
+      first_broken = loop_steps.find { |s| !s[:ok] }
+    %>
+
+    <%# ステップ状態表示 %>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; align-items:stretch;">
+      <% loop_steps.each_with_index do |step, i| %>
+        <% ok = step[:ok] %>
+        <div style="background:#1a202c; border-radius:6px; padding:8px 12px; border:1px solid <%= ok ? "#68d39133" : "#fc818133" %>; flex:1; min-width:120px;">
+          <div style="font-size:0.7em; color:#4a5568; margin-bottom:2px;"><%= step[:label] %></div>
+          <div style="font-size:1.1em;"><%= ok ? "✅" : "❌" %></div>
+          <div style="font-size:0.72em; color:#718096; margin-top:2px;"><%= step[:detail] %></div>
+        </div>
+        <% if i < loop_steps.size - 1 %>
+          <div style="display:flex; align-items:center; color:#4a5568; font-size:0.9em; padding:0 2px;">→</div>
+        <% end %>
+      <% end %>
+    </div>
+
+    <%# 止まっている箇所の案内 %>
+    <% if first_broken %>
+      <div style="background:#2d1515; border-radius:6px; padding:10px 14px; margin-bottom:14px; border-left:3px solid #fc8181;">
+        <div style="font-size:0.82em; color:#fc8181; font-weight:600; margin-bottom:4px;">
+          🔴 ループ停滞: <%= first_broken[:label] %> で止まっています
+        </div>
+        <div style="font-size:0.82em; color:#a0aec0;">
+          対処: <%= first_broken[:fix] %>
+        </div>
+      </div>
+    <% else %>
+      <div style="background:#1a2d1a; border-radius:6px; padding:8px 14px; margin-bottom:14px; border-left:3px solid #68d391;">
+        <span style="font-size:0.82em; color:#68d391; font-weight:600;">✅ ループは正常に動作しています</span>
+      </div>
+    <% end %>
+
     <%# パイプラインサマリ %>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
       <% [
