@@ -18,6 +18,11 @@ RSpec.describe Ledgers::AnnualPlanRunner do
     let!(:weekly_definition) { create(:meeting_definition, meeting_key: "weekly_dept", meeting_type: :weekly, scope_level: :service, service_id: "ai_sns") }
 
     before do
+      # self-hosted runner の永続テストDBにスナップショット由来の MeetingLedger / TicketLedger が
+      # 残存しており、annual のカウントに混入する。use_transactional_fixtures = true のため
+      # この delete_all はトランザクション内で実行されロールバックされ他テストに影響しない。
+      MeetingLedger.delete_all
+      TicketLedger.delete_all
       # 圧縮 annual = 7 日が range_start
       quarterly = create(:meeting_ledger, meeting_definition: quarterly_definition, meeting_key: "quarterly_review", meeting_type: :quarterly_review, created_at: 3.days.ago, held_at: 3.days.ago)
       weekly_recent = create(:meeting_ledger, meeting_definition: weekly_definition, meeting_key: "weekly_dept", meeting_type: :weekly, created_at: 1.day.ago, held_at: 1.day.ago)

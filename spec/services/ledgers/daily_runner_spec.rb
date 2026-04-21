@@ -3,13 +3,13 @@ require "rails_helper"
 RSpec.describe Ledgers::DailyRunner do
   describe ".call" do
     let!(:daily_definition) do
-      create(:meeting_definition,
-             meeting_key: "daily",
-             meeting_type: :daily,
-             scope_level: :service,
-             service_id: "ai_sns",
-             chair_role: "system",
-             participant_roles: [])
+      MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+      end
     end
 
     let!(:service_kpi) do

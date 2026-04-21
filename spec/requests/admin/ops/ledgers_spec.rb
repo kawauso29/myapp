@@ -194,6 +194,109 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include(weekly_ticket.id.to_s)
     end
 
+    it "show で hold_items の理由が LEDGER_HOLD_REASON_LABELS で日本語表示される（PR-2）" do
+      # weekly_meeting は hold_items: [{ reason: "missing_kpi_definition", ... }] を持つ
+      get "/admin/ops/ledgers/#{weekly_meeting.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("KPI定義なし（チケット保留）")
+    end
+
+    it "show で carry_over_items セクションが表示される（PR-1）" do
+      weekly_meeting.update!(carry_over_items: [
+        { "type" => "anomaly", "kpi_key" => "kpi:risk", "grade" => "critical" }
+      ])
+
+      get "/admin/ops/ledgers/#{weekly_meeting.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("carry_over_items")
+      expect(response.body).to include("異常検知（KPI critical）")
+    end
+
+    it "show で directives improvements セクションが表示される（PR-6）" do
+      meeting_with_improvements = create(
+        :meeting_ledger,
+        meeting_definition: weekly_definition,
+        meeting_key: "weekly_dept",
+        service_id: "ai_sns",
+        directives: [ { improvements: { detected: 3, resolved: 1, details: [] } } ],
+        status: :closed
+      )
+
+      get "/admin/ops/ledgers/#{meeting_with_improvements.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("improvements")
+      expect(response.body).to include("検知")
+      expect(response.body).to include("解消")
+    end
+
+    it "show で daily meeting に anomaly hold_items がある場合、daily → weekly 引き継ぎパネルを表示する（PR-3）" do
+      daily_definition = MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+      end
+      # weekly_meeting（let!）は held_at: Time.current。それより未来に設定することで
+      # @next_weekly_meeting = nil になり「まだ次の weekly は実行されていません」が表示される
+      daily_meeting = create(:meeting_ledger,
+                             meeting_definition: daily_definition,
+                             meeting_key: "daily",
+                             meeting_type: :daily,
+                             service_id: "ai_sns",
+                             held_at: 1.minute.from_now,
+                             hold_items: [ { "type" => "anomaly", "kpi_key" => "kpi:service_health", "grade" => "critical" } ],
+                             status: :closed)
+
+      get "/admin/ops/ledgers/#{daily_meeting.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("daily → weekly 引き継ぎ")
+      expect(response.body).to include("まだ次の weekly は実行されていません")
+    end
+
+    it "show で daily meeting の後に weekly が実行済みの場合、次の weekly へのリンクを表示する（PR-3 @next_weekly_meeting）" do
+      daily_definition = MeetingDefinition.find_or_create_by!(meeting_key: "daily") do |d|
+        d.meeting_type = :daily
+        d.scope_level = :service
+        d.service_id = "ai_sns"
+        d.chair_role = "system"
+        d.participant_roles = []
+      end
+      daily_meeting = create(:meeting_ledger,
+                             meeting_definition: daily_definition,
+                             meeting_key: "daily",
+                             meeting_type: :daily,
+                             service_id: "ai_sns",
+                             held_at: 3.hours.ago,
+                             hold_items: [ { "type" => "anomaly", "kpi_key" => "kpi:service_health", "grade" => "critical" } ],
+                             status: :closed)
+      next_weekly = create(:meeting_ledger,
+                           meeting_definition: weekly_definition,
+                           meeting_key: "weekly_dept",
+                           meeting_type: :weekly,
+                           service_id: "ai_sns",
+                           held_at: 1.hour.ago,
+                           status: :closed)
+
+      get "/admin/ops/ledgers/#{daily_meeting.id}", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("daily → weekly 引き継ぎ")
+      expect(response.body).to include("Meeting ##{next_weekly.id}")
+    end
+
+    it "ダッシュボードに Cadence フロー図が表示される（PR-4）" do
+      get "/admin/ops/ledgers", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Cadence フロー図")
+      expect(response.body).to include("daily → weekly → monthly → quarterly → annual")
+    end
+
     it "departments ページで日本語の役割名と状態が表示される" do
       get "/admin/ops/ledgers/departments", headers: basic_auth_headers
 
