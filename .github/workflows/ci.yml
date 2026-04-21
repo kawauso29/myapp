@@ -28,7 +28,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
@@ -50,7 +50,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
@@ -133,12 +133,13 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Check job autoload and run job specs
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
+          DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_jobs
+          QUEUE_DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_jobs_queue
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
@@ -160,12 +161,13 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Check controller and API route integrity
         env:
           RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
+          DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_routes
+          QUEUE_DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_routes_queue
           POSTGRES_PASSWORD: password
           REDIS_URL: redis://localhost:6379/0
         run: |
@@ -187,7 +189,7 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       - name: Run tests
         env:

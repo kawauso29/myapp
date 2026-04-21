@@ -29,10 +29,12 @@ jobs:
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
       - name: Install gems
-        run: bundle install --jobs 4 --retry 3
+        run: bundle install --jobs 2 --retry 3
 
       # フロントエンド依存のインストール（VPS の Node.js を使用）
       - name: Install frontend dependencies
+        env:
+          NODE_OPTIONS: --max-old-space-size=512
         run: cd frontend && npm ci
 
       # テスト用DBをあらかじめ準備しておく（VPS の PostgreSQL/Redis を使用）
