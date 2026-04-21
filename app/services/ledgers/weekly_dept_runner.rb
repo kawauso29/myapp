@@ -160,7 +160,7 @@ module Ledgers
     def ticket_blocked_reason(record)
       return "callback_blocked" unless record.is_a?(TicketLedger)
 
-      base_msgs = Array(record&.errors&.full_messages)
+      base_msgs = record.errors.full_messages
       if base_msgs.any? { |m| m.include?("lane capacity exceeded") }
         "lane_capacity_exceeded"
       else
