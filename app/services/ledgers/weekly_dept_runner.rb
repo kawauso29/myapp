@@ -6,7 +6,8 @@ module Ledgers
 
     def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept", use_daily_anomalies: true)
       @service_id = service_id
-      @ticket_inputs = ticket_inputs.presence || default_ticket_inputs
+      raw_inputs = ticket_inputs.presence || default_ticket_inputs
+      @ticket_inputs = raw_inputs.map(&:symbolize_keys)
       @present_roles = present_roles
       @meeting_key = meeting_key
       @use_daily_anomalies = use_daily_anomalies
@@ -40,10 +41,10 @@ module Ledgers
 
       entry_check = Stops::EntryGuard.check(scope_level: :service, service_id:)
 
-      all_ticket_inputs = ticket_inputs + daily_anomaly_inputs
+      all_ticket_inputs = memoized_all_ticket_inputs
 
       all_ticket_inputs.each do |input|
-        attrs = input.symbolize_keys
+        attrs = input
         linked_kpis = Array(attrs[:linked_kpis]).compact
         if linked_kpis.blank?
           hold_items << hold_payload(attrs)
@@ -158,14 +159,17 @@ module Ledgers
       }.compact
     end
 
+    def memoized_all_ticket_inputs
+      @memoized_all_ticket_inputs ||= ticket_inputs + daily_anomaly_inputs
+    end
+
     def missing_kpi_keys(linked_kpis)
       linked_kpis - existing_kpi_keys
     end
 
     def existing_kpi_keys
       @existing_kpi_keys ||= begin
-        all_inputs = ticket_inputs + daily_anomaly_inputs
-        requested_kpi_keys = all_inputs.flat_map { |input| Array(input.symbolize_keys[:linked_kpis]).compact }.uniq
+        requested_kpi_keys = memoized_all_ticket_inputs.flat_map { |input| Array(input[:linked_kpis]).compact }.uniq
         if requested_kpi_keys.blank?
           []
         else
@@ -187,7 +191,7 @@ module Ledgers
                        .first
       return [] unless latest_daily
 
-      existing_titles = ticket_inputs.map { |i| i.symbolize_keys[:title].to_s }
+      existing_titles = ticket_inputs.map { |i| i[:title].to_s }
 
       Array(latest_daily.hold_items)
         .select { |item| (item["type"] || item[:type]).to_s == "anomaly" }

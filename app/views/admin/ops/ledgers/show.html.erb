@@ -112,15 +112,6 @@
 <% end %>
 
 <%# ===== hold_items ===== %>
-<%
-  HOLD_REASON_LABELS = {
-    "anomaly"                => "⚠️ 異常検知（KPI critical）",
-    "missing_linked_kpis"    => "📋 KPI未紐付け（チケット保留）",
-    "missing_kpi_definition" => "📋 KPI定義なし（チケット保留）",
-    "entry_guard_blocked"    => "🛑 稼働停止中（チケット保留）",
-    "escalation"             => "🔺 上位レビュー待ち"
-  }.freeze unless defined?(HOLD_REASON_LABELS)
-%>
 <% hold_items = Array(@meeting.hold_items) %>
 <% if hold_items.present? %>
   <div class="card" style="border-color:#f6ad5533;">
@@ -129,7 +120,7 @@
     <% grouped.each do |group_key, items| %>
       <%
         is_anomaly    = group_key.to_s == "anomaly"
-        group_label   = HOLD_REASON_LABELS[group_key.to_s] || group_key.to_s
+        group_label   = AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[group_key.to_s] || group_key.to_s
         header_color  = is_anomaly ? "#fc8181" : "#f6ad55"
       %>
       <h3 style="color:<%= header_color %>; font-size:0.9em; margin:10px 0 6px;">
@@ -169,17 +160,6 @@
 <% end %>
 
 <%# ===== carry_over_items ===== %>
-<%
-  CARRY_REASON_LABELS = {
-    "anomaly"                 => "⚠️ 異常検知（KPI critical）",
-    "missing_linked_kpis"     => "📋 KPI未紐付け（チケット保留）",
-    "missing_kpi_definition"  => "📋 KPI定義なし（チケット保留）",
-    "entry_guard_blocked"     => "🛑 稼働停止中（チケット保留）",
-    "escalation"              => "🔺 上位レビュー待ち"
-  }.freeze unless defined?(CARRY_REASON_LABELS)
-
-  GRADE_COLOR = { "critical" => "#fc8181", "warning" => "#f6ad55", "healthy" => "#68d391" }.freeze unless defined?(GRADE_COLOR)
-%>
 <% carry = Array(@meeting.carry_over_items) %>
 <% if carry.present? %>
   <div class="card">
@@ -193,8 +173,10 @@
         reason      = item["reason"]      || item[:reason]
         next_cycle  = item["next_cycle"]  || item[:next_cycle]
         miss_keys   = item["missing_kpi_keys"] || item[:missing_kpi_keys]
-        reason_label = CARRY_REASON_LABELS[item_type] || CARRY_REASON_LABELS[reason.to_s] || item_type
-        grade_color  = GRADE_COLOR[grade.to_s] || "#718096"
+        reason_label = AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[item_type] ||
+                       AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[reason.to_s] ||
+                       item_type
+        grade_color  = AdminOpsLedgersHelper::LEDGER_GRADE_COLOR[grade.to_s] || "#718096"
       %>
       <div style="background:#1a202c; border-radius:6px; padding:8px 12px; margin-bottom:6px; border-left:3px solid <%= item_type == "anomaly" ? "#fc8181" : "#4a5568" %>;">
         <div style="font-size:0.82em; font-weight:600; color:<%= item_type == "anomaly" ? "#fc8181" : "#f6ad55" %>; margin-bottom:4px;">
