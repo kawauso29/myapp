@@ -29,6 +29,52 @@
   </div>
 </div>
 
+<%# ===== Meeting サマリ（人間向け説明） ===== %>
+<div class="card" style="border-left:4px solid #4299e1; background:#1a2744;">
+  <div style="display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+      <div style="font-size:0.78em; color:#63b3ed; font-weight:600; margin-bottom:4px;">
+        <%= meeting_type_summary(@meeting) %>
+      </div>
+      <% if (role_desc = meeting_role_description(@meeting)).present? %>
+        <p style="font-size:0.85em; color:#a0aec0; margin:0 0 8px;">
+          <%= role_desc %>
+        </p>
+      <% end %>
+      <%# daily の結果サマリ %>
+      <% decisions = Array(@meeting.decisions)
+         kpi_snapshot = decisions.flat_map { |d| Array(d["kpi_snapshot"] || d[:kpi_snapshot]) }.compact
+         anomaly_cnt  = decisions.map { |d| d["anomaly_count"] || d[:anomaly_count] }.compact.sum
+         hold_cnt     = Array(@meeting.hold_items).size
+         co_cnt       = Array(@meeting.carry_over_items).size
+         related_cnt  = @related_tickets.size %>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:0.82em; margin-top:6px;">
+        <% if kpi_snapshot.any? %>
+          <span style="color:#63b3ed;">📊 KPI <%= kpi_snapshot.size %>件スナップショット</span>
+        <% end %>
+        <% if anomaly_cnt > 0 %>
+          <span style="color:#fc8181; font-weight:600;">⚠️ 異常 <%= anomaly_cnt %>件検知</span>
+        <% else %>
+          <span style="color:#68d391;">✅ 異常なし</span>
+        <% end %>
+        <% if hold_cnt > 0 %>
+          <span style="color:#f6ad55;">📋 保留 <%= hold_cnt %>件</span>
+        <% end %>
+        <% if co_cnt > 0 %>
+          <span style="color:#a0aec0;">🔗 前回引き継ぎ <%= co_cnt %>件</span>
+        <% end %>
+        <% if related_cnt > 0 %>
+          <span style="color:#9f7aea;">🎫 チケット起票 <%= related_cnt %>件</span>
+        <% end %>
+      </div>
+    </div>
+    <div style="font-size:0.8em; color:#4a5568; text-align:right; white-space:nowrap;">
+      <%= @meeting.held_at&.in_time_zone("Tokyo")&.strftime("%Y/%m/%d %H:%M") %><br>
+      <span style="color:<%= @meeting.status == "closed" ? "#68d391" : "#f6ad55" %>; font-weight:600;"><%= @meeting.status %></span>
+    </div>
+  </div>
+</div>
+
 <%# ===== 基本情報 ===== %>
 <div class="card">
   <h2>基本情報</h2>
@@ -83,30 +129,57 @@
 <% if kpi_snapshot.present? %>
   <div class="card">
     <h2>KPI スナップショット（<%= kpi_snapshot.size %> 件）</h2>
+    <%# KPIが全部未収集の場合の案内 %>
+    <% all_uncollected = kpi_snapshot.all? { |kpi| (kpi["current_value"] || kpi[:current_value]).blank? } %>
+    <% if all_uncollected %>
+      <div style="background:#2d3748; border-radius:6px; padding:10px 14px; margin-bottom:10px; border-left:3px solid #f6ad55;">
+        <span style="font-size:0.85em; color:#f6ad55;">⚠️ KPI値がまだ収集されていません。</span>
+        <span style="font-size:0.82em; color:#a0aec0; margin-left:6px;">
+          Ops画面の「KPI自動収集」を実行するか、<code>KpiAutoCollectJob</code>（毎日20:30 UTC / JST翌朝5:30）の実行を確認してください。
+        </span>
+      </div>
+    <% end %>
     <table>
       <thead>
         <tr>
-          <th>kpi_key</th>
-          <th>current_value</th>
-          <th>grade</th>
+          <th>KPI</th>
+          <th>現在値</th>
+          <th>収集日時</th>
+          <th>グレード</th>
         </tr>
       </thead>
       <tbody>
         <% kpi_snapshot.each do |kpi| %>
-          <% grade = kpi["grade"] || kpi[:grade]
-             val   = kpi["current_value"] || kpi[:current_value]
-             key   = kpi["kpi_key"] || kpi[:kpi_key] %>
+          <% grade    = kpi["grade"] || kpi[:grade]
+             raw_val  = kpi["current_value"] || kpi[:current_value]
+             key      = kpi["kpi_key"] || kpi[:kpi_key]
+             fmt_val  = format_kpi_current_value(raw_val)
+             rec_at   = kpi_recorded_at(raw_val)
+             gc       = grade == "critical" ? "#fc8181" : grade == "warning" ? "#f6ad55" : "#68d391" %>
           <tr>
-            <td><%= key %></td>
-            <td><%= val %></td>
-            <td style="color:<%= grade == "critical" ? "#fc8181" : grade == "warning" ? "#f6ad55" : "#68d391" %>; font-weight:600;"><%= grade || "-" %></td>
+            <td style="font-size:0.82em; font-family:monospace; color:#a0aec0;"><%= key&.sub("kpi:", "") %></td>
+            <td>
+              <% if fmt_val.present? %>
+                <span style="font-weight:600; color:#e2e8f0;"><%= fmt_val %></span>
+              <% else %>
+                <span style="color:#4a5568; font-style:italic;">未収集</span>
+              <% end %>
+            </td>
+            <td style="font-size:0.78em; color:#4a5568;"><%= rec_at || "-" %></td>
+            <td>
+              <% if grade.present? %>
+                <span style="color:<%= gc %>; font-weight:600; font-size:0.9em;"><%= grade %></span>
+              <% else %>
+                <span style="color:#4a5568; font-size:0.85em;">未評価</span>
+              <% end %>
+            </td>
           </tr>
         <% end %>
       </tbody>
     </table>
     <% anomaly_count = decisions.map { |d| d["anomaly_count"] || d[:anomaly_count] }.compact.sum %>
     <% if anomaly_count > 0 %>
-      <p style="color:#fc8181; margin-top:8px; font-weight:600;">⚠️ 異常検知: <%= anomaly_count %> 件</p>
+      <p style="color:#fc8181; margin-top:8px; font-weight:600;">⚠️ 異常検知: <%= anomaly_count %> 件 → 次の weekly で TicketLedger 起票対象</p>
     <% end %>
   </div>
 <% end %>

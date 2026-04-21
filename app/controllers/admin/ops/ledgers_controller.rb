@@ -828,7 +828,8 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
       recent_tickets:    improvement_tickets,
       planner_tickets:   planner_tickets,
       last_kpi_collect:  SolidQueue::Job.where(class_name: "KpiAutoCollectJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at,
-      last_planner_run:  SolidQueue::Job.where(class_name: "PlannerJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at
+      last_planner_run:  SolidQueue::Job.where(class_name: "PlannerJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at,
+      last_daily_run:    MeetingLedger.where(meeting_type: :daily).order(held_at: :desc).first&.held_at
     }
   rescue StandardError => e
     Rails.logger.warn("LedgersController#build_pdca_summary: #{e.message}")
