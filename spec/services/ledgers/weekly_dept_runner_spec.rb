@@ -202,5 +202,73 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         expect(meeting.idempotency_key).to eq("ui_check:ai_sns:#{Ledgers::TimeAxis.slot_token(:weekly)}")
       end
     end
+
+    context "when daily anomaly hold_items exist" do
+      let!(:daily_definition) do
+        create(:meeting_definition,
+               meeting_key: "daily",
+               meeting_type: :daily,
+               scope_level: :service,
+               service_id: "ai_sns",
+               chair_role: "system",
+               participant_roles: [])
+      end
+
+      let!(:kpi_anomaly) { create(:kpi_ledger, kpi_key: "kpi:anomaly_target", scope_level: :service, service_id: "ai_sns") }
+
+      let!(:daily_meeting) do
+        create(:meeting_ledger,
+               meeting_definition: daily_definition,
+               meeting_key: "daily",
+               meeting_type: :daily,
+               service_id: "ai_sns",
+               held_at: 1.hour.ago,
+               hold_items: [
+                 { "type" => "anomaly", "kpi_key" => "kpi:anomaly_target", "grade" => "critical" }
+               ])
+      end
+
+      it "converts daily anomalies into ticket_inputs automatically" do
+        meeting = described_class.call(
+          service_id: "ai_sns",
+          ticket_inputs: []
+        )
+
+        anomaly_ticket = TicketLedger.find_by(title: "Anomaly: kpi:anomaly_target")
+        expect(anomaly_ticket).to be_present
+        expect(anomaly_ticket).to be_status_waiting_review
+        expect(anomaly_ticket.linked_kpis).to include("kpi:anomaly_target")
+        expect(meeting.tickets_to_create).to include(a_hash_including("ticket_id" => anomaly_ticket.id))
+      end
+
+      it "does not double-add anomaly if already in explicit ticket_inputs" do
+        expect do
+          described_class.call(
+            service_id: "ai_sns",
+            ticket_inputs: [
+              {
+                ticket_type: "operations",
+                title: "Anomaly: kpi:anomaly_target",
+                linked_kpis: [ "kpi:anomaly_target" ],
+                audit_ok: false
+              }
+            ]
+          )
+        end.to change(TicketLedger, :count).by(1)
+
+        anomaly_tickets = TicketLedger.where(title: "Anomaly: kpi:anomaly_target")
+        expect(anomaly_tickets.count).to eq(1)
+      end
+
+      it "skips anomaly conversion when use_daily_anomalies: false" do
+        expect do
+          described_class.call(
+            service_id: "ai_sns",
+            ticket_inputs: [],
+            use_daily_anomalies: false
+          )
+        end.not_to change(TicketLedger, :count)
+      end
+    end
   end
 end

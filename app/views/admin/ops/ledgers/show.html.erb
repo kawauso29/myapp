@@ -118,9 +118,13 @@
     <h2>hold_items（<%= hold_items.size %> 件）</h2>
     <% grouped = hold_items.group_by { |i| i["type"] || i[:type] || i["reason"] || i[:reason] || "unknown" } %>
     <% grouped.each do |group_key, items| %>
-      <h3 style="color:#f6ad55; font-size:0.9em; margin:10px 0 6px;">
-        <% is_anomaly = group_key.to_s == "anomaly" %>
-        <%= is_anomaly ? "⚠️" : "📋" %> <%= group_key %> (<%= items.size %>)
+      <%
+        is_anomaly    = group_key.to_s == "anomaly"
+        group_label   = AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[group_key.to_s] || group_key.to_s
+        header_color  = is_anomaly ? "#fc8181" : "#f6ad55"
+      %>
+      <h3 style="color:<%= header_color %>; font-size:0.9em; margin:10px 0 6px;">
+        <%= group_label %> (<%= items.size %>)
       </h3>
       <table>
         <tbody>
@@ -128,8 +132,19 @@
             <tr>
               <% clean = item.reject { |k, _| %w[type reason].include?(k.to_s) } %>
               <% clean.each do |k, v| %>
-                <td style="color:#718096; font-size:0.8em; white-space:nowrap;"><%= k %></td>
-                <td style="font-size:0.85em; color:<%= k.to_s == "grade" && v.to_s == "critical" ? "#fc8181" : "#e2e8f0" %>; padding-right:16px;"><%= v %></td>
+                <%
+                  field_label = case k.to_s
+                                when "kpi_key"          then "KPI"
+                                when "missing_kpi_keys" then "未定義KPI"
+                                when "next_cycle"       then "次cadence"
+                                when "title"            then "タイトル"
+                                when "grade"            then "グレード"
+                                else k.to_s
+                                end
+                  display_v = v.is_a?(Array) ? v.join(", ") : v
+                %>
+                <td style="color:#718096; font-size:0.8em; white-space:nowrap;"><%= field_label %></td>
+                <td style="font-size:0.85em; color:<%= k.to_s == "grade" && v.to_s == "critical" ? "#fc8181" : "#e2e8f0" %>; padding-right:16px;"><%= display_v %></td>
               <% end %>
             </tr>
           <% end %>
@@ -150,7 +165,43 @@
   <div class="card">
     <h2 style="color:#a0aec0;">carry_over_items（<%= carry.size %> 件、前回からの引き継ぎ）</h2>
     <% carry.first(10).each do |item| %>
-      <div style="font-size:0.8em; color:#718096; margin-bottom:4px; background:#1a202c; border-radius:4px; padding:4px 8px;"><%= item.inspect %></div>
+      <%
+        item_type   = (item["type"]       || item[:type]       || item["reason"] || item[:reason]).to_s
+        kpi_key     = item["kpi_key"]     || item[:kpi_key]
+        grade       = item["grade"]       || item[:grade]
+        title       = item["title"]       || item[:title]
+        reason      = item["reason"]      || item[:reason]
+        next_cycle  = item["next_cycle"]  || item[:next_cycle]
+        miss_keys   = item["missing_kpi_keys"] || item[:missing_kpi_keys]
+        reason_label = AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[item_type] ||
+                       AdminOpsLedgersHelper::LEDGER_HOLD_REASON_LABELS[reason.to_s] ||
+                       item_type
+        grade_color  = AdminOpsLedgersHelper::LEDGER_GRADE_COLOR[grade.to_s] || "#718096"
+      %>
+      <div style="background:#1a202c; border-radius:6px; padding:8px 12px; margin-bottom:6px; border-left:3px solid <%= item_type == "anomaly" ? "#fc8181" : "#4a5568" %>;">
+        <div style="font-size:0.82em; font-weight:600; color:<%= item_type == "anomaly" ? "#fc8181" : "#f6ad55" %>; margin-bottom:4px;">
+          <%= reason_label %>
+        </div>
+        <% if kpi_key.present? %>
+          <div style="font-size:0.8em; color:#a0aec0; margin-bottom:2px;">
+            KPI: <code style="color:#63b3ed;"><%= kpi_key %></code>
+            <% if grade.present? %>
+              <span style="margin-left:8px; padding:1px 6px; border-radius:10px; background:<%= grade_color %>22; color:<%= grade_color %>; font-size:0.85em;"><%= grade %></span>
+            <% end %>
+          </div>
+        <% end %>
+        <% if miss_keys.present? %>
+          <div style="font-size:0.8em; color:#f6ad55; margin-bottom:2px;">
+            未定義KPI: <%= Array(miss_keys).join(", ") %>
+          </div>
+        <% end %>
+        <% if title.present? %>
+          <div style="font-size:0.8em; color:#e2e8f0; margin-bottom:2px;"><%= title %></div>
+        <% end %>
+        <% if next_cycle.present? %>
+          <div style="font-size:0.75em; color:#718096;">→ 次cadence: <strong><%= next_cycle %></strong> に引き継ぎ</div>
+        <% end %>
+      </div>
     <% end %>
     <% if carry.size > 10 %>
       <p style="color:#4a5568; font-size:0.8em;">... 他 <%= carry.size - 10 %> 件</p>
@@ -164,7 +215,75 @@
   <div class="card">
     <h2>directives</h2>
     <% directives.each do |d| %>
-      <div style="font-size:0.85em; color:#a0aec0; background:#1a202c; border-radius:4px; padding:8px; margin-bottom:6px; white-space:pre-wrap; word-break:break-all;"><%= JSON.pretty_generate(d) rescue d.inspect %></div>
+      <% d_sym = d.is_a?(Hash) ? d.transform_keys(&:to_s) : {} %>
+      <% if d_sym["improvements"].present? %>
+        <% imp = d_sym["improvements"].is_a?(Hash) ? d_sym["improvements"].transform_keys(&:to_s) : {} %>
+        <div style="background:#1a202c; border-radius:6px; padding:10px 14px; margin-bottom:8px;">
+          <div style="font-size:0.82em; font-weight:600; color:#a0aec0; margin-bottom:6px;">🔧 improvements</div>
+          <div style="display:flex; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
+            <div style="background:#2d3748; border-radius:6px; padding:6px 12px; text-align:center;">
+              <div style="font-size:1.3em; font-weight:700; color:<%= imp["detected"].to_i > 0 ? "#f6ad55" : "#68d391" %>;"><%= imp["detected"] || 0 %></div>
+              <div style="font-size:0.72em; color:#718096;">検知</div>
+            </div>
+            <div style="background:#2d3748; border-radius:6px; padding:6px 12px; text-align:center;">
+              <div style="font-size:1.3em; font-weight:700; color:#68d391;"><%= imp["resolved"] || 0 %></div>
+              <div style="font-size:0.72em; color:#718096;">解消</div>
+            </div>
+          </div>
+          <% details = Array(imp["details"]).compact %>
+          <% if details.present? %>
+            <table>
+              <thead>
+                <tr>
+                  <th style="font-size:0.75em;">ルール</th>
+                  <th style="font-size:0.75em;">タイトル</th>
+                  <th style="font-size:0.75em;">チケットID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% details.each do |det| %>
+                  <% det_s = det.is_a?(Hash) ? det.transform_keys(&:to_s) : {} %>
+                  <tr>
+                    <td style="font-size:0.8em; color:#718096;"><%= det_s["rule"] || det_s["operation"] || "-" %></td>
+                    <td style="font-size:0.8em; color:#e2e8f0; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= det_s["title"] %>"><%= det_s["title"] || "-" %></td>
+                    <td style="font-size:0.8em; color:#63b3ed;"><%= det_s["ticket_id"] || "-" %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+        </div>
+      <% elsif d_sym["daily_summary"] %>
+        <div style="background:#1a202c; border-radius:6px; padding:8px 12px; margin-bottom:6px; font-size:0.82em; color:#a0aec0;">
+          📊 日次サマリ
+          <% if d_sym["kpi_count"].present? %>
+            <span style="margin-left:8px; color:#63b3ed;">KPI <%= d_sym["kpi_count"] %> 件</span>
+          <% end %>
+        </div>
+      <% else %>
+        <div style="font-size:0.85em; color:#a0aec0; background:#1a202c; border-radius:4px; padding:8px; margin-bottom:6px; white-space:pre-wrap; word-break:break-all;"><%= JSON.pretty_generate(d) rescue d.inspect %></div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
+
+<%# ===== daily → weekly 引き継ぎパネル ===== %>
+<% if @meeting.meeting_type_daily? && hold_items.any? { |i| (i["type"] || i[:type]).to_s == "anomaly" } %>
+  <% anomaly_count = hold_items.count { |i| (i["type"] || i[:type]).to_s == "anomaly" } %>
+  <div class="card" style="border-color:#4299e133;">
+    <h2 style="color:#63b3ed;">🔗 daily → weekly 引き継ぎ</h2>
+    <p style="font-size:0.88em; color:#a0aec0; margin-bottom:10px;">
+      この daily の <strong style="color:#fc8181;">異常 <%= anomaly_count %> 件</strong> は次の weekly cadence に引き継がれ、チケット起票の対象になります。
+    </p>
+    <% if @next_weekly_meeting %>
+      <div style="background:#1a365d; border-radius:6px; padding:8px 12px; display:inline-flex; gap:12px; align-items:center;">
+        <span style="font-size:0.85em; color:#a0aec0;">次の weekly:</span>
+        <%= link_to "Meeting ##{@next_weekly_meeting.id} （#{@next_weekly_meeting.held_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M")}）→",
+              admin_ops_ledger_path(@next_weekly_meeting),
+              style: "color:#63b3ed; font-weight:600; text-decoration:none;" %>
+      </div>
+    <% else %>
+      <div style="font-size:0.85em; color:#4a5568; font-style:italic;">まだ次の weekly は実行されていません</div>
     <% end %>
   </div>
 <% end %>
