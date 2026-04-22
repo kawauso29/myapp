@@ -668,25 +668,21 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   end
 
   def fetch_recent_ledger_jobs(job_class)
+    scope = SolidQueue::Job.where(job_scope_sql, direct: job_class, wrapper: SOLID_QUEUE_JOB_WRAPPER_CLASS, wrapped_like: wrapped_job_class_like(job_class))
+
     # 成功ジョブ: finished_at が設定されている（SolidQueue は成功時に finished_at を設定する）
-    finished_jobs = SolidQueue::Job
-                      .where(class_name: [ job_class, SOLID_QUEUE_JOB_WRAPPER_CLASS ])
+    finished_jobs = scope
                       .where.not(finished_at: nil)
                       .order(finished_at: :desc)
-                      .limit(100)
-                      .select { |job| resolved_job_class_name_for(job) == job_class }
-                      .first(10)
+                      .limit(10)
     success_rows = finished_jobs.map { |j| { at: j.finished_at, failed: false } }
 
     # 失敗ジョブ: FailedExecution に紐づくジョブ（finished_at は NULL）
-    failed_jobs = SolidQueue::Job
+    failed_jobs = scope
                     .joins("INNER JOIN solid_queue_failed_executions ON solid_queue_failed_executions.job_id = solid_queue_jobs.id")
-                    .where(class_name: [ job_class, SOLID_QUEUE_JOB_WRAPPER_CLASS ])
                     .select("solid_queue_jobs.*, solid_queue_failed_executions.created_at AS failed_at")
                     .order("solid_queue_failed_executions.created_at DESC")
-                    .limit(100)
-                    .select { |job| resolved_job_class_name_for(job) == job_class }
-                    .first(10)
+                    .limit(10)
     fail_rows = failed_jobs.map { |j| { at: j.failed_at, failed: true } }
 
     # 成功・失敗を時系列でマージし、直近 10 件に絞る
@@ -704,12 +700,10 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     window_start = meeting.held_at - cfg[:interval]
     window_end   = meeting.held_at + cfg[:interval]
     job = SolidQueue::Job
-            .where(class_name: [ cfg[:job_class], SOLID_QUEUE_JOB_WRAPPER_CLASS ])
+            .where(job_scope_sql, direct: cfg[:job_class], wrapper: SOLID_QUEUE_JOB_WRAPPER_CLASS, wrapped_like: wrapped_job_class_like(cfg[:job_class]))
             .where(finished_at: window_start..window_end)
             .order(finished_at: :desc)
-            .limit(100)
-            .to_a
-            .find { |row| resolved_job_class_name_for(row) == cfg[:job_class] }
+            .first
     return nil unless job
 
     failed = SolidQueue::FailedExecution.exists?(job_id: job.id)
@@ -839,11 +833,11 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
     SolidQueue::Job
       .where(class_name: SOLID_QUEUE_JOB_WRAPPER_CLASS)
+      .where("arguments LIKE ?", wrapped_job_class_like(job_class))
       .where.not(finished_at: nil)
       .order(finished_at: :desc)
-      .limit(200)
-      .detect { |job| resolved_job_class_name_for(job) == job_class }
-      &.finished_at
+      .limit(1)
+      .pick(:finished_at)
   end
 
   def resolved_job_class_name_for(job)
@@ -862,5 +856,13 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     payload["job_class"] || payload[:job_class]
   rescue JSON::ParserError
     nil
+  end
+
+  def wrapped_job_class_like(job_class)
+    "%job_class%#{job_class}%"
+  end
+
+  def job_scope_sql
+    "solid_queue_jobs.class_name = :direct OR (solid_queue_jobs.class_name = :wrapper AND solid_queue_jobs.arguments LIKE :wrapped_like)"
   end
 end
