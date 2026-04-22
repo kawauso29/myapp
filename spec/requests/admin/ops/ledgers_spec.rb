@@ -158,6 +158,24 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
       expect(response.body).to include("改善チケット 合計")
     end
 
+    it "PlannerJob が JobWrapper 形式でも PDCA の最終実行時刻に反映される" do
+      finished_at = Time.current.change(sec: 0) - 10.minutes
+      SolidQueue::Job.create!(
+        queue_name: "default",
+        class_name: "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper",
+        arguments: [ { "job_class" => "PlannerJob" } ].to_json,
+        priority: 0,
+        created_at: finished_at - 1.minute,
+        updated_at: finished_at,
+        finished_at: finished_at
+      )
+
+      get "/admin/ops/ledgers", headers: basic_auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Planner: #{finished_at.in_time_zone('Tokyo').strftime('%m/%d %H:%M')}")
+    end
+
     it "schedule ページで heartbeat と open チケットが表示される" do
       get "/admin/ops/ledgers/schedule", headers: basic_auth_headers
 
