@@ -183,12 +183,12 @@ jobs:
         env:
           KPI_JSON: ${{ steps.kpi.outputs.kpi_json }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          WIP_COUNT: ${{ steps.wip.outputs.wip_count }}
+          WIP_LIMIT: ${{ steps.wip.outputs.wip_limit }}
+          ADVANCE: ${{ steps.wip.outputs.advance }}
+          TODO_COUNT: ${{ steps.wip.outputs.todo_count }}
+          NEEDS_PLAN_REVIEW: ${{ steps.wip.outputs.needs_plan_review }}
         run: |
-          WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
-          WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
-          ADVANCE="${{ steps.wip.outputs.advance }}"
-          TODO_COUNT="${{ steps.wip.outputs.todo_count }}"
-          NEEDS_PLAN_REVIEW="${{ steps.wip.outputs.needs_plan_review }}"
 
           PAYLOAD=$(python3 -c "
           import json, sys, time, os
@@ -266,10 +266,10 @@ jobs:
         if: steps.wip.outputs.advance == 'false'
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          WIP_COUNT: ${{ steps.wip.outputs.wip_count }}
+          WIP_LIMIT: ${{ steps.wip.outputs.wip_limit }}
+          TODO_COUNT: ${{ steps.wip.outputs.todo_count }}
         run: |
-          WIP_COUNT="${{ steps.wip.outputs.wip_count }}"
-          WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
-          TODO_COUNT="${{ steps.wip.outputs.todo_count }}"
           PAYLOAD=$(python3 -c "
           import json, os
           wip_count = os.environ.get('WIP_COUNT', '0')
