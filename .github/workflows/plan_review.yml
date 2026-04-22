@@ -28,11 +28,11 @@ jobs:
       - name: 計画状況を分析
         id: analyze
         run: |
-          TODO_COUNT=$(grep -c "status: todo" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          TODO_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: todo" 2>/dev/null || true)
           TODO_COUNT=${TODO_COUNT:-0}
-          IN_PROGRESS=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          IN_PROGRESS=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: in_progress" 2>/dev/null || true)
           IN_PROGRESS=${IN_PROGRESS:-0}
-          DONE_COUNT=$(grep -c "status: done" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          DONE_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: done" 2>/dev/null || true)
           DONE_COUNT=${DONE_COUNT:-0}
           TOTAL=$((TODO_COUNT + IN_PROGRESS + DONE_COUNT))
 
