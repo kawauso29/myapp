@@ -191,56 +191,56 @@ jobs:
           NEEDS_PLAN_REVIEW="${{ steps.wip.outputs.needs_plan_review }}"
 
           PAYLOAD=$(python3 -c "
-import json, sys, time, os
+          import json, sys, time, os
 
-raw = os.environ.get('KPI_JSON', '{}')
-try:
-    d = json.loads(raw)
-except Exception:
-    d = {}
+          raw = os.environ.get('KPI_JSON', '{}')
+          try:
+              d = json.loads(raw)
+          except Exception:
+              d = {}
 
-def g(path, default='?'):
-    parts = path.split('.')
-    v = d
-    for p in parts:
-        if not isinstance(v, dict):
-            return default
-        v = v.get(p)
-        if v is None:
-            return default
-    return str(v)
+          def g(path, default='?'):
+              parts = path.split('.')
+              v = d
+              for p in parts:
+                  if not isinstance(v, dict):
+                      return default
+                  v = v.get(p)
+                  if v is None:
+                      return default
+              return str(v)
 
-wip_count = os.environ.get('WIP_COUNT', '0')
-wip_limit = os.environ.get('WIP_LIMIT', '2')
-advance   = os.environ.get('ADVANCE', 'false')
-todo_count = os.environ.get('TODO_COUNT', '?')
-needs_plan_review = os.environ.get('NEEDS_PLAN_REVIEW', 'false')
-if advance == 'true':
-    wip_status = ':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票'
-elif todo_count == '0':
-    wip_status = ':blue_circle: WIP ' + wip_count + '/' + wip_limit + ' → 未着手項目なし（計画レビュー待ち）'
-else:
-    wip_status = ':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ'
-plan_status = (':rotating_light: todo残 ' + todo_count + '件 → 計画レビュー起動') if needs_plan_review == 'true' else (':white_check_mark: todo残 ' + todo_count + '件')
+          wip_count = os.environ.get('WIP_COUNT', '0')
+          wip_limit = os.environ.get('WIP_LIMIT', '2')
+          advance   = os.environ.get('ADVANCE', 'false')
+          todo_count = os.environ.get('TODO_COUNT', '?')
+          needs_plan_review = os.environ.get('NEEDS_PLAN_REVIEW', 'false')
+          if advance == 'true':
+              wip_status = ':green_circle: WIP ' + wip_count + '/' + wip_limit + ' → 次の施策を自動起票'
+          elif todo_count == '0':
+              wip_status = ':blue_circle: WIP ' + wip_count + '/' + wip_limit + ' → 未着手項目なし（計画レビュー待ち）'
+          else:
+              wip_status = ':yellow_circle: WIP ' + wip_count + '/' + wip_limit + ' → 上限のため起票スキップ'
+          plan_status = (':rotating_light: todo残 ' + todo_count + '件 → 計画レビュー起動') if needs_plan_review == 'true' else (':white_check_mark: todo残 ' + todo_count + '件')
 
-payload = {
-    'attachments': [{
-        'color': '#4299e1',
-        'title': '📊 日次 PDCA レポート（Check フェーズ）',
-        'fields': [
-            {'title': '👥 ユーザー', 'value': '総数: ' + g('users.total') + ' | 新規(週): ' + g('users.new_this_week') + ' | 有料: ' + g('users.paid') + ' | WAU: ' + g('users.wau'), 'short': False},
-            {'title': '📝 AI投稿（今週）', 'value': g('posts.this_week') + '件 | 会話率: ' + g('posts.conversation_rate_pct') + '%', 'short': True},
-            {'title': '❤️ エンゲージメント', 'value': 'いいね: ' + g('engagement.user_likes_this_week') + ' | お気に入り: ' + g('engagement.total_favorites'), 'short': True},
-            {'title': '🤝 AI社会', 'value': '友人以上: ' + g('ai_social.friend_plus_relationships') + ' | 稼働AI: ' + g('ai_social.active_ais'), 'short': True},
-            {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
-            {'title': '📋 計画残', 'value': plan_status, 'short': True},
-        ],
-        'footer': 'weekly_pdca.yml (3時間ごと自動実行)',
-        'ts': int(time.time()),
-    }]
-}
-print(json.dumps(payload))
-")
+          payload = {
+              'attachments': [{
+                  'color': '#4299e1',
+                  'title': '📊 日次 PDCA レポート（Check フェーズ）',
+                  'fields': [
+                      {'title': '👥 ユーザー', 'value': '総数: ' + g('users.total') + ' | 新規(週): ' + g('users.new_this_week') + ' | 有料: ' + g('users.paid') + ' | WAU: ' + g('users.wau'), 'short': False},
+                      {'title': '📝 AI投稿（今週）', 'value': g('posts.this_week') + '件 | 会話率: ' + g('posts.conversation_rate_pct') + '%', 'short': True},
+                      {'title': '❤️ エンゲージメント', 'value': 'いいね: ' + g('engagement.user_likes_this_week') + ' | お気に入り: ' + g('engagement.total_favorites'), 'short': True},
+                      {'title': '🤝 AI社会', 'value': '友人以上: ' + g('ai_social.friend_plus_relationships') + ' | 稼働AI: ' + g('ai_social.active_ais'), 'short': True},
+                      {'title': '🔄 Act（次アクション）', 'value': wip_status, 'short': True},
+                      {'title': '📋 計画残', 'value': plan_status, 'short': True},
+                  ],
+                  'footer': 'weekly_pdca.yml (3時間ごと自動実行)',
+                  'ts': int(time.time()),
+              }]
+          }
+          print(json.dumps(payload))
+          ")
 
           if [ -n "$SLACK_WEBHOOK" ]; then
             curl -s -X POST \
@@ -271,16 +271,16 @@ print(json.dumps(payload))
           WIP_LIMIT="${{ steps.wip.outputs.wip_limit }}"
           TODO_COUNT="${{ steps.wip.outputs.todo_count }}"
           PAYLOAD=$(python3 -c "
-import json, os
-wip_count = os.environ.get('WIP_COUNT', '0')
-wip_limit = os.environ.get('WIP_LIMIT', '2')
-todo_count = os.environ.get('TODO_COUNT', '0')
-if todo_count == '0':
-    msg = ':blue_circle: PDCA: 未着手(todo)項目がありません。計画レビューで次期施策が追加されるのを待っています。'
-else:
-    msg = ':yellow_circle: PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'
-print(json.dumps({'text': msg}))
-")
+          import json, os
+          wip_count = os.environ.get('WIP_COUNT', '0')
+          wip_limit = os.environ.get('WIP_LIMIT', '2')
+          todo_count = os.environ.get('TODO_COUNT', '0')
+          if todo_count == '0':
+              msg = ':blue_circle: PDCA: 未着手(todo)項目がありません。計画レビューで次期施策が追加されるのを待っています。'
+          else:
+              msg = ':yellow_circle: PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'
+          print(json.dumps({'text': msg}))
+          ")
           if [ -n "$SLACK_WEBHOOK" ]; then
             curl -s -X POST \
               -H "Content-Type: application/json" \
