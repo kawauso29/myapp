@@ -56,9 +56,9 @@ jobs:
       - name: WIP チェック
         id: wip
         run: |
-          WIP_COUNT=$(grep -c "status: in_progress" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          WIP_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: in_progress" 2>/dev/null || true)
           WIP_COUNT=${WIP_COUNT:-0}
-          TODO_COUNT=$(grep -c "status: todo" docs/ai_sns_plan_status.yml 2>/dev/null || true)
+          TODO_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: todo" 2>/dev/null || true)
           TODO_COUNT=${TODO_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"
