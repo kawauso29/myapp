@@ -265,15 +265,15 @@ jobs:
             exit 0
           fi
           PAYLOAD=$(python3 -c "
-import json, os
-todo = os.environ.get('TODO_COUNT', '?')
-done = os.environ.get('DONE_COUNT', '?')
-total = os.environ.get('TOTAL_COUNT', '?')
-issue_url = os.environ.get('ISSUE_URL', '')
-issue_num = os.environ.get('ISSUE_NUM', '')
-text = '🔄 *計画レビュー 自動起票*\n完了: ' + done + '/' + total + ' | 残todo: ' + todo + '件\nCopilot に次期計画の提案を依頼しました\nIssue #' + issue_num + ': ' + issue_url
-print(json.dumps({'text': text}))
-")
+          import json, os
+          todo = os.environ.get('TODO_COUNT', '?')
+          done = os.environ.get('DONE_COUNT', '?')
+          total = os.environ.get('TOTAL_COUNT', '?')
+          issue_url = os.environ.get('ISSUE_URL', '')
+          issue_num = os.environ.get('ISSUE_NUM', '')
+          text = '🔄 *計画レビュー 自動起票*\n完了: ' + done + '/' + total + ' | 残todo: ' + todo + '件\nCopilot に次期計画の提案を依頼しました\nIssue #' + issue_num + ': ' + issue_url
+          print(json.dumps({'text': text}))
+          ")
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
