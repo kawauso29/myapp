@@ -18,6 +18,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   ].freeze
 
   ROLE_SUMMARY_FALLBACK = "この役割の概要は未設定です。".freeze
+  SOLID_QUEUE_JOB_WRAPPER_CLASS = "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper".freeze
   ROLE_PROFILE_BY_KEY = {
     "ceo" => {
       display_name: "社長",
@@ -546,17 +547,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     job = execution.job
     return false unless job
 
-    job_class_name = job.class_name
-    if job_class_name == "ActiveJob::QueueAdapters::SolidQueueAdapter::JobWrapper"
-      payload = job.arguments
-      begin
-        payload = JSON.parse(payload) if payload.is_a?(String)
-      rescue JSON::ParserError
-        payload = nil
-      end
-      payload = payload.first if payload.is_a?(Array)
-      job_class_name = (payload["job_class"] || payload[:job_class] if payload.is_a?(Hash)).presence || job_class_name
-    end
+    job_class_name = resolved_job_class_name_for(job)
     return false if job_class_name.blank?
 
     unless loadable_cache.key?(job_class_name)
@@ -679,19 +670,23 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
   def fetch_recent_ledger_jobs(job_class)
     # 成功ジョブ: finished_at が設定されている（SolidQueue は成功時に finished_at を設定する）
     finished_jobs = SolidQueue::Job
-                      .where(class_name: job_class)
+                      .where(class_name: [ job_class, SOLID_QUEUE_JOB_WRAPPER_CLASS ])
                       .where.not(finished_at: nil)
                       .order(finished_at: :desc)
-                      .limit(10)
+                      .limit(100)
+                      .select { |job| resolved_job_class_name_for(job) == job_class }
+                      .first(10)
     success_rows = finished_jobs.map { |j| { at: j.finished_at, failed: false } }
 
     # 失敗ジョブ: FailedExecution に紐づくジョブ（finished_at は NULL）
     failed_jobs = SolidQueue::Job
                     .joins("INNER JOIN solid_queue_failed_executions ON solid_queue_failed_executions.job_id = solid_queue_jobs.id")
-                    .where(class_name: job_class)
+                    .where(class_name: [ job_class, SOLID_QUEUE_JOB_WRAPPER_CLASS ])
                     .select("solid_queue_jobs.*, solid_queue_failed_executions.created_at AS failed_at")
                     .order("solid_queue_failed_executions.created_at DESC")
-                    .limit(10)
+                    .limit(100)
+                    .select { |job| resolved_job_class_name_for(job) == job_class }
+                    .first(10)
     fail_rows = failed_jobs.map { |j| { at: j.failed_at, failed: true } }
 
     # 成功・失敗を時系列でマージし、直近 10 件に絞る
@@ -709,10 +704,12 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     window_start = meeting.held_at - cfg[:interval]
     window_end   = meeting.held_at + cfg[:interval]
     job = SolidQueue::Job
-            .where(class_name: cfg[:job_class])
+            .where(class_name: [ cfg[:job_class], SOLID_QUEUE_JOB_WRAPPER_CLASS ])
             .where(finished_at: window_start..window_end)
             .order(finished_at: :desc)
-            .first
+            .limit(100)
+            .to_a
+            .find { |row| resolved_job_class_name_for(row) == cfg[:job_class] }
     return nil unless job
 
     failed = SolidQueue::FailedExecution.exists?(job_id: job.id)
@@ -827,12 +824,43 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
       completed_30d:     TicketLedger.ticket_type_improvement.where("resolved_at > ?", 30.days.ago).count,
       recent_tickets:    improvement_tickets,
       planner_tickets:   planner_tickets,
-      last_kpi_collect:  SolidQueue::Job.where(class_name: "KpiAutoCollectJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at,
-      last_planner_run:  SolidQueue::Job.where(class_name: "PlannerJob").where.not(finished_at: nil).order(finished_at: :desc).first&.finished_at,
+      last_kpi_collect:  latest_finished_at_for("KpiAutoCollectJob"),
+      last_planner_run:  latest_finished_at_for("PlannerJob"),
       last_daily_run:    MeetingLedger.where(meeting_type: :daily).order(held_at: :desc).first&.held_at
     }
   rescue StandardError => e
     Rails.logger.warn("LedgersController#build_pdca_summary: #{e.message}")
     { total_improvement: 0, waiting_review: 0, approved: 0, completed_30d: 0, recent_tickets: [], planner_tickets: [] }
+  end
+
+  def latest_finished_at_for(job_class)
+    direct = SolidQueue::Job.where(class_name: job_class).where.not(finished_at: nil).order(finished_at: :desc).limit(1).pick(:finished_at)
+    return direct if direct.present?
+
+    SolidQueue::Job
+      .where(class_name: SOLID_QUEUE_JOB_WRAPPER_CLASS)
+      .where.not(finished_at: nil)
+      .order(finished_at: :desc)
+      .limit(200)
+      .detect { |job| resolved_job_class_name_for(job) == job_class }
+      &.finished_at
+  end
+
+  def resolved_job_class_name_for(job)
+    return nil unless job
+    return job.class_name unless job.class_name == SOLID_QUEUE_JOB_WRAPPER_CLASS
+
+    wrapped_job_class_name_from(job.arguments).presence || job.class_name
+  end
+
+  def wrapped_job_class_name_from(raw_arguments)
+    payload = raw_arguments
+    payload = JSON.parse(payload) if payload.is_a?(String)
+    payload = payload.first if payload.is_a?(Array)
+    return nil unless payload.is_a?(Hash)
+
+    payload["job_class"] || payload[:job_class]
+  rescue JSON::ParserError
+    nil
   end
 end
