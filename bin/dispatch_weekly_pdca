@@ -3,7 +3,7 @@
 # GitHub schedule トリガーの遅延・スキップ対策として VPS cron から直接 dispatch する
 #
 # crontab 設定例 (deploy.yml の Setup VPS cron jobs で自動登録):
-#   */10 * * * * $HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1
+#   0 */3 * * * $HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1
 #
 # 必要な権限: DEPLOY_TOKEN に Actions: Read and Write スコープが必要
 #
