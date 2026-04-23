@@ -4,7 +4,7 @@ module Reinforcements
   # weekly → Issue → Copilot 実装ループを閉じる。
   #
   # `github_issue_number` を書き戻し済みの ticket は LedgerSyncService が skip する（冪等）。
-  # GITHUB_DEPLOY_TOKEN 未設定時は GithubIssueService 側が nil を返すため、
+  # DEPLOY_TOKEN 未設定時は GithubIssueService 側が nil を返すため、
   # ここでは結果を `failed` に計上するだけにとどめる（壊さない運用）。
   class TicketIssueSync
     # 「weekly で承認された → Issue に流す」境界をどこに置くかの設計判断。
@@ -28,7 +28,7 @@ module Reinforcements
           synced << { ticket_id: ticket.id, issue_number: result[:issue_number] }
           # Issue 作成直後に @copilot コメントを投稿して Copilot coding agent を起動する。
           # plan_review.yml と同じパターン: Issue 本文への埋め込みでは反応しないため
-          # 別コメントとして GITHUB_DEPLOY_TOKEN で投稿する必要がある。
+          # 別コメントとして DEPLOY_TOKEN で投稿する必要がある。
           if post_copilot_comment(ticket: ticket, issue_number: result[:issue_number])
             copilot_triggered << { ticket_id: ticket.id, issue_number: result[:issue_number] }
           end

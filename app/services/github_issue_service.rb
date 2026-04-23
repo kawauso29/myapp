@@ -10,9 +10,9 @@ class GithubIssueService
   end
 
   def create_issue(title:, body:, labels: [])
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    token = ENV["DEPLOY_TOKEN"]
     unless token.present?
-      Rails.logger.warn("[GithubIssueService] GITHUB_DEPLOY_TOKEN が未設定のためIssue作成をスキップします")
+      Rails.logger.warn("[GithubIssueService] DEPLOY_TOKEN が未設定のためIssue作成をスキップします")
       return nil
     end
 
@@ -51,9 +51,9 @@ class GithubIssueService
   end
 
   def create_comment(issue_number:, body:)
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    token = ENV["DEPLOY_TOKEN"]
     unless token.present?
-      Rails.logger.warn("[GithubIssueService] GITHUB_DEPLOY_TOKEN が未設定のためコメント投稿をスキップします")
+      Rails.logger.warn("[GithubIssueService] DEPLOY_TOKEN が未設定のためコメント投稿をスキップします")
       return nil
     end
 
