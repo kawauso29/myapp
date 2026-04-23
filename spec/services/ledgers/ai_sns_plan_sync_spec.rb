@@ -85,18 +85,15 @@ RSpec.describe Ledgers::AiSnsPlanSync do
       expect(ticket.linked_kpis).to eq([ "ai_sns_plan:X1" ])
     end
 
-    it "stores notes on the legacy DevInitiative side without re-triggering the mirror" do
-      # update_columns / insert_all を使うため after_save mirror（= AiSnsPlanSync.call）は発火しない
-      expect(Ledgers::AiSnsPlanSync).not_to receive(:call)
-
-      described_class.create_plan_item!(
+    it "stores notes directly on the TicketLedger (PR4: no longer routed via DevInitiative)" do
+      ticket = described_class.create_plan_item!(
         item_key: "X2", title: "notes 保管", priority: :medium, notes: "メモ本文"
       )
 
-      di = DevInitiative.find_by(item_key: "X2")
-      expect(di).to be_present
-      expect(di.notes).to eq("メモ本文")
+      expect(ticket.notes).to eq("メモ本文")
       expect(TicketLedger.where(idempotency_key: "ai_sns_plan:X2").count).to eq(1)
+      # DevInitiative 側には書き込まれない（mirror も DI 起点なので発火しない）。
+      expect(DevInitiative.find_by(item_key: "X2")).to be_nil
     end
 
     it "is idempotent when called twice with the same item_key" do

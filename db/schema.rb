@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_23_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -948,6 +948,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_180000) do
     t.text "kpi_result"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
+    t.text "notes"
     t.integer "operating_lane"
     t.string "owner_agent"
     t.string "owner_dept"
