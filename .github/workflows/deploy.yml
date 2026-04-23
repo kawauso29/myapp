@@ -111,6 +111,16 @@ jobs:
           set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
           set_env SOLID_QUEUE_IN_PUMA '1'
 
+          # Ledger enforce モード（Phase 44e）: 段階的に ON にする ENV フラグ。
+          # GitHub Secrets に "1" をセットすると本番で有効化される。
+          # 未設定 / 空文字の場合は OFF（デフォルト）。
+          # 有効化前に警告ログ（warn_lane_capacity / warn_pr_guardrail）で
+          # 十分なデータ収集が完了していることを確認すること。
+          set_env ENFORCE_TEMPLATE '${{ secrets.ENFORCE_TEMPLATE }}'
+          set_env ENFORCE_AUDIT_REASON '${{ secrets.ENFORCE_AUDIT_REASON }}'
+          set_env ENFORCE_LANE_CAPACITY '${{ secrets.ENFORCE_LANE_CAPACITY }}'
+          set_env ENFORCE_PR_GUARDRAIL '${{ secrets.ENFORCE_PR_GUARDRAIL }}'
+
           # Remove unused env vars
           for KEY in SLACK_ERROR_CHANNEL_ID SLACK_CLAUDE_CHANNEL_ID SLACK_CLAUDE_MEMBER_ID GITHUB_DEPLOY_TOKEN; do
             sed -i "/^${KEY}=/d" ~/myapp/.env
