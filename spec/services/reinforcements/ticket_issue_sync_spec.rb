@@ -25,8 +25,8 @@ RSpec.describe Reinforcements::TicketIssueSync do
       expect(GithubMapping::LedgerSyncService).not_to have_received(:sync_ticket_to_issue).with(done)
     end
 
-    it "posts @copilot comment after Issue creation" do
-      ticket = create(:ticket_ledger, status: :approved)
+    it "posts @copilot comment after Issue creation for improvement ticket" do
+      ticket = create(:ticket_ledger, status: :approved, ticket_type: :improvement)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
         .and_return({ synced: true, issue_number: 999 })
 
@@ -39,8 +39,51 @@ RSpec.describe Reinforcements::TicketIssueSync do
       )
     end
 
+    it "posts @copilot comment for operations ticket with non-default title" do
+      ticket = create(:ticket_ledger, status: :approved, ticket_type: :operations)
+      allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
+        .and_return({ synced: true, issue_number: 999 })
+
+      result = described_class.call
+
+      expect(result[:copilot_triggered]).to eq(1)
+    end
+
+    it "does NOT post @copilot comment for quarterly_review tickets" do
+      create(:ticket_ledger, status: :approved, ticket_type: :quarterly_review, scope_level: :company, service_id: nil)
+      allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
+        .and_return({ synced: true, issue_number: 999 })
+
+      result = described_class.call
+
+      expect(result[:copilot_triggered]).to eq(0)
+      expect(GithubIssueService).not_to have_received(:create_comment)
+    end
+
+    it "does NOT post @copilot comment for annual_plan tickets" do
+      create(:ticket_ledger, status: :approved, ticket_type: :annual_plan, scope_level: :company, service_id: nil)
+      allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
+        .and_return({ synced: true, issue_number: 999 })
+
+      result = described_class.call
+
+      expect(result[:copilot_triggered]).to eq(0)
+      expect(GithubIssueService).not_to have_received(:create_comment)
+    end
+
+    it "does NOT post @copilot comment for operations default placeholder tickets" do
+      create(:ticket_ledger, status: :approved, ticket_type: :operations, title: "weekly_dept default ticket for ai_sns")
+      allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
+        .and_return({ synced: true, issue_number: 999 })
+
+      result = described_class.call
+
+      expect(result[:copilot_triggered]).to eq(0)
+      expect(GithubIssueService).not_to have_received(:create_comment)
+    end
+
     it "includes ticket_ledger id in @copilot comment branch hint" do
-      ticket = create(:ticket_ledger, status: :approved)
+      ticket = create(:ticket_ledger, status: :approved, ticket_type: :improvement)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
         .and_return({ synced: true, issue_number: 999 })
 
@@ -73,7 +116,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
     end
 
     it "does not count copilot_triggered when comment post fails" do
-      create(:ticket_ledger, status: :approved)
+      create(:ticket_ledger, status: :approved, ticket_type: :improvement)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
         .and_return({ synced: true, issue_number: 999 })
       allow(GithubIssueService).to receive(:create_comment).and_return(nil)

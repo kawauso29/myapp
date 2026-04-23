@@ -12,6 +12,13 @@ module Reinforcements
     TARGET_STATUSES = %i[approved planned executing waiting_review].freeze
     MAX_PER_RUN = 20 # 一度に大量 Issue 化するのを防ぐ上限
 
+    # @copilot コメントを送る対象 ticket_type のホワイトリスト。
+    # サマリー・レコード系（quarterly_review / annual_plan 等）はコード実装なし。
+    COPILOT_ELIGIBLE_TYPES = %w[improvement operations].freeze
+    # デフォルトプレースホルダーのタイトルパターン。
+    # WeeklyDeptRunner が ticket_inputs 未指定時に生成するダミーチケットを除外する。
+    DEFAULT_TICKET_TITLE_PATTERN = /\bdefault ticket\b/i
+
     def self.call
       new.call
     end
@@ -29,7 +36,8 @@ module Reinforcements
           # Issue 作成直後に @copilot コメントを投稿して Copilot coding agent を起動する。
           # plan_review.yml と同じパターン: Issue 本文への埋め込みでは反応しないため
           # 別コメントとして DEPLOY_TOKEN で投稿する必要がある。
-          if post_copilot_comment(ticket: ticket, issue_number: result[:issue_number])
+          # copilot_eligible? でサマリー・ダミーチケットへの誤起動を防ぐ。
+          if copilot_eligible?(ticket) && post_copilot_comment(ticket: ticket, issue_number: result[:issue_number])
             copilot_triggered << { ticket_id: ticket.id, issue_number: result[:issue_number] }
           end
         elsif result[:skipped]
@@ -54,6 +62,17 @@ module Reinforcements
     end
 
     private
+
+    # Copilot coding agent に実装を依頼するか判定する。
+    # improvement チケットは常に対象。
+    # operations チケットは「default ticket」プレースホルダーを除く。
+    # quarterly_review / annual_plan 等のサマリー系は対象外。
+    def copilot_eligible?(ticket)
+      return false unless COPILOT_ELIGIBLE_TYPES.include?(ticket.ticket_type.to_s)
+      return false if ticket.title.to_s.match?(DEFAULT_TICKET_TITLE_PATTERN)
+
+      true
+    end
 
     def post_copilot_comment(ticket:, issue_number:)
       template_md = GithubMapping::CopilotInputTemplate.new(ticket).to_markdown
