@@ -72,6 +72,9 @@ module Reinforcements
     end
 
     def post_copilot_comment(ticket:, issue_number:)
+      # Copilot coding agent のトリガーには assignee への追加が必要。
+      # コメントメンションだけでは反応しないことがあるため、先に copilot を assignee に追加する。
+      GithubIssueService.add_assignees(issue_number: issue_number, assignees: [ "copilot" ])
       template_md = GithubMapping::CopilotInputTemplate.new(ticket).to_markdown
       body = <<~COMMENT
         @copilot このIssueの内容に従って実装してください。

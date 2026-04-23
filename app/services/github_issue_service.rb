@@ -84,6 +84,44 @@ class GithubIssueService
     nil
   end
 
+  def self.add_assignees(issue_number:, assignees:)
+    new.add_assignees(issue_number: issue_number, assignees: assignees)
+  end
+
+  def add_assignees(issue_number:, assignees:)
+    token = ENV["DEPLOY_TOKEN"]
+    unless token.present?
+      Rails.logger.warn("[GithubIssueService] DEPLOY_TOKEN が未設定のためassignee追加をスキップします")
+      return nil
+    end
+
+    uri = URI("#{GITHUB_API_BASE}/repos/#{REPO}/issues/#{issue_number}/assignees")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 15
+
+    req = Net::HTTP::Post.new(uri.request_uri)
+    req["Authorization"] = "Bearer #{token}"
+    req["Accept"] = "application/vnd.github+json"
+    req["X-GitHub-Api-Version"] = "2022-11-28"
+    req["Content-Type"] = "application/json"
+    req.body = { assignees: assignees }.to_json
+
+    res = http.request(req)
+    if res.is_a?(Net::HTTPCreated)
+      parsed = JSON.parse(res.body)
+      Rails.logger.info("[GithubIssueService] Assignees added to Issue ##{issue_number}: #{assignees.join(', ')}")
+      parsed
+    else
+      Rails.logger.error("[GithubIssueService] assignee追加失敗 (#{res.code}): #{res.body}")
+      nil
+    end
+  rescue => e
+    Rails.logger.error("[GithubIssueService] assignee追加エラー: #{e.class} #{e.message}")
+    nil
+  end
+
   def self.close_issue(issue_number:, comment: nil)
     new.close_issue(issue_number: issue_number, comment: comment)
   end
