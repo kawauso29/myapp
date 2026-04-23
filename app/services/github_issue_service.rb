@@ -109,7 +109,7 @@ class GithubIssueService
     req.body = { assignees: assignees }.to_json
 
     res = http.request(req)
-    if res.is_a?(Net::HTTPCreated)
+    if res.is_a?(Net::HTTPSuccess)
       parsed = JSON.parse(res.body)
       Rails.logger.info("[GithubIssueService] Assignees added to Issue ##{issue_number}: #{assignees.join(', ')}")
       parsed
