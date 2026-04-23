@@ -2,8 +2,8 @@ name: CI Escalation & Conflict Resolution
 
 on:
   schedule:
-    # 6時間ごとに実行（放置検知）
-    - cron: '0 */6 * * *'
+    # 10分ごとに実行（放置検知）
+    - cron: '*/10 * * * *'
   push:
     branches:
       - main
