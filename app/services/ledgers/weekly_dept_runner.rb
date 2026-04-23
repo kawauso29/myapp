@@ -65,6 +65,13 @@ module Ledgers
           next
         end
 
+        # デフォルトプレースホルダーチケットが既にアクティブな場合は重複作成しない。
+        # キャッシュクリア後の再起動等で同スロットのジョブが再実行されても安全。
+        if default_ticket_active?(attrs[:title])
+          decisions << { title: attrs[:title], result: "skipped_duplicate_default" }
+          next
+        end
+
         begin
           ticket = create_ticket!(meeting:, attrs:)
         rescue ActiveRecord::RecordNotSaved => e
@@ -132,6 +139,20 @@ module Ledgers
           owner_agent: "#{@meeting_key}_runner"
         }
       ]
+    end
+
+    # デフォルトプレースホルダーチケットが既に active（未完了・未キャンセル）かチェックする。
+    # TicketLedger::DEFAULT_TICKET_TITLE_PATTERN に一致するタイトルに限定し、
+    # 実ビジネスチケット（title がユーザー定義）への誤抑制を防ぐ。
+    # DB 側は大文字小文字を区別するため ILIKE を使い case-insensitive に検索する。
+    def default_ticket_active?(title)
+      return false unless title.to_s.match?(TicketLedger::DEFAULT_TICKET_TITLE_PATTERN)
+
+      TicketLedger
+        .where("LOWER(title) = LOWER(?)", title)
+        .where(service_id:, due_cycle: :weekly)
+        .where.not(status: %w[completed cancelled])
+        .exists?
     end
 
     def create_ticket!(meeting:, attrs:)

@@ -159,6 +159,10 @@ class TicketLedger < ApplicationRecord
   # デフォルト OFF。`ENFORCE_TEMPLATE=1` で段階的に有効化する。
   class_attribute :enforce_template, instance_accessor: false, default: false
 
+  # WeeklyDeptRunner が ticket_inputs 未指定時に生成するプレースホルダーチケットのタイトルパターン。
+  # TicketIssueSync の @copilot 投稿判定と WeeklyDeptRunner の重複防止チェックで共用する。
+  DEFAULT_TICKET_TITLE_PATTERN = /\bdefault ticket\b/i
+
   # Runner や呼び出し側で「このレコードだけは例外的に guard をスキップしたい」場合に
   # `ticket.skip_stop_guard = true` を指定できる。
   attr_accessor :skip_stop_guard, :skip_lane_capacity_guard, :skip_pr_guardrail, :skip_template_guard
