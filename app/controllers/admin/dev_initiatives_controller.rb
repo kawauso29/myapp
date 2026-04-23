@@ -37,9 +37,9 @@ class Admin::DevInitiativesController < Admin::BaseController
     when "in_progress"
       @ticket.assign_attributes(status: :executing)
     when "done"
-      @ticket.assign_attributes(status: :completed, due_date: Date.current)
+      @ticket.assign_attributes(status: :completed)
     when "todo"
-      @ticket.assign_attributes(status: :draft, due_date: nil)
+      @ticket.assign_attributes(status: :draft)
     else
       return redirect_back fallback_location: admin_dev_initiatives_path, alert: "不正なステータスです"
     end
@@ -60,7 +60,7 @@ class Admin::DevInitiativesController < Admin::BaseController
   def find_ticket!
     raw = params[:id].to_s
     if raw.match?(/\A\d+\z/)
-      TicketLedger.where(id: raw).ai_sns_plan.first || TicketLedger.find_ai_sns_plan_by_item_key(raw)
+      TicketLedger.ai_sns_plan.find_by(id: raw) || TicketLedger.find_ai_sns_plan_by_item_key(raw)
     else
       TicketLedger.find_ai_sns_plan_by_item_key(raw)
     end

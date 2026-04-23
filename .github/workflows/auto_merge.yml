@@ -346,7 +346,7 @@ jobs:
             t.skip_lane_capacity_guard = true
             t.skip_pr_guardrail = true
             t.skip_stop_guard = true
-            t.update!(status: :completed, due_date: Date.current, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
             puts 'updated'
           " 2>/dev/null || echo "error")
           echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
@@ -702,7 +702,7 @@ jobs:
             t.skip_lane_capacity_guard = true
             t.skip_pr_guardrail = true
             t.skip_stop_guard = true
-            t.update!(status: :completed, due_date: Date.current, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
             puts 'updated'
           " 2>/dev/null || echo "error")
           echo "result=${RESULT}" >> "$GITHUB_OUTPUT"

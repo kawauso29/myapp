@@ -46,6 +46,10 @@ module Admin
       %w[high medium low].each_with_object({}) do |priority, result|
         result[priority] = relation.where(priority: TicketLedger.priorities[priority]).map { |t|
           item_key = t.ai_sns_plan_item_key
+          # `completed_at` 相当の確定タイムスタンプは TicketLedger 側に存在しない。
+          # status が completed の場合は最終更新時刻（≒ completed への遷移時刻）を proxy として返す。
+          # PR3 で TicketLedger に completed_at 列を追加するか、resolved_at の範囲を広げて置換する予定。
+          completed_proxy = (t.status_completed? ? t.updated_at&.to_date&.to_s : nil)
           [item_key, {
             "title"        => t.title,
             "category"     => t.improvement_pattern_key,
@@ -53,7 +57,7 @@ module Admin
             "priority"     => t.priority,
             "notes"        => legacy_notes_for(item_key),
             "pr_branch"    => t.pr_branch,
-            "completed_at" => t.due_date&.to_s
+            "completed_at" => completed_proxy
           }]
         }.to_h
       end

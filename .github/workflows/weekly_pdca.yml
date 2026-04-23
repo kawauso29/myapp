@@ -87,7 +87,11 @@ jobs:
             echo "needs_plan_review=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # in_progress 項目が started_at から7日以上経過していたら todo にリセット
+      # in_progress 項目が executing 状態のまま 7 日以上経過していたら todo にリセット。
+      # NOTE: TicketLedger には `started_at` 列が無いため `updated_at` を proxy として使用する。
+      # 通常 executing 中はステータス遷移以外の更新が走らない運用のため実害は小さいが、
+      # 別経路（pr_branch 書き換え等）で `updated_at` が動くと滞留検知が rearm される点に注意。
+      # PR3 で TicketLedger に `started_at` を追加するか、status_changed_at の専用列を導入する予定。
       - name: 滞留 in_progress 検知 & 自動リセット
         id: stale_check
         env:

@@ -78,7 +78,7 @@
             <%= t.updated_at&.in_time_zone("Tokyo")&.strftime("%m/%d") || "-" %>
           </td>
           <td style="padding:6px 8px;color:#a0aec0;font-size:11px;">
-            <%= t.due_date&.strftime("%m/%d") || "-" %>
+            <%= (t.status_completed? ? t.updated_at&.in_time_zone("Tokyo")&.strftime("%m/%d") : nil) || "-" %>
           </td>
           <td style="padding:6px 8px;">
             <div style="display:flex;gap:4px;flex-wrap:wrap;">

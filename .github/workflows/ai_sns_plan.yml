@@ -135,7 +135,7 @@ jobs:
               t.skip_lane_capacity_guard = true
               t.skip_pr_guardrail = true
               t.skip_stop_guard = true
-              t.update!(status: :executing, due_date: nil)
+              t.update!(status: :executing)
             end
           "
 
