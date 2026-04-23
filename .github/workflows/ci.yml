@@ -94,6 +94,12 @@ jobs:
             CHANGED_WORKFLOWS=""
           fi
           CHANGED_WORKFLOWS=$(printf '%s\n' "${CHANGED_WORKFLOWS}" | grep -E '\.ya?ml$' || true)
+          # 削除済みファイルは存在しないため YAML チェック対象から除外する
+          EXISTING_WORKFLOWS=""
+          while IFS= read -r wf; do
+            [ -n "$wf" ] && [ -f "$wf" ] && EXISTING_WORKFLOWS+="${wf}"$'\n'
+          done <<< "${CHANGED_WORKFLOWS}"
+          CHANGED_WORKFLOWS="${EXISTING_WORKFLOWS}"
           if [ -z "${CHANGED_WORKFLOWS}" ]; then
             echo "No workflow changes detected (${DIFF_RANGE}); skipping workflow YAML integrity check"
             exit 0
