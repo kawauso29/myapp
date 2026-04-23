@@ -153,7 +153,9 @@ module Ledgers
         assignee: service_id,
         due_date: Ledgers::TimeAxis.due_date_for(:weekly),
         due_cycle: :weekly,
-        escalation_to: audit_ok ? nil : :monthly
+        escalation_to: audit_ok ? nil : :monthly,
+        # Phase 44e: Runner が生成する運用チケットは template 不要（Copilot 入力ではない）
+        skip_template_guard: true
       )
     end
 

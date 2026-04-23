@@ -75,6 +75,80 @@ RSpec.describe Ledgers::ImprovementResolver do
       expect(ticket.linked_kpis["resolution"]["hold_count"]).to eq(2)
     end
 
+    it "resolves monthly_hold_accumulation when all escalation tickets in hold_items are resolved" do
+      # ImprovementEscalator が monthly_ops.hold_items に書き込む形式（ticket_ledger_id 付き）
+      escalation_ticket = create(:ticket_ledger,
+                                  ticket_type: :improvement,
+                                  status: :approved,  # 解決済み
+                                  linked_kpis: { rule: "stale_service" })
+      escalation_ticket2 = create(:ticket_ledger,
+                                   ticket_type: :improvement,
+                                   status: :approved,
+                                   linked_kpis: { rule: "stale_service" })
+      escalation_ticket3 = create(:ticket_ledger,
+                                   ticket_type: :improvement,
+                                   status: :cancelled,
+                                   linked_kpis: { rule: "stale_service" })
+
+      monthly_meeting = create(:meeting_ledger,
+             meeting_definition: monthly_definition,
+             meeting_key: "monthly_ops",
+             hold_items: [
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: escalation_ticket.id },
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: escalation_ticket2.id },
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: escalation_ticket3.id }
+             ],
+             status: :closed)
+
+      # monthly_hold_accumulation チケット（3件のhold_itemsが検知された時に生成されたもの）
+      accumulation_ticket = create(:ticket_ledger,
+                                    ticket_type: :improvement,
+                                    status: :waiting_review,
+                                    linked_kpis: { rule: "monthly_hold_accumulation", hold_count: 3 })
+
+      # hold_items は 3件だが全て解決済みエスカレーションチケットを参照 → 実質 0件 < 3
+      result = described_class.call
+
+      expect(result[:resolved]).to eq(1)
+      expect(accumulation_ticket.reload).to be_status_approved
+      expect(accumulation_ticket.linked_kpis["resolution"]["hold_count"]).to eq(0)
+    end
+
+    it "does not resolve monthly_hold_accumulation when open escalation tickets still exist" do
+      open_ticket = create(:ticket_ledger,
+                            ticket_type: :improvement,
+                            status: :waiting_review,
+                            linked_kpis: { rule: "stale_service" })
+      open_ticket2 = create(:ticket_ledger,
+                             ticket_type: :improvement,
+                             status: :overdue,
+                             linked_kpis: { rule: "stale_service" })
+      open_ticket3 = create(:ticket_ledger,
+                             ticket_type: :improvement,
+                             status: :waiting_review,
+                             linked_kpis: { rule: "stale_service" })
+
+      create(:meeting_ledger,
+             meeting_definition: monthly_definition,
+             meeting_key: "monthly_ops",
+             hold_items: [
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: open_ticket.id },
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: open_ticket2.id },
+               { reason: "improvement_escalation_monthly", ticket_ledger_id: open_ticket3.id }
+             ],
+             status: :closed)
+
+      accumulation_ticket = create(:ticket_ledger,
+                                    ticket_type: :improvement,
+                                    status: :waiting_review,
+                                    linked_kpis: { rule: "monthly_hold_accumulation", hold_count: 3 })
+
+      result = described_class.call
+
+      expect(result[:resolved]).to eq(0)
+      expect(accumulation_ticket.reload).to be_status_waiting_review
+    end
+
     it "does not resolve when condition persists" do
       ticket = create(:ticket_ledger, ticket_type: :improvement, status: :waiting_review, linked_kpis: { rule: "high_overdue_rate" })
       create_list(:ticket_ledger, 3, status: :overdue, created_at: 1.day.ago)

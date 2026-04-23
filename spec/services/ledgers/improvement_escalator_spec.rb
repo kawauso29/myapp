@@ -154,4 +154,77 @@ RSpec.describe Ledgers::ImprovementEscalator do
       )
     end
   end
+
+  describe "create_meeting_if_possible（会議が存在しない場合の緊急作成）" do
+    let!(:monthly_definition) do
+      create(:meeting_definition, meeting_key: "monthly_ops", meeting_type: :monthly, scope_level: :company, service_id: nil)
+    end
+    let!(:quarterly_definition) do
+      create(
+        :meeting_definition,
+        meeting_key: "quarterly_review",
+        meeting_type: :quarterly_review,
+        scope_level: :company,
+        service_id: nil
+      )
+    end
+
+    before do
+      allow(Ledgers::SlackNotifier).to receive(:notify)
+    end
+
+    it "monthly_ops 会議が未作成でもエスカレーション対象チケットを monthly_ops に hold できる" do
+      ticket = create(
+        :ticket_ledger,
+        ticket_type: :improvement,
+        status: :waiting_review,
+        created_at: 21.days.ago,
+        linked_kpis: { rule: "stale_service" }
+      )
+
+      expect { described_class.call }.to change(MeetingLedger, :count).by(1)
+
+      created_meeting = MeetingLedger.where(meeting_key: "monthly_ops").last
+      expect(created_meeting.status).to eq("closed")
+      expect(created_meeting.idempotency_key).to be_present
+      expect(Array(created_meeting.hold_items)).to include(
+        a_hash_including("reason" => "improvement_escalation_monthly", "ticket_ledger_id" => ticket.id)
+      )
+    end
+
+    it "quarterly_review 会議が未作成でもエスカレーション対象チケットを quarterly_review に hold できる" do
+      ticket = create(
+        :ticket_ledger,
+        ticket_type: :improvement,
+        status: :overdue,
+        created_at: 45.days.ago,
+        linked_kpis: { rule: "stale_service" }
+      )
+
+      expect { described_class.call }.to change(MeetingLedger.where(meeting_key: "quarterly_review"), :count).by(1)
+
+      created_meeting = MeetingLedger.where(meeting_key: "quarterly_review").last
+      expect(created_meeting.idempotency_key).to be_present
+    end
+
+    it "同一スロット内で2回呼んでも緊急会議が重複作成されない（idempotency）" do
+      create(
+        :ticket_ledger,
+        ticket_type: :improvement,
+        status: :waiting_review,
+        created_at: 21.days.ago,
+        linked_kpis: { rule: "stale_service" }
+      )
+
+      described_class.call
+      # 同スロット内の2回目：会議は増えず、hold_items も重複しない
+      expect { described_class.call }.not_to change(MeetingLedger.where(meeting_key: "monthly_ops"), :count)
+
+      meeting = MeetingLedger.where(meeting_key: "monthly_ops").last
+      escalation_items = Array(meeting.hold_items).select do |item|
+        item["reason"] == "improvement_escalation_monthly"
+      end
+      expect(escalation_items.count).to eq(1)
+    end
+  end
 end

@@ -30,7 +30,6 @@ namespace :solid_queue do
     AnnualPlanLedgerRunJob
     HrEvaluationRunJob
     PortfolioRebalanceRunJob
-    ImprovementDetectorJob
     ImprovementResolverJob
     ImprovementEscalationJob
     ExperimentAutoDeciderJob

@@ -45,7 +45,9 @@ module Ledgers
         assignee: DEFAULT_ASSIGNEE,
         due_date: Ledgers::TimeAxis.due_date_for(:annual),
         due_cycle: :annual,
-        resolved_at: Time.current
+        resolved_at: Time.current,
+        # Phase 44e: Runner が生成するサマリーチケットは Copilot 入力ではないため template 不要
+        skip_template_guard: true
       )
 
       meeting.update!(
