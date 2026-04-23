@@ -29,11 +29,11 @@ jobs:
         id: analyze
         run: |
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_todo.count" 2>/dev/null || echo 0)
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_draft.count" 2>/dev/null || echo 0)
           TODO_COUNT=${TODO_COUNT:-0}
-          IN_PROGRESS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_in_progress.count" 2>/dev/null || echo 0)
+          IN_PROGRESS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_executing.count" 2>/dev/null || echo 0)
           IN_PROGRESS=${IN_PROGRESS:-0}
-          DONE_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_done.count" 2>/dev/null || echo 0)
+          DONE_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_completed.count" 2>/dev/null || echo 0)
           DONE_COUNT=${DONE_COUNT:-0}
           TOTAL=$((TODO_COUNT + IN_PROGRESS + DONE_COUNT))
 
@@ -76,12 +76,12 @@ jobs:
           # 完了施策・todo施策のID・タイトル・KPI仮説を DB から抽出
           SUMMARY=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
             require 'json'
-            done_items = DevInitiative.status_done.ordered.map { |d|
-              { id: d.item_key, title: d.title, category: d.category,
-                kpi_hypothesis: d.kpi_hypothesis, kpi_result: d.kpi_result }
+            done_items = TicketLedger.ai_sns_plan.status_completed.order(priority: :desc, idempotency_key: :asc).map { |t|
+              { id: t.ai_sns_plan_item_key, title: t.title, category: t.improvement_pattern_key,
+                kpi_hypothesis: t.kpi_hypothesis, kpi_result: t.kpi_result }
             }
-            todo_items = DevInitiative.status_todo.ordered.map { |d|
-              { id: d.item_key, title: d.title, category: d.category }
+            todo_items = TicketLedger.ai_sns_plan.status_draft.order(priority: :desc, idempotency_key: :asc).map { |t|
+              { id: t.ai_sns_plan_item_key, title: t.title, category: t.improvement_pattern_key }
             }
             print({ done: done_items, todo: todo_items }.to_json)
           " 2>/dev/null || echo '{"done":[],"todo":[]}')
@@ -191,7 +191,9 @@ jobs:
               '   - マネタイズ',
               '   - 技術的改善',
               '4. 各施策に `priority` (high/medium/low)、`kpi_hypothesis`、`notes` を設定する',
-              '5. `dev_initiatives` テーブル（DB）に新しい項目を Rails runner で追加する（既存のIDと重複しない新IDを使う）',
+              '5. `ticket_ledgers` テーブル（DB / `Ledgers::AiSnsPlanSync` 経由）に新しい項目を追加する。',
+              '   既存の `DevInitiative.create!(item_key:, title:, priority:, status: :todo, ...)` を Rails runner で実行すれば',
+              '   after_save の mirror で `TicketLedger.ai_sns_plan` 側にも自動反映される（既存IDと重複しない新IDを使うこと）',
               '6. `docs/ai_sns_improvement_plan.md` にも対応する詳細説明を追記する',
               '',
               '**注意**: 既存の todo/in_progress 項目は変更しないでください。新規追加のみ行ってください。',
@@ -223,7 +225,7 @@ jobs:
             const comment = [
               '@copilot このIssueの依頼内容に従って、次期 AI SNS 改善計画を作成してください。',
               '',
-              '`dev_initiatives` テーブル（DB）に新しい改善施策を追加するPRを作成してください。',
+              '`ticket_ledgers` テーブル（`Ledgers::AiSnsPlanSync` 経由 = `DevInitiative.create!` で mirror される）に',
               '新しい改善施策を追加するPRを作成してください。',
               '',
               '<!-- copilot:model claude-opus-4.6 -->'

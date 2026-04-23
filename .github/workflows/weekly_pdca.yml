@@ -2,7 +2,7 @@ name: 日次 PDCA ループ
 
 # Plan→Do→Check→Act を3時間ごとに回す
 #
-# P (Plan)   : dev_initiatives テーブル（DB）の優先度順に次の施策を決定
+# P (Plan)   : ticket_ledgers テーブル（DB / `ai_sns_plan` スコープ）の優先度順に次の施策を決定
 # D (Do)     : ai_sns_plan.yml を dispatch して Copilot に実装依頼
 # C (Check)  : KPI を収集して Slack にレポート
 # A (Act)    : WIP 上限チェックで並行実装数を制御（上限=2）
@@ -57,9 +57,9 @@ jobs:
         id: wip
         run: |
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          WIP_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_in_progress.count" 2>/dev/null || echo 0)
+          WIP_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_executing.count" 2>/dev/null || echo 0)
           WIP_COUNT=${WIP_COUNT:-0}
-          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_todo.count" 2>/dev/null || echo 0)
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_draft.count" 2>/dev/null || echo 0)
           TODO_COUNT=${TODO_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"
@@ -95,9 +95,9 @@ jobs:
         run: |
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           STALE_ITEMS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
-            stale = DevInitiative.status_in_progress.where('started_at < ?', 7.days.ago)
+            stale = TicketLedger.ai_sns_plan.status_executing.where('updated_at < ?', 7.days.ago)
             require 'json'
-            print stale.map { |d| { id: d.item_key, title: d.title, started_at: d.started_at.iso8601, age_days: ((Time.current - d.started_at) / 86400).to_i } }.to_json
+            print stale.map { |t| { id: t.ai_sns_plan_item_key, title: t.title, started_at: t.updated_at.iso8601, age_days: ((Time.current - t.updated_at) / 86400).to_i } }.to_json
           " 2>/dev/null || echo "[]")
           STALE_ITEMS=${STALE_ITEMS:-[]}
 
@@ -108,8 +108,14 @@ jobs:
             echo "⚠️ ${STALE_COUNT} 件の滞留項目を検出。todo にリセットします"
 
             cd ~/myapp && RAILS_ENV=production bin/rails runner "
-              DevInitiative.status_in_progress.where('started_at < ?', 7.days.ago)
-                .update_all(status: DevInitiative.statuses[:todo], started_at: nil)
+              TicketLedger.ai_sns_plan.status_executing.where('updated_at < ?', 7.days.ago)
+                .find_each do |t|
+                  t.skip_template_guard = true
+                  t.skip_lane_capacity_guard = true
+                  t.skip_pr_guardrail = true
+                  t.skip_stop_guard = true
+                  t.update!(status: :draft)
+                end
             " 2>/dev/null
 
             # Slack 通知（エラーカテゴリ）
