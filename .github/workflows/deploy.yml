@@ -267,14 +267,6 @@ jobs:
           echo "Health check failed after 5 attempts"
           exit 1
 
-      - name: Trigger UI check ledger after deploy
-        if: steps.health_check.outcome == 'success'
-        run: |
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          cd ~/myapp
-          RAILS_ENV=production bin/rails runner "UiCheckLedgerRunJob.perform_later"
-          echo "UiCheckLedgerRunJob enqueued"
-
       - name: Rollback on failure
         if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
         run: |
