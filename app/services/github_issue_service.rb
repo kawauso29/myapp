@@ -113,7 +113,7 @@ class GithubIssueService
     req.body = { state: "closed" }.to_json
 
     res = http.request(req)
-    if res.is_a?(Net::HTTPOK)
+    if res.is_a?(Net::HTTPSuccess)
       parsed = JSON.parse(res.body)
       Rails.logger.info("[GithubIssueService] Issue closed: ##{issue_number}")
       parsed

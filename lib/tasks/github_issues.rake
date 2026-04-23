@@ -2,6 +2,9 @@ namespace :github_issues do
   # 不適切な @copilot コメント付き Issue を一括クローズする。
   # 対象: quarterly_review / annual_plan のサマリーチケット、operations "default ticket" の重複分。
   # 実行: bin/rails github_issues:close_stale
+  #
+  # NOTE: これは 2026-04 の一時的なクリーンアップタスクです。実行後は削除してください。
+  # 実行済みかどうかは GitHub Issue の closed 状態で確認できます（#311〜#317, #319〜#321）。
   desc "不適切な @copilot メンション付き Issue（quarterly_review / annual_plan / operations default）をクローズする"
   task close_stale: :environment do
     # クローズ対象の GitHub Issue 番号と理由

@@ -15,9 +15,6 @@ module Reinforcements
     # @copilot コメントを送る対象 ticket_type のホワイトリスト。
     # サマリー・レコード系（quarterly_review / annual_plan 等）はコード実装なし。
     COPILOT_ELIGIBLE_TYPES = %w[improvement operations].freeze
-    # デフォルトプレースホルダーのタイトルパターン。
-    # WeeklyDeptRunner が ticket_inputs 未指定時に生成するダミーチケットを除外する。
-    DEFAULT_TICKET_TITLE_PATTERN = /\bdefault ticket\b/i
 
     def self.call
       new.call
@@ -69,7 +66,7 @@ module Reinforcements
     # quarterly_review / annual_plan 等のサマリー系は対象外。
     def copilot_eligible?(ticket)
       return false unless COPILOT_ELIGIBLE_TYPES.include?(ticket.ticket_type.to_s)
-      return false if ticket.title.to_s.match?(DEFAULT_TICKET_TITLE_PATTERN)
+      return false if ticket.title.to_s.match?(TicketLedger::DEFAULT_TICKET_TITLE_PATTERN)
 
       true
     end

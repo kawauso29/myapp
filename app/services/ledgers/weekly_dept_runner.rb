@@ -142,13 +142,15 @@ module Ledgers
     end
 
     # デフォルトプレースホルダーチケットが既に active（未完了・未キャンセル）かチェックする。
-    # "default ticket" パターンのタイトルを持つチケットに限定し、
+    # TicketLedger::DEFAULT_TICKET_TITLE_PATTERN に一致するタイトルに限定し、
     # 実ビジネスチケット（title がユーザー定義）への誤抑制を防ぐ。
+    # DB 側は大文字小文字を区別するため ILIKE を使い case-insensitive に検索する。
     def default_ticket_active?(title)
-      return false unless title.to_s.match?(/\bdefault ticket\b/i)
+      return false unless title.to_s.match?(TicketLedger::DEFAULT_TICKET_TITLE_PATTERN)
 
       TicketLedger
-        .where(title:, service_id:, due_cycle: :weekly)
+        .where("LOWER(title) = LOWER(?)", title)
+        .where(service_id:, due_cycle: :weekly)
         .where.not(status: %w[completed cancelled])
         .exists?
     end
