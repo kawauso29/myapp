@@ -82,6 +82,7 @@ class Admin::DevInitiativesController < Admin::BaseController
     mapped[:kpi_hypothesis]           = legacy[:kpi_hypothesis]           if legacy.key?(:kpi_hypothesis)
     mapped[:kpi_result]               = legacy[:kpi_result]               if legacy.key?(:kpi_result)
     mapped[:pr_branch]                = legacy[:pr_branch]                if legacy.key?(:pr_branch)
+    mapped[:notes]                    = legacy[:notes]                    if legacy.key?(:notes)
     mapped[:status]                   = STATUS_LEGACY_TO_LEDGER[legacy[:status].to_s] if legacy.key?(:status) && STATUS_LEGACY_TO_LEDGER.key?(legacy[:status].to_s)
     mapped
   end

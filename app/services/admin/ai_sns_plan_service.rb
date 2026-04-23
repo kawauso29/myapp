@@ -37,7 +37,7 @@ module Admin
         "title"    => t.title,
         "category" => t.improvement_pattern_key,
         "priority" => t.priority,
-        "notes"    => legacy_notes_for(t.ai_sns_plan_item_key)
+        "notes"    => t.notes
       }
     end
 
@@ -48,14 +48,14 @@ module Admin
           item_key = t.ai_sns_plan_item_key
           # `completed_at` 相当の確定タイムスタンプは TicketLedger 側に存在しない。
           # status が completed の場合は最終更新時刻（≒ completed への遷移時刻）を proxy として返す。
-          # PR3 で TicketLedger に completed_at 列を追加するか、resolved_at の範囲を広げて置換する予定。
+          # 別 PR で TicketLedger に completed_at 列を追加するか、resolved_at の範囲を広げて置換する予定。
           completed_proxy = (t.status_completed? ? t.updated_at&.to_date&.to_s : nil)
           [item_key, {
             "title"        => t.title,
             "category"     => t.improvement_pattern_key,
             "status"       => LEDGER_TO_LEGACY_STATUS[t.status] || t.status,
             "priority"     => t.priority,
-            "notes"        => legacy_notes_for(item_key),
+            "notes"        => t.notes,
             "pr_branch"    => t.pr_branch,
             "completed_at" => completed_proxy
           }]
@@ -63,12 +63,12 @@ module Admin
       end
     end
 
-    # `notes` 列は TicketLedger 側に存在しないため、レガシーの DevInitiative を read-only で
-    # 参照して返す（PR3 で TicketLedger に notes 相当列を持たせるか別表現に置き換える予定）。
+    # PR4: TicketLedger に notes 列を追加したため、本ヘルパーは TicketLedger を直接参照する。
+    # 旧 DevInitiative 参照は廃止。シグネチャは後方互換のため残す。
     def self.legacy_notes_for(item_key)
       return nil if item_key.blank?
 
-      DevInitiative.find_by(item_key: item_key)&.notes
+      TicketLedger.find_ai_sns_plan_by_item_key(item_key)&.notes
     rescue StandardError
       nil
     end
