@@ -207,7 +207,7 @@ jobs:
               '- `docs/ai_sns_improvement_plan.md` — 全体計画書',
               '',
               '### 実装完了後の手順',
-              `実装が完了したら以下のいずれかでステータスを done にしてください: ① /admin/dev_initiatives 画面の「done✓」ボタン、② Rails runner で \`TicketLedger.find_ai_sns_plan_by_item_key("${itemId}").update!(status: :completed, due_date: Date.current)\`（mirror 経由なら \`DevInitiative.find_by(item_key: "${itemId}").update!(status: :done)\` でも可）`
+              `実装が完了したら以下のいずれかでステータスを done にしてください: ① /admin/dev_initiatives 画面の「done✓」ボタン、② Rails runner で \`TicketLedger.find_ai_sns_plan_by_item_key("${itemId}").update!(status: :completed, due_date: Date.current)\``
             ].join('\n')
 
             const { data: pr } = await github.rest.pulls.create({

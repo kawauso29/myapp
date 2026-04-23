@@ -63,6 +63,63 @@ RSpec.describe Ledgers::AiSnsPlanSync do
     end
   end
 
+  describe ".create_plan_item!" do
+    it "creates a TicketLedger directly without requiring DevInitiative as input" do
+      ticket = described_class.create_plan_item!(
+        item_key: "X1",
+        title: "新規施策 X1",
+        priority: :high,
+        category: "engagement",
+        kpi_hypothesis: "DAU +3%",
+        notes: "実装メモ"
+      )
+
+      expect(ticket).to be_persisted
+      expect(ticket.idempotency_key).to eq("ai_sns_plan:X1")
+      expect(ticket.title).to eq("新規施策 X1")
+      expect(ticket).to be_priority_high
+      expect(ticket).to be_status_draft
+      expect(ticket).to be_operating_lane_weekly_improvement
+      expect(ticket.improvement_pattern_key).to eq("engagement")
+      expect(ticket.kpi_hypothesis).to eq("DAU +3%")
+      expect(ticket.linked_kpis).to eq([ "ai_sns_plan:X1" ])
+    end
+
+    it "stores notes on the legacy DevInitiative side without re-triggering the mirror" do
+      # update_columns / insert_all を使うため after_save mirror（= AiSnsPlanSync.call）は発火しない
+      expect(Ledgers::AiSnsPlanSync).not_to receive(:call)
+
+      described_class.create_plan_item!(
+        item_key: "X2", title: "notes 保管", priority: :medium, notes: "メモ本文"
+      )
+
+      di = DevInitiative.find_by(item_key: "X2")
+      expect(di).to be_present
+      expect(di.notes).to eq("メモ本文")
+      expect(TicketLedger.where(idempotency_key: "ai_sns_plan:X2").count).to eq(1)
+    end
+
+    it "is idempotent when called twice with the same item_key" do
+      t1 = described_class.create_plan_item!(item_key: "X3", title: "first", priority: :low)
+      t2 = described_class.create_plan_item!(item_key: "X3", title: "second", priority: :high)
+
+      expect(t1.id).to eq(t2.id)
+      expect(t2.title).to eq("second")
+      expect(t2).to be_priority_high
+      expect(TicketLedger.where(idempotency_key: "ai_sns_plan:X3").count).to eq(1)
+    end
+
+    it "raises ArgumentError when item_key or title is blank" do
+      expect {
+        described_class.create_plan_item!(item_key: "", title: "x")
+      }.to raise_error(ArgumentError)
+
+      expect {
+        described_class.create_plan_item!(item_key: "X4", title: "")
+      }.to raise_error(ArgumentError)
+    end
+  end
+
   describe "DevInitiative#after_save hook" do
     it "automatically mirrors on save" do
       DevInitiative.create!(item_key: "A1", title: "auto mirror", priority: :medium, status: :todo)
