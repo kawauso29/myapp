@@ -106,13 +106,14 @@ module Ledgers
         h.next_run_at = Ledgers::TimeAxis.interval_for(:annual).from_now
       end
 
-      # Phase 42 / UI伴走管理: AI SNS UI サービス向け2日周期チェック定義（ai_sns に統合済み）
+      # Phase 42 / UI伴走管理: AI SNS UI サービス向けデプロイ連動チェック定義
+      # recurring.yml の cron は廃止。deploy.yml のヘルスチェック通過後に UiCheckLedgerRunJob.perform_later で起動する。
       ui_check = MeetingDefinition.find_or_create_by!(meeting_key: "ui_check") do |d|
         d.meeting_type = :weekly
         d.scope_level = :service
         d.service_id = "ai_sns"
-        d.chair_role = "business_owner"
-        d.participant_roles = %w[planning dev audit business_owner]
+        d.chair_role = "dev"
+        d.participant_roles = %w[dev ops audit]
         d.writes_ledgers = %w[meeting_ledger ticket_ledger]
       end
 
