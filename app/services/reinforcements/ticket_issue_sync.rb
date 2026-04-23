@@ -20,11 +20,18 @@ module Reinforcements
       synced = []
       skipped = []
       failed = []
+      copilot_triggered = []
 
       candidates.limit(MAX_PER_RUN).find_each do |ticket|
         result = GithubMapping::LedgerSyncService.sync_ticket_to_issue(ticket)
         if result[:synced]
           synced << { ticket_id: ticket.id, issue_number: result[:issue_number] }
+          # Issue 作成直後に @copilot コメントを投稿して Copilot coding agent を起動する。
+          # plan_review.yml と同じパターン: Issue 本文への埋め込みでは反応しないため
+          # 別コメントとして GITHUB_DEPLOY_TOKEN で投稿する必要がある。
+          if post_copilot_comment(ticket: ticket, issue_number: result[:issue_number])
+            copilot_triggered << { ticket_id: ticket.id, issue_number: result[:issue_number] }
+          end
         elsif result[:skipped]
           skipped << { ticket_id: ticket.id, reason: result[:reason] }
         else
@@ -36,15 +43,33 @@ module Reinforcements
         synced: synced.size,
         skipped: skipped.size,
         failed: failed.size,
+        copilot_triggered: copilot_triggered.size,
         details: {
           synced: synced,
           skipped: skipped,
-          failed: failed
+          failed: failed,
+          copilot_triggered: copilot_triggered
         }
       }
     end
 
     private
+
+    def post_copilot_comment(ticket:, issue_number:)
+      template_md = GithubMapping::CopilotInputTemplate.new(ticket).to_markdown
+      body = <<~COMMENT
+        @copilot このIssueの内容に従って実装してください。
+
+        ticket_ledger ##{ticket.id} に基づく実装PRを `copilot/ledger-#{ticket.id}` ブランチで作成してください。
+
+        #{template_md}
+      COMMENT
+      result = GithubIssueService.create_comment(issue_number: issue_number, body: body.strip)
+      result.present?
+    rescue => e
+      Rails.logger.warn("[TicketIssueSync] @copilot comment failed for ticket ##{ticket.id}: #{e.message}")
+      false
+    end
 
     def candidates
       TicketLedger
