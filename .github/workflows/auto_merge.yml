@@ -6,6 +6,7 @@ on:
       - opened
       - ready_for_review
       - unlabeled
+      - review_requested
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -686,3 +687,146 @@ jobs:
           curl -s -X POST "${SLACK_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
+
+  # レビュー依頼が来たとき、CI が既に通過済みなら即マージする
+  merge_on_review_requested:
+    if: >-
+      ${{ github.event_name == 'pull_request_target' &&
+          github.event.action == 'review_requested' &&
+          !github.event.pull_request.draft &&
+          github.event.pull_request.state == 'open' &&
+          github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: [self-hosted, sakura-vps]
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
+    steps:
+      - name: Merge PR if CI already passed (review_requested escalation)
+        id: merge_on_review
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const headSha = pr.head.sha;
+            const headBranch = pr.head.ref;
+
+            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
+            if (!ALLOWED_PREFIXES.some(p => headBranch.startsWith(p))) {
+              core.info(`Branch "${headBranch}" is not auto-merge eligible, skipping`);
+              return;
+            }
+
+            const hasHoldLabel = pr.labels.some(l => l.name === 'session-hold');
+            if (hasHoldLabel) {
+              core.info(`PR #${pr.number}: session-hold label present, skipping`);
+              return;
+            }
+
+            // CI が既に通過しているか確認（ci.yml の最新ランを検索）
+            const { data: runsData } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              head_sha: headSha,
+              per_page: 5
+            });
+
+            const successRun = (runsData.workflow_runs || []).find(r => r.conclusion === 'success');
+            if (!successRun) {
+              core.info(`No successful CI run for SHA ${headSha}. Auto-merge will proceed when CI next passes.`);
+              return;
+            }
+
+            core.info(`CI already passed (run #${successRun.id}). Merging PR #${pr.number} (review_requested escalation)...`);
+            core.setOutput('pr_number', String(pr.number));
+            core.setOutput('pr_title', pr.title);
+            core.setOutput('pr_branch', pr.head.ref);
+
+            // マージ（最大3回試行）
+            let merged = false;
+            for (let mergeAttempt = 1; mergeAttempt <= 3; mergeAttempt++) {
+              try {
+                await github.rest.pulls.merge({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  sha: headSha,
+                  merge_method: 'merge'
+                });
+                core.info(`Successfully merged PR #${pr.number}`);
+                core.setOutput('merged', 'true');
+                merged = true;
+                break;
+              } catch (error) {
+                if (mergeAttempt < 3) {
+                  const delay = mergeAttempt * 5;
+                  core.warning(`Merge attempt ${mergeAttempt}/3 failed: ${error.message}, retrying in ${delay}s...`);
+                  await new Promise(r => setTimeout(r, delay * 1000));
+                } else {
+                  core.error(`Failed to merge PR #${pr.number} after 3 attempts: ${error.message}`);
+                  core.setOutput('merge_error', error.message);
+                  return;
+                }
+              }
+            }
+
+            if (!merged) return;
+
+            // デプロイ dispatch（最大3回試行）
+            for (let deployAttempt = 1; deployAttempt <= 3; deployAttempt++) {
+              try {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'deploy.yml',
+                  ref: 'main',
+                  inputs: {
+                    reason: `Auto-deploy after merging PR #${pr.number} (review_requested, CI passed): ${pr.title}`
+                  }
+                });
+                core.info(`Dispatched deploy workflow for PR #${pr.number}`);
+                break;
+              } catch (deployError) {
+                if (deployAttempt < 3) {
+                  await new Promise(r => setTimeout(r, deployAttempt * 5000));
+                } else {
+                  core.warning(`Failed to dispatch deploy: ${deployError.message}`);
+                  core.setOutput('deploy_dispatch_error', deployError.message);
+                }
+              }
+            }
+
+      - name: Notify Slack (merged on review_requested)
+        if: ${{ steps.merge_on_review.outputs.merged == 'true' }}
+        env:
+          PR_NUMBER: ${{ steps.merge_on_review.outputs.pr_number }}
+          PR_TITLE: ${{ steps.merge_on_review.outputs.pr_title }}
+          PR_BRANCH: ${{ steps.merge_on_review.outputs.pr_branch }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then exit 0; fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then exit 0; fi
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          pr_title = os.environ.get("PR_TITLE", "")
+          pr_branch = os.environ.get("PR_BRANCH", "")
+          print(json.dumps({"attachments": [{"color": "#2eb886", "text": f":white_check_mark: *自動マージ完了（レビュー依頼 \u2192 CI済みのため即マージ）* PR #{pr_number}", "fields": [{"title": "タイトル", "value": pr_title, "short": False}, {"title": "ブランチ", "value": pr_branch, "short": True}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" -H "Content-Type: application/json" -d "${PAYLOAD}"
+
+      - name: Notify Slack (merge failed on review_requested)
+        if: ${{ steps.merge_on_review.outputs.merge_error != '' }}
+        env:
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.merge_on_review.outputs.pr_number }}
+          PR_NUMBER: ${{ steps.merge_on_review.outputs.pr_number }}
+          ERROR_MSG: ${{ steps.merge_on_review.outputs.merge_error }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then exit 0; fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then exit 0; fi
+          PAYLOAD=$(python3 -c '
+          import json, os, time
+          pr_number = os.environ.get("PR_NUMBER", "")
+          error = os.environ.get("ERROR_MSG", "")
+          pr_url = os.environ.get("PR_URL", "")
+          print(json.dumps({"attachments": [{"color": "#e01e5a", "text": f":x: *\u30ec\u30d3\u30e5\u30fc\u4f9d\u983c\u6642\u306e\u81ea\u52d5\u30de\u30fc\u30b8\u306b\u5931\u6557* PR #{pr_number}", "fields": [{"title": "\u30a8\u30e9\u30fc", "value": error, "short": False}, {"title": "\u6b21\u306e\u30a2\u30af\u30b7\u30e7\u30f3", "value": f"PR\u3092\u78ba\u8a8d\u3057\u3066\u624b\u52d5\u30de\u30fc\u30b8\u3057\u3066\u304f\u3060\u3055\u3044: {pr_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
+          ')
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" -H "Content-Type: application/json" -d "${PAYLOAD}"

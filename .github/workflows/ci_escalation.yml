@@ -1,0 +1,242 @@
+name: CI Escalation & Conflict Resolution
+
+on:
+  schedule:
+    # 6時間ごとに実行（放置検知）
+    - cron: '0 */6 * * *'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # 24時間以上放置された ci-failure Issue をエスカレーション（スケジュール・手動のみ）
+  escalate_stale_ci_failures:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, sakura-vps]
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
+    steps:
+      - name: Find stale ci-failure issues and escalate
+        id: escalate
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const ESCALATION_MARKER = '<!-- ci-escalation -->';
+            const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+            // ci-failure ラベル付きオープン Issue を取得（作成日昇順で古いものから処理）
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner, repo,
+              labels: 'ci-failure',
+              state: 'open',
+              per_page: 20,
+              sort: 'created',
+              direction: 'asc'
+            });
+
+            const staleIssues = issues.filter(i => new Date(i.created_at) < cutoff24h);
+            if (staleIssues.length === 0) {
+              core.info('No stale ci-failure issues found');
+              core.setOutput('escalated_count', '0');
+              return;
+            }
+
+            core.info(`Found ${staleIssues.length} stale ci-failure issue(s)`);
+            let escalatedCount = 0;
+            const escalatedIssues = [];
+
+            for (const issue of staleIssues) {
+              // 既にエスカレーション済みか確認（最新コメントをチェック）
+              const { data: comments } = await github.rest.issues.listComments({
+                owner, repo,
+                issue_number: issue.number,
+                per_page: 50
+              });
+
+              const lastEscalation = comments
+                .filter(c => c.body.includes(ESCALATION_MARKER))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+              // 最後のエスカレーションから24時間経っていない場合はスキップ
+              if (lastEscalation && new Date(lastEscalation.created_at) > cutoff24h) {
+                core.info(`Issue #${issue.number}: already escalated recently, skipping`);
+                continue;
+              }
+
+              const ageHours = Math.round((Date.now() - new Date(issue.created_at).getTime()) / 3600000);
+
+              await github.rest.issues.createComment({
+                owner, repo,
+                issue_number: issue.number,
+                body: [
+                  ESCALATION_MARKER,
+                  `⚠️ **CI失敗エスカレーション** このIssueが約 ${ageHours} 時間放置されています。`,
+                  '',
+                  `@copilot このCI失敗を調査して、\`copilot/fix-ci-${issue.number}\` ブランチで修正PRを作成してください。`,
+                  '',
+                  '---',
+                  '*このコメントはCI Escalationワークフローにより自動生成されました*'
+                ].join('\n')
+              });
+
+              escalatedCount++;
+              escalatedIssues.push(`#${issue.number}`);
+              core.info(`Issue #${issue.number}: escalated (age: ${ageHours}h)`);
+            }
+
+            core.setOutput('escalated_count', String(escalatedCount));
+            core.setOutput('escalated_issues', escalatedIssues.join(', '));
+            core.info(`Escalated ${escalatedCount} stale CI failure issues`);
+
+      - name: Notify Slack (stale CI failures escalated)
+        if: ${{ steps.escalate.outputs.escalated_count != '0' && steps.escalate.outputs.escalated_count != '' }}
+        env:
+          ISSUES_URL: ${{ github.server_url }}/${{ github.repository }}/issues?q=is%3Aopen+label%3Aci-failure
+          ESCALATED_COUNT: ${{ steps.escalate.outputs.escalated_count }}
+          ESCALATED_ISSUES: ${{ steps.escalate.outputs.escalated_issues }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then exit 0; fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then exit 0; fi
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          count = os.environ.get('ESCALATED_COUNT', '0')
+          issues = os.environ.get('ESCALATED_ISSUES', '')
+          issues_url = os.environ.get('ISSUES_URL', '')
+          print(json.dumps({'attachments': [{'color': '#f0a500', 'text': f':warning: *CI失敗エスカレーション* {count}件のIssueが24時間以上放置されています', 'fields': [{'title': '対象Issue', 'value': issues, 'short': False}, {'title': '次のアクション', 'value': f'@copilot に修正依頼済みです: {issues_url}', 'short': False}], 'footer': 'GitHub Actions CI Escalation', 'ts': int(time.time())}]}))
+          ")
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
+
+  # オープンPRのマージ競合を検出し @copilot に解決を依頼する
+  # push to main（基底ブランチ更新で競合が発生しやすい）とスケジュールで実行
+  check_conflicted_prs:
+    runs-on: [self-hosted, sakura-vps]
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
+    steps:
+      - name: Check for conflicted PRs and request AI resolution
+        id: conflict_check
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const CONFLICT_MARKER = '<!-- conflict-resolution-requested -->';
+            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
+            const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+            // オープンPRの一覧を取得
+            const { data: prList } = await github.rest.pulls.list({
+              owner, repo,
+              state: 'open',
+              per_page: 50,
+              sort: 'updated',
+              direction: 'desc'
+            });
+
+            // 対象ブランチのPRのみ絞り込み（最大10件）
+            const eligiblePrs = prList
+              .filter(pr =>
+                !pr.draft &&
+                pr.head.repo?.full_name === `${owner}/${repo}` &&
+                ALLOWED_PREFIXES.some(p => pr.head.ref.startsWith(p))
+              )
+              .slice(0, 10);
+
+            if (eligiblePrs.length === 0) {
+              core.info('No eligible open PRs to check for conflicts');
+              core.setOutput('requested_count', '0');
+              return;
+            }
+
+            core.info(`Checking ${eligiblePrs.length} eligible PR(s) for merge conflicts`);
+            let requestedCount = 0;
+            const conflictedPrs = [];
+
+            for (const prSummary of eligiblePrs) {
+              // mergeable フィールドを正確に取得するため個別APIで再取得
+              const { data: pr } = await github.rest.pulls.get({
+                owner, repo,
+                pull_number: prSummary.number
+              });
+
+              // mergeable が false（競合確定）のもののみ処理
+              // null は GitHub がまだ計算中 → 次回スケジュール時に再チェック
+              if (pr.mergeable !== false) {
+                core.info(`PR #${pr.number}: mergeable=${pr.mergeable}, skipping`);
+                continue;
+              }
+
+              // 既に競合解決コメントを投稿済みか確認
+              const { data: comments } = await github.rest.issues.listComments({
+                owner, repo,
+                issue_number: pr.number,
+                per_page: 50
+              });
+
+              const lastConflictComment = comments
+                .filter(c => c.body.includes(CONFLICT_MARKER))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+              // 24時間以内に投稿済みならスキップ（重複コメント防止）
+              if (lastConflictComment && new Date(lastConflictComment.created_at) > cutoff24h) {
+                core.info(`PR #${pr.number}: conflict resolution already requested recently, skipping`);
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                owner, repo,
+                issue_number: pr.number,
+                body: [
+                  CONFLICT_MARKER,
+                  '🔀 **マージ競合が検出されました**',
+                  '',
+                  `@copilot PR #${pr.number} (\`${pr.head.ref}\`) に \`main\` ブランチとのマージ競合が発生しています。`,
+                  '以下の手順で競合を解決してください：',
+                  '',
+                  '1. `git fetch origin && git merge origin/main` で競合箇所を確認する',
+                  '2. 競合ファイルを編集して解決し、`git add` する',
+                  '3. `git commit` でマージコミットを作成し、このブランチに push する',
+                  '',
+                  '---',
+                  '*このコメントはCI Escalationワークフローにより自動生成されました*'
+                ].join('\n')
+              });
+
+              requestedCount++;
+              conflictedPrs.push(`#${pr.number} (${pr.head.ref})`);
+              core.info(`PR #${pr.number}: posted conflict resolution request`);
+            }
+
+            core.setOutput('requested_count', String(requestedCount));
+            core.setOutput('conflicted_prs', conflictedPrs.join(', '));
+            core.info(`Requested conflict resolution for ${requestedCount} PR(s)`);
+
+      - name: Notify Slack (conflicted PRs found)
+        if: ${{ steps.conflict_check.outputs.requested_count != '0' && steps.conflict_check.outputs.requested_count != '' }}
+        env:
+          PRS_URL: ${{ github.server_url }}/${{ github.repository }}/pulls
+          REQUESTED_COUNT: ${{ steps.conflict_check.outputs.requested_count }}
+          CONFLICTED_PRS: ${{ steps.conflict_check.outputs.conflicted_prs }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then exit 0; fi
+          if ! printf '%s' "${SLACK_WEBHOOK_URL}" | grep -Eq '^https?://'; then exit 0; fi
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          count = os.environ.get('REQUESTED_COUNT', '0')
+          prs = os.environ.get('CONFLICTED_PRS', '')
+          prs_url = os.environ.get('PRS_URL', '')
+          print(json.dumps({'attachments': [{'color': '#f0a500', 'text': f':twisted_rightwards_arrows: *マージ競合を検出* {count}件のPRで競合が発生しています', 'fields': [{'title': '対象PR', 'value': prs, 'short': False}, {'title': '次のアクション', 'value': f'@copilot に競合解決を依頼済みです: {prs_url}', 'short': False}], 'footer': 'GitHub Actions CI Escalation', 'ts': int(time.time())}]}))
+          ")
+          curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
