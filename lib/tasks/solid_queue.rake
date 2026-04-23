@@ -40,7 +40,6 @@ namespace :solid_queue do
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
-    UiCheckLedgerRunJob
     BirthdayCheckJob
     AvatarUpdateJob
     CommunityDetectJob

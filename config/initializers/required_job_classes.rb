@@ -40,7 +40,6 @@ Rails.application.reloader.to_prepare do
     EffectivenessRecalcJob
     PlannerJob
     TicketIssueSyncJob
-    UiCheckLedgerRunJob
     BirthdayCheckJob
     AvatarUpdateJob
     CommunityDetectJob

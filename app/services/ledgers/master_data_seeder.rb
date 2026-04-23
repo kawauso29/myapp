@@ -107,7 +107,7 @@ module Ledgers
       end
 
       # Phase 42 / UI伴走管理: AI SNS UI サービス向けデプロイ連動チェック定義
-      # recurring.yml の cron は廃止。deploy.yml のヘルスチェック通過後に UiCheckLedgerRunJob.perform_later で起動する。
+      # ImprovementDetectorJob が毎日 stale_ui_check ルールで未実施を検知し、改善チケットを自動起票する。
       ui_check = MeetingDefinition.find_or_create_by!(meeting_key: "ui_check") do |d|
         d.meeting_type = :weekly
         d.scope_level = :service
@@ -207,7 +207,7 @@ module Ledgers
           ## Context
           AI SNS の Expo (React Native Web) UI は Phase 1〜3 で実装済み。
           本 ADR は実装済み画面の一覧と受け入れ基準を台帳に記録し、
-          UiCheckLedgerRunJob（2日周期）のチェックサイクルで継続的に管理する。
+          ImprovementDetectorJob の stale_ui_check ルールで継続的に管理する。
 
           ## Decision
           実装済み画面（7画面）を正本として扱う：
@@ -291,10 +291,7 @@ module Ledgers
           args: [], description: "quarterly = 2日周期（quarterly_reviewの30分後）" },
         { job_key: "portfolio_rebalance_run", job_class: "PortfolioRebalanceRunJob",
           cron: "0 7 */2 * *", service_id: nil, cadence: :quarterly,
-          args: [], description: "quarterly = 2日周期（quarterly_reviewの1時間後）" },
-        { job_key: "ui_check_ledger_run", job_class: "UiCheckLedgerRunJob",
-          cron: "0 0 */2 * *", service_id: "ai_sns", cadence: :quarterly,
-          args: [], description: "UI伴走管理: 2日周期チェック" }
+          args: [], description: "quarterly = 2日周期（quarterly_reviewの1時間後）" }
       ].each do |attrs|
         ServiceScheduleDefinition.find_or_create_by!(job_key: attrs[:job_key]) do |s|
           s.job_class = attrs[:job_class]
