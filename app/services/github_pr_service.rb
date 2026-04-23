@@ -12,9 +12,9 @@ class GithubPrService
   end
 
   def create_pr(title:, body:, branch_prefix:)
-    token = ENV["GITHUB_DEPLOY_TOKEN"]
+    token = ENV["DEPLOY_TOKEN"]
     unless token.present?
-      Rails.logger.warn("[GithubPrService] GITHUB_DEPLOY_TOKEN が未設定のためPR作成をスキップします")
+      Rails.logger.warn("[GithubPrService] DEPLOY_TOKEN が未設定のためPR作成をスキップします")
       return nil
     end
 
