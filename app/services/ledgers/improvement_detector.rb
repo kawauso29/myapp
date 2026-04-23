@@ -161,7 +161,11 @@ module Ledgers
         due_cycle: :weekly,
         # Phase 44e: 自動検知の improvement チケットは事後に CopilotInputTemplate で
         # template_id が付与されるため、作成時点では template guard を bypass する。
-        skip_template_guard: true
+        skip_template_guard: true,
+        # ImprovementDetector は検知した問題を解消するための自動起票エージェントであり、
+        # kpi_breach StopLedger 由来の問題を検知してチケット化するケースがある。
+        # stop guard をそのまま適用するとデッドロックになるため bypass する。
+        skip_stop_guard: true
       )
     end
 
