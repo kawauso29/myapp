@@ -122,7 +122,23 @@ module Ledgers
       meeting = MeetingLedger.where(meeting_key: "monthly_ops").order(held_at: :desc).first
       return 0 unless meeting
 
-      Array(meeting.hold_items).count
+      all_items = Array(meeting.hold_items)
+      # ImprovementEscalator が書き込むエスカレーション項目は ticket_ledger_id を持つ。
+      # 対象チケットが解決済み（approved 等）になれば実質 hold 件数は減るため、
+      # オープン中のエスカレーションチケット数 + ticket_ledger_id なし汎用項目数を返す。
+      escalation_ticket_ids = all_items.filter_map do |item|
+        h = item.is_a?(Hash) ? item : {}
+        id = (h["ticket_ledger_id"] || h[:ticket_ledger_id]).to_i
+        id > 0 ? id : nil
+      end
+
+      non_escalation_count = all_items.count - escalation_ticket_ids.count
+      return non_escalation_count if escalation_ticket_ids.empty?
+
+      open_escalation_count = TicketLedger.ticket_type_improvement
+        .where(id: escalation_ticket_ids, status: OPEN_STATUSES)
+        .count
+      non_escalation_count + open_escalation_count
     end
 
     def ui_check_recent?

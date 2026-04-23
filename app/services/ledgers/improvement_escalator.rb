@@ -7,6 +7,12 @@ module Ledgers
     MONTHLY_REASON = "improvement_escalation_monthly".freeze
     QUARTERLY_REASON = "improvement_escalation_quarterly".freeze
 
+    # meeting_key → cadence のマッピング（緊急会議作成時の idempotency_key 生成に使う）
+    CADENCE_FOR_MEETING_KEY = {
+      "monthly_ops" => :monthly,
+      "quarterly_review" => :quarterly
+    }.freeze
+
     def self.call
       new.call
     end
@@ -89,6 +95,13 @@ module Ledgers
       definition = MeetingDefinition.find_by(meeting_key:, scope_level: :company)
       return unless definition
 
+      cadence = CADENCE_FOR_MEETING_KEY.fetch(meeting_key, :monthly)
+      ikey = Ledgers::IdempotencyKey.for_meeting(prefix: meeting_key, cadence: cadence)
+
+      # 同一スロット内に既存会議があればそれを返す（冪等化）
+      existing = MeetingLedger.find_by(idempotency_key: ikey)
+      return existing if existing
+
       MeetingLedger.create!(
         meeting_definition: definition,
         meeting_key: definition.meeting_key,
@@ -97,8 +110,13 @@ module Ledgers
         chair: definition.chair_role,
         participants: definition.participant_roles,
         held_at: Time.current,
-        status: :closed
+        status: :closed,
+        idempotency_key: ikey
       )
+    rescue ActiveRecord::RecordInvalid => e
+      raise unless e.record.errors.of_kind?(:idempotency_key, :taken)
+
+      MeetingLedger.find_by!(idempotency_key: ikey)
     end
 
     def hold_item_exists?(hold_items:, ticket_id:, reason:)
