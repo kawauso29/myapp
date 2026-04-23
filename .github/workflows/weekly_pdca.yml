@@ -109,7 +109,7 @@ jobs:
 
             cd ~/myapp && RAILS_ENV=production bin/rails runner "
               DevInitiative.status_in_progress.where('started_at < ?', 7.days.ago)
-                .update_all(status: 0, started_at: nil)
+                .update_all(status: DevInitiative.statuses[:todo], started_at: nil)
             " 2>/dev/null
 
             # Slack 通知（エラーカテゴリ）
