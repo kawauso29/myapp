@@ -106,7 +106,11 @@ module Reinforcements
         risk_level: :low,
         # Phase 44e: Planner による improvement ticket は事後に CopilotInputTemplate で
         # template_id が付与されるため、作成時点では template guard を bypass する。
-        skip_template_guard: true
+        skip_template_guard: true,
+        # Planner は KPI 乖離を解消するための改善起票エージェントであり、
+        # kpi_breach StopLedger 自体が起票対象となるケースがある。
+        # stop guard をそのまま適用するとデッドロックになるため bypass する。
+        skip_stop_guard: true
       )
     end
 
