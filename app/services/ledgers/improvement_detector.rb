@@ -158,7 +158,10 @@ module Ledgers
         status: :waiting_review,
         assignee: "improvement_detector",
         due_date: Date.current + IMPROVEMENT_DUE_DAYS.days,
-        due_cycle: :weekly
+        due_cycle: :weekly,
+        # Phase 44e: 自動検知の improvement チケットは事後に CopilotInputTemplate で
+        # template_id が付与されるため、作成時点では template guard を bypass する。
+        skip_template_guard: true
       )
     end
 

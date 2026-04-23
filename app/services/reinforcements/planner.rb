@@ -103,7 +103,10 @@ module Reinforcements
         assignee: "reinforcements_planner",
         due_date: Date.current + DEFAULT_DUE_DAYS.days,
         due_cycle: :weekly,
-        risk_level: :low
+        risk_level: :low,
+        # Phase 44e: Planner による improvement ticket は事後に CopilotInputTemplate で
+        # template_id が付与されるため、作成時点では template guard を bypass する。
+        skip_template_guard: true
       )
     end
 

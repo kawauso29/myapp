@@ -78,7 +78,9 @@ module Feedback
         assignee: "feedback_intake",
         due_date: Date.current + 3.days,
         due_cycle: :weekly,
-        risk_level: :high
+        risk_level: :high,
+        # Phase 44e: 自動エスカレーションの investigation は template 不要（Copilot 入力ではない）
+        skip_template_guard: true
       )
       feedback.update!(linked_ticket: ticket)
       ticket
