@@ -25,19 +25,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Ensure yq is available
-        run: |
-          if ! command -v yq &> /dev/null; then
-            mkdir -p "$HOME/bin"
-            curl -sL -o "$HOME/bin/yq" https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-            chmod +x "$HOME/bin/yq"
-          fi
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-
       - name: WIP 上限チェック
         id: wip_check
         run: |
-          WIP_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: in_progress" 2>/dev/null || true)
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          WIP_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_in_progress.count" 2>/dev/null || echo 0)
           WIP_COUNT=${WIP_COUNT:-0}
           WIP_LIMIT=2
           echo "wip_count=${WIP_COUNT}" >> "$GITHUB_OUTPUT"
@@ -53,26 +45,25 @@ jobs:
         id: select
         if: steps.wip_check.outputs.wip_exceeded == 'false'
         run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           INPUT_ID="${{ github.event.inputs.item_id }}"
 
-          select_todo() {
-            local priority="$1"
-            yq ".items | to_entries | map(select(.value.status == \"todo\" and .value.priority == \"${priority}\")) | .[0].key // \"\"" \
-              docs/ai_sns_plan_status.yml
-          }
-
           if [ -n "$INPUT_ID" ] && [ "$INPUT_ID" != "" ]; then
-            ITEM_ID="$INPUT_ID"
+            ITEM_JSON=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+              require 'json'
+              d = DevInitiative.find_by(item_key: '${INPUT_ID}')
+              print d ? d.to_json : '{}'
+            " 2>/dev/null || echo "{}")
           else
-            # 高→中→低の優先度順で次の todo を探す
-            ITEM_ID=$(select_todo "high")
-            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-              ITEM_ID=$(select_todo "medium")
-            fi
-            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-              ITEM_ID=$(select_todo "low")
-            fi
+            ITEM_JSON=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+              require 'json'
+              d = DevInitiative.next_todo.first
+              print d ? d.to_json : '{}'
+            " 2>/dev/null || echo "{}")
           fi
+
+          ITEM_ID=$(echo "$ITEM_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('item_key',''))" 2>/dev/null || echo "")
+          STATUS=$(echo "$ITEM_JSON"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
 
           if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -80,7 +71,6 @@ jobs:
             exit 0
           fi
 
-          STATUS=$(yq ".items.${ITEM_ID}.status" docs/ai_sns_plan_status.yml)
           if [ "$STATUS" = "done" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "[${ITEM_ID}] は実装済みです。スキップします。"
@@ -92,11 +82,11 @@ jobs:
             exit 0
           fi
 
-          TITLE=$(yq ".items.${ITEM_ID}.title" docs/ai_sns_plan_status.yml)
-          CATEGORY=$(yq ".items.${ITEM_ID}.category" docs/ai_sns_plan_status.yml)
-          PRIORITY=$(yq ".items.${ITEM_ID}.priority" docs/ai_sns_plan_status.yml)
-          NOTES=$(yq ".items.${ITEM_ID}.notes" docs/ai_sns_plan_status.yml)
-          KPI_HYPOTHESIS=$(yq ".items.${ITEM_ID}.kpi_hypothesis // \"\"" docs/ai_sns_plan_status.yml)
+          TITLE=$(echo "$ITEM_JSON"         | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('title',''))" 2>/dev/null || echo "")
+          CATEGORY=$(echo "$ITEM_JSON"      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('category',''))" 2>/dev/null || echo "")
+          PRIORITY=$(echo "$ITEM_JSON"      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('priority',''))" 2>/dev/null || echo "")
+          NOTES=$(echo "$ITEM_JSON"         | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('notes',''))" 2>/dev/null || echo "")
+          KPI_HYPOTHESIS=$(echo "$ITEM_JSON"| python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('kpi_hypothesis',''))" 2>/dev/null || echo "")
 
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
           echo "item_title=${TITLE}" >> "$GITHUB_OUTPUT"
@@ -108,18 +98,15 @@ jobs:
 
           echo "選択された項目: [${ITEM_ID}] ${TITLE}"
 
-      - name: ステータスを in_progress に更新してコミット
+      - name: ステータスを in_progress に更新（DB）
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           ITEM_ID="${{ steps.select.outputs.item_id }}"
-          yq -i ".items.${ITEM_ID}.status = \"in_progress\"" docs/ai_sns_plan_status.yml
-          yq -i "del(.items.${ITEM_ID}.completed_at)" docs/ai_sns_plan_status.yml
-
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git add docs/ai_sns_plan_status.yml
-          git diff --staged --quiet || git commit -m "plan: [${ITEM_ID}] ステータスを in_progress に更新"
-          git push origin HEAD
+          cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            d = DevInitiative.find_by!(item_key: '${ITEM_ID}')
+            d.update!(status: :in_progress, started_at: Time.current, completed_at: nil)
+          "
 
       - name: 実装用ブランチを作成して push
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
@@ -135,11 +122,8 @@ jobs:
           fi
 
           git checkout -b "$BRANCH"
-          # 空コミット(--allow-empty)ではなく、started_atタイムスタンプを追加して
-          # ブランチがmainと実ファイル差分を持つようにする（空PRマージ防止）
-          yq -i ".items.${ITEM_ID}.started_at = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" docs/ai_sns_plan_status.yml
-          git add docs/ai_sns_plan_status.yml
-          git commit -m "chore: [${ITEM_ID}] 実装PR開始"
+          # 空コミット: Copilot が実装変更を追加するまで auto_merge の空PRガードで保護される
+          git commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
           git push origin "$BRANCH"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
@@ -190,10 +174,9 @@ jobs:
               kpiHypothesis ? `### KPI 仮説（Do 後に Check する指標）\n${kpiHypothesis}\n` : '',
               '### 参考ドキュメント',
               '- `docs/ai_sns_improvement_plan.md` — 全体計画書',
-              '- `docs/ai_sns_plan_status.yml` — 進捗管理ファイル',
               '',
               '### 実装完了後の手順',
-              `実装が完了したら \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してこのPRに含めてください。`
+              `実装が完了したら \`DevInitiative.find_by(item_key: "${itemId}").update!(status: :done)\` をこのPRに含めてください（admin/dev_initiatives からも操作可能）。`
             ].join('\n')
 
             const { data: pr } = await github.rest.pulls.create({
@@ -211,6 +194,16 @@ jobs:
             core.setOutput('pr_url', pr.html_url)
             core.setOutput('pr_existed', 'false')
 
+      - name: pr_branch を DB に記録
+        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          ITEM_ID="${{ steps.select.outputs.item_id }}"
+          BRANCH="${{ steps.create_branch.outputs.branch }}"
+          cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            DevInitiative.find_by(item_key: '${ITEM_ID}')&.update!(pr_branch: '${BRANCH}')
+          "
+
       - name: Copilot に実装を依頼（PRコメント）
         # DEPLOY_TOKEN は fine-grained PAT で Issues: Read and Write スコープが必要
         # GITHUB_TOKEN では Copilot coding agent の Webhook がトリガーされないため PAT を使う
@@ -226,7 +219,10 @@ jobs:
             const comment = [
               `@copilot \`docs/ai_sns_improvement_plan.md\` の計画書を参照し、既存コードとの整合性を保ちながら **[${itemId}] ${title}** を実装してください。`,
               '',
-              `実装後は \`docs/ai_sns_plan_status.yml\` の \`${itemId}.status\` を \`done\` に更新してください。`,
+              `実装完了後は Admin 画面（/admin/dev_initiatives）または以下のコマンドでステータスを done に更新してください:`,
+              '```ruby',
+              `DevInitiative.find_by(item_key: "${itemId}").update!(status: :done, completed_at: Time.current)`,
+              '```',
               '',
               '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n')

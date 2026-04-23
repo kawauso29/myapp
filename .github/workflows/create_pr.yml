@@ -63,7 +63,7 @@ jobs:
               '<!-- 環境変数/マイグレーション/先行リリース等の注意点。なければ「なし」 -->',
               '',
               '## Ledger影響（台帳/Runner/定期実行）',
-              '<!-- ticket_ledgers / kpi_ledgers / recurring ジョブ / docs/ai_sns_plan_status.yml 等への影響。なければ「なし」 -->',
+              '<!-- ticket_ledgers / kpi_ledgers / recurring ジョブ / dev_initiatives (DB) 等への影響。なければ「なし」 -->',
               '',
               '## リスク & ロールバック',
               '- リスク: <!-- 想定リスク -->',

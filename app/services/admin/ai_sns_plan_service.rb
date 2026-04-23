@@ -1,46 +1,42 @@
 module Admin
   class AiSnsPlanService
-    PLAN_FILE = Rails.root.join("docs/ai_sns_plan_status.yml")
-    PRIORITY_ORDER = { "high" => 0, "medium" => 1, "low" => 2 }.freeze
     STATUS_ICONS = { "todo" => "⬜", "in_progress" => "🔄", "done" => "✅" }.freeze
 
-    def self.load
-      YAML.safe_load_file(PLAN_FILE)
-    end
-
-    def self.save(plan)
-      File.write(PLAN_FILE, plan.to_yaml)
-    rescue => e
-      Rails.logger.error "AiSnsPlanService: ファイル保存失敗 #{e.message}"
-      raise
-    end
-
-    def self.items
-      load["items"]
-    end
-
     def self.stats
-      all = items
       {
-        total:       all.count,
-        done:        all.count { |_, v| v["status"] == "done" },
-        in_progress: all.count { |_, v| v["status"] == "in_progress" },
-        todo:        all.count { |_, v| v["status"] == "todo" }
+        total:       DevInitiative.count,
+        done:        DevInitiative.status_done.count,
+        in_progress: DevInitiative.status_in_progress.count,
+        todo:        DevInitiative.status_todo.count
       }
     end
 
     def self.next_item
-      todo = items.select { |_, v| v["status"] == "todo" }
-      return nil if todo.empty?
+      d = DevInitiative.next_todo.first
+      return nil unless d
 
-      id, item = todo.min_by { |k, v| [PRIORITY_ORDER[v["priority"]] || 99, k] }
-      item.merge("id" => id)
+      {
+        "id"       => d.item_key,
+        "title"    => d.title,
+        "category" => d.category,
+        "priority" => d.priority,
+        "notes"    => d.notes
+      }
     end
 
     def self.items_by_priority
-      all = items
       %w[high medium low].each_with_object({}) do |priority, result|
-        result[priority] = all.select { |_, v| v["priority"] == priority }
+        result[priority] = DevInitiative.where(priority: priority).ordered.map { |d|
+          [d.item_key, {
+            "title"    => d.title,
+            "category" => d.category,
+            "status"   => d.status,
+            "priority" => d.priority,
+            "notes"    => d.notes,
+            "pr_branch"    => d.pr_branch,
+            "completed_at" => d.completed_at&.to_date&.to_s
+          }]
+        }.to_h
       end
     end
   end

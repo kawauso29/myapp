@@ -28,11 +28,12 @@ jobs:
       - name: 計画状況を分析
         id: analyze
         run: |
-          TODO_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: todo" 2>/dev/null || true)
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_todo.count" 2>/dev/null || echo 0)
           TODO_COUNT=${TODO_COUNT:-0}
-          IN_PROGRESS=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: in_progress" 2>/dev/null || true)
+          IN_PROGRESS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_in_progress.count" 2>/dev/null || echo 0)
           IN_PROGRESS=${IN_PROGRESS:-0}
-          DONE_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: done" 2>/dev/null || true)
+          DONE_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_done.count" 2>/dev/null || echo 0)
           DONE_COUNT=${DONE_COUNT:-0}
           TOTAL=$((TODO_COUNT + IN_PROGRESS + DONE_COUNT))
 
@@ -71,33 +72,19 @@ jobs:
         if: steps.analyze.outputs.needs_review == 'true'
         id: done_summary
         run: |
-          # 完了施策のID・タイトル・KPI仮説を抽出
-          SUMMARY=$(python3 -c "
-          import yaml, json
-
-          with open('docs/ai_sns_plan_status.yml') as f:
-              data = yaml.safe_load(f)
-
-          done_items = []
-          todo_items = []
-          for item_id, item in data.get('items', {}).items():
-              if item.get('status') == 'done':
-                  done_items.append({
-                      'id': item_id,
-                      'title': item.get('title', ''),
-                      'category': item.get('category', ''),
-                      'kpi_hypothesis': item.get('kpi_hypothesis', ''),
-                      'kpi_result': item.get('kpi_result', '')
-                  })
-              elif item.get('status') == 'todo':
-                  todo_items.append({
-                      'id': item_id,
-                      'title': item.get('title', ''),
-                      'category': item.get('category', '')
-                  })
-
-          print(json.dumps({'done': done_items, 'todo': todo_items}, ensure_ascii=False))
-          ")
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          # 完了施策・todo施策のID・タイトル・KPI仮説を DB から抽出
+          SUMMARY=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            require 'json'
+            done_items = DevInitiative.status_done.ordered.map { |d|
+              { id: d.item_key, title: d.title, category: d.category,
+                kpi_hypothesis: d.kpi_hypothesis, kpi_result: d.kpi_result }
+            }
+            todo_items = DevInitiative.status_todo.ordered.map { |d|
+              { id: d.item_key, title: d.title, category: d.category }
+            }
+            print({ done: done_items, todo: todo_items }.to_json)
+          " 2>/dev/null || echo '{"done":[],"todo":[]}')
           echo "summary<<SUMMARYDELIM" >> "$GITHUB_OUTPUT"
           echo "$SUMMARY" >> "$GITHUB_OUTPUT"
           echo "SUMMARYDELIM" >> "$GITHUB_OUTPUT"
@@ -204,7 +191,7 @@ jobs:
               '   - マネタイズ',
               '   - 技術的改善',
               '4. 各施策に `priority` (high/medium/low)、`kpi_hypothesis`、`notes` を設定する',
-              '5. `docs/ai_sns_plan_status.yml` に新しい項目を追記する（既存のIDと重複しない新IDを使う）',
+              '5. `dev_initiatives` テーブル（DB）に新しい項目を Rails runner で追加する（既存のIDと重複しない新IDを使う）',
               '6. `docs/ai_sns_improvement_plan.md` にも対応する詳細説明を追記する',
               '',
               '**注意**: 既存の todo/in_progress 項目は変更しないでください。新規追加のみ行ってください。',
@@ -236,7 +223,7 @@ jobs:
             const comment = [
               '@copilot このIssueの依頼内容に従って、次期 AI SNS 改善計画を作成してください。',
               '',
-              '`docs/ai_sns_plan_status.yml` と `docs/ai_sns_improvement_plan.md` を更新し、',
+              '`dev_initiatives` テーブル（DB）に新しい改善施策を追加するPRを作成してください。',
               '新しい改善施策を追加するPRを作成してください。',
               '',
               '<!-- copilot:model claude-opus-4.6 -->'
