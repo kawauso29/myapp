@@ -93,8 +93,10 @@ module Ledgers
           kpi_hypothesis: kpi_hypothesis,
           improvement_pattern_key: category.presence
         }
-        # notes は呼び出し側で明示指定された場合のみ上書き（後続の mirror 経由で別値が
-        # 来る可能性があるため、nil は無視して既存値を保持する）。
+        # notes は呼び出し側で明示指定された場合のみ上書きする。同じ item_key で
+        # `create_plan_item!` を再呼出（notes:nil）した際に既存 notes を消さないため。
+        # DevInitiative → TicketLedger ミラー側（`update_ticket!`）は別経路で通り、
+        # `mapped_attributes[:notes]` で常に DevInitiative 側の最新値が反映される。
         attrs[:notes] = notes if notes.present?
         ticket.assign_attributes(attrs)
         ticket.skip_template_guard = true
