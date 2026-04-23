@@ -4,6 +4,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
   describe ".call" do
     before do
       allow(GithubIssueService).to receive(:create_comment).and_return({ "id" => 1 })
+      allow(GithubIssueService).to receive(:add_assignees).and_return({ "assignees" => [ { "login" => "copilot" } ] })
     end
 
     it "calls LedgerSyncService for approved / planned tickets without github_issue_number" do
@@ -33,6 +34,10 @@ RSpec.describe Reinforcements::TicketIssueSync do
       result = described_class.call
 
       expect(result[:copilot_triggered]).to eq(1)
+      expect(GithubIssueService).to have_received(:add_assignees).with(
+        issue_number: 999,
+        assignees: [ "copilot" ]
+      )
       expect(GithubIssueService).to have_received(:create_comment).with(
         issue_number: 999,
         body: include("@copilot")
@@ -58,6 +63,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
 
       expect(result[:copilot_triggered]).to eq(0)
       expect(GithubIssueService).not_to have_received(:create_comment)
+      expect(GithubIssueService).not_to have_received(:add_assignees)
     end
 
     it "does NOT post @copilot comment for annual_plan tickets" do
@@ -69,6 +75,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
 
       expect(result[:copilot_triggered]).to eq(0)
       expect(GithubIssueService).not_to have_received(:create_comment)
+      expect(GithubIssueService).not_to have_received(:add_assignees)
     end
 
     it "does NOT post @copilot comment for operations default placeholder tickets" do
@@ -80,6 +87,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
 
       expect(result[:copilot_triggered]).to eq(0)
       expect(GithubIssueService).not_to have_received(:create_comment)
+      expect(GithubIssueService).not_to have_received(:add_assignees)
     end
 
     it "includes ticket_ledger id in @copilot comment branch hint" do
