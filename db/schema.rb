@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_23_022616) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -944,11 +944,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_022616) do
     t.datetime "github_synced_at"
     t.string "idempotency_key"
     t.string "improvement_pattern_key"
+    t.text "kpi_hypothesis"
+    t.text "kpi_result"
     t.jsonb "linked_artifacts", default: [], null: false
     t.jsonb "linked_kpis", default: [], null: false
     t.integer "operating_lane"
     t.string "owner_agent"
     t.string "owner_dept"
+    t.string "pr_branch"
     t.integer "priority", default: 1, null: false
     t.datetime "resolved_at"
     t.integer "risk_level", default: 0
@@ -967,6 +970,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_022616) do
     t.index ["idempotency_key"], name: "index_ticket_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["improvement_pattern_key"], name: "index_ticket_ledgers_on_improvement_pattern_key"
     t.index ["operating_lane", "status"], name: "idx_ticket_operating_lane_status"
+    t.index ["pr_branch"], name: "index_ticket_ledgers_on_pr_branch", where: "(pr_branch IS NOT NULL)"
     t.index ["service_id"], name: "index_ticket_ledgers_on_service_id"
     t.index ["sla_breached_at"], name: "index_ticket_ledgers_on_sla_breached_at"
     t.index ["sla_deadline"], name: "index_ticket_ledgers_on_sla_deadline"
