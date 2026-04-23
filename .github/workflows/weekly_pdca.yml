@@ -2,7 +2,7 @@ name: 日次 PDCA ループ
 
 # Plan→Do→Check→Act を3時間ごとに回す
 #
-# P (Plan)   : ai_sns_plan_status.yml の優先度順に次の施策を決定
+# P (Plan)   : dev_initiatives テーブル（DB）の優先度順に次の施策を決定
 # D (Do)     : ai_sns_plan.yml を dispatch して Copilot に実装依頼
 # C (Check)  : KPI を収集して Slack にレポート
 # A (Act)    : WIP 上限チェックで並行実装数を制御（上限=2）
@@ -56,9 +56,10 @@ jobs:
       - name: WIP チェック
         id: wip
         run: |
-          WIP_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: in_progress" 2>/dev/null || true)
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          WIP_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_in_progress.count" 2>/dev/null || echo 0)
           WIP_COUNT=${WIP_COUNT:-0}
-          TODO_COUNT=$(grep -v "^#" docs/ai_sns_plan_status.yml | grep -c "status: todo" 2>/dev/null || true)
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print DevInitiative.status_todo.count" 2>/dev/null || echo 0)
           TODO_COUNT=${TODO_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"
@@ -90,77 +91,26 @@ jobs:
       - name: 滞留 in_progress 検知 & 自動リセット
         id: stale_check
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
         run: |
-          STALE_ITEMS=$(python3 -c "
-          import yaml, json
-          from datetime import datetime, timezone, timedelta
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          STALE_ITEMS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            stale = DevInitiative.status_in_progress.where('started_at < ?', 7.days.ago)
+            require 'json'
+            print stale.map { |d| { id: d.item_key, title: d.title, started_at: d.started_at.iso8601, age_days: ((Time.current - d.started_at) / 86400).to_i } }.to_json
+          " 2>/dev/null || echo "[]")
+          STALE_ITEMS=${STALE_ITEMS:-[]}
 
-          with open('docs/ai_sns_plan_status.yml') as f:
-              data = yaml.safe_load(f)
-
-          stale = []
-          now = datetime.now(timezone.utc)
-          stale_threshold = timedelta(days=7)
-
-          for item_id, item in data.get('items', {}).items():
-              if item.get('status') != 'in_progress':
-                  continue
-              started = item.get('started_at', '')
-              if not started:
-                  continue
-              try:
-                  started_dt = datetime.fromisoformat(started.replace('Z', '+00:00'))
-                  age = now - started_dt
-                  if age > stale_threshold:
-                      stale.append({
-                          'id': item_id,
-                          'title': item.get('title', ''),
-                          'started_at': started,
-                          'age_days': age.days
-                      })
-              except Exception:
-                  pass
-
-          print(json.dumps(stale, ensure_ascii=False))
-          ")
-
-          STALE_COUNT=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+          STALE_COUNT=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
           echo "stale_count=${STALE_COUNT}" >> "$GITHUB_OUTPUT"
 
           if [ "$STALE_COUNT" -gt 0 ]; then
             echo "⚠️ ${STALE_COUNT} 件の滞留項目を検出。todo にリセットします"
 
-            # plan_status.yml を更新（started_at を削除して status を todo に戻す）
-            python3 -c "
-          import yaml, json, sys
-          from datetime import datetime, timezone, timedelta
-
-          stale_items = json.loads('''$STALE_ITEMS''')
-          stale_ids = {item['id'] for item in stale_items}
-
-          with open('docs/ai_sns_plan_status.yml') as f:
-              data = yaml.safe_load(f)
-
-          for item_id in stale_ids:
-              if item_id in data.get('items', {}):
-                  data['items'][item_id]['status'] = 'todo'
-                  data['items'][item_id].pop('started_at', None)
-
-          with open('docs/ai_sns_plan_status.yml', 'w') as f:
-              yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
-          "
-
-            # 変更をコミット・プッシュ
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            git add docs/ai_sns_plan_status.yml
-            if ! git diff --staged --quiet; then
-              RESET_IDS=$(echo "$STALE_ITEMS" | python3 -c "import json,sys; items=json.load(sys.stdin); print(', '.join(i['id'] for i in items))")
-              git commit -m "plan: 滞留項目をリセット [${RESET_IDS}]（7日超過）"
-              git push origin HEAD
-            fi
+            cd ~/myapp && RAILS_ENV=production bin/rails runner "
+              DevInitiative.status_in_progress.where('started_at < ?', 7.days.ago)
+                .update_all(status: DevInitiative.statuses[:todo], started_at: nil)
+            " 2>/dev/null
 
             # Slack 通知（エラーカテゴリ）
             if [ -n "$SLACK_WEBHOOK" ]; then

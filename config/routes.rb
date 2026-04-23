@@ -43,6 +43,12 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :dev_initiatives, only: [ :index, :update ] do
+      member do
+        patch :update_status
+      end
+    end
+
     resources :users, only: [ :index ]
     namespace :ops do
       # Ledger sub-pages (defined before resources to prevent route conflicts)

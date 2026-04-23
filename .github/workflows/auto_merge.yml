@@ -240,6 +240,7 @@ jobs:
             // マージ（最大3回試行、失敗後バックオフ: 1回目失敗→5s待機→2回目失敗→10s待機→3回目）
             core.info(`CI passed for PR #${pr.number}, merging...`);
             core.setOutput('pr_title', pr.title);
+            core.setOutput('pr_branch', pr.head.ref);
             let merged = false;
             const MAX_MERGE_ATTEMPTS = 3;
             for (let mergeAttempt = 1; mergeAttempt <= MAX_MERGE_ATTEMPTS; mergeAttempt++) {
@@ -312,97 +313,46 @@ jobs:
               }
             }
 
-      # ① 完了フィードバックループ: AI SNS計画のPRがマージされたら plan_status.yml を自動更新
+      # ① 完了フィードバックループ: AI SNS計画のPRがマージされたら DB を自動更新
       - name: Update AI SNS plan status to done
         if: ${{ steps.merge_pr.outputs.merged == 'true' }}
-        uses: actions/github-script@v9
         id: update_plan
-        with:
-          script: |
-            const prTitle = `${{ steps.merge_pr.outputs.pr_title }}`;
-            // PRタイトルから [AI SNS計画] [ITEM_ID] パターンを抽出
-            const match = prTitle.match(/\[AI SNS計画\]\s*\[(\w+)\]/);
-            if (!match) {
-              core.info(`PR title does not match AI SNS plan pattern: "${prTitle}"`);
-              return;
-            }
-            const itemId = match[1];
-            core.info(`Detected AI SNS plan item: ${itemId}`);
-            core.setOutput('item_id', itemId);
-
-            // main ブランチの plan_status.yml を取得して更新
-            const path = 'docs/ai_sns_plan_status.yml';
-            let content, sha;
-            try {
-              const { data } = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path,
-                ref: 'main'
-              });
-              content = Buffer.from(data.content, 'base64').toString('utf8');
-              sha = data.sha;
-            } catch (e) {
-              core.warning(`Failed to read ${path}: ${e.message}`);
-              return;
-            }
-
-            // status: in_progress → done に更新（該当アイテムブロック内）
-            const today = new Date().toISOString().split('T')[0];
-            const itemRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    status: )(?:in_progress|todo)`);
-            if (!itemRegex.test(content)) {
-              core.info(`Item ${itemId} not found or already done in plan_status.yml`);
-              return;
-            }
-            let updated = content.replace(itemRegex, `$1done`);
-
-            // completed_at がなければ追加、あれば更新
-            const completedAtRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    completed_at: .+)`);
-            if (completedAtRegex.test(updated)) {
-              updated = updated.replace(completedAtRegex, `$1    completed_at: "${today}"`);
-            } else {
-              // status 行の直後に completed_at を追加
-              updated = updated.replace(
-                new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    status: done\\n)`),
-                `$1    completed_at: "${today}"\n`
-              );
-            }
-
-            // pr_branch を記録（pr オブジェクトから直接取得）
-            const prBranch = pr?.head?.ref || '';
-            if (prBranch) {
-              const prBranchRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    pr_branch: .+)`);
-              if (prBranchRegex.test(updated)) {
-                updated = updated.replace(prBranchRegex, `$1    pr_branch: "${prBranch}"`);
-              } else {
-                updated = updated.replace(
-                  new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    completed_at: "[^"]*"\\n)`),
-                  `$1    pr_branch: "${prBranch}"\n`
-                );
-              }
-            }
-
-            if (updated === content) {
-              core.info(`No changes needed for item ${itemId}`);
-              return;
-            }
-
-            // コミット
-            try {
-              await github.rest.repos.createOrUpdateFileContents({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path,
-                message: `plan: [${itemId}] ステータスを done に自動更新`,
-                content: Buffer.from(updated).toString('base64'),
-                sha,
-                branch: 'main'
-              });
-              core.info(`Updated ${itemId} to done in plan_status.yml`);
-              core.setOutput('updated', 'true');
-            } catch (e) {
-              core.warning(`Failed to update plan_status.yml: ${e.message}`);
-            }
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          PR_TITLE="${{ steps.merge_pr.outputs.pr_title }}"
+          PR_BRANCH="${{ steps.merge_pr.outputs.pr_branch }}"
+          # PRタイトルから [AI SNS計画] [ITEM_ID] パターンを抽出
+          ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
+          import re, sys
+          m = re.search(r'\[AI SNS計画\]\s*\[(\w+)\]', sys.stdin.read())
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          if [ -z "$ITEM_ID" ]; then
+            echo "PR title does not match AI SNS plan pattern: ${PR_TITLE}"
+            exit 0
+          fi
+          echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
+          RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            d = DevInitiative.find_by(item_key: '${ITEM_ID}')
+            unless d
+              puts 'not_found'
+              exit
+            end
+            if d.status_done?
+              puts 'already_done'
+              exit
+            end
+            d.update!(status: :done, completed_at: Time.current, pr_branch: '${PR_BRANCH}'.presence || d.pr_branch)
+            puts 'updated'
+          " 2>/dev/null || echo "error")
+          echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
+          if [ "$RESULT" = "updated" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+            echo "✅ [${ITEM_ID}] DB ステータスを done に更新しました"
+          else
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "スキップ: result=${RESULT}"
+          fi
 
       - name: Notify Slack (plan item completed)
         if: ${{ steps.update_plan.outputs.updated == 'true' }}
@@ -427,7 +377,7 @@ jobs:
       # ② plan-review Issue の自動クローズ:
       # Copilot が plan-review Issue に対応して作成した PR（計画追加PR）がマージされたら、
       # 関連する open な plan-review Issue を自動クローズする。
-      # PRのbodyに "plan-review" が含まれるか、PRが plan_status.yml を変更している場合に対応。
+      # PRが docs/ai_sns_improvement_plan.md を変更している場合に対応。
       - name: Close resolved plan-review Issues
         if: ${{ steps.merge_pr.outputs.merged == 'true' }}
         uses: actions/github-script@v9
@@ -442,7 +392,7 @@ jobs:
             // 3. PR body に plan-review への参照がある
             let shouldClose = false;
 
-            // PRのファイルを確認 — plan_status.yml に新規 todo が追加されていれば計画追加PR
+            // PRのファイルを確認 — ai_sns_improvement_plan.md に変更があれば計画追加PR
             try {
               const { data: files } = await github.rest.pulls.listFiles({
                 owner: context.repo.owner,
@@ -451,7 +401,6 @@ jobs:
                 per_page: 100
               });
               const modifiedPlanFiles = files.some(f =>
-                f.filename === 'docs/ai_sns_plan_status.yml' ||
                 f.filename === 'docs/ai_sns_improvement_plan.md'
               );
               // 計画ファイルを変更していて、かつ AI SNS計画（実装PR）ではない場合
@@ -661,6 +610,7 @@ jobs:
             core.info(`CI already passed (run #${successRun.id}). Proceeding to merge PR #${pr.number}...`);
             core.setOutput('pr_number', String(pr.number));
             core.setOutput('pr_title', pr.title);
+            core.setOutput('pr_branch', pr.head?.ref || '');
 
             // マージ（最大3回試行）
             let merged = false;
@@ -716,91 +666,45 @@ jobs:
               }
             }
 
-      # ① 完了フィードバックループ: AI SNS計画のPRがマージされたら plan_status.yml を自動更新
+      # ① 完了フィードバックループ: AI SNS計画のPRがマージされたら DB を自動更新
       - name: Update AI SNS plan status to done (hold release)
         if: ${{ steps.merge_on_release.outputs.merged == 'true' }}
-        uses: actions/github-script@v9
         id: update_plan_hold
-        with:
-          script: |
-            const prTitle = `${{ steps.merge_on_release.outputs.pr_title }}`;
-            const match = prTitle.match(/\[AI SNS計画\]\s*\[(\w+)\]/);
-            if (!match) {
-              core.info(`PR title does not match AI SNS plan pattern: "${prTitle}"`);
-              return;
-            }
-            const itemId = match[1];
-            core.info(`Detected AI SNS plan item: ${itemId}`);
-            core.setOutput('item_id', itemId);
-
-            const path = 'docs/ai_sns_plan_status.yml';
-            let content, sha;
-            try {
-              const { data } = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path,
-                ref: 'main'
-              });
-              content = Buffer.from(data.content, 'base64').toString('utf8');
-              sha = data.sha;
-            } catch (e) {
-              core.warning(`Failed to read ${path}: ${e.message}`);
-              return;
-            }
-
-            const today = new Date().toISOString().split('T')[0];
-            const itemRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    status: )(?:in_progress|todo)`);
-            if (!itemRegex.test(content)) {
-              core.info(`Item ${itemId} not found or already done in plan_status.yml`);
-              return;
-            }
-            let updated = content.replace(itemRegex, `$1done`);
-
-            const completedAtRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    completed_at: .+)`);
-            if (completedAtRegex.test(updated)) {
-              updated = updated.replace(completedAtRegex, `$1    completed_at: "${today}"`);
-            } else {
-              updated = updated.replace(
-                new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    status: done\\n)`),
-                `$1    completed_at: "${today}"\n`
-              );
-            }
-
-            if (updated === content) {
-              core.info(`No changes needed for item ${itemId}`);
-              return;
-            }
-
-            // pr_branch を記録（pull_request_target イベントなので head.ref から取得）
-            const prBranch = '${{ github.event.pull_request.head.ref }}' || '';
-            if (prBranch) {
-              const prBranchRegex = new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?)(    pr_branch: .+)`);
-              if (prBranchRegex.test(updated)) {
-                updated = updated.replace(prBranchRegex, `$1    pr_branch: "${prBranch}"`);
-              } else {
-                updated = updated.replace(
-                  new RegExp(`(  ${itemId}:\\n(?:    .+\\n)*?    completed_at: "[^"]*"\\n)`),
-                  `$1    pr_branch: "${prBranch}"\n`
-                );
-              }
-            }
-
-            try {
-              await github.rest.repos.createOrUpdateFileContents({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path,
-                message: `plan: [${itemId}] ステータスを done に自動更新`,
-                content: Buffer.from(updated).toString('base64'),
-                sha,
-                branch: 'main'
-              });
-              core.info(`Updated ${itemId} to done in plan_status.yml`);
-              core.setOutput('updated', 'true');
-            } catch (e) {
-              core.warning(`Failed to update plan_status.yml: ${e.message}`);
-            }
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          PR_TITLE="${{ steps.merge_on_release.outputs.pr_title }}"
+          PR_BRANCH="${{ github.event.pull_request.head.ref }}"
+          ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
+          import re, sys
+          m = re.search(r'\[AI SNS計画\]\s*\[(\w+)\]', sys.stdin.read())
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          if [ -z "$ITEM_ID" ]; then
+            echo "PR title does not match AI SNS plan pattern: ${PR_TITLE}"
+            exit 0
+          fi
+          echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
+          RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            d = DevInitiative.find_by(item_key: '${ITEM_ID}')
+            unless d
+              puts 'not_found'
+              exit
+            end
+            if d.status_done?
+              puts 'already_done'
+              exit
+            end
+            d.update!(status: :done, completed_at: Time.current, pr_branch: '${PR_BRANCH}'.presence || d.pr_branch)
+            puts 'updated'
+          " 2>/dev/null || echo "error")
+          echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
+          if [ "$RESULT" = "updated" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+            echo "✅ [${ITEM_ID}] DB ステータスを done に更新しました"
+          else
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "スキップ: result=${RESULT}"
+          fi
 
       - name: Notify Slack (plan item completed - hold release)
         if: ${{ steps.update_plan_hold.outputs.updated == 'true' }}
