@@ -170,6 +170,24 @@ class TicketLedger < ApplicationRecord
   after_create :warn_if_lane_over_capacity, if: :warn_lane_capacity_applies?
   after_create :warn_if_pr_guardrail_missing, if: :warn_pr_guardrail_applies?
 
+  # PR2（並走）: AI SNS 計画項目（旧 DevInitiative）を TicketLedger 上で集約するためのスコープ。
+  # idempotency_key は `Ledgers::AiSnsPlanSync.idempotency_key_for(item_key)` で
+  # "ai_sns_plan:#{item_key}" として固定されているため、prefix で抽出可能。
+  AI_SNS_PLAN_KEY_PREFIX = "ai_sns_plan:".freeze
+  scope :ai_sns_plan, -> { where("idempotency_key LIKE ?", "#{AI_SNS_PLAN_KEY_PREFIX}%") }
+
+  # AI SNS 計画項目の item_key（B2 等の短ID）を idempotency_key から抽出する。
+  def ai_sns_plan_item_key
+    return nil unless idempotency_key&.start_with?(AI_SNS_PLAN_KEY_PREFIX)
+
+    idempotency_key.delete_prefix(AI_SNS_PLAN_KEY_PREFIX)
+  end
+
+  # AI SNS 計画項目を item_key で検索する。
+  def self.find_ai_sns_plan_by_item_key(item_key)
+    find_by(idempotency_key: "#{AI_SNS_PLAN_KEY_PREFIX}#{item_key}")
+  end
+
   scope :overdue_candidates, -> { where(status: :waiting_review).where("due_date < ?", Date.current) }
   scope :sla_breached, -> { where.not(sla_breached_at: nil) }
   scope :sla_approaching, ->(within: 1.day) {

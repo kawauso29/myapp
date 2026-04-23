@@ -33,7 +33,13 @@
   <div style="background:#742a2a;color:#fed7d7;padding:8px 12px;border-radius:4px;margin-bottom:12px;"><%= alert %></div>
 <% end %>
 
-<%# ===== 施策一覧 ===== %>
+<%# ===== 施策一覧（PR2: 正本は TicketLedger.ai_sns_plan） ===== %>
+<%
+  # TicketLedger の status enum 値 → 表示用ラベル / クラス
+  ledger_status_label = { "draft" => "todo", "executing" => "in_progress", "completed" => "done" }
+  ledger_status_color = { "draft" => "#718096", "executing" => "#4299e1", "completed" => "#48bb78" }
+  ledger_priority_label = { "high" => "★★★", "medium" => "★★☆", "low" => "★☆☆" }
+%>
 <div class="card">
   <h2>施策一覧（WIP上限: 2）</h2>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -44,59 +50,62 @@
         <th style="padding:6px 8px;">カテゴリ</th>
         <th style="padding:6px 8px;">優先度</th>
         <th style="padding:6px 8px;">ステータス</th>
-        <th style="padding:6px 8px;">開始日</th>
+        <th style="padding:6px 8px;">最終更新</th>
         <th style="padding:6px 8px;">完了日</th>
         <th style="padding:6px 8px;">操作</th>
       </tr>
     </thead>
     <tbody>
-      <% @initiatives.each do |d| %>
-        <% status_color = { "todo" => "#718096", "in_progress" => "#4299e1", "done" => "#48bb78" }[d.status] || "#718096" %>
-        <% priority_label = { "high" => "★★★", "medium" => "★★☆", "low" => "★☆☆" }[d.priority] || d.priority %>
+      <% @tickets.each do |t| %>
+        <% item_key = t.ai_sns_plan_item_key %>
+        <% disp_status = ledger_status_label[t.status] || t.status %>
+        <% status_color = ledger_status_color[t.status] || "#718096" %>
+        <% priority_label = ledger_priority_label[t.priority] || t.priority %>
         <tr style="border-bottom:1px solid #2d3748;">
-          <td style="padding:6px 8px;font-weight:bold;color:#90cdf4;"><%= d.item_key %></td>
+          <td style="padding:6px 8px;font-weight:bold;color:#90cdf4;"><%= item_key %></td>
           <td style="padding:6px 8px;max-width:280px;">
-            <%= d.title %>
-            <% if d.pr_branch.present? %>
-              <br><small style="color:#718096;"><%= d.pr_branch %></small>
+            <%= t.title %>
+            <% if t.pr_branch.present? %>
+              <br><small style="color:#718096;"><%= t.pr_branch %></small>
             <% end %>
           </td>
-          <td style="padding:6px 8px;color:#a0aec0;"><%= d.category %></td>
+          <td style="padding:6px 8px;color:#a0aec0;"><%= t.improvement_pattern_key %></td>
           <td style="padding:6px 8px;"><%= priority_label %></td>
           <td style="padding:6px 8px;">
-            <span style="color:<%= status_color %>;font-weight:bold;"><%= d.status %></span>
+            <span style="color:<%= status_color %>;font-weight:bold;"><%= disp_status %></span>
           </td>
           <td style="padding:6px 8px;color:#a0aec0;font-size:11px;">
-            <%= d.started_at&.in_time_zone("Tokyo")&.strftime("%m/%d") || "-" %>
+            <%= t.updated_at&.in_time_zone("Tokyo")&.strftime("%m/%d") || "-" %>
           </td>
           <td style="padding:6px 8px;color:#a0aec0;font-size:11px;">
-            <%= d.completed_at&.in_time_zone("Tokyo")&.strftime("%m/%d") || "-" %>
+            <%= (t.status_completed? ? t.updated_at&.in_time_zone("Tokyo")&.strftime("%m/%d") : nil) || "-" %>
           </td>
           <td style="padding:6px 8px;">
             <div style="display:flex;gap:4px;flex-wrap:wrap;">
-              <% unless d.status_todo? %>
-                <%= button_to "todo", update_status_admin_dev_initiative_path(d), params: { status: "todo" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#4a5568;color:#e2e8f0;border:none;border-radius:3px;cursor:pointer;" %>
+              <% unless t.status_draft? %>
+                <%= button_to "todo", update_status_admin_dev_initiative_path(item_key), params: { status: "todo" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#4a5568;color:#e2e8f0;border:none;border-radius:3px;cursor:pointer;" %>
               <% end %>
-              <% unless d.status_in_progress? %>
-                <%= button_to "WIP▶", update_status_admin_dev_initiative_path(d), params: { status: "in_progress" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#2b6cb0;color:#bee3f8;border:none;border-radius:3px;cursor:pointer;" %>
+              <% unless t.status_executing? %>
+                <%= button_to "WIP▶", update_status_admin_dev_initiative_path(item_key), params: { status: "in_progress" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#2b6cb0;color:#bee3f8;border:none;border-radius:3px;cursor:pointer;" %>
               <% end %>
-              <% unless d.status_done? %>
-                <%= button_to "done✓", update_status_admin_dev_initiative_path(d), params: { status: "done" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#276749;color:#c6f6d5;border:none;border-radius:3px;cursor:pointer;" %>
+              <% unless t.status_completed? %>
+                <%= button_to "done✓", update_status_admin_dev_initiative_path(item_key), params: { status: "done" }, method: :patch, style: "font-size:11px;padding:2px 6px;background:#276749;color:#c6f6d5;border:none;border-radius:3px;cursor:pointer;" %>
               <% end %>
             </div>
           </td>
         </tr>
-        <% if d.kpi_hypothesis.present? || d.notes.present? %>
+        <% legacy_notes = Admin::AiSnsPlanService.legacy_notes_for(item_key) %>
+        <% if t.kpi_hypothesis.present? || t.kpi_result.present? || legacy_notes.present? %>
           <tr style="border-bottom:1px solid #1a202c;">
             <td colspan="8" style="padding:4px 8px 8px 28px;color:#718096;font-size:11px;">
-              <% if d.kpi_hypothesis.present? %>
-                <span style="color:#f6ad55;">KPI仮説:</span> <%= d.kpi_hypothesis %>&nbsp;&nbsp;
+              <% if t.kpi_hypothesis.present? %>
+                <span style="color:#f6ad55;">KPI仮説:</span> <%= t.kpi_hypothesis %>&nbsp;&nbsp;
               <% end %>
-              <% if d.kpi_result.present? %>
-                <span style="color:#68d391;">KPI結果:</span> <%= d.kpi_result %>&nbsp;&nbsp;
+              <% if t.kpi_result.present? %>
+                <span style="color:#68d391;">KPI結果:</span> <%= t.kpi_result %>&nbsp;&nbsp;
               <% end %>
-              <% if d.notes.present? %>
-                <span style="color:#90cdf4;">備考:</span> <%= d.notes %>
+              <% if legacy_notes.present? %>
+                <span style="color:#90cdf4;">備考:</span> <%= legacy_notes %>
               <% end %>
             </td>
           </tr>

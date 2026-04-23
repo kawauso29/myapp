@@ -333,16 +333,20 @@ jobs:
           fi
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
           RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
-            d = DevInitiative.find_by(item_key: '${ITEM_ID}')
-            unless d
+            t = TicketLedger.find_ai_sns_plan_by_item_key('${ITEM_ID}')
+            unless t
               puts 'not_found'
               exit
             end
-            if d.status_done?
+            if t.status_completed?
               puts 'already_done'
               exit
             end
-            d.update!(status: :done, completed_at: Time.current, pr_branch: '${PR_BRANCH}'.presence || d.pr_branch)
+            t.skip_template_guard = true
+            t.skip_lane_capacity_guard = true
+            t.skip_pr_guardrail = true
+            t.skip_stop_guard = true
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
             puts 'updated'
           " 2>/dev/null || echo "error")
           echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
@@ -685,16 +689,20 @@ jobs:
           fi
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
           RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
-            d = DevInitiative.find_by(item_key: '${ITEM_ID}')
-            unless d
+            t = TicketLedger.find_ai_sns_plan_by_item_key('${ITEM_ID}')
+            unless t
               puts 'not_found'
               exit
             end
-            if d.status_done?
+            if t.status_completed?
               puts 'already_done'
               exit
             end
-            d.update!(status: :done, completed_at: Time.current, pr_branch: '${PR_BRANCH}'.presence || d.pr_branch)
+            t.skip_template_guard = true
+            t.skip_lane_capacity_guard = true
+            t.skip_pr_guardrail = true
+            t.skip_stop_guard = true
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
             puts 'updated'
           " 2>/dev/null || echo "error")
           echo "result=${RESULT}" >> "$GITHUB_OUTPUT"

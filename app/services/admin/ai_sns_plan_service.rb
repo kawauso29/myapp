@@ -1,43 +1,76 @@
 module Admin
+  # PR2: AI SNS 計画項目の参照先を `TicketLedger` に切替えたバージョン。
+  # 旧 `DevInitiative` テーブルは read-only 化（`Ledgers::AiSnsPlanSync` の after_save mirror で
+  # TicketLedger に複写される）。本サービスは TicketLedger の `ai_sns_plan` スコープを正本として読む。
+  #
+  # ステータス対応（DevInitiative → TicketLedger）:
+  #   todo        → draft
+  #   in_progress → executing
+  #   done        → completed
   class AiSnsPlanService
     STATUS_ICONS = { "todo" => "⬜", "in_progress" => "🔄", "done" => "✅" }.freeze
 
+    # TicketLedger の status enum 値 → 旧 DevInitiative の status 文字列にマッピングする。
+    LEDGER_TO_LEGACY_STATUS = {
+      "draft" => "todo",
+      "executing" => "in_progress",
+      "completed" => "done"
+    }.freeze
+
     def self.stats
+      relation = TicketLedger.ai_sns_plan
+      counts = relation.group(:status).count
       {
-        total:       DevInitiative.count,
-        done:        DevInitiative.status_done.count,
-        in_progress: DevInitiative.status_in_progress.count,
-        todo:        DevInitiative.status_todo.count
+        total:       relation.count,
+        done:        counts["completed"] || 0,
+        in_progress: counts["executing"] || 0,
+        todo:        counts["draft"] || 0
       }
     end
 
     def self.next_item
-      d = DevInitiative.next_todo.first
-      return nil unless d
+      t = TicketLedger.ai_sns_plan.status_draft.order(priority: :desc, idempotency_key: :asc).first
+      return nil unless t
 
       {
-        "id"       => d.item_key,
-        "title"    => d.title,
-        "category" => d.category,
-        "priority" => d.priority,
-        "notes"    => d.notes
+        "id"       => t.ai_sns_plan_item_key,
+        "title"    => t.title,
+        "category" => t.improvement_pattern_key,
+        "priority" => t.priority,
+        "notes"    => legacy_notes_for(t.ai_sns_plan_item_key)
       }
     end
 
     def self.items_by_priority
+      relation = TicketLedger.ai_sns_plan.order(priority: :desc, idempotency_key: :asc)
       %w[high medium low].each_with_object({}) do |priority, result|
-        result[priority] = DevInitiative.where(priority: priority).ordered.map { |d|
-          [d.item_key, {
-            "title"    => d.title,
-            "category" => d.category,
-            "status"   => d.status,
-            "priority" => d.priority,
-            "notes"    => d.notes,
-            "pr_branch"    => d.pr_branch,
-            "completed_at" => d.completed_at&.to_date&.to_s
+        result[priority] = relation.where(priority: TicketLedger.priorities[priority]).map { |t|
+          item_key = t.ai_sns_plan_item_key
+          # `completed_at` 相当の確定タイムスタンプは TicketLedger 側に存在しない。
+          # status が completed の場合は最終更新時刻（≒ completed への遷移時刻）を proxy として返す。
+          # PR3 で TicketLedger に completed_at 列を追加するか、resolved_at の範囲を広げて置換する予定。
+          completed_proxy = (t.status_completed? ? t.updated_at&.to_date&.to_s : nil)
+          [item_key, {
+            "title"        => t.title,
+            "category"     => t.improvement_pattern_key,
+            "status"       => LEDGER_TO_LEGACY_STATUS[t.status] || t.status,
+            "priority"     => t.priority,
+            "notes"        => legacy_notes_for(item_key),
+            "pr_branch"    => t.pr_branch,
+            "completed_at" => completed_proxy
           }]
         }.to_h
       end
+    end
+
+    # `notes` 列は TicketLedger 側に存在しないため、レガシーの DevInitiative を read-only で
+    # 参照して返す（PR3 で TicketLedger に notes 相当列を持たせるか別表現に置き換える予定）。
+    def self.legacy_notes_for(item_key)
+      return nil if item_key.blank?
+
+      DevInitiative.find_by(item_key: item_key)&.notes
+    rescue StandardError
+      nil
     end
   end
 end

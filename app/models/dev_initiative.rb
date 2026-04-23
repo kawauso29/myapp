@@ -1,4 +1,13 @@
 class DevInitiative < ApplicationRecord
+  # PR2 以降: read-only 化（参照ソースから格下げ）。
+  #
+  # 正本は `TicketLedger.ai_sns_plan` 側に移行済み。本モデルは以下のためだけに残す:
+  #   - 旧パス（plan_review.yml の Copilot 自動追加など）から `DevInitiative.create!` された
+  #     内容を `Ledgers::AiSnsPlanSync` 経由で TicketLedger にミラーするための入口（sync 維持）
+  #   - `Admin::AiSnsPlanService.legacy_notes_for` が `notes` を補助的に参照するため
+  #
+  # アプリ本体の状態管理（ステータス遷移・stale 検知・done 反映）はすべて TicketLedger 側で
+  # 完結させる。本モデルへの新規書込は最小限とし、PR3 でテーブル自体を drop する。
   enum :priority, { low: 0, medium: 1, high: 2 }, prefix: true
   enum :status, { todo: 0, in_progress: 1, done: 2 }, prefix: true
 

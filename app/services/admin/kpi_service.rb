@@ -110,7 +110,7 @@ module Admin
     end
 
     def self.wip_count
-      Admin::AiSnsPlanService.items.count { |_, v| v["status"] == "in_progress" }
+      Admin::AiSnsPlanService.stats[:in_progress]
     end
 
     def self.wip_limit
