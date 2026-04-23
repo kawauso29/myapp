@@ -191,9 +191,10 @@ jobs:
               '   - マネタイズ',
               '   - 技術的改善',
               '4. 各施策に `priority` (high/medium/low)、`kpi_hypothesis`、`notes` を設定する',
-              '5. `ticket_ledgers` テーブル（DB / `Ledgers::AiSnsPlanSync` 経由）に新しい項目を追加する。',
-              '   既存の `DevInitiative.create!(item_key:, title:, priority:, status: :todo, ...)` を Rails runner で実行すれば',
-              '   after_save の mirror で `TicketLedger.ai_sns_plan` 側にも自動反映される（既存IDと重複しない新IDを使うこと）',
+              '5. `ticket_ledgers` テーブル（`ai_sns_plan` スコープ）に新しい項目を追加する。',
+              '   PR3 以降は `Ledgers::AiSnsPlanSync.create_plan_item!(item_key:, title:, priority:, category:, kpi_hypothesis:, notes:)` を',
+              '   Rails runner から呼び出すこと（旧 `DevInitiative.create!` は read-only 化のため非推奨。`notes` は後方互換のため自動で保管される）。',
+              '   既存IDと重複しない新IDを使うこと。',
               '6. `docs/ai_sns_improvement_plan.md` にも対応する詳細説明を追記する',
               '',
               '**注意**: 既存の todo/in_progress 項目は変更しないでください。新規追加のみ行ってください。',
@@ -225,8 +226,9 @@ jobs:
             const comment = [
               '@copilot このIssueの依頼内容に従って、次期 AI SNS 改善計画を作成してください。',
               '',
-              '`ticket_ledgers` テーブル（`Ledgers::AiSnsPlanSync` 経由 = `DevInitiative.create!` で mirror される）に',
-              '新しい改善施策を追加するPRを作成してください。',
+              '`ticket_ledgers` テーブル（`ai_sns_plan` スコープ）に',
+              '新しい改善施策を追加するPRを作成してください。Rails 上の追加は `Ledgers::AiSnsPlanSync.create_plan_item!(...)` を使います',
+              '（DevInitiative は read-only 化済みのため `DevInitiative.create!` は使わないでください）。',
               '',
               '<!-- copilot:model claude-opus-4.6 -->'
             ].join('\n');
