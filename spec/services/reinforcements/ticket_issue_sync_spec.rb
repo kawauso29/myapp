@@ -26,6 +26,17 @@ RSpec.describe Reinforcements::TicketIssueSync do
       expect(GithubMapping::LedgerSyncService).not_to have_received(:sync_ticket_to_issue).with(done)
     end
 
+    it "does NOT sync waiting_review tickets (requires organizational approval first)" do
+      create(:ticket_ledger, status: :waiting_review, ticket_type: :improvement)
+
+      allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
+
+      result = described_class.call
+
+      expect(result[:synced]).to eq(0)
+      expect(GithubMapping::LedgerSyncService).not_to have_received(:sync_ticket_to_issue)
+    end
+
     it "posts @copilot comment after Issue creation for improvement ticket" do
       ticket = create(:ticket_ledger, status: :approved, ticket_type: :improvement)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
