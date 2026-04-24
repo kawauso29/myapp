@@ -16,6 +16,10 @@ module Reinforcements
     # サマリー・レコード系（quarterly_review / annual_plan 等）はコード実装なし。
     COPILOT_ELIGIBLE_TYPES = %w[improvement operations].freeze
 
+    # Runner が自動生成するサマリーチケット（会議議事録相当）は GitHub Issue 化しない。
+    # 会議結果は MeetingLedger#decisions / TicketLedger（DB）に残すことで十分。
+    RUNNER_SUMMARY_TYPES = %w[quarterly_review annual_plan].freeze
+
     def self.call
       new.call
     end
@@ -94,6 +98,7 @@ module Reinforcements
       TicketLedger
         .where(status: TARGET_STATUSES.map { |s| TicketLedger.statuses[s] })
         .where(github_issue_number: nil)
+        .where.not(ticket_type: RUNNER_SUMMARY_TYPES)
     end
   end
 end

@@ -54,26 +54,26 @@ RSpec.describe Reinforcements::TicketIssueSync do
       expect(result[:copilot_triggered]).to eq(1)
     end
 
-    it "does NOT post @copilot comment for quarterly_review tickets" do
+    it "does NOT create Issue for quarterly_review (runner summary) tickets" do
       create(:ticket_ledger, status: :approved, ticket_type: :quarterly_review, scope_level: :company, service_id: nil)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
-        .and_return({ synced: true, issue_number: 999 })
 
       result = described_class.call
 
-      expect(result[:copilot_triggered]).to eq(0)
+      expect(result[:synced]).to eq(0)
+      expect(GithubMapping::LedgerSyncService).not_to have_received(:sync_ticket_to_issue)
       expect(GithubIssueService).not_to have_received(:create_comment)
       expect(GithubIssueService).not_to have_received(:add_assignees)
     end
 
-    it "does NOT post @copilot comment for annual_plan tickets" do
+    it "does NOT create Issue for annual_plan (runner summary) tickets" do
       create(:ticket_ledger, status: :approved, ticket_type: :annual_plan, scope_level: :company, service_id: nil)
       allow(GithubMapping::LedgerSyncService).to receive(:sync_ticket_to_issue)
-        .and_return({ synced: true, issue_number: 999 })
 
       result = described_class.call
 
-      expect(result[:copilot_triggered]).to eq(0)
+      expect(result[:synced]).to eq(0)
+      expect(GithubMapping::LedgerSyncService).not_to have_received(:sync_ticket_to_issue)
       expect(GithubIssueService).not_to have_received(:create_comment)
       expect(GithubIssueService).not_to have_received(:add_assignees)
     end
