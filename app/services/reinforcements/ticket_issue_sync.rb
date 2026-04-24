@@ -72,9 +72,11 @@ module Reinforcements
     end
 
     def post_copilot_comment(ticket:, issue_number:)
-      # Copilot coding agent のトリガーには assignee への追加が必要。
-      # コメントメンションだけでは反応しないことがあるため、先に copilot を assignee に追加する。
-      GithubIssueService.add_assignees(issue_number: issue_number, assignees: [ "copilot" ])
+      # GitHub Copilot cloud agent の正しい起動手順:
+      # 1. 実装指示コメントを先に投稿する（Copilot はアサイン時点の既存コメントを読む。
+      #    アサイン後のコメントは読まれない）。
+      # 2. copilot-swe-agent[bot] を assignee に追加し、agent_assignment で指示を渡す。
+      #    ユーザー名は "copilot" ではなく GithubIssueService::COPILOT_AGENT_LOGIN を使う。
       template_md = GithubMapping::CopilotInputTemplate.new(ticket).to_markdown
       body = <<~COMMENT
         @copilot このIssueの内容に従って実装してください。
@@ -84,6 +86,18 @@ module Reinforcements
         #{template_md}
       COMMENT
       result = GithubIssueService.create_comment(issue_number: issue_number, body: body.strip)
+
+      # コメント投稿後に Copilot をアサイン（既存コメントが読まれるようにするため）。
+      # agent_assignment で target_repo と custom_instructions も渡す。
+      GithubIssueService.add_assignees(
+        issue_number: issue_number,
+        assignees: [ GithubIssueService::COPILOT_AGENT_LOGIN ],
+        agent_assignment: {
+          target_repo: GithubIssueService::REPO,
+          base_branch: "main",
+          custom_instructions: "ticket_ledger ##{ticket.id} に基づく実装PRを `copilot/ledger-#{ticket.id}` ブランチで作成してください。§31 の実装ルールに従うこと。"
+        }
+      )
       result.present?
     rescue => e
       Rails.logger.warn("[TicketIssueSync] @copilot comment failed for ticket ##{ticket.id}: #{e.message}")
