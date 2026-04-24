@@ -7,9 +7,10 @@ module Reinforcements
   # DEPLOY_TOKEN 未設定時は GithubIssueService 側が nil を返すため、
   # ここでは結果を `failed` に計上するだけにとどめる（壊さない運用）。
   class TicketIssueSync
-    # 「weekly で承認された → Issue に流す」境界をどこに置くかの設計判断。
-    # draft は弾く（承認前）、completed/cancelled は既に閉じている。
-    TARGET_STATUSES = %i[approved planned executing waiting_review].freeze
+    # 「承認済み → Issue に流す」境界をどこに置くかの設計判断。
+    # draft / waiting_review は承認前のため除外する（§12.4 月次運営会議で議決されてから流す）。
+    # completed / cancelled は既に閉じているため除外する。
+    TARGET_STATUSES = %i[approved planned executing].freeze
     MAX_PER_RUN = 20 # 一度に大量 Issue 化するのを防ぐ上限
 
     # @copilot コメントを送る対象 ticket_type のホワイトリスト。

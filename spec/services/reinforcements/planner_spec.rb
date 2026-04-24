@@ -19,6 +19,7 @@ RSpec.describe Reinforcements::Planner do
 
       ticket = TicketLedger.ticket_type_improvement.last
       expect(ticket.status).to eq("waiting_review")
+      expect(ticket.escalation_to).to eq("monthly")
       expect(ticket.assignee).to eq("reinforcements_planner")
       expect(ticket.improvement_pattern_key).to eq("planner:kpi_underperform:kpi:ai_sns_wau")
       expect(ticket.linked_kpis).to eq([ "kpi:ai_sns_wau" ])

@@ -100,6 +100,11 @@ module Reinforcements
         linked_artifacts: [],
         priority: :medium,
         status: :waiting_review,
+        # §32.1 Phase B / §12.4: Planner は KPI 乖離を検知して「提案」するだけであり、
+        # 改善策の決定は月次運営会議（MonthlyOpsRunner）で行う。
+        # escalation_to: :monthly を設定することで MonthlyOpsRunner.target_tickets に拾われ、
+        # 月次会議で議決（approved）されてから TicketIssueSync → Copilot 実装へ流れる。
+        escalation_to: :monthly,
         assignee: "reinforcements_planner",
         due_date: Date.current + DEFAULT_DUE_DAYS.days,
         due_cycle: :weekly,
