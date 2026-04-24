@@ -379,6 +379,38 @@ jobs:
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
+      # ② plan-review Issue クローズ: copilot/ai-sns-plan-review ブランチのPRマージ後に
+      #    open の plan-review ラベル付き Issue を自動クローズしてPDCAサイクルを循環させる。
+      #    Issue クローズはWebhookトリガーを必要としないため GITHUB_TOKEN で問題なし。
+      - name: Close plan-review Issues after plan review PR merge
+        if: ${{ steps.merge_pr.outputs.merged == 'true' && startsWith(steps.merge_pr.outputs.pr_branch, 'copilot/ai-sns-plan-review') }}
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner, repo,
+              labels: 'plan-review',
+              state: 'open',
+              per_page: 20
+            });
+
+            if (issues.length === 0) {
+              core.info('No open plan-review issues to close');
+              return;
+            }
+
+            for (const issue of issues) {
+              await github.rest.issues.update({
+                owner, repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              core.info(`Closed plan-review issue #${issue.number} after plan review PR merge`);
+            }
+            core.info(`Closed ${issues.length} plan-review issue(s)`);
+
       - name: Notify Slack (skipped due to protected files)
         if: ${{ steps.merge_pr.outcome == 'success' && steps.merge_pr.outputs.skip_reason != '' }}
         env:
