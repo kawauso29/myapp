@@ -4,7 +4,7 @@ RSpec.describe Reinforcements::TicketIssueSync do
   describe ".call" do
     before do
       allow(GithubIssueService).to receive(:create_comment).and_return({ "id" => 1 })
-      allow(GithubIssueService).to receive(:add_assignees).and_return({ "assignees" => [ { "login" => "copilot" } ] })
+      allow(GithubIssueService).to receive(:add_assignees).and_return({ "assignees" => [ { "login" => "copilot-swe-agent[bot]" } ] })
     end
 
     it "calls LedgerSyncService for approved / planned tickets without github_issue_number" do
@@ -34,13 +34,18 @@ RSpec.describe Reinforcements::TicketIssueSync do
       result = described_class.call
 
       expect(result[:copilot_triggered]).to eq(1)
-      expect(GithubIssueService).to have_received(:add_assignees).with(
-        issue_number: 999,
-        assignees: [ "copilot" ]
-      )
+      # コメントを先に投稿してから Copilot をアサインする順序を確認
       expect(GithubIssueService).to have_received(:create_comment).with(
         issue_number: 999,
         body: include("@copilot")
+      )
+      expect(GithubIssueService).to have_received(:add_assignees).with(
+        issue_number: 999,
+        assignees: [ GithubIssueService::COPILOT_AGENT_LOGIN ],
+        agent_assignment: hash_including(
+          target_repo: GithubIssueService::REPO,
+          base_branch: "main"
+        )
       )
     end
 

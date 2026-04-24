@@ -84,11 +84,15 @@ class GithubIssueService
     nil
   end
 
-  def self.add_assignees(issue_number:, assignees:)
-    new.add_assignees(issue_number: issue_number, assignees: assignees)
+  # GitHub Copilot cloud agent のボット名。
+  # REST API で Issue に Copilot をアサインする際に使用する（"copilot" ではない）。
+  COPILOT_AGENT_LOGIN = "copilot-swe-agent[bot]".freeze
+
+  def self.add_assignees(issue_number:, assignees:, agent_assignment: nil)
+    new.add_assignees(issue_number: issue_number, assignees: assignees, agent_assignment: agent_assignment)
   end
 
-  def add_assignees(issue_number:, assignees:)
+  def add_assignees(issue_number:, assignees:, agent_assignment: nil)
     token = ENV["DEPLOY_TOKEN"]
     unless token.present?
       Rails.logger.warn("[GithubIssueService] DEPLOY_TOKEN が未設定のためassignee追加をスキップします")
@@ -106,12 +110,25 @@ class GithubIssueService
     req["Accept"] = "application/vnd.github+json"
     req["X-GitHub-Api-Version"] = "2022-11-28"
     req["Content-Type"] = "application/json"
-    req.body = { assignees: assignees }.to_json
+
+    payload = { assignees: assignees }
+    payload[:agent_assignment] = agent_assignment if agent_assignment.present?
+    req.body = payload.to_json
 
     res = http.request(req)
     if res.is_a?(Net::HTTPSuccess)
       parsed = JSON.parse(res.body)
-      Rails.logger.info("[GithubIssueService] Assignees added to Issue ##{issue_number}: #{assignees.join(', ')}")
+      actual_assignees = parsed["assignees"]&.map { |a| a["login"] } || []
+      added = assignees & actual_assignees
+      if added.any?
+        Rails.logger.info("[GithubIssueService] Assignees added to Issue ##{issue_number}: #{added.join(', ')}")
+      else
+        Rails.logger.warn(
+          "[GithubIssueService] assignee追加が反映されていません Issue ##{issue_number}" \
+          " (requested: #{assignees.join(', ')}, actual: #{actual_assignees.join(', ')})" \
+          " DEPLOY_TOKEN の権限（actions/contents/pull_requests: write）と Copilot cloud agent の有効化を確認してください"
+        )
+      end
       parsed
     else
       Rails.logger.error("[GithubIssueService] assignee追加失敗 (#{res.code}): #{res.body}")
