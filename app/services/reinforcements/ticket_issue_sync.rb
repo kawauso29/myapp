@@ -75,8 +75,8 @@ module Reinforcements
       # GitHub Copilot cloud agent の正しい起動手順:
       # 1. 実装指示コメントを先に投稿する（Copilot はアサイン時点の既存コメントを読む。
       #    アサイン後のコメントは読まれない）。
-      # 2. copilot-swe-agent[bot] を assignee に追加し、agent_assignment で指示を渡す。
-      #    ユーザー名は "copilot" ではなく GithubIssueService::COPILOT_AGENT_LOGIN を使う。
+      # 2. copilot-swe-agent[bot] を assignee に追加し、agent_assignment で指示を渡す
+      #    （ユーザー名は "copilot" ではなく GithubIssueService::COPILOT_AGENT_LOGIN を使う）。
       template_md = GithubMapping::CopilotInputTemplate.new(ticket).to_markdown
       body = <<~COMMENT
         @copilot このIssueの内容に従って実装してください。

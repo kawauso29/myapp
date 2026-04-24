@@ -119,11 +119,15 @@ class GithubIssueService
     if res.is_a?(Net::HTTPSuccess)
       parsed = JSON.parse(res.body)
       actual_assignees = parsed["assignees"]&.map { |a| a["login"] } || []
-      added = assignees.select { |a| actual_assignees.any? { |actual| actual.start_with?(a.split("[").first) } }
+      added = assignees & actual_assignees
       if added.any?
         Rails.logger.info("[GithubIssueService] Assignees added to Issue ##{issue_number}: #{added.join(', ')}")
       else
-        Rails.logger.warn("[GithubIssueService] assignee追加リクエストは成功したが対象が反映されていない Issue ##{issue_number}: requested=#{assignees.join(', ')} actual=#{actual_assignees.join(', ')}")
+        Rails.logger.warn(
+          "[GithubIssueService] assignee追加が反映されていません Issue ##{issue_number}" \
+          " (requested: #{assignees.join(', ')}, actual: #{actual_assignees.join(', ')})" \
+          " DEPLOY_TOKEN の権限（actions/contents/pull_requests: write）と Copilot cloud agent の有効化を確認してください"
+        )
       end
       parsed
     else
