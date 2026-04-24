@@ -72,5 +72,44 @@ RSpec.describe Ledgers::QuarterlyReviewRunner do
 
       expect(meeting.carry_over_items).to eq([ { "title" => "monthly pending" } ])
     end
+    context "リトライ耐性（idempotency_key 重複）" do
+      it "既に closed な会議が同一スロットにあれば即返し（エラーなし）" do
+        quarter = ((Date.current.month - 1) / 3) + 1
+        ikey = Ledgers::IdempotencyKey.for_meeting(
+          prefix: "quarterly_review",
+          parts: [ Date.current.year, "q#{quarter}" ],
+          cadence: :quarterly
+        )
+        existing = create(:meeting_ledger,
+                          meeting_definition: definition,
+                          meeting_key: "quarterly_review",
+                          meeting_type: :quarterly_review,
+                          status: :closed,
+                          idempotency_key: ikey)
+
+        result = described_class.call
+
+        expect(result.id).to eq(existing.id)
+        expect(Ledgers::ImprovementEscalator).not_to have_received(:call)
+      end
+
+      it "open な会議が同一スロットにあれば再利用してエラーにならない" do
+        quarter = ((Date.current.month - 1) / 3) + 1
+        ikey = Ledgers::IdempotencyKey.for_meeting(
+          prefix: "quarterly_review",
+          parts: [ Date.current.year, "q#{quarter}" ],
+          cadence: :quarterly
+        )
+        open_meeting = create(:meeting_ledger,
+                              meeting_definition: definition,
+                              meeting_key: "quarterly_review",
+                              meeting_type: :quarterly_review,
+                              status: :open,
+                              idempotency_key: ikey)
+
+        expect { described_class.call }.not_to raise_error
+        expect(MeetingLedger.where(meeting_key: "quarterly_review").count).to eq(1)
+      end
+    end
   end
 end
