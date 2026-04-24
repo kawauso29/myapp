@@ -11,6 +11,16 @@ namespace :ledgers do
     end
   end
 
+  desc "Idempotently seed per-service plan items from db/seeds/plans/*.yml into TicketLedger via PlanItemUpserter. Safe to run on every deploy."
+  task seed_plans: :environment do
+    result = Ledgers::ServicePlanSeeder.call
+    puts JSON.pretty_generate(
+      operation: "seed_plans",
+      files: result.files,
+      upserted: result.upserted
+    )
+  end
+
   desc "Run weekly_dept ledger flow for a service"
   task :run_weekly_dept, [ :service_id ] => :environment do |_task, args|
     service_id = args[:service_id].presence || "ai_sns"

@@ -40,11 +40,11 @@ module Ledgers
       end
 
       def idempotency_key_for(item_key)
-        "ai_sns_plan:#{item_key}"
+        PlanItemUpserter.idempotency_key_for(service_id: SERVICE_ID, item_key: item_key)
       end
 
       def linked_kpi_for(item_key)
-        "ai_sns_plan:#{item_key}"
+        PlanItemUpserter.linked_kpi_for(service_id: SERVICE_ID, item_key: item_key)
       end
 
       # PR3 で導入 / PR4 で notes を TicketLedger 側に正規化。
@@ -71,49 +71,20 @@ module Ledgers
       end
 
       def upsert_ticket_for!(item_key:, title:, priority:, category:, kpi_hypothesis:, notes: nil, status:)
-        idem = idempotency_key_for(item_key)
-        ticket = TicketLedger.find_by(idempotency_key: idem) || TicketLedger.new(idempotency_key: idem)
-
-        if ticket.new_record?
-          meeting = SystemMeetingProvider.for(kind: SOURCE_KIND)
-          ticket.source_meeting = meeting
-          ticket.source_meeting_type = meeting.meeting_type
-          ticket.linked_kpis = [ linked_kpi_for(item_key) ]
-        end
-
-        attrs = {
-          title: title,
-          ticket_type: TICKET_TYPE,
-          scope_level: :service,
+        PlanItemUpserter.call(
           service_id: SERVICE_ID,
-          operating_lane: :weekly_improvement,
-          due_cycle: :weekly,
+          item_key: item_key,
+          title: title,
           priority: priority,
-          status: normalize_status(status),
+          category: category,
           kpi_hypothesis: kpi_hypothesis,
-          improvement_pattern_key: category.presence
-        }
-        # notes は呼び出し側で明示指定された場合のみ上書きする。同じ item_key で
-        # `create_plan_item!` を再呼出（notes:nil）した際に既存 notes を消さないため。
-        # DevInitiative → TicketLedger ミラー側（`update_ticket!`）は別経路で通り、
-        # `mapped_attributes[:notes]` で常に DevInitiative 側の最新値が反映される。
-        attrs[:notes] = notes if notes.present?
-        ticket.assign_attributes(attrs)
-        ticket.skip_template_guard = true
-        ticket.skip_lane_capacity_guard = true
-        ticket.skip_pr_guardrail = true
-        ticket.skip_stop_guard = true
-        ticket.save!
-        ticket
+          notes: notes,
+          status: status
+        )
       end
 
       def normalize_status(status)
-        case status.to_s
-        when "todo" then :draft
-        when "in_progress" then :executing
-        when "done" then :completed
-        else status
-        end
+        PlanItemUpserter.normalize_status(status)
       end
     end
 
