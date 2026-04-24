@@ -56,5 +56,35 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
 
       expect(meeting.carry_over_items).to eq([ { "title" => "pending item" } ])
     end
+
+    context "リトライ耐性（idempotency_key 重複）" do
+      it "既に closed な会議が同一スロットにあれば即返し（エラーなし）" do
+        ikey = Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+        existing = create(:meeting_ledger,
+                          meeting_definition: monthly_definition,
+                          meeting_key: "monthly_ops",
+                          meeting_type: :monthly,
+                          status: :closed,
+                          idempotency_key: ikey)
+
+        result = described_class.call(resolution_map: {})
+
+        expect(result.id).to eq(existing.id)
+        expect(Ledgers::ImprovementResolver).not_to have_received(:call)
+      end
+
+      it "open な会議が同一スロットにあれば再利用してエラーにならない" do
+        ikey = Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+        create(:meeting_ledger,
+               meeting_definition: monthly_definition,
+               meeting_key: "monthly_ops",
+               meeting_type: :monthly,
+               status: :open,
+               idempotency_key: ikey)
+
+        expect { described_class.call(resolution_map: {}) }.not_to raise_error
+        expect(MeetingLedger.where(meeting_key: "monthly_ops").count).to eq(1)
+      end
+    end
   end
 end

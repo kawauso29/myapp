@@ -15,18 +15,32 @@ module Ledgers
     def call
       definition = meeting_definition!
       preflight = Ledgers::PreflightValidator.call(definition:, present_roles: @present_roles)
-      meeting = MeetingLedger.create!(
-        meeting_definition: definition,
-        meeting_key: definition.meeting_key,
-        meeting_type: definition.meeting_type,
-        scope_level: definition.scope_level,
-        chair: definition.chair_role,
-        participants: preflight.participants,
-        role_fill_rate: preflight.role_fill_rate,
-        held_at: Time.current,
-        status: :open,
-        idempotency_key: Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops", cadence: :monthly)
-      )
+      ikey = Ledgers::IdempotencyKey.for_meeting(prefix: "monthly_ops", cadence: :monthly)
+
+      # 同一スロット内の再実行（ジョブ失敗→リトライ）で idempotency_key 重複エラーにならないよう
+      # 既存会議を先に検索し、既に closed なら完了済みとして即返す。
+      if (existing = MeetingLedger.find_by(idempotency_key: ikey))
+        return existing if existing.status_closed?
+      end
+
+      meeting = begin
+        MeetingLedger.create!(
+          meeting_definition: definition,
+          meeting_key: definition.meeting_key,
+          meeting_type: definition.meeting_type,
+          scope_level: definition.scope_level,
+          chair: definition.chair_role,
+          participants: preflight.participants,
+          role_fill_rate: preflight.role_fill_rate,
+          held_at: Time.current,
+          status: :open,
+          idempotency_key: ikey
+        )
+      rescue ActiveRecord::RecordInvalid => e
+        raise unless e.record.errors.of_kind?(:idempotency_key, :taken)
+
+        MeetingLedger.find_by!(idempotency_key: ikey)
+      end
 
       decisions = []
       target_tickets.find_each do |ticket|

@@ -13,42 +13,58 @@ module Ledgers
     def call
       definition = meeting_definition!
       preflight = Ledgers::PreflightValidator.call(definition:, present_roles: @present_roles)
-      meeting = MeetingLedger.create!(
-        meeting_definition: definition,
-        meeting_key: definition.meeting_key,
-        meeting_type: definition.meeting_type,
-        scope_level: definition.scope_level,
-        chair: definition.chair_role,
-        participants: preflight.participants,
-        role_fill_rate: preflight.role_fill_rate,
-        held_at: Time.current,
-        status: :open,
-        idempotency_key: Ledgers::IdempotencyKey.for_meeting(
-          prefix: "annual_plan",
-          parts: [ "fy#{Date.current.year}" ],
-          cadence: :annual
-        )
+      ikey = Ledgers::IdempotencyKey.for_meeting(
+        prefix: "annual_plan",
+        parts: [ "fy#{Date.current.year}" ],
+        cadence: :annual
       )
+
+      # 同一スロット内の再実行（ジョブ失敗→リトライ）で idempotency_key 重複エラーにならないよう
+      # 既存会議を先に検索し、既に closed なら完了済みとして即返す。
+      if (existing = MeetingLedger.find_by(idempotency_key: ikey))
+        return existing if existing.status_closed?
+      end
+
+      meeting = begin
+        MeetingLedger.create!(
+          meeting_definition: definition,
+          meeting_key: definition.meeting_key,
+          meeting_type: definition.meeting_type,
+          scope_level: definition.scope_level,
+          chair: definition.chair_role,
+          participants: preflight.participants,
+          role_fill_rate: preflight.role_fill_rate,
+          held_at: Time.current,
+          status: :open,
+          idempotency_key: ikey
+        )
+      rescue ActiveRecord::RecordInvalid => e
+        raise unless e.record.errors.of_kind?(:idempotency_key, :taken)
+
+        MeetingLedger.find_by!(idempotency_key: ikey)
+      end
       @current_meeting_id = meeting.id
 
       metrics = summary_metrics
-      ticket = TicketLedger.create!(
-        ticket_type: :annual_plan,
-        title: "FY#{Date.current.year} Annual Plan",
-        scope_level: :company,
-        source_meeting_type: :annual,
-        source_meeting: meeting,
-        linked_kpis: metrics,
-        linked_artifacts: annual_artifacts,
-        priority: :medium,
-        status: :approved,
-        assignee: DEFAULT_ASSIGNEE,
-        due_date: Ledgers::TimeAxis.due_date_for(:annual),
-        due_cycle: :annual,
-        resolved_at: Time.current,
-        # Phase 44e: Runner が生成するサマリーチケットは Copilot 入力ではないため template 不要
-        skip_template_guard: true
-      )
+      # リトライ時に同一 meeting に対するサマリーチケットが既に存在する場合は再利用する。
+      ticket = TicketLedger.find_by(source_meeting: meeting, ticket_type: :annual_plan) ||
+        TicketLedger.create!(
+          ticket_type: :annual_plan,
+          title: "FY#{Date.current.year} Annual Plan",
+          scope_level: :company,
+          source_meeting_type: :annual,
+          source_meeting: meeting,
+          linked_kpis: metrics,
+          linked_artifacts: annual_artifacts,
+          priority: :medium,
+          status: :approved,
+          assignee: DEFAULT_ASSIGNEE,
+          due_date: Ledgers::TimeAxis.due_date_for(:annual),
+          due_cycle: :annual,
+          resolved_at: Time.current,
+          # Phase 44e: Runner が生成するサマリーチケットは Copilot 入力ではないため template 不要
+          skip_template_guard: true
+        )
 
       meeting.update!(
         decisions: [ { summary_ticket_id: ticket.id, metrics: } ],
