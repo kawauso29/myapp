@@ -14,13 +14,15 @@ import { getToken, connectNotificationWebSocket, getNotifications, markAllNotifi
 
 export type NotificationItem = {
   id: string; // クライアント生成のユニークID or APIのID
-  type: "new_post" | "life_event" | "milestone";
+  type: "new_post" | "life_event" | "milestone" | "relationship_change";
   ai_user: any;
+  target_ai_user?: any;
   post?: any;
   event_type?: string;
   milestone?: string;
   value?: number;
   message?: string;
+  metadata?: any;
   received_at: string;
   is_read: boolean;
   api_id?: number; // サーバー側のID（既読APIに使う）
@@ -65,11 +67,13 @@ export default function NotificationsScreen() {
         api_id: n.id,
         type: n.notification_type ?? n.type ?? "new_post",
         ai_user: n.ai_user ?? null,
+        target_ai_user: n.target_ai_user ?? null,
         post: n.post ?? null,
         event_type: n.event_type ?? null,
         milestone: n.milestone ?? null,
         value: n.value ?? null,
         message: n.message ?? null,
+        metadata: n.metadata ?? null,
         received_at: n.created_at ?? new Date().toISOString(),
         is_read: n.is_read ?? false,
       }));
@@ -130,6 +134,8 @@ export default function NotificationsScreen() {
 
     if (item.type === "new_post" && item.post?.id) {
       router.push(`/post/${item.post.id}`);
+    } else if (item.type === "relationship_change" && item.target_ai_user?.id) {
+      router.push(`/ai/${item.target_ai_user.id}`);
     } else if (item.ai_user?.id) {
       router.push(`/ai/${item.ai_user.id}`);
     }
@@ -204,6 +210,7 @@ function NotificationRow({
   const { icon, label } = notificationMeta(item);
   const displayName = item.ai_user?.display_name || item.ai_user?.username || "AI";
   const timeAgo = formatTimeAgo(item.received_at);
+  const isRelationshipChange = item.type === "relationship_change";
 
   return (
     <TouchableOpacity
@@ -214,17 +221,21 @@ function NotificationRow({
         <Ionicons name={icon as any} size={22} color="#6c63ff" />
       </View>
       <View style={styles.rowContent}>
-        <Text style={styles.rowTitle}>
-          <Text style={styles.rowName}>{displayName}</Text>
-          {"  "}
-          <Text style={styles.rowLabel}>{label}</Text>
-        </Text>
+        {isRelationshipChange ? (
+          <Text style={styles.rowTitle}>{item.message || `${displayName}${label}`}</Text>
+        ) : (
+          <Text style={styles.rowTitle}>
+            <Text style={styles.rowName}>{displayName}</Text>
+            {"  "}
+            <Text style={styles.rowLabel}>{label}</Text>
+          </Text>
+        )}
         {item.type === "new_post" && item.post?.content && (
           <Text style={styles.rowPreview} numberOfLines={2}>
             {item.post.content}
           </Text>
         )}
-        {item.message && item.type !== "new_post" && (
+        {item.message && item.type !== "new_post" && !isRelationshipChange && (
           <Text style={styles.rowPreview} numberOfLines={1}>
             {item.message}
           </Text>
@@ -247,6 +258,8 @@ function notificationMeta(item: NotificationItem): {
       return { icon: "sparkles-outline", label: "にライフイベントが発生" };
     case "milestone":
       return { icon: "trophy-outline", label: "がマイルストーン達成" };
+    case "relationship_change":
+      return { icon: "people-outline", label: "の関係性が変化" };
     default:
       return { icon: "notifications-outline", label: "" };
   }
@@ -255,18 +268,20 @@ function notificationMeta(item: NotificationItem): {
 let notifCounter = 0;
 function buildNotificationItem(msg: any): NotificationItem | null {
   if (!msg.type) return null;
-  if (!["new_post", "life_event", "milestone"].includes(msg.type)) return null;
+  if (!["new_post", "life_event", "milestone", "relationship_change"].includes(msg.type)) return null;
 
   notifCounter += 1;
   return {
     id: `ws-${Date.now()}-${notifCounter}`,
     type: msg.type,
     ai_user: msg.ai_user ?? null,
+    target_ai_user: msg.target_ai_user ?? null,
     post: msg.post ?? null,
     event_type: msg.event_type ?? null,
     milestone: msg.milestone ?? null,
     value: msg.value ?? null,
     message: msg.message ?? null,
+    metadata: msg.metadata ?? null,
     received_at: new Date().toISOString(),
     is_read: false,
   };
