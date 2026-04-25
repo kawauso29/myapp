@@ -186,11 +186,13 @@ jobs:
             if (pr.draft) {
               try {
                 core.info(`PR #${pr.number} is draft, marking ready for review`);
-                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: pr.number
-                });
+                await github.graphql(`
+                  mutation MarkReady($id: ID!) {
+                    markPullRequestReadyForReview(input: {pullRequestId: $id}) {
+                      pullRequest { isDraft }
+                    }
+                  }
+                `, { id: pr.node_id });
                 const { data: refreshedPr } = await github.rest.pulls.get({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -901,11 +903,13 @@ jobs:
             for (const pr of targets) {
               core.info(`Undrafting PR #${pr.number}: ${pr.title} (${pr.head.ref})`);
               try {
-                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: pr.number
-                });
+                await github.graphql(`
+                  mutation MarkReady($id: ID!) {
+                    markPullRequestReadyForReview(input: {pullRequestId: $id}) {
+                      pullRequest { isDraft }
+                    }
+                  }
+                `, { id: pr.node_id });
                 core.info(`PR #${pr.number} undrafted successfully`);
               } catch (error) {
                 core.warning(`Failed to undraft PR #${pr.number}: ${error.message}`);
