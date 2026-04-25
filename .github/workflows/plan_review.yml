@@ -1,0 +1,238 @@
+name: AI SNS 計画レビュー 自動起票
+
+# AI SNS 改善計画の todo 残数が 2 件以下になった時に Copilot に新規施策アイテムの
+# 追加を依頼する Issue を自動起票する。
+#
+# フロー:
+#   weekly_pdca.yml (todo ≤ 2 検知) → このワークフローを dispatch
+#       → 既存 plan-review Issue 確認（7日超の古い Issue は自動クローズ）
+#       → plan-review ラベル付き Issue を作成
+#       → @copilot メンション + copilot-swe-agent[bot] をアサイン（DEPLOY_TOKEN 必須）
+#       → Copilot が copilot/ai-sns-plan-review ブランチで新規アイテム追加 PR を作成
+#       → auto_merge.yml がマージ + plan-review Issue をクローズ
+#       → weekly_pdca.yml が新 todo 項目を検知 → 次の PDCA サイクルへ
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  plan_review:
+    runs-on: [self-hosted, sakura-vps]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: todo 残数を確認
+        id: check_todo
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_draft.count" 2>/dev/null || echo 0)
+          TODO_COUNT=${TODO_COUNT:-0}
+          echo "todo_count=${TODO_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "todo残数: ${TODO_COUNT}"
+
+      - name: 既存 plan-review Issue を確認・古いものをクローズ
+        id: existing_check
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner, repo,
+              labels: 'plan-review',
+              state: 'open',
+              per_page: 20,
+              sort: 'created',
+              direction: 'asc'
+            });
+
+            const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            let activeIssue = null;
+
+            for (const issue of issues) {
+              if (new Date(issue.created_at) < cutoff7d) {
+                // 7日以上古い Issue は Copilot 無反応とみなしてクローズ
+                await github.rest.issues.update({
+                  owner, repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+                core.info(`Closed stale plan-review issue #${issue.number} (older than 7 days)`);
+              } else if (!activeIssue) {
+                activeIssue = issue;
+                core.info(`Active plan-review issue found: #${activeIssue.number}`);
+              }
+            }
+
+            if (activeIssue) {
+              core.setOutput('skip', 'true');
+              core.setOutput('existing_issue', activeIssue.number.toString());
+            } else {
+              core.setOutput('skip', 'false');
+              core.setOutput('existing_issue', '');
+            }
+
+      - name: plan-review Issue を作成
+        id: create_issue
+        if: steps.existing_check.outputs.skip != 'true'
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const todoCount = '${{ steps.check_todo.outputs.todo_count }}';
+
+            // plan-review ラベルが存在しない場合は作成
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: 'plan-review' });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner, repo,
+                  name: 'plan-review',
+                  color: '0e8a16',
+                  description: 'AI SNS 計画レビュー: 新規施策アイテム追加依頼'
+                });
+                core.info("Created 'plan-review' label");
+              }
+            }
+
+            const { data: issue } = await github.rest.issues.create({
+              owner, repo,
+              title: 'AI SNS 計画レビュー: 新規施策アイテムを追加してください',
+              body: [
+                '## 背景',
+                '',
+                `\`TicketLedger.ai_sns_plan.status_draft\` の残数が **${todoCount} 件** になりました。`,
+                'AI SNS 改善計画の継続的な PDCA サイクルを維持するために、新しい計画アイテムを追加してください。',
+                '',
+                '## 依頼内容',
+                '',
+                '以下の手順で新しい AI SNS 改善計画アイテムを **3〜5 件** 追加してください。',
+                '',
+                '### 実装方法',
+                '',
+                '`db/migrate/YYYYMMDDHHMMSS_add_ai_sns_plan_items.rb` を作成し、`Ledgers::AiSnsPlanSync.create_plan_item!` で新規アイテムを追加:',
+                '',
+                '```ruby',
+                'class AddAiSnsPlanItems < ActiveRecord::Migration[8.1]',
+                '  def up',
+                '    Ledgers::AiSnsPlanSync.create_plan_item!(',
+                '      item_key: "新しいID（例: C1, D1 など連番）",',
+                '      title: "施策タイトル",',
+                '      priority: :high, # :high / :medium / :low',
+                '      category: "カテゴリ名",',
+                '      kpi_hypothesis: "この施策で改善が期待される KPI と仮説",',
+                '      notes: "実装の詳細メモ"',
+                '    )',
+                '    # 3〜5件追加してください',
+                '  end',
+                '',
+                '  def down',
+                '    # 必要に応じてロールバック処理を追加',
+                '  end',
+                'end',
+                '```',
+                '',
+                '### 計画策定のヒント',
+                '',
+                '現在の KPI 状況（`docs/ai_sns_improvement_plan.md` 参照）を踏まえて、以下のカテゴリから選択:',
+                '- **エンゲージメント向上**: いいね率・会話率・返信率の改善',
+                '- **AI 社会性向上**: AI 同士の関係構築・相互作用の活性化',
+                '- **コンテンツ多様性**: 投稿パターンの多様化・深化',
+                '- **UI/UX 改善**: ユーザー体験・発見性の向上',
+                '- **インフラ安定性**: パフォーマンス・可用性・監視の改善',
+                '',
+                '### 既存アイテムの確認',
+                '```ruby',
+                '# 既存アイテムの一覧（idempotency_key は "ai_sns_plan:{item_key}" の形式で保存される）',
+                '# create_plan_item!(item_key: "C1", ...) → idempotency_key: "ai_sns_plan:C1"',
+                'TicketLedger.ai_sns_plan.pluck(:idempotency_key, :title, :status)',
+                '```',
+                '',
+                '### 参考ドキュメント',
+                '- `docs/ai_sns_improvement_plan.md` — 全体計画書',
+                '- `app/services/ledgers/ai_sns_plan_sync.rb` — `create_plan_item!` の実装',
+                '',
+                '## 完了条件',
+                '',
+                '- 3 件以上の新しい `ai_sns_plan:*` TicketLedger が `draft` 状態で作成されること',
+                '- CI（RuboCop / RSpec）が通過すること',
+                '- 確認: `RAILS_ENV=test bin/rails runner "p TicketLedger.ai_sns_plan.status_draft.count"` が 3 以上になること'
+              ].join('\n'),
+              labels: ['plan-review']
+            });
+
+            core.info(`Created plan-review issue #${issue.number}: ${issue.html_url}`);
+            core.setOutput('issue_number', issue.number.toString());
+            core.setOutput('issue_url', issue.html_url);
+
+      - name: "@copilot メンションコメントを投稿"
+        # Issue 本文への @copilot 埋め込みは機能しないため別コメントとして投稿する
+        # DEPLOY_TOKEN（fine-grained PAT）が必須。GITHUB_TOKEN では Copilot Webhook が起動しない。
+        if: steps.existing_check.outputs.skip != 'true'
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const issueNumber = parseInt('${{ steps.create_issue.outputs.issue_number }}', 10);
+            const { owner, repo } = context.repo;
+
+            // コメントは assignee 追加の前に投稿する（Copilot はアサイン時点の既存コメントを読む）
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: issueNumber,
+              body: [
+                '@copilot このIssueの内容に従って、AI SNS 計画の新規施策アイテムを 3〜5 件追加する Migration を作成してください。',
+                '',
+                '`copilot/ai-sns-plan-review` ブランチで実装し、PR を作成してください。',
+                '',
+                '## 実装手順',
+                '',
+                '1. `Ledgers::AiSnsPlanSync.create_plan_item!` を呼ぶ Migration ファイルを作成する',
+                '2. 既存アイテムと重複しない新しい `item_key` を使用する（`TicketLedger.ai_sns_plan.pluck(:idempotency_key)` で確認）',
+                '3. `RAILS_ENV=test bin/rails runner "p TicketLedger.ai_sns_plan.status_draft.count"` が 3 以上になることを確認する',
+                '4. `bin/rubocop` が通ることを確認する',
+                '',
+                '<!-- copilot:model claude-opus-4.6 -->'
+              ].join('\n')
+            });
+
+            // コメント投稿後に copilot-swe-agent[bot] をアサイン（Copilot 起動のトリガー）
+            await github.rest.issues.addAssignees({
+              owner, repo,
+              issue_number: issueNumber,
+              assignees: ['copilot-swe-agent[bot]']
+            });
+
+            core.info(`Posted @copilot mention and assigned copilot-swe-agent[bot] to issue #${issueNumber}`);
+
+      - name: Slack 通知
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_CI }}
+          SKIP: ${{ steps.existing_check.outputs.skip }}
+          EXISTING_ISSUE: ${{ steps.existing_check.outputs.existing_issue }}
+          ISSUE_NUM: ${{ steps.create_issue.outputs.issue_number }}
+          ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
+          TODO_COUNT: ${{ steps.check_todo.outputs.todo_count }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then exit 0; fi
+          if ! printf '%s' "$SLACK_WEBHOOK" | grep -Eq '^https?://'; then exit 0; fi
+          PAYLOAD=$(python3 -c "
+          import json, os, time
+          skip = os.environ.get('SKIP', 'false')
+          existing = os.environ.get('EXISTING_ISSUE', '')
+          issue_num = os.environ.get('ISSUE_NUM', '')
+          issue_url = os.environ.get('ISSUE_URL', '')
+          todo_count = os.environ.get('TODO_COUNT', '0')
+          if skip == 'true':
+              text = f':blue_circle: PDCA 計画レビュー: 既存の open Issue #{existing} があるためスキップしました。Copilot の実装完了をお待ちください。'
+          else:
+              text = f':memo: PDCA 計画レビュー: todo残 {todo_count} 件。新規施策アイテム追加を @copilot に依頼しました。Issue #{issue_num}: {issue_url}'
+          print(json.dumps({'text': text}))
+          ")
+          curl -s -X POST -H 'Content-Type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK"

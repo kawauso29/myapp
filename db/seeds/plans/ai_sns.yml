@@ -1,0 +1,11 @@
+# AI SNS サービスの計画項目マスタ
+#
+# Ledgers::ServicePlanSeeder が読み込み、Ledgers::PlanItemUpserter 経由で
+# TicketLedger に冪等投入される（idempotency_key = "ai_sns_plan:<item_key>"）。
+#
+# 新規項目を追加する場合は items: 以下に1ブロック追記してデプロイすれば
+# 自動で TicketLedger に upsert される（既存項目は title / priority 等を上書き）。
+#
+# フォーマット詳細は Ledgers::ServicePlanSeeder の YAML フォーマット節を参照。
+service_id: ai_sns
+items: []

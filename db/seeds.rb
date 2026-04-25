@@ -6,6 +6,7 @@ require_relative "seeds/seed_ai_data"
 
 puts "=== Seeding AI SNS data ==="
 Ledgers::MasterDataSeeder.call
+Ledgers::ServicePlanSeeder.call
 
 DEFAULT_PERSONALITY = {
   sociability: :normal, post_frequency: :normal, active_time_peak: :normal,

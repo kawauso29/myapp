@@ -211,6 +211,24 @@ jobs:
             -d '{"ref":"main"}'
           echo "✅ ai_sns_plan.yml をディスパッチしました（Do フェーズ開始）"
 
+      - name: 計画レビュートリガー（todo残数 ≤ 2 の場合）
+        # todo 残数が 2 件以下になったら plan_review.yml を dispatch して
+        # Copilot に新規施策アイテムの追加を依頼する（PDCA サイクルの継続維持）。
+        # advance=true の場合（ai_sns_plan.yml も同時 dispatch）でも先回りして起票する。
+        # plan_review.yml 側で重複 Issue チェックをするため、毎 3 時間 dispatch しても安全。
+        if: steps.wip.outputs.todo_count == '0' || steps.wip.outputs.todo_count == '1' || steps.wip.outputs.todo_count == '2'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TODO_COUNT: ${{ steps.wip.outputs.todo_count }}
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/plan_review.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "✅ plan_review.yml をディスパッチしました（todo残 ${TODO_COUNT} 件 → 計画レビュー開始）"
+
       - name: 起票スキップ通知
         if: steps.wip.outputs.advance == 'false'
         env:
@@ -225,7 +243,7 @@ jobs:
           wip_limit = os.environ.get('WIP_LIMIT', '2')
           todo_count = os.environ.get('TODO_COUNT', '0')
           if todo_count == '0':
-              msg = ':blue_circle: PDCA: 未着手(todo)項目がありません。'
+              msg = ':blue_circle: PDCA: 未着手(todo)項目がありません。plan_review.yml をトリガーしました。'
           else:
               msg = ':yellow_circle: PDCA: WIP上限 (' + wip_count + '/' + wip_limit + ') に達しているため自動起票をスキップしました。in_progress 項目を完了させてから次のサイクルで起票します。'
           print(json.dumps({'text': msg}))
