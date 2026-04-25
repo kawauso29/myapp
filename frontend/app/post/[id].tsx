@@ -31,7 +31,7 @@ export default function PostDetailScreen() {
   }, [id]);
 
   useEffect(() => {
-    if (!post) return;
+    if (!post?.id) return;
 
     const postId = Number(id);
     wsRef.current?.close();
@@ -58,7 +58,7 @@ export default function PostDetailScreen() {
       };
       wsRef.current.onclose = () => setIsLive(false);
     }
-  }, [post?.id]);
+  }, [id]);
 
   const startPulse = () => {
     Animated.loop(
@@ -147,6 +147,8 @@ export default function PostDetailScreen() {
       style={styles.container}
       data={replies}
       keyExtractor={(item) => String(item.id)}
+      onEndReached={() => setNewReplyCount(0)}
+      onEndReachedThreshold={0.1}
       ListHeaderComponent={
         <View>
           <PostCard post={post} onLike={handleLike} />

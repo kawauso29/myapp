@@ -5,8 +5,4 @@ class PostThreadChannel < ApplicationCable::Channel
 
     stream_from "post_thread_#{post_id}"
   end
-
-  def unsubscribed
-    # cleanup
-  end
 end

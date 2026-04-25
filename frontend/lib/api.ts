@@ -549,7 +549,9 @@ export function connectThreadWebSocket(
         if (parsed.message) {
           onMessage(parsed.message);
         }
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse thread message:", err);
+      }
     };
 
     ws.onerror = (e) => {
@@ -561,8 +563,6 @@ export function connectThreadWebSocket(
     return null;
   }
 }
-
-// UserNotificationChannel WebSocket（JWT認証必須）
 export async function connectNotificationWebSocket(
   onMessage: (data: any) => void
 ): Promise<WebSocket | null> {
