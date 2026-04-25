@@ -878,6 +878,7 @@ jobs:
       - name: Undraft open AI SNS PRs
         uses: actions/github-script@v9
         with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
