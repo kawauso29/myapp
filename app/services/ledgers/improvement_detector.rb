@@ -8,6 +8,9 @@ module Ledgers
     # Phase 42 / UI伴走管理: UI チェック会議が連続して未実施の場合に検知する閾値
     UI_CHECK_STALE_DAYS = 3
     UI_CHECK_SERVICE_ID = "ai_sns".freeze
+    # ジョブ失敗継続検知: 過去 N 時間に M 回以上失敗したジョブクラスをチケット化
+    JOB_FAILURE_WINDOW_HOURS = 6
+    JOB_FAILURE_COUNT_THRESHOLD = 3
 
     def self.call
       new.call
@@ -20,6 +23,7 @@ module Ledgers
       created.concat(detect_stale_services)
       created.concat(detect_monthly_hold_accumulation)
       created.concat(detect_stale_ui_check)
+      created.concat(detect_persistent_job_failures)
 
       notify_if_needed(created)
 
@@ -142,6 +146,47 @@ module Ledgers
       )
 
       [detail_payload(ticket:, linked_kpis:)]
+    end
+
+    # サービス・運営由来のジョブが繰り返し失敗している場合に検知する。
+    # 過去 JOB_FAILURE_WINDOW_HOURS 時間以内に JOB_FAILURE_COUNT_THRESHOLD 回以上
+    # 失敗した同一ジョブクラスごとに improvement チケットを起票する。
+    def detect_persistent_job_failures
+      window_start = JOB_FAILURE_WINDOW_HOURS.hours.ago
+      scope = SolidQueue::FailedExecution.joins(:job).where(created_at: window_start..)
+      scope = scope.where(discarded_at: nil) if SolidQueue::FailedExecution.column_names.include?("discarded_at")
+
+      failure_counts = scope
+        .group("solid_queue_jobs.class_name")
+        .having("COUNT(*) >= ?", JOB_FAILURE_COUNT_THRESHOLD)
+        .count
+
+      return [] if failure_counts.blank?
+
+      failure_counts.filter_map do |job_class_name, count|
+        rule = "persistent_job_failure"
+        next if open_improvement_tickets.any? { |t|
+          linked = normalize_hash(t.linked_kpis)
+          linked["rule"] == rule && linked["job_class"] == job_class_name
+        }
+
+        linked_kpis = {
+          rule:,
+          job_class: job_class_name,
+          failure_count: count,
+          window_hours: JOB_FAILURE_WINDOW_HOURS
+        }
+        ticket = create_ticket!(
+          title: "Improvement: Persistent job failures - #{job_class_name} (#{count} in #{JOB_FAILURE_WINDOW_HOURS}h)",
+          linked_kpis:,
+          scope_level: :company
+        )
+
+        detail_payload(ticket:, linked_kpis:)
+      end
+    rescue => e
+      Rails.logger.error("[ImprovementDetector] detect_persistent_job_failures error: #{e.message}")
+      []
     end
 
     def create_ticket!(title:, linked_kpis:, scope_level:, service_id: nil)

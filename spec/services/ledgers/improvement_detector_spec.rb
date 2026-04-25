@@ -186,5 +186,77 @@ RSpec.describe Ledgers::ImprovementDetector do
           .not_to change { TicketLedger.ticket_type_improvement.where(linked_kpis: { rule: "stale_ui_check" }).count }
       end
     end
+
+    describe "detect_persistent_job_failures" do
+      def create_solid_queue_failure(class_name:, created_at: Time.current, error: "RuntimeError: boom")
+        job = SolidQueue::Job.create!(
+          class_name: class_name,
+          arguments: "[]",
+          queue_name: "default",
+          active_job_id: SecureRandom.uuid
+        )
+        SolidQueue::FailedExecution.create!(job_id: job.id, error: error, created_at: created_at)
+      end
+
+      it "triggers persistent_job_failure rule when job fails threshold times in window" do
+        3.times { create_solid_queue_failure(class_name: "CommunityDetectJob") }
+
+        result = described_class.call
+
+        ticket = TicketLedger.ticket_type_improvement.find { |t| t.linked_kpis["rule"] == "persistent_job_failure" }
+        expect(ticket).to be_present
+        expect(ticket.linked_kpis).to include(
+          "rule" => "persistent_job_failure",
+          "job_class" => "CommunityDetectJob",
+          "window_hours" => Ledgers::ImprovementDetector::JOB_FAILURE_WINDOW_HOURS
+        )
+        expect(ticket.linked_kpis["failure_count"]).to be >= Ledgers::ImprovementDetector::JOB_FAILURE_COUNT_THRESHOLD
+        expect(ticket.title).to include("CommunityDetectJob")
+        expect(result[:detected]).to be >= 1
+      end
+
+      it "does not trigger when failures are below threshold" do
+        2.times { create_solid_queue_failure(class_name: "CommunityDetectJob") }
+
+        result = described_class.call
+
+        ticket = TicketLedger.ticket_type_improvement.find { |t| t.linked_kpis["rule"] == "persistent_job_failure" }
+        expect(ticket).to be_nil
+      end
+
+      it "does not trigger for failures outside the time window" do
+        window = Ledgers::ImprovementDetector::JOB_FAILURE_WINDOW_HOURS
+        3.times { create_solid_queue_failure(class_name: "CommunityDetectJob", created_at: (window + 1).hours.ago) }
+
+        result = described_class.call
+
+        ticket = TicketLedger.ticket_type_improvement.find { |t| t.linked_kpis["rule"] == "persistent_job_failure" }
+        expect(ticket).to be_nil
+      end
+
+      it "does not create duplicate ticket when persistent_job_failure is already open" do
+        create(:ticket_ledger,
+               ticket_type: :improvement,
+               status: :waiting_review,
+               linked_kpis: { rule: "persistent_job_failure", job_class: "CommunityDetectJob" })
+        3.times { create_solid_queue_failure(class_name: "CommunityDetectJob") }
+
+        before_count = TicketLedger.ticket_type_improvement.count
+        described_class.call
+        after_count = TicketLedger.ticket_type_improvement.count
+        expect(after_count).to eq(before_count)
+      end
+
+      it "creates separate tickets for different failing job classes" do
+        3.times { create_solid_queue_failure(class_name: "CommunityDetectJob") }
+        3.times { create_solid_queue_failure(class_name: "RelationshipDecayJob") }
+
+        described_class.call
+
+        failure_tickets = TicketLedger.ticket_type_improvement.select { |t| t.linked_kpis["rule"] == "persistent_job_failure" }
+        job_classes = failure_tickets.map { |t| t.linked_kpis["job_class"] }
+        expect(job_classes).to include("CommunityDetectJob", "RelationshipDecayJob")
+      end
+    end
   end
 end

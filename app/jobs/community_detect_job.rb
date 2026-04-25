@@ -52,7 +52,7 @@ class CommunityDetectJob < ApplicationJob
     AiRelationship
       .where("relationship_type >= ?", AiRelationship.relationship_types[:friend])
       .where("interaction_score >= ?", EDGE_THRESHOLD)
-      .select(:ai_user_id, :target_ai_user_id, :interaction_score)
+      .select(:id, :ai_user_id, :target_ai_user_id, :interaction_score)
       .find_each do |rel|
         adjacency[rel.ai_user_id] << { peer_id: rel.target_ai_user_id, score: rel.interaction_score }
       end
