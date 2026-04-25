@@ -529,12 +529,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
-  # session-hold ラベルが外れたとき、CI通過済みなら即マージする
+  # session-hold ラベルが外れたとき、または ready_for_review に変換されたとき、CI通過済みなら即マージする
   merge_on_hold_release:
     if: >-
       ${{ github.event_name == 'pull_request_target' &&
-          github.event.action == 'unlabeled' &&
-          github.event.label.name == 'session-hold' &&
+          (
+            (github.event.action == 'unlabeled' && github.event.label.name == 'session-hold') ||
+            github.event.action == 'ready_for_review'
+          ) &&
           !github.event.pull_request.draft &&
           github.event.pull_request.state == 'open' &&
           github.event.pull_request.head.repo.full_name == github.repository }}
