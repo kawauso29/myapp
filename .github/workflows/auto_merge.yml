@@ -17,6 +17,9 @@ on:
       - 'copilot/**'
       - 'auto-fix/**'
       - 'deploy-failure/**'
+  schedule:
+    # copilot/ai-sns-* ブランチの Draft PR を5分毎に自動 undraft して CI 再実行させる
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
@@ -183,10 +186,11 @@ jobs:
             if (pr.draft) {
               try {
                 core.info(`PR #${pr.number} is draft, marking ready for review`);
-                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
+                await github.rest.pulls.update({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: pr.number
+                  pull_number: pr.number,
+                  draft: false
                 });
                 const { data: refreshedPr } = await github.rest.pulls.get({
                   owner: context.repo.owner,
@@ -528,12 +532,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
 
-  # session-hold ラベルが外れたとき、CI通過済みなら即マージする
+  # session-hold ラベルが外れたとき、または ready_for_review に変換されたとき、CI通過済みなら即マージする
   merge_on_hold_release:
     if: >-
       ${{ github.event_name == 'pull_request_target' &&
-          github.event.action == 'unlabeled' &&
-          github.event.label.name == 'session-hold' &&
+          (
+            (github.event.action == 'unlabeled' && github.event.label.name == 'session-hold') ||
+            github.event.action == 'ready_for_review'
+          ) &&
           !github.event.pull_request.draft &&
           github.event.pull_request.state == 'open' &&
           github.event.pull_request.head.repo.full_name == github.repository }}
@@ -862,3 +868,47 @@ jobs:
           print(json.dumps({"attachments": [{"color": "#e01e5a", "text": f":x: *\u30ec\u30d3\u30e5\u30fc\u4f9d\u983c\u6642\u306e\u81ea\u52d5\u30de\u30fc\u30b8\u306b\u5931\u6557* PR #{pr_number}", "fields": [{"title": "\u30a8\u30e9\u30fc", "value": error, "short": False}, {"title": "\u6b21\u306e\u30a2\u30af\u30b7\u30e7\u30f3", "value": f"PR\u3092\u78ba\u8a8d\u3057\u3066\u624b\u52d5\u30de\u30fc\u30b8\u3057\u3066\u304f\u3060\u3055\u3044: {pr_url}", "short": False}], "footer": "GitHub Actions Auto Merge", "ts": int(time.time())}]}))
           ')
           curl -s -X POST "${SLACK_WEBHOOK_URL}" -H "Content-Type: application/json" -d "${PAYLOAD}"
+
+  # スケジュール実行: copilot/ai-sns-* ブランチの Draft PR を自動 undraft する
+  # undraft されると pull_request_target:ready_for_review イベントが発火し、
+  # merge_on_hold_release が CI 通過済みを確認して自動マージする
+  undraft_ai_sns_prs:
+    if: github.event_name == 'schedule'
+    runs-on: [self-hosted, sakura-vps]
+    steps:
+      - name: Undraft open AI SNS PRs
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            const targets = prs.filter(pr =>
+              pr.draft &&
+              (pr.head.ref.startsWith('copilot/ai-sns-') ||
+               pr.head.ref.startsWith('copilot/auto-'))
+            );
+
+            if (targets.length === 0) {
+              core.info('No draft AI SNS PRs found');
+              return;
+            }
+
+            for (const pr of targets) {
+              core.info(`Undrafting PR #${pr.number}: ${pr.title} (${pr.head.ref})`);
+              try {
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  draft: false
+                });
+                core.info(`PR #${pr.number} undrafted successfully`);
+              } catch (error) {
+                core.warning(`Failed to undraft PR #${pr.number}: ${error.message}`);
+              }
+            }
