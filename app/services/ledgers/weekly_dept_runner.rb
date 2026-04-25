@@ -338,10 +338,14 @@ module Ledgers
 
     # 過去 KNOWLEDGE_CHECK_DAYS 日間に ADR または Runbook が作成されていなければ
     # KnowledgeLedger に警告ドラフトエントリを作成する。
+    # service_id スコープの MeetingLedger に source_meeting が紐付いた KnowledgeLedger を優先チェックし、
+    # 存在しない場合は service_id 関連の MeetingLedger から参照されたエントリを確認する。
     def check_and_warn_missing_knowledge_entry!(meeting:)
-      return if KnowledgeLedger.where(kind: %i[adr runbook])
-                               .where(created_at: KNOWLEDGE_CHECK_DAYS.days.ago..)
-                               .exists?
+      return if KnowledgeLedger
+                  .where(kind: %i[adr runbook])
+                  .where(created_at: KNOWLEDGE_CHECK_DAYS.days.ago..)
+                  .where(source_meeting_id: service_meeting_ids)
+                  .exists?
 
       ikey = "knowledge_warn:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
       return if KnowledgeLedger.exists?(idempotency_key: ikey)
@@ -358,6 +362,11 @@ module Ledgers
       )
     rescue ActiveRecord::RecordNotSaved, ActiveRecord::RecordInvalid => e
       Rails.logger.warn("[WeeklyDeptRunner] check_and_warn_missing_knowledge_entry! skipped: #{e.message}")
+    end
+
+    # このサービスに関連する MeetingLedger の ID を返す（knowledge check のスコープ用）
+    def service_meeting_ids
+      @service_meeting_ids ||= MeetingLedger.where(service_id:).pluck(:id)
     end
 
     def recent_feedback_count

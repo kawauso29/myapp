@@ -418,10 +418,11 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
                      .limit(10)
 
     # Phase 45: 直近の ArtifactLedger / KnowledgeLedger を表示
-    service_ids = ServiceLedger.pluck(:service_id)
-    @recent_artifacts = ArtifactLedger.where(service_id: service_ids)
-                                      .order(created_at: :desc)
-                                      .limit(10)
+    # service_id は JOIN で絞り込み（IN 句の大規模化を回避）
+    @recent_artifacts = ArtifactLedger
+                          .joins("INNER JOIN service_ledgers ON artifact_ledgers.service_id = service_ledgers.service_id")
+                          .order("artifact_ledgers.created_at DESC")
+                          .limit(10)
     @recent_knowledge  = KnowledgeLedger.order(created_at: :desc).limit(10)
     @health_tickets    = dept_health_open_tickets
   rescue ActiveRecord::RecordNotFound

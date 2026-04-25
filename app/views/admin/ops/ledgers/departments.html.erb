@@ -66,10 +66,9 @@
             hr_count     = @hr_eval_counts[role.role_key] || 0
             role_profile = @role_profiles_by_key[role.role_key] || {}
             role_name = role_profile[:display_name].presence || role.display_name
-            health_ok = @dept_health_tickets.none? { |t|
-              linked = t.linked_kpis.is_a?(Hash) ? t.linked_kpis : {}
-              linked["role_key"] == role.role_key
-            }
+            # DeptHealthChecker のチケットは service_id またはグローバル（company）スコープで起票される。
+            # role_key とは直接対応しないため、全社レベルの問題があれば全ロールを警告表示する。
+            health_ok = @global_health_issues.blank? && @dept_health_tickets.blank?
           %>
           <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:180px; flex:1; border:1px solid <%= health_ok ? '#2d3748' : '#c05621' %>;">
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
