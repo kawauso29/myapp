@@ -74,7 +74,8 @@ class AddAiSnsPlanItems < ActiveRecord::Migration[8.1]
 
   def down
     %w[A1 B2 D1 A2 B4].each do |key|
-      TicketLedger.find_by(idempotency_key: "ai_sns_plan:#{key}")&.destroy
+      ikey = Ledgers::AiSnsPlanSync.idempotency_key_for(key)
+      TicketLedger.find_by(idempotency_key: ikey)&.destroy
     end
   end
 end
