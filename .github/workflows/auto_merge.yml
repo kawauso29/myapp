@@ -522,6 +522,11 @@ jobs:
             echo "Branch does not match ledger-{N} pattern; skipping ticket status update"
             exit 0
           fi
+          # 数値のみであることを明示的に確認（念のため）
+          if ! echo "$TICKET_ID" | grep -Eq '^[0-9]+$'; then
+            echo "TICKET_ID is not numeric; skipping"
+            exit 0
+          fi
           RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
             t = TicketLedger.find(${TICKET_ID}) rescue nil
             unless t
@@ -538,7 +543,7 @@ jobs:
             t.skip_stop_guard = true
             t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
             puts 'updated'
-          " 2>/dev/null || echo "error")
+          " 2>&1 || echo "error")
           echo "Ticket #${TICKET_ID} status update: ${RESULT}"
 
       - name: Notify Slack (skipped due to protected files)
