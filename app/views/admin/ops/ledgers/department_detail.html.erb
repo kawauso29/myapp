@@ -150,3 +150,80 @@
     </table>
   </div>
 <% end %>
+
+<%# Phase 45: 部署健全性アラート %>
+<% if @health_tickets.present? %>
+  <div class="card" style="border:1px solid #c05621;">
+    <h2 style="color:#ed8936;">⚠️ ドキュメント健全性アラート (<%= @health_tickets.size %> 件)</h2>
+    <table>
+      <thead>
+        <tr><th>ルール</th><th>タイトル</th><th>期限</th><th>状態</th></tr>
+      </thead>
+      <tbody>
+        <% @health_tickets.each do |t| %>
+          <% linked = t.linked_kpis.is_a?(Hash) ? t.linked_kpis : {} %>
+          <tr>
+            <td style="font-size:0.82em; color:#ed8936; font-family:monospace;"><%= linked["rule"] %></td>
+            <td style="font-size:0.85em;"><%= t.title %></td>
+            <td style="font-size:0.82em; color:<%= t.due_date && t.due_date < Date.current ? '#fc8181' : '#a0aec0' %>"><%= t.due_date&.iso8601 || "-" %></td>
+            <td style="font-size:0.82em; color:<%= t.status_overdue? ? '#fc8181' : '#f6ad55' %>;"><%= t.status %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<%# Phase 45: 直近の成果物台帳 %>
+<div class="card">
+  <h2>📄 直近の成果物台帳 (<%= @recent_artifacts&.size || 0 %> 件)</h2>
+  <% if @recent_artifacts.present? %>
+    <% artifact_type_labels = {
+      "kpi_definition" => "KPI定義", "spec" => "仕様書", "execution_plan" => "実行計画",
+      "audit_judgment" => "監査判定", "customer_notice" => "顧客通知", "tech_record" => "技術記録"
+    } %>
+    <table>
+      <thead>
+        <tr><th>タイプ</th><th>タイトル</th><th>ver</th><th>状態</th><th>作成日時</th></tr>
+      </thead>
+      <tbody>
+        <% @recent_artifacts.each do |a| %>
+          <tr>
+            <td style="font-size:0.82em; color:#63b3ed;"><%= artifact_type_labels[a.artifact_type] || a.artifact_type %></td>
+            <td style="font-size:0.84em;"><%= truncate(a.title, length: 50) %></td>
+            <td style="font-size:0.82em; color:#718096;">v<%= a.artifact_version %></td>
+            <td style="font-size:0.82em; color:<%= a.status_published? ? '#68d391' : a.status_draft? ? '#f6e05e' : '#718096' %>;"><%= a.status %></td>
+            <td style="font-size:0.82em; color:#718096;"><%= a.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568; font-size:0.88em;">成果物台帳エントリなし</p>
+  <% end %>
+</div>
+
+<%# Phase 45: 直近の知識台帳 %>
+<div class="card">
+  <h2>📚 直近の知識台帳（ADR / Runbook）</h2>
+  <% if @recent_knowledge.present? %>
+    <% kind_labels = { "adr" => "ADR", "runbook" => "Runbook", "incident" => "障害", "deploy" => "デプロイ" } %>
+    <table>
+      <thead>
+        <tr><th>種別</th><th>タイトル</th><th>状態</th><th>作成日時</th></tr>
+      </thead>
+      <tbody>
+        <% @recent_knowledge.each do |k| %>
+          <tr>
+            <td style="font-size:0.82em; color:#a78bfa;"><%= kind_labels[k.kind] || k.kind %></td>
+            <td style="font-size:0.84em;"><%= truncate(k.title, length: 60) %></td>
+            <td style="font-size:0.82em; color:<%= k.status_accepted? ? '#68d391' : k.status_draft? ? '#f6e05e' : '#718096' %>;"><%= k.status %></td>
+            <td style="font-size:0.82em; color:#718096;"><%= k.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#4a5568; font-size:0.88em;">知識台帳エントリなし</p>
+  <% end %>
+</div>

@@ -370,6 +370,18 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
         @role_profiles_by_key[role.role_key] = role_profile_for(role)
       end
     end
+
+    # Phase 45: 部署健全性チェック結果（open な DeptHealthChecker improvement チケット）
+    @dept_health_tickets = dept_health_open_tickets
+    @dept_health_issues_by_service = @dept_health_tickets.group_by { |t|
+      linked = normalize_linked_kpis(t.linked_kpis)
+      linked["service_id"].presence || "company"
+    }
+    @global_health_issues = @dept_health_tickets.select { |t|
+      linked = normalize_linked_kpis(t.linked_kpis)
+      linked["service_id"].blank?
+    }
+    @artifact_summary = monthly_artifact_summary
   rescue StandardError => e
     Rails.logger.warn("LedgersController#departments: #{e.message}")
     @roles_by_category ||= {}
@@ -377,6 +389,10 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     @hr_eval_counts ||= {}
     @org_change_counts ||= {}
     @role_profiles_by_key ||= {}
+    @dept_health_tickets ||= []
+    @dept_health_issues_by_service ||= {}
+    @global_health_issues ||= []
+    @artifact_summary ||= {}
   end
 
   def department_detail
@@ -400,6 +416,14 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     @org_changes = OrgChangeLedger
                      .order(created_at: :desc)
                      .limit(10)
+
+    # Phase 45: 直近の ArtifactLedger / KnowledgeLedger を表示
+    service_ids = ServiceLedger.pluck(:service_id)
+    @recent_artifacts = ArtifactLedger.where(service_id: service_ids)
+                                      .order(created_at: :desc)
+                                      .limit(10)
+    @recent_knowledge  = KnowledgeLedger.order(created_at: :desc).limit(10)
+    @health_tickets    = dept_health_open_tickets
   rescue ActiveRecord::RecordNotFound
     redirect_to admin_ops_ledger_departments_path, alert: "役割が見つかりません"
   rescue StandardError => e
@@ -864,5 +888,33 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
 
   def job_scope_sql
     "solid_queue_jobs.class_name = :direct OR (solid_queue_jobs.class_name = :wrapper AND solid_queue_jobs.arguments LIKE :wrapped_like)"
+  end
+
+  # Phase 45: DeptHealthChecker が作成した open improvement チケットを返す
+  def dept_health_open_tickets
+    TicketLedger.ticket_type_improvement
+                .where(status: %i[waiting_review overdue])
+                .select { |t|
+                  linked = normalize_linked_kpis(t.linked_kpis)
+                  Ledgers::DeptHealthChecker::RULES.include?(linked["rule"])
+                }
+  rescue StandardError
+    []
+  end
+
+  # Phase 45: 月次 ArtifactLedger 発行サマリー
+  def monthly_artifact_summary
+    range = 30.days.ago..Time.current
+    {
+      published: ArtifactLedger.status_published.where(created_at: range).count,
+      draft:     ArtifactLedger.status_draft.where(created_at: range).count,
+      knowledge: KnowledgeLedger.where(created_at: range).count
+    }
+  rescue StandardError
+    {}
+  end
+
+  def normalize_linked_kpis(value)
+    value.is_a?(Hash) ? value : {}
   end
 end

@@ -68,11 +68,18 @@ module Ledgers
         details: Array(resolver_result.fetch(:details, [])) + Array(escalation_result.fetch(:details, []))
       }
 
-      meeting.update!(decisions:, directives: [ { improvements: } ], status: :closed,
+      # Phase 45: 月次で各部署ロール別の ArtifactLedger 発行数をまとめる
+      artifact_summary = artifact_publish_summary
+
+      meeting.update!(decisions:, directives: [ { improvements:, artifact_summary: } ], status: :closed,
                      carry_over_items: previous_hold_items)
 
       # Phase 31c: 月次会議の議事要約を成果物台帳に自動記録する
-      Ledgers::RunnerArtifactPublisher.publish_for!(meeting: meeting, runner: :monthly_ops)
+      Ledgers::RunnerArtifactPublisher.publish_for!(
+        meeting: meeting,
+        runner: :monthly_ops,
+        extra_content: { artifact_summary: }
+      )
 
       meeting
     end
@@ -92,6 +99,25 @@ module Ledgers
       return resolution if ALLOWED_RESOLUTIONS.include?(resolution)
 
       "approved"
+    end
+
+    # Phase 45: 月次の ArtifactLedger 発行統計（過去 30 日間）
+    def artifact_publish_summary
+      range = 30.days.ago..Time.current
+      {
+        total_published:  ArtifactLedger.status_published.where(created_at: range).count,
+        total_draft:      ArtifactLedger.status_draft.where(created_at: range).count,
+        by_type:          ArtifactLedger.where(created_at: range)
+                                        .group(:artifact_type)
+                                        .count
+                                        .transform_keys { |k| ArtifactLedger.artifact_types.key(k) || k },
+        knowledge_new:    KnowledgeLedger.where(created_at: range).count,
+        period_start:     range.begin.iso8601,
+        period_end:       range.end.iso8601
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[MonthlyOpsRunner] artifact_publish_summary error: #{e.message}")
+      {}
     end
 
     # 補強8: 前回 weekly_dept 会議の hold_items を引き継ぐ

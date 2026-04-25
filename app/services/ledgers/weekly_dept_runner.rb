@@ -117,6 +117,15 @@ module Ledgers
         service_id: service_id
       )
 
+      # Phase 45a: 週次会議後に tech_record ドラフトを自動生成する
+      publish_weekly_tech_record!(meeting:)
+
+      # Phase 45b: 顧客フィードバックが閾値超過の場合に customer_notice ドラフトを自動生成する
+      maybe_publish_customer_notice_draft!(meeting:)
+
+      # Phase 45c: dev / audit 向け KnowledgeLedger（ADR/Runbook）未作成警告
+      check_and_warn_missing_knowledge_entry!(meeting:)
+
       meeting
     end
 
@@ -252,6 +261,112 @@ module Ledgers
             owner_agent: "daily_runner"
           }
         end
+    end
+
+    # ---- Phase 45 additions ----
+
+    FEEDBACK_ACTIVITY_THRESHOLD = 3
+    FEEDBACK_WINDOW_DAYS        = 7
+    KNOWLEDGE_CHECK_DAYS        = 14
+
+    # 週次会議後に tech_record（作業メモ）ドラフトを自動生成する。
+    # meeting.idempotency_key を使った idempotency_key で二重作成を防ぐ。
+    def publish_weekly_tech_record!(meeting:)
+      ikey = "draft:tech_record:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
+      return if ArtifactLedger.exists?(idempotency_key: ikey)
+
+      week_label = Date.current.beginning_of_week(:monday).iso8601
+      title      = "Weekly Tech Record (#{service_id}) #{week_label}"
+      return if ArtifactLedger.exists?(artifact_type: :tech_record, title: title)
+
+      ArtifactLedger.create!(
+        artifact_type: :tech_record,
+        scope_level: :service,
+        service_id: service_id,
+        title: title,
+        artifact_version: 1,
+        content: {
+          meeting_id: meeting.id,
+          held_at: meeting.held_at.iso8601,
+          tickets_created: meeting.tickets_to_create,
+          decisions: meeting.decisions,
+          note: "Auto-generated draft. Review and edit as needed."
+        },
+        status: :draft,
+        source_meeting: meeting,
+        author: "weekly_dept_runner",
+        idempotency_key: ikey
+      )
+    rescue ActiveRecord::RecordNotSaved, ActiveRecord::RecordInvalid => e
+      Rails.logger.warn("[WeeklyDeptRunner] publish_weekly_tech_record! skipped: #{e.message}")
+    end
+
+    # 顧客フィードバックが急増している場合に customer_notice ドラフトを自動生成する。
+    # FEEDBACK_ACTIVITY_THRESHOLD 件以上のフィードバックが FEEDBACK_WINDOW_DAYS 日以内にある場合に作成。
+    def maybe_publish_customer_notice_draft!(meeting:)
+      count = recent_feedback_count
+      return if count < FEEDBACK_ACTIVITY_THRESHOLD
+
+      ikey = "draft:customer_notice:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
+      return if ArtifactLedger.exists?(idempotency_key: ikey)
+
+      week_label = Date.current.beginning_of_week(:monday).iso8601
+      title      = "Customer Notice Draft (#{service_id}) #{week_label}"
+      return if ArtifactLedger.exists?(artifact_type: :customer_notice, title: title)
+
+      ArtifactLedger.create!(
+        artifact_type: :customer_notice,
+        scope_level: :service,
+        service_id: service_id,
+        title: title,
+        artifact_version: 1,
+        content: {
+          meeting_id: meeting.id,
+          held_at: meeting.held_at.iso8601,
+          feedback_count: count,
+          trigger: "high_feedback_activity",
+          note: "Customer feedback spike detected (#{count} in #{FEEDBACK_WINDOW_DAYS} days). Please review and publish a customer notice."
+        },
+        status: :draft,
+        source_meeting: meeting,
+        author: "weekly_dept_runner",
+        idempotency_key: ikey
+      )
+    rescue ActiveRecord::RecordNotSaved, ActiveRecord::RecordInvalid => e
+      Rails.logger.warn("[WeeklyDeptRunner] maybe_publish_customer_notice_draft! skipped: #{e.message}")
+    end
+
+    # 過去 KNOWLEDGE_CHECK_DAYS 日間に ADR または Runbook が作成されていなければ
+    # KnowledgeLedger に警告ドラフトエントリを作成する。
+    def check_and_warn_missing_knowledge_entry!(meeting:)
+      return if KnowledgeLedger.where(kind: %i[adr runbook])
+                               .where(created_at: KNOWLEDGE_CHECK_DAYS.days.ago..)
+                               .exists?
+
+      ikey = "knowledge_warn:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
+      return if KnowledgeLedger.exists?(idempotency_key: ikey)
+
+      KnowledgeLedger.create!(
+        kind: :runbook,
+        title: "⚠️ No ADR/Runbook in #{KNOWLEDGE_CHECK_DAYS} days (#{service_id})",
+        status: :draft,
+        source_meeting: meeting,
+        author: "weekly_dept_runner",
+        body: "No ADR or Runbook has been created in the last #{KNOWLEDGE_CHECK_DAYS} days for #{service_id}. " \
+              "Please document recent architectural decisions or operational procedures.",
+        idempotency_key: ikey
+      )
+    rescue ActiveRecord::RecordNotSaved, ActiveRecord::RecordInvalid => e
+      Rails.logger.warn("[WeeklyDeptRunner] check_and_warn_missing_knowledge_entry! skipped: #{e.message}")
+    end
+
+    def recent_feedback_count
+      @recent_feedback_count ||= CustomerFeedbackLedger
+                                   .where(service_id: service_id)
+                                   .where(created_at: FEEDBACK_WINDOW_DAYS.days.ago..)
+                                   .count
+    rescue StandardError
+      0
     end
   end
 end
