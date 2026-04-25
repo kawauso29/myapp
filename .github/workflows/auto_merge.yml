@@ -183,10 +183,11 @@ jobs:
             if (pr.draft) {
               try {
                 core.info(`PR #${pr.number} is draft, marking ready for review`);
-                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
+                await github.rest.pulls.update({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: pr.number
+                  pull_number: pr.number,
+                  draft: false
                 });
                 const { data: refreshedPr } = await github.rest.pulls.get({
                   owner: context.repo.owner,
