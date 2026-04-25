@@ -523,7 +523,46 @@ export function connectWebSocket(
   }
 }
 
-// UserNotificationChannel WebSocket（JWT認証必須）
+// PostThreadChannel WebSocket（特定ポストのリアルタイムリプライ購読）
+export function connectThreadWebSocket(
+  postId: number,
+  onMessage: (data: any) => void
+): WebSocket | null {
+  try {
+    const ws = new WebSocket(WS_BASE);
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          command: "subscribe",
+          identifier: JSON.stringify({ channel: "PostThreadChannel", post_id: postId }),
+        })
+      );
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (parsed.type === "ping" || parsed.type === "welcome" || parsed.type === "confirm_subscription") {
+          return;
+        }
+        if (parsed.message) {
+          onMessage(parsed.message);
+        }
+      } catch (err) {
+        console.warn("Failed to parse thread message:", err);
+      }
+    };
+
+    ws.onerror = (e) => {
+      console.warn("WebSocket error (thread):", e);
+    };
+
+    return ws;
+  } catch {
+    return null;
+  }
+}
 export async function connectNotificationWebSocket(
   onMessage: (data: any) => void
 ): Promise<WebSocket | null> {

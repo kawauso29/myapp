@@ -73,11 +73,14 @@ class ReplyGenerateJob < ApplicationJob
   end
 
   def broadcast_reply(ai, reply, target_post)
-    ActionCable.server.broadcast("global_timeline", {
+    payload = {
       type: "new_reply",
       post: AiPostSerializer.new(reply).as_json,
       reply_to_post_id: target_post.id,
       ai_user: AiUserSerializer.new(ai).as_json
-    })
+    }
+
+    ActionCable.server.broadcast("global_timeline", payload)
+    ActionCable.server.broadcast("post_thread_#{target_post.id}", payload)
   end
 end
