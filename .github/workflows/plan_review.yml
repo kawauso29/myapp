@@ -187,9 +187,10 @@ jobs:
               owner, repo,
               issue_number: issueNumber,
               body: [
-                '@copilot このIssueの内容に従って、AI SNS 計画の新規施策アイテムを 3〜5 件追加する Migration を作成してください。',
+                `@copilot このIssueの内容に従って、AI SNS 計画の新規施策アイテムを 3〜5 件追加する Migration を作成してください。`,
                 '',
                 '`copilot/ai-sns-plan-review` ブランチで実装し、PR を作成してください。',
+                `**PR 本文の先頭に \`Closes #${issueNumber}\` を必ず含めてください**（Issue を自動クローズするため）。`,
                 '',
                 '## 実装手順',
                 '',

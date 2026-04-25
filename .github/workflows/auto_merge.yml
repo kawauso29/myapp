@@ -384,16 +384,56 @@ jobs:
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
-      # ② plan-review Issue クローズ: copilot/ai-sns-plan-review ブランチのPRマージ後に
+      # ② plan-review Issue クローズ: plan-review ラベル付き Issue に紐づく PR マージ後に
       #    open の plan-review ラベル付き Issue を自動クローズしてPDCAサイクルを循環させる。
+      #    判定方法: (a) ブランチ名が copilot/ai-sns-plan-review で始まる、または
+      #              (b) PR本文に "Closes/Fixes/Resolves #N" が含まれ #N が plan-review Issue である
+      #    Copilot が自由なブランチ名を使った場合でも (b) で補足できる。
       #    Issue クローズはWebhookトリガーを必要としないため GITHUB_TOKEN で問題なし。
       - name: Close plan-review Issues after plan review PR merge
-        if: ${{ steps.merge_pr.outputs.merged == 'true' && startsWith(steps.merge_pr.outputs.pr_branch, 'copilot/ai-sns-plan-review') }}
+        if: ${{ steps.merge_pr.outputs.merged == 'true' }}
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
+            const prBranch = '${{ steps.merge_pr.outputs.pr_branch }}';
+            const prNumber = parseInt('${{ steps.merge_pr.outputs.pr_number }}', 10);
+
+            // (a) ブランチ名チェック
+            const isBranchMatch = prBranch.startsWith('copilot/ai-sns-plan-review');
+
+            // (b) PR本文の closing キーワードチェック
+            let isBodyMatch = false;
+            if (!isBranchMatch && prNumber) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+                const body = pr.body || '';
+                // "Closes/Fixes/Resolves #N" パターンを検索
+                const closingRefs = [...body.matchAll(/(?:closes?|fixes?|resolves?)\s+#(\d+)/gi)]
+                  .map(m => parseInt(m[1], 10));
+                if (closingRefs.length > 0) {
+                  // 参照先 Issue が plan-review ラベルを持つか確認
+                  for (const refNum of closingRefs) {
+                    try {
+                      const { data: refIssue } = await github.rest.issues.get({ owner, repo, issue_number: refNum });
+                      if (refIssue.labels.some(l => l.name === 'plan-review') && refIssue.state === 'open') {
+                        isBodyMatch = true;
+                        break;
+                      }
+                    } catch (_) { /* issue not found, skip */ }
+                  }
+                }
+              } catch (e) {
+                core.warning(`Failed to fetch PR body for closing keyword check: ${e.message}`);
+              }
+            }
+
+            if (!isBranchMatch && !isBodyMatch) {
+              core.info(`PR branch "${prBranch}" is not a plan-review PR; skipping issue close`);
+              return;
+            }
+
             const { data: issues } = await github.rest.issues.listForRepo({
               owner, repo,
               labels: 'plan-review',
