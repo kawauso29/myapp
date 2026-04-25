@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   View,
   FlatList,
   StyleSheet,
   ActivityIndicator,
   Text,
+  Animated,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { getPost, likePost, unlikePost, getToken } from "../../lib/api";
+import { getPost, likePost, unlikePost, getToken, connectThreadWebSocket } from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
 export default function PostDetailScreen() {
@@ -15,11 +16,58 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const [newReplyCount, setNewReplyCount] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const livePulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     loadPost();
     getToken().then(t => setIsLoggedIn(!!t));
+
+    return () => {
+      wsRef.current?.close();
+    };
   }, [id]);
+
+  useEffect(() => {
+    if (!post) return;
+
+    const postId = Number(id);
+    wsRef.current?.close();
+    wsRef.current = connectThreadWebSocket(postId, (msg) => {
+      if (msg.type === "new_reply" && msg.reply_to_post_id === postId && msg.post) {
+        setPost((prev: any) => {
+          if (!prev) return prev;
+          const alreadyExists = (prev.replies || []).some((r: any) => r.id === msg.post.id);
+          if (alreadyExists) return prev;
+          setNewReplyCount(c => c + 1);
+          return {
+            ...prev,
+            replies_count: (prev.replies_count || 0) + 1,
+            replies: [...(prev.replies || []), msg.post],
+          };
+        });
+      }
+    });
+
+    if (wsRef.current) {
+      wsRef.current.onopen = () => {
+        setIsLive(true);
+        startPulse();
+      };
+      wsRef.current.onclose = () => setIsLive(false);
+    }
+  }, [post?.id]);
+
+  const startPulse = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(livePulse, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(livePulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  };
 
   const loadPost = async () => {
     try {
@@ -102,19 +150,32 @@ export default function PostDetailScreen() {
       ListHeaderComponent={
         <View>
           <PostCard post={post} onLike={handleLike} />
-          {replies.length > 0 && (
-            <View style={styles.repliesHeader}>
+          <View style={styles.threadHeader}>
+            <View style={styles.threadHeaderLeft}>
               <Text style={styles.repliesTitle}>
-                リプライ ({replies.length})
+                会話スレッド ({replies.length})
               </Text>
+              {newReplyCount > 0 && (
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>+{newReplyCount} 新着</Text>
+                </View>
+              )}
             </View>
-          )}
+            {isLive && (
+              <View style={styles.liveIndicator}>
+                <Animated.View style={[styles.liveDot, { opacity: livePulse }]} />
+                <Text style={styles.liveText}>ライブ</Text>
+              </View>
+            )}
+          </View>
         </View>
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <View style={styles.replyWrapper}>
-          <View style={styles.replyLine} />
-          <PostCard post={item} onLike={handleLike} />
+          <View style={styles.threadLine} />
+          <View style={[styles.replyCard, index === replies.length - 1 && styles.replyCardLast]}>
+            <PostCard post={item} onLike={handleLike} />
+          </View>
         </View>
       )}
       ListEmptyComponent={
@@ -130,12 +191,43 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { color: "#999", fontSize: 16 },
-  repliesHeader: { padding: 16, backgroundColor: "#f8f9fa" },
-  repliesTitle: { fontSize: 14, fontWeight: "bold", color: "#666" },
-  replyWrapper: { flexDirection: "row" },
-  replyLine: {
-    width: 2, backgroundColor: "#e0e0e0", marginLeft: 36,
+  threadHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: "#f8f9fa",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e8e8f0",
   },
+  threadHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  repliesTitle: { fontSize: 14, fontWeight: "bold", color: "#444" },
+  newBadge: {
+    backgroundColor: "#6c63ff",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  newBadgeText: { color: "#fff", fontSize: 11, fontWeight: "bold" },
+  liveIndicator: { flexDirection: "row", alignItems: "center", gap: 5 },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#e74c3c",
+  },
+  liveText: { fontSize: 12, color: "#e74c3c", fontWeight: "600" },
+  replyWrapper: { flexDirection: "row" },
+  threadLine: {
+    width: 2,
+    backgroundColor: "#ddd",
+    marginLeft: 36,
+    marginTop: 0,
+  },
+  replyCard: { flex: 1 },
+  replyCardLast: {},
   noReplies: { padding: 32, alignItems: "center" },
   noRepliesText: { color: "#ccc", fontSize: 14 },
 });
+
