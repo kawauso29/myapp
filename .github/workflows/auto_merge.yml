@@ -186,11 +186,10 @@ jobs:
             if (pr.draft) {
               try {
                 core.info(`PR #${pr.number} is draft, marking ready for review`);
-                await github.rest.pulls.update({
+                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: pr.number,
-                  draft: false
+                  pull_number: pr.number
                 });
                 const { data: refreshedPr } = await github.rest.pulls.get({
                   owner: context.repo.owner,
@@ -887,25 +886,24 @@ jobs:
               per_page: 50
             });
 
+            const ALLOWED_PREFIXES = ['claude/', 'copilot/', 'auto-fix/', 'deploy-failure/'];
             const targets = prs.filter(pr =>
               pr.draft &&
-              (pr.head.ref.startsWith('copilot/ai-sns-') ||
-               pr.head.ref.startsWith('copilot/auto-'))
+              ALLOWED_PREFIXES.some(p => pr.head.ref.startsWith(p))
             );
 
             if (targets.length === 0) {
-              core.info('No draft AI SNS PRs found');
+              core.info('No draft PRs found for auto-undraft');
               return;
             }
 
             for (const pr of targets) {
               core.info(`Undrafting PR #${pr.number}: ${pr.title} (${pr.head.ref})`);
               try {
-                await github.rest.pulls.update({
+                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/ready_for_review', {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  pull_number: pr.number,
-                  draft: false
+                  pull_number: pr.number
                 });
                 core.info(`PR #${pr.number} undrafted successfully`);
               } catch (error) {
