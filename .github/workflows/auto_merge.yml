@@ -1249,7 +1249,7 @@ jobs:
             }
 
 
-      - name: Close empty ai-sns PRs and update completed plan status
+      - name: Close empty ai-sns PRs
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
