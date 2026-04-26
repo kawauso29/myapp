@@ -327,14 +327,22 @@ jobs:
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           PR_TITLE="${{ steps.merge_pr.outputs.pr_title }}"
           PR_BRANCH="${{ steps.merge_pr.outputs.pr_branch }}"
-          # PRタイトルから [AI SNS計画] [ITEM_ID] パターンを抽出
-          ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
+          # ブランチ名 copilot/ai-sns-{ITEM_ID} から ITEM_ID を抽出（タイトル変更の影響を受けない）
+          ITEM_ID=$(echo "$PR_BRANCH" | python3 -c "
+          import re, sys
+          m = re.search(r'copilot/ai-sns-(\w+)', sys.stdin.read())
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          # ブランチ名で取れなかった場合はタイトルからフォールバック
+          if [ -z "$ITEM_ID" ]; then
+            ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
           import re, sys
           m = re.search(r'\[AI SNS計画\]\s*\[(\w+)\]', sys.stdin.read())
           print(m.group(1) if m else '')
           " 2>/dev/null || echo "")
+          fi
           if [ -z "$ITEM_ID" ]; then
-            echo "PR title does not match AI SNS plan pattern: ${PR_TITLE}"
+            echo "AI SNS計画のパターンに一致しません: branch=${PR_BRANCH}, title=${PR_TITLE}"
             exit 0
           fi
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
@@ -775,13 +783,22 @@ jobs:
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           PR_TITLE="${{ steps.merge_on_release.outputs.pr_title }}"
           PR_BRANCH="${{ github.event.pull_request.head.ref }}"
-          ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
+          # ブランチ名 copilot/ai-sns-{ITEM_ID} から ITEM_ID を抽出（タイトル変更の影響を受けない）
+          ITEM_ID=$(echo "$PR_BRANCH" | python3 -c "
+          import re, sys
+          m = re.search(r'copilot/ai-sns-(\w+)', sys.stdin.read())
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          # ブランチ名で取れなかった場合はタイトルからフォールバック
+          if [ -z "$ITEM_ID" ]; then
+            ITEM_ID=$(echo "$PR_TITLE" | python3 -c "
           import re, sys
           m = re.search(r'\[AI SNS計画\]\s*\[(\w+)\]', sys.stdin.read())
           print(m.group(1) if m else '')
           " 2>/dev/null || echo "")
+          fi
           if [ -z "$ITEM_ID" ]; then
-            echo "PR title does not match AI SNS plan pattern: ${PR_TITLE}"
+            echo "AI SNS計画のパターンに一致しません: branch=${PR_BRANCH}, title=${PR_TITLE}"
             exit 0
           fi
           echo "item_id=${ITEM_ID}" >> "$GITHUB_OUTPUT"
