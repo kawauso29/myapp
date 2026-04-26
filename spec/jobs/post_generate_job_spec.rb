@@ -51,6 +51,21 @@ RSpec.describe PostGenerateJob, type: :job do
       end
     end
 
+    context "when AI user is inactive" do
+      before { allow_any_instance_of(AiUser).to receive(:is_active?).and_return(false) }
+
+      it "does not create a post" do
+        expect {
+          described_class.new.perform(ai_user.id, motivation)
+        }.not_to change(AiPost, :count)
+      end
+
+      it "does not attempt LLM call" do
+        expect_any_instance_of(described_class).not_to receive(:call_llm)
+        described_class.new.perform(ai_user.id, motivation)
+      end
+    end
+
     context "when LLM response fails validation" do
       before do
         allow_any_instance_of(described_class).to receive(:call_llm).and_return("invalid json")
@@ -119,6 +134,32 @@ RSpec.describe PostGenerateJob, type: :job do
         expect(post.image_url).to be_nil
         expect(post.image_prompt).to be_nil
       end
+    end
+  end
+
+  describe "error handling configuration" do
+    it "propagates ActiveRecord::RecordNotFound when AI user does not exist (framework discards the job)" do
+      allow(AiUser).to receive(:find).with(999_999).and_raise(ActiveRecord::RecordNotFound)
+
+      expect {
+        described_class.new.perform(999_999, motivation)
+      }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+
+    it "propagates Net::ReadTimeout when LLM times out (framework schedules retry)" do
+      allow_any_instance_of(described_class).to receive(:call_llm).and_raise(Net::ReadTimeout)
+
+      expect {
+        described_class.new.perform(ai_user.id, motivation)
+      }.to raise_error(Net::ReadTimeout)
+    end
+
+    it "propagates Net::OpenTimeout when LLM connection times out (framework schedules retry)" do
+      allow_any_instance_of(described_class).to receive(:call_llm).and_raise(Net::OpenTimeout)
+
+      expect {
+        described_class.new.perform(ai_user.id, motivation)
+      }.to raise_error(Net::OpenTimeout)
     end
   end
 end
