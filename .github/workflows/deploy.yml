@@ -126,6 +126,33 @@ jobs:
             sed -i "/^${KEY}=/d" ~/myapp/.env
           done
 
+      - name: Setup runner environment (OOM prevention)
+        # CodeQL (Java) は Copilot coding agent が parallel_validation 実行時に起動する。
+        # 1.9GB VPS では制限なしだと ~1.4GB を消費しランナーごと OOM キルされる（2026-04-26実績）。
+        # JAVA_TOOL_OPTIONS でヒープ上限を 600m に制限し OOM 再発を防止する。
+        # 注: runner .env は runsvc.sh 起動時に読み込まれ全ジョブの環境変数として伝播する。
+        # sudoers 設定（要手動・一度だけ実行）:
+        #   echo 'ubuntu ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart actions.runner.kawauso29-myapp.os3-392-29108.service, /usr/bin/systemctl reset-failed actions.runner.kawauso29-myapp.os3-392-29108.service, /bin/systemctl restart actions.runner.kawauso29-myapp.os3-392-29108.service, /bin/systemctl reset-failed actions.runner.kawauso29-myapp.os3-392-29108.service' | sudo tee /etc/sudoers.d/github-runner-health && sudo chmod 440 /etc/sudoers.d/github-runner-health
+        run: |
+          RUNNER_ENV_FILE="$HOME/actions-runner/.env"
+          touch "$RUNNER_ENV_FILE"
+          # JAVA_TOOL_OPTIONS: JVM ヒープ上限（CodeQL等のJavaプロセス全体に適用）
+          if grep -q "^JAVA_TOOL_OPTIONS=" "$RUNNER_ENV_FILE"; then
+            sed -i "s|^JAVA_TOOL_OPTIONS=.*|JAVA_TOOL_OPTIONS=-Xmx600m|" "$RUNNER_ENV_FILE"
+          else
+            echo "JAVA_TOOL_OPTIONS=-Xmx600m" >> "$RUNNER_ENV_FILE"
+          fi
+          echo "✅ runner .env に JAVA_TOOL_OPTIONS=-Xmx600m を設定しました"
+          echo "⚠️  sudoers NOPASSWD 未設定の場合、check_runner_health によるランナー自動再起動が機能しません"
+          echo "   手動で一度: sudo tee /etc/sudoers.d/github-runner-health に設定してください（deploy.yml のコメント参照）"
+          # sudoers が設定済みかチェック（設定済みなら ✅ 表示）
+          if sudo -n systemctl status actions.runner.kawauso29-myapp.os3-392-29108.service > /dev/null 2>&1 || \
+             ls /etc/sudoers.d/github-runner-health > /dev/null 2>&1; then
+            echo "✅ sudoers NOPASSWD 設定済みです"
+          else
+            echo "⚠️  sudoers NOPASSWD 未設定: runner 停止時の自動再起動が機能しません"
+          fi
+
       - name: Setup VPS cron jobs (定期実行 + 監視)
         # weekly_pdca.yml を3時間おきに VPS cron から dispatch する
         # GitHub schedule トリガーは高負荷時に遅延・スキップが発生するため VPS cron で確実に実行
