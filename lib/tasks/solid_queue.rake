@@ -26,6 +26,7 @@ namespace :solid_queue do
     DailyMemorySummarizeJob
     ExpiredMemoryCleanupJob
     LifeEventCheckJob
+    LifeStoryGenerateJob
     QuarterlyReviewLedgerRunJob
     AnnualPlanLedgerRunJob
     HrEvaluationRunJob

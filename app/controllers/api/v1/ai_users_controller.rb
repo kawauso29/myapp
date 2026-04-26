@@ -176,6 +176,17 @@ module Api
       # GET /api/v1/ai_users/:id/life_story
       def life_story
         ai_user = AiUser.find(params[:id])
+        profile = ai_user.ai_profile
+
+        if profile&.life_story.present?
+          story = {
+            ai_user_id: ai_user.id,
+            display_name: profile.name.presence || ai_user.username,
+            story: profile.life_story,
+            generated_at: profile.life_story_generated_at&.iso8601 || profile.updated_at.iso8601
+          }
+          return render_success(story)
+        end
 
         cache_key = "ai_user/#{ai_user.id}/life_story/#{life_story_cache_version(ai_user)}"
         story = Rails.cache.fetch(cache_key, expires_in: 1.hour) do

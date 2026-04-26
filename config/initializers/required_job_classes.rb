@@ -28,6 +28,7 @@ Rails.application.reloader.to_prepare do
     DailyMemorySummarizeJob
     ExpiredMemoryCleanupJob
     LifeEventCheckJob
+    LifeStoryGenerateJob
     QuarterlyReviewLedgerRunJob
     AnnualPlanLedgerRunJob
     HrEvaluationRunJob
