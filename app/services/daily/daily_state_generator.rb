@@ -46,6 +46,11 @@ module Daily
       going_out = generate_going_out(busyness, energy, today_events)
       post_motivation = generate_post_motivation(mood, today_events)
 
+      # 感情の波及効果: ソーシャルグラフ上の繋がりから stress / post_motivation に delta を適用
+      ripple = EmotionRippleEffect.deltas(@ai)
+      stress_level = (stress_level + ripple[:stress_delta]).clamp(0, 100)
+      post_motivation = (post_motivation + ripple[:post_motivation_delta]).clamp(10, 100)
+
       @ai.ai_daily_states.create!(
         date: Date.current,
         physical: physical,

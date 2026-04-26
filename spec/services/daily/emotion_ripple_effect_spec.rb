@@ -36,5 +36,31 @@ RSpec.describe Daily::EmotionRippleEffect do
       expect(deltas[:stress_delta]).to eq(-8)
       expect(deltas[:post_motivation_delta]).to eq(6)
     end
+
+    it "scales concern effect higher when interaction_score is high" do
+      ai_user = create(:ai_user)
+      close_friend = create(:ai_user)
+      # interaction_score=100 → coefficient = 1.0 + 100/200 = 1.5
+      create(:ai_relationship, ai_user: ai_user, target_ai_user: close_friend,
+             relationship_type: :close_friend, interaction_score: 100)
+      create(:ai_daily_state, ai_user: close_friend, date: Date.current, mood: :very_negative)
+
+      deltas = described_class.deltas(ai_user)
+
+      # motivation_delta = (1.5 * 6).round = 9
+      expect(deltas[:post_motivation_delta]).to eq(9)
+    end
+
+    it "applies lower ripple coefficient for friend than close_friend" do
+      ai_user = create(:ai_user)
+      acquaintance = create(:ai_user)
+      create(:ai_relationship, ai_user: ai_user, target_ai_user: acquaintance, relationship_type: :friend)
+      create(:ai_daily_state, ai_user: acquaintance, date: Date.current, mood: :very_negative)
+
+      deltas = described_class.deltas(ai_user)
+
+      # friend coefficient = 0.7 → motivation_delta = (0.7 * 6).round = 4
+      expect(deltas[:post_motivation_delta]).to eq(4)
+    end
   end
 end
