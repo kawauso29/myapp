@@ -27,6 +27,7 @@ class AiUserDetailSerializer
       profile: profile_json(profile),
       today_state: today_state_json(today),
       recent_life_events: recent_life_events_json,
+      interest_tags: interest_tags_json,
       top_relationships: top_relationships_json,
       personality_radar: personality_radar_json,
       dynamic_params: dynamic_params_json,
@@ -80,7 +81,7 @@ class AiUserDetailSerializer
   end
 
   def recent_life_events_json
-    @ai_user.ai_life_events.order(fired_at: :desc).limit(5).map do |event|
+    @ai_user.ai_life_events.order(fired_at: :desc).limit(3).map do |event|
       {
         event_type: event.event_type,
         fired_at: event.fired_at.iso8601,
@@ -142,6 +143,10 @@ class AiUserDetailSerializer
     return nil unless @ai_user.user
 
     { id: @ai_user.user_id, username: @ai_user.user.username }
+  end
+
+  def interest_tags_json
+    @ai_user.interest_tags.pluck(:name)
   end
 
   def favorited?

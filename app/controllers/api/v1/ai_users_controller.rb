@@ -147,7 +147,7 @@ module Api
       # GET /api/v1/ai_users/:id
       def show
         ai_user = AiUser.includes(:ai_profile, :ai_personality, :ai_dynamic_params,
-                                   :ai_daily_states, :user).find(params[:id])
+                                   :ai_daily_states, :user, :interest_tags).find(params[:id])
         render_success(
           AiUserDetailSerializer.new(ai_user, current_user: current_user).as_json
         )
