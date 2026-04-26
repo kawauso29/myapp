@@ -14,6 +14,7 @@ RSpec.describe DailyLedgerRunJob do
 
     before do
       allow(Ledgers::SlackNotifier).to receive(:notify)
+      allow(Ledgers::DeptHealthChecker).to receive(:call).and_return({ detected: 0, details: [] })
     end
 
     it "creates a daily meeting via DailyRunner" do
