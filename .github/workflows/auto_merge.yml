@@ -831,6 +831,92 @@ jobs:
           curl -s -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
+      # ③ ledger improvement/operations Issue クローズ:
+      #    copilot/ledger-{N} または copilot/copilotledger-{N} ブランチの PR がマージされたとき、
+      #    GitHub Issue 本文の `| ticket_id | N |` を手がかりに対応 Issue を自動クローズする。
+      - name: Close ledger improvement Issues after PR merge (hold release)
+        if: ${{ steps.merge_on_release.outputs.merged == 'true' }}
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const prBranch = '${{ steps.merge_on_release.outputs.pr_branch }}';
+
+            // copilot/ledger-{N} または copilot/copilotledger-{N} パターンを検出
+            const branchMatch = prBranch.match(/copilot\/(?:copilot)?ledger-(\d+)/i);
+            if (!branchMatch) {
+              core.info(`Branch "${prBranch}" does not match ledger-{N} pattern; skipping improvement issue close`);
+              return;
+            }
+            const ticketId = parseInt(branchMatch[1], 10);
+            core.info(`Detected ticket_id ${ticketId} from branch "${prBranch}"`);
+
+            const { data: allOpenIssues } = await github.rest.issues.listForRepo({
+              owner, repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const ticketPattern = new RegExp(`\\|\\s*ticket_id\\s*\\|\\s*${ticketId}\\s*\\|`);
+            const issuesToClose = allOpenIssues.filter(i =>
+              i.pull_request == null &&
+              ticketPattern.test(i.body || '')
+            );
+
+            if (issuesToClose.length === 0) {
+              core.info(`No open issues found for ticket_id ${ticketId}`);
+              return;
+            }
+
+            for (const issue of issuesToClose) {
+              await github.rest.issues.update({
+                owner, repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              core.info(`Closed issue #${issue.number} for ticket_id ${ticketId}`);
+            }
+            core.info(`Closed ${issuesToClose.length} issue(s) for ticket_id ${ticketId}`);
+
+      - name: Update ticket status to completed after ledger PR merge (hold release)
+        if: ${{ steps.merge_on_release.outputs.merged == 'true' }}
+        env:
+          PR_BRANCH: ${{ steps.merge_on_release.outputs.pr_branch }}
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          TICKET_ID=$(echo "$PR_BRANCH" | python3 -c "
+          import re, sys
+          m = re.search(r'copilot/(?:copilot)?ledger-(\d+)', sys.stdin.read(), re.IGNORECASE)
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          if [ -z "$TICKET_ID" ]; then
+            echo "Branch does not match ledger-{N} pattern; skipping ticket status update"
+            exit 0
+          fi
+          if ! echo "$TICKET_ID" | grep -Eq '^[0-9]+$'; then
+            echo "TICKET_ID is not numeric; skipping"
+            exit 0
+          fi
+          RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            t = TicketLedger.find(${TICKET_ID}) rescue nil
+            unless t
+              puts 'not_found'
+              exit
+            end
+            if t.status_completed? || t.status_cancelled?
+              puts 'already_done'
+              exit
+            end
+            t.skip_template_guard = true
+            t.skip_lane_capacity_guard = true
+            t.skip_pr_guardrail = true
+            t.skip_stop_guard = true
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
+            puts 'updated'
+          " 2>&1 || echo "error")
+          echo "Ticket #${TICKET_ID} status update: ${RESULT}"
+
       - name: Notify Slack (merge failed after hold release)
         if: ${{ steps.merge_on_release.outputs.merge_error != '' }}
         env:
@@ -963,6 +1049,89 @@ jobs:
                 }
               }
             }
+
+      # ③ ledger improvement Issue クローズ (review_requested 経由マージ時)
+      - name: Close ledger improvement Issues after PR merge (review_requested)
+        if: ${{ steps.merge_on_review.outputs.merged == 'true' }}
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const prBranch = '${{ steps.merge_on_review.outputs.pr_branch }}';
+
+            const branchMatch = prBranch.match(/copilot\/(?:copilot)?ledger-(\d+)/i);
+            if (!branchMatch) {
+              core.info(`Branch "${prBranch}" does not match ledger-{N} pattern; skipping improvement issue close`);
+              return;
+            }
+            const ticketId = parseInt(branchMatch[1], 10);
+            core.info(`Detected ticket_id ${ticketId} from branch "${prBranch}"`);
+
+            const { data: allOpenIssues } = await github.rest.issues.listForRepo({
+              owner, repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const ticketPattern = new RegExp(`\\|\\s*ticket_id\\s*\\|\\s*${ticketId}\\s*\\|`);
+            const issuesToClose = allOpenIssues.filter(i =>
+              i.pull_request == null &&
+              ticketPattern.test(i.body || '')
+            );
+
+            if (issuesToClose.length === 0) {
+              core.info(`No open issues found for ticket_id ${ticketId}`);
+              return;
+            }
+
+            for (const issue of issuesToClose) {
+              await github.rest.issues.update({
+                owner, repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              core.info(`Closed issue #${issue.number} for ticket_id ${ticketId}`);
+            }
+            core.info(`Closed ${issuesToClose.length} issue(s) for ticket_id ${ticketId}`);
+
+      - name: Update ticket status to completed after ledger PR merge (review_requested)
+        if: ${{ steps.merge_on_review.outputs.merged == 'true' }}
+        env:
+          PR_BRANCH: ${{ steps.merge_on_review.outputs.pr_branch }}
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          TICKET_ID=$(echo "$PR_BRANCH" | python3 -c "
+          import re, sys
+          m = re.search(r'copilot/(?:copilot)?ledger-(\d+)', sys.stdin.read(), re.IGNORECASE)
+          print(m.group(1) if m else '')
+          " 2>/dev/null || echo "")
+          if [ -z "$TICKET_ID" ]; then
+            echo "Branch does not match ledger-{N} pattern; skipping ticket status update"
+            exit 0
+          fi
+          if ! echo "$TICKET_ID" | grep -Eq '^[0-9]+$'; then
+            echo "TICKET_ID is not numeric; skipping"
+            exit 0
+          fi
+          RESULT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            t = TicketLedger.find(${TICKET_ID}) rescue nil
+            unless t
+              puts 'not_found'
+              exit
+            end
+            if t.status_completed? || t.status_cancelled?
+              puts 'already_done'
+              exit
+            end
+            t.skip_template_guard = true
+            t.skip_lane_capacity_guard = true
+            t.skip_pr_guardrail = true
+            t.skip_stop_guard = true
+            t.update!(status: :completed, pr_branch: '${PR_BRANCH}'.presence || t.pr_branch)
+            puts 'updated'
+          " 2>&1 || echo "error")
+          echo "Ticket #${TICKET_ID} status update: ${RESULT}"
 
       - name: Notify Slack (merged on review_requested)
         if: ${{ steps.merge_on_review.outputs.merged == 'true' }}
