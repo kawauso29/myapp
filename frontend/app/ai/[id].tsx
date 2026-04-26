@@ -66,6 +66,7 @@ export default function AiDetailScreen() {
   const [compatOpen, setCompatOpen] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [compatResult, setCompatResult] = useState<{ score: number; label: string; matches: string[] } | null>(null);
+  const [compatNoData, setCompatNoData] = useState(false);
 
   useEffect(() => {
     setDmPeekThreads([]);
@@ -433,9 +434,8 @@ export default function AiDetailScreen() {
             </View>
           )}
           <InfoRow label="体調" value={state.physical} />
-          <InfoRow label="気分" value={state.mood} />
+          <InfoRow label="気分" value={MOOD_LABELS[state.mood] ?? state.mood} />
           <InfoRow label="忙しさ" value={state.busyness} />
-          <InfoRow label="気まぐれ" value={WHIM_LABELS[state.daily_whim] ?? state.daily_whim} />
           <InfoRow label="投稿意欲" value={`${state.post_motivation}/100`} />
           {state.is_drinking && (
             <InfoRow label="飲酒" value={`レベル ${state.drinking_level}/3 🍺`} />
@@ -481,7 +481,7 @@ export default function AiDetailScreen() {
 
       {/* Compatibility Diagnosis */}
       <View style={styles.section}>
-        <TouchableOpacity style={styles.compatHeader} onPress={() => { setCompatOpen(!compatOpen); setCompatResult(null); }}>
+        <TouchableOpacity style={styles.compatHeader} onPress={() => { setCompatOpen(!compatOpen); setCompatResult(null); setCompatNoData(false); }}>
           <Text style={styles.compatHeaderEmoji}>💘</Text>
           <Text style={styles.sectionTitle} numberOfLines={1}>相性診断</Text>
           <Ionicons name={compatOpen ? "chevron-up" : "chevron-down"} size={16} color="#999" style={{ marginLeft: "auto" }} />
@@ -501,6 +501,7 @@ export default function AiDetailScreen() {
                         selected ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
                       );
                       setCompatResult(null);
+                      setCompatNoData(false);
                     }}
                   >
                     <Text style={[styles.compatChipText, selected && styles.compatChipTextSelected]}>{opt.label}</Text>
@@ -511,11 +512,24 @@ export default function AiDetailScreen() {
             <TouchableOpacity
               style={[styles.compatRunButton, selectedInterests.length === 0 && styles.compatRunButtonDisabled]}
               disabled={selectedInterests.length === 0}
-              onPress={() => setCompatResult(calculateCompatScore(selectedInterests, ai))}
+              onPress={() => {
+                const r = calculateCompatScore(selectedInterests, ai);
+                if (r) {
+                  setCompatResult(r);
+                  setCompatNoData(false);
+                } else {
+                  setCompatNoData(true);
+                }
+              }}
             >
               <Text style={styles.compatRunButtonText}>診断する</Text>
             </TouchableOpacity>
             {compatResult && <CompatResultCard result={compatResult} aiName={ai.display_name} />}
+            {compatNoData && (
+              <Text style={[styles.emptyText, { marginTop: 12 }]}>
+                このAIのプロフィールデータが不足しているため診断できませんでした
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -937,7 +951,7 @@ function moodToAvatarEmoji(mood?: string, daily_whim?: string): string {
 function calculateCompatScore(
   interests: string[],
   ai: any
-): { score: number; label: string; matches: string[] } {
+): { score: number; label: string; matches: string[] } | null {
   const aiWords = [
     ...(ai.profile?.hobbies ?? []),
     ...(ai.profile?.values ?? []),
@@ -948,7 +962,7 @@ function calculateCompatScore(
   ].map((s: string) => s.toLowerCase());
 
   if (interests.length === 0 || aiWords.length === 0) {
-    return { score: 50, label: "普通の相性 🤝", matches: [] };
+    return null;
   }
 
   const matches: string[] = [];
@@ -1130,7 +1144,7 @@ function PersonalityRadarChart({ data }: { data: Record<string, number> }) {
   }
 
   return (
-    <View style={{ alignItems: "center", marginBottom: 8 }}>
+    <View style={radarStyles.container}>
       {/* @ts-ignore */}
       <svg width={RADAR_SIZE} height={RADAR_SIZE} viewBox={`0 0 ${RADAR_SIZE} ${RADAR_SIZE}`}>
         {/* Grid polygons */}
@@ -1276,6 +1290,10 @@ const compatStyles = StyleSheet.create({
   },
   matchChipText: { fontSize: 12, color: "#6c63ff" },
   noMatchText: { fontSize: 13, color: "#888", textAlign: "center", marginTop: 8 },
+});
+
+const radarStyles = StyleSheet.create({
+  container: { alignItems: "center", marginBottom: 8 },
 });
 
 const styles = StyleSheet.create({
