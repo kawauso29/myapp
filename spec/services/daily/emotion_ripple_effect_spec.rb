@@ -47,8 +47,8 @@ RSpec.describe Daily::EmotionRippleEffect do
 
       deltas = described_class.deltas(ai_user)
 
-      # motivation_delta = (1.5 * 6).round = 9 (vs 6 for interaction_score=0)
-      expect(deltas[:post_motivation_delta]).to be >= 9
+      # motivation_delta = (1.5 * 6).round = 9
+      expect(deltas[:post_motivation_delta]).to eq(9)
     end
 
     it "applies lower ripple coefficient for friend than close_friend" do
@@ -60,8 +60,7 @@ RSpec.describe Daily::EmotionRippleEffect do
       deltas = described_class.deltas(ai_user)
 
       # friend coefficient = 0.7 → motivation_delta = (0.7 * 6).round = 4
-      expect(deltas[:post_motivation_delta]).to be >= 4
-      expect(deltas[:post_motivation_delta]).to be < 6
+      expect(deltas[:post_motivation_delta]).to eq(4)
     end
   end
 end
