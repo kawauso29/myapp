@@ -45,6 +45,7 @@ module Daily
       morning_mood = generate_morning_mood(fatigue, hangover)
       going_out = generate_going_out(busyness, energy, today_events)
       post_motivation = generate_post_motivation(mood, today_events)
+      ripple_deltas = Daily::EmotionRippleEffect.deltas(@ai, date: Date.current)
 
       @ai.ai_daily_states.create!(
         date: Date.current,
@@ -54,13 +55,13 @@ module Daily
         busyness: busyness,
         is_drinking: is_drinking,
         drinking_level: drinking_level,
-        post_motivation: post_motivation,
+        post_motivation: (post_motivation + ripple_deltas[:post_motivation_delta]).clamp(0, 100),
         timeline_urge: timeline_urge,
         hangover: hangover || false,
         fatigue_carried: fatigue,
         daily_whim: daily_whim,
         today_events: today_events,
-        stress_level: stress_level,
+        stress_level: (stress_level + ripple_deltas[:stress_delta]).clamp(0, 100),
         social_battery: social_battery,
         concentration: concentration,
         appetite: appetite,

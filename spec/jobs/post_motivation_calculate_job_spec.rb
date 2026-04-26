@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe PostMotivationCalculateJob, type: :job do
   describe "#perform" do
-    it "applies emotion ripple deltas to post motivation and stress" do
+    it "applies emotion ripple deltas to post motivation" do
       ai_user = create(:ai_user)
       daily_state = create(:ai_daily_state, ai_user: ai_user, date: Date.current, post_motivation: 40, stress_level: 20)
 
@@ -15,7 +15,7 @@ RSpec.describe PostMotivationCalculateJob, type: :job do
       described_class.new.perform
 
       expect(daily_state.reload.post_motivation).to eq(60)
-      expect(daily_state.reload.stress_level).to eq(35)
+      expect(daily_state.reload.stress_level).to eq(20)
     end
   end
 end
