@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -62,6 +63,9 @@ export default function AiDetailScreen() {
   const [multiverseData, setMultiverseData] = useState<MultiversePayload | null>(null);
   const [multiverseLoading, setMultiverseLoading] = useState(false);
   const [selectedMultiverseEvent, setSelectedMultiverseEvent] = useState(MULTIVERSE_EVENTS[0].value);
+  const [compatOpen, setCompatOpen] = useState(false);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [compatResult, setCompatResult] = useState<{ score: number; label: string; matches: string[] } | null>(null);
 
   useEffect(() => {
     setDmPeekThreads([]);
@@ -255,13 +259,16 @@ export default function AiDetailScreen() {
   const profile = ai.profile;
   const state = ai.today_state;
   const isMyAi = isLoggedIn && currentUserId !== null && ai.owner?.id === currentUserId;
+  const headerBg = moodToHeaderBg(state?.mood, state?.daily_whim);
+  const avatarBg = moodToAvatarBg(state?.mood, state?.daily_whim);
+  const avatarEmoji = moodToAvatarEmoji(state?.mood, state?.daily_whim);
 
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={[styles.avatarLarge, ai.is_premium_ai && styles.avatarLargePremium]}>
-          <Text style={styles.avatarText}>{ai.display_name?.[0] || "?"}</Text>
+      <View style={[styles.header, { backgroundColor: headerBg }]}>
+        <View style={[styles.avatarLarge, ai.is_premium_ai && styles.avatarLargePremium, { backgroundColor: avatarBg }]}>
+          <Text style={styles.avatarText}>{avatarEmoji || ai.display_name?.[0] || "?"}</Text>
         </View>
         <View style={styles.nameBadgeRow}>
           <Text style={styles.displayName}>{ai.display_name}</Text>
@@ -415,10 +422,20 @@ export default function AiDetailScreen() {
       {state && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>今日の状態</Text>
+          {/* Mood banner */}
+          {(state.mood || state.daily_whim) && (
+            <View style={[styles.moodBanner, { backgroundColor: moodToHeaderBg(state.mood, state.daily_whim) }]}>
+              <Text style={styles.moodBannerEmoji}>{moodToAvatarEmoji(state.mood, state.daily_whim) || "😊"}</Text>
+              <View style={styles.moodBannerText}>
+                <Text style={styles.moodBannerWhim}>{WHIM_LABELS[state.daily_whim] ?? state.daily_whim}</Text>
+                <Text style={styles.moodBannerMood}>{MOOD_LABELS[state.mood] ?? state.mood}</Text>
+              </View>
+            </View>
+          )}
           <InfoRow label="体調" value={state.physical} />
           <InfoRow label="気分" value={state.mood} />
           <InfoRow label="忙しさ" value={state.busyness} />
-          <InfoRow label="気まぐれ" value={state.daily_whim} />
+          <InfoRow label="気まぐれ" value={WHIM_LABELS[state.daily_whim] ?? state.daily_whim} />
           <InfoRow label="投稿意欲" value={`${state.post_motivation}/100`} />
           {state.is_drinking && (
             <InfoRow label="飲酒" value={`レベル ${state.drinking_level}/3 🍺`} />
@@ -429,12 +446,12 @@ export default function AiDetailScreen() {
       {/* Life Events */}
       {ai.recent_life_events?.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>最近のライフイベント</Text>
+          <Text style={styles.sectionTitle}>最近の出来事</Text>
           {ai.recent_life_events.map((event: any, i: number) => (
-            <View key={i} style={styles.eventRow}>
-              <Text style={styles.eventType}>{event.event_type}</Text>
+            <View key={i} style={styles.lifeEventCard}>
+              <Text style={styles.lifeEventText}>{LIFE_EVENT_NATURAL_TEXT[event.event_type] ?? event.event_type}</Text>
               <Text style={styles.eventDate}>
-                {new Date(event.fired_at).toLocaleDateString("ja-JP")}
+                {new Date(event.fired_at).toLocaleDateString("ja-JP", { month: "long", day: "numeric" })}
               </Text>
             </View>
           ))}
@@ -458,11 +475,50 @@ export default function AiDetailScreen() {
       {ai.personality_radar && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>性格チャート</Text>
-          {Object.entries(ai.personality_radar as Record<string, number>).map(([key, val]) => (
-            <ParamBar key={key} label={PERSONALITY_LABELS[key] ?? key} value={(val as number) * PERSONALITY_SCALE_FACTOR} max={100} color="#6c63ff" />
-          ))}
+          <PersonalityRadarChart data={ai.personality_radar as Record<string, number>} />
         </View>
       )}
+
+      {/* Compatibility Diagnosis */}
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.compatHeader} onPress={() => { setCompatOpen(!compatOpen); setCompatResult(null); }}>
+          <Text style={styles.compatHeaderEmoji}>💘</Text>
+          <Text style={styles.sectionTitle} numberOfLines={1}>相性診断</Text>
+          <Ionicons name={compatOpen ? "chevron-up" : "chevron-down"} size={16} color="#999" style={{ marginLeft: "auto" }} />
+        </TouchableOpacity>
+        {compatOpen && (
+          <View style={styles.compatBody}>
+            <Text style={styles.compatInstruction}>好きなジャンルを選んでください（複数可）</Text>
+            <View style={styles.themeGrid}>
+              {INTEREST_OPTIONS.map((opt) => {
+                const selected = selectedInterests.includes(opt.value);
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.compatChip, selected && styles.compatChipSelected]}
+                    onPress={() => {
+                      setSelectedInterests((prev) =>
+                        selected ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
+                      );
+                      setCompatResult(null);
+                    }}
+                  >
+                    <Text style={[styles.compatChipText, selected && styles.compatChipTextSelected]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.compatRunButton, selectedInterests.length === 0 && styles.compatRunButtonDisabled]}
+              disabled={selectedInterests.length === 0}
+              onPress={() => setCompatResult(calculateCompatScore(selectedInterests, ai))}
+            >
+              <Text style={styles.compatRunButtonText}>診断する</Text>
+            </TouchableOpacity>
+            {compatResult && <CompatResultCard result={compatResult} aiName={ai.display_name} />}
+          </View>
+        )}
+      </View>
 
       {/* Dynamic Params */}
       {ai.dynamic_params && (
@@ -719,6 +775,81 @@ const PERSONALITY_LABELS: Record<string, string> = {
   patience: "忍耐力",
 };
 
+const LIFE_EVENT_NATURAL_TEXT: Record<string, string> = {
+  job_change: "転職しました ✨",
+  relocation: "引越しました 🏠",
+  promotion: "昇進しました 🎉",
+  new_relationship: "新しい恋が始まりました 💕",
+  breakup: "失恋しました 💔",
+  marriage: "結婚しました 👰",
+  illness: "体調を崩しました 🤒",
+  recovery: "元気になりました 💪",
+  new_hobby: "新しい趣味を見つけました 🌟",
+  skill_up: "スキルアップしました 📈",
+};
+
+const WHIM_LABELS: Record<string, string> = {
+  hyper: "テンション高め 🤩",
+  melancholic: "センチメンタルな気分 😔",
+  nostalgic: "懐かしい気持ち 🥺",
+  motivated: "やる気満々 💪",
+  lazy: "ぐったり 😴",
+  chatty: "おしゃべりしたい 😆",
+  quiet: "静かにしたい 🤫",
+  curious: "好奇心旺盛 🧐",
+  creative: "創作意欲がある 🎨",
+  grateful: "感謝の気持ち 🥹",
+  irritable: "ちょっとイライラ 😤",
+  affectionate: "甘えたい気分 🥰",
+  philosophical: "哲学的な気分 🤔",
+  normal_whim: "普通の気分 😊",
+};
+
+const MOOD_LABELS: Record<string, string> = {
+  positive: "気分が良い",
+  neutral: "普通",
+  negative: "気分が悪い",
+  very_negative: "かなり落ち込んでいる",
+};
+
+const INTEREST_OPTIONS = [
+  { value: "cooking", label: "料理 🍳" },
+  { value: "travel", label: "旅行 ✈️" },
+  { value: "music", label: "音楽 🎵" },
+  { value: "reading", label: "読書 📚" },
+  { value: "movies", label: "映画 🎬" },
+  { value: "sports", label: "スポーツ ⚽" },
+  { value: "games", label: "ゲーム 🎮" },
+  { value: "art", label: "アート 🎨" },
+  { value: "tech", label: "テクノロジー 💻" },
+  { value: "nature", label: "自然 🌿" },
+  { value: "cafe", label: "カフェ ☕" },
+  { value: "fashion", label: "ファッション 👗" },
+  { value: "pets", label: "ペット 🐾" },
+  { value: "health", label: "健康・運動 💪" },
+  { value: "food", label: "グルメ 🍜" },
+  { value: "anime", label: "アニメ 🎌" },
+];
+
+const INTEREST_KEYWORDS: Record<string, string[]> = {
+  cooking: ["料理", "調理", "cook", "キッチン", "レシピ"],
+  travel: ["旅行", "旅", "trip", "観光", "abroad"],
+  music: ["音楽", "歌", "ライブ", "バンド", "guitar", "piano"],
+  reading: ["読書", "本", "小説", "漫画", "マンガ", "book"],
+  movies: ["映画", "cinema", "ドラマ", "film"],
+  sports: ["スポーツ", "運動", "フィットネス", "gym", "筋トレ"],
+  games: ["ゲーム", "game", "RPG", "gaming"],
+  art: ["アート", "絵", "美術", "描く", "イラスト"],
+  tech: ["テクノロジー", "IT", "プログラミング", "技術", "computer"],
+  nature: ["自然", "山", "森", "アウトドア", "登山", "海"],
+  cafe: ["カフェ", "コーヒー", "coffee", "喫茶"],
+  fashion: ["ファッション", "服", "おしゃれ", "コーデ"],
+  pets: ["ペット", "猫", "犬", "動物", "bird"],
+  health: ["健康", "ヨガ", "ジム", "wellness"],
+  food: ["グルメ", "食べ物", "美食", "ご飯", "食"],
+  anime: ["アニメ", "マンガ", "漫画", "anime", "manga"],
+};
+
 const GENDER_LABELS: Record<string, string> = {
   male: "男性",
   female: "女性",
@@ -754,6 +885,94 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
 function genderIcon(gender: string): string {
   const icons: Record<string, string> = { male: "👨", female: "👩", other: "🧑", unspecified: "👤" };
   return icons[gender] || "👤";
+}
+
+// --- Mood helper functions ---
+function moodToHeaderBg(mood?: string, daily_whim?: string): string {
+  if (daily_whim) {
+    const whimColors: Record<string, string> = {
+      hyper: "#fff3e0", melancholic: "#e8f4fd", nostalgic: "#fef9e7",
+      motivated: "#eafaf1", lazy: "#f5eef8", chatty: "#fdebd0",
+      quiet: "#eaf4fb", curious: "#e8f8f5", creative: "#f4ecf7",
+      grateful: "#fef9e7", irritable: "#fdedec", affectionate: "#fde8f0",
+      philosophical: "#f0f3ff", normal_whim: "#fff",
+    };
+    if (whimColors[daily_whim]) return whimColors[daily_whim];
+  }
+  if (mood === "positive") return "#eafaf1";
+  if (mood === "negative") return "#fdedec";
+  if (mood === "very_negative") return "#fce4e4";
+  return "#fff";
+}
+
+function moodToAvatarBg(mood?: string, daily_whim?: string): string {
+  if (daily_whim === "hyper") return "#ffb347";
+  if (daily_whim === "melancholic") return "#74b9ff";
+  if (daily_whim === "motivated") return "#55efc4";
+  if (daily_whim === "irritable") return "#ff7675";
+  if (daily_whim === "affectionate") return "#fd79a8";
+  if (daily_whim === "philosophical") return "#a29bfe";
+  if (daily_whim === "creative") return "#fdcb6e";
+  if (daily_whim === "curious") return "#00b894";
+  if (mood === "positive") return "#2ecc71";
+  if (mood === "negative") return "#3498db";
+  if (mood === "very_negative") return "#e74c3c";
+  return "#e8e8f0";
+}
+
+function moodToAvatarEmoji(mood?: string, daily_whim?: string): string {
+  const whimEmojis: Record<string, string> = {
+    hyper: "🤩", melancholic: "😔", nostalgic: "🥺", motivated: "💪",
+    lazy: "😴", chatty: "😆", quiet: "🤫", curious: "🧐", creative: "🎨",
+    grateful: "🥹", irritable: "😤", affectionate: "🥰", philosophical: "🤔",
+    normal_whim: "😊",
+  };
+  if (daily_whim && whimEmojis[daily_whim]) return whimEmojis[daily_whim];
+  if (mood === "positive") return "😊";
+  if (mood === "negative") return "😟";
+  if (mood === "very_negative") return "😢";
+  return "";
+}
+
+function calculateCompatScore(
+  interests: string[],
+  ai: any
+): { score: number; label: string; matches: string[] } {
+  const aiWords = [
+    ...(ai.profile?.hobbies ?? []),
+    ...(ai.profile?.values ?? []),
+    ...(ai.profile?.favorite_foods ?? []),
+    ...(ai.profile?.favorite_music ?? []),
+    ...(ai.profile?.favorite_places ?? []),
+    ...(ai.interest_tags ?? []),
+  ].map((s: string) => s.toLowerCase());
+
+  if (interests.length === 0 || aiWords.length === 0) {
+    return { score: 50, label: "普通の相性 🤝", matches: [] };
+  }
+
+  const matches: string[] = [];
+  let matchCount = 0;
+  interests.forEach((interest) => {
+    const keywords = INTEREST_KEYWORDS[interest] ?? [interest];
+    const hit = keywords.some((kw) =>
+      aiWords.some((w) => w.includes(kw) || kw.includes(w))
+    );
+    if (hit) {
+      matchCount++;
+      const opt = INTEREST_OPTIONS.find((o) => o.value === interest);
+      matches.push(opt?.label ?? interest);
+    }
+  });
+
+  const raw = (matchCount / interests.length) * 100;
+  const score = Math.round(Math.min(100, raw * 0.7 + 30));
+  const label =
+    score >= 80 ? "最高の相性 💖" :
+    score >= 65 ? "相性が良い 😊" :
+    score >= 50 ? "普通の相性 🤝" :
+                  "個性が強め 🌀";
+  return { score, label, matches };
 }
 
 const POST_THEMES = [
@@ -851,6 +1070,213 @@ function ChipList({ items, color, bgColor }: { items: string[]; color: string; b
     </View>
   );
 }
+
+// --- Personality Radar Chart ---
+const RADAR_SIZE = 230;
+const RADAR_CENTER = RADAR_SIZE / 2;
+const RADAR_MAX_R = 82;
+const RADAR_LEVELS = 4;
+const RADAR_KEYS = [
+  "sociability", "empathy", "curiosity", "creativity", "optimism",
+  "self_expression", "humor", "patience", "emotional_range", "need_for_approval",
+];
+
+function radarPolarToXY(idx: number, total: number, radius: number) {
+  const angle = (2 * Math.PI * idx) / total - Math.PI / 2;
+  return {
+    x: RADAR_CENTER + radius * Math.cos(angle),
+    y: RADAR_CENTER + radius * Math.sin(angle),
+  };
+}
+
+function radarPolygonPoints(n: number, r: number): string {
+  return Array.from({ length: n }, (_, i) => {
+    const { x, y } = radarPolarToXY(i, n, r);
+    return `${x},${y}`;
+  }).join(" ");
+}
+
+function PersonalityRadarChart({ data }: { data: Record<string, number> }) {
+  const keys = RADAR_KEYS.filter((k) => k in data);
+  const n = keys.length;
+  if (n < 3) {
+    return (
+      <>
+        {keys.map((key) => (
+          <ParamBar key={key} label={PERSONALITY_LABELS[key] ?? key} value={(data[key] as number) * PERSONALITY_SCALE_FACTOR} max={100} color="#6c63ff" />
+        ))}
+      </>
+    );
+  }
+
+  const dataPointsStr = keys
+    .map((key, i) => {
+      const val = Math.min((data[key] as number) * PERSONALITY_SCALE_FACTOR, 100);
+      const r = (val / 100) * RADAR_MAX_R;
+      const { x, y } = radarPolarToXY(i, n, r);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  if (Platform.OS !== "web") {
+    // Native fallback: bar chart
+    return (
+      <>
+        {keys.map((key) => (
+          <ParamBar key={key} label={PERSONALITY_LABELS[key] ?? key} value={(data[key] as number) * PERSONALITY_SCALE_FACTOR} max={100} color="#6c63ff" />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <View style={{ alignItems: "center", marginBottom: 8 }}>
+      {/* @ts-ignore */}
+      <svg width={RADAR_SIZE} height={RADAR_SIZE} viewBox={`0 0 ${RADAR_SIZE} ${RADAR_SIZE}`}>
+        {/* Grid polygons */}
+        {Array.from({ length: RADAR_LEVELS }, (_, i) => {
+          const r = (RADAR_MAX_R * (i + 1)) / RADAR_LEVELS;
+          return (
+            // @ts-ignore
+            <polygon
+              key={i}
+              points={radarPolygonPoints(n, r)}
+              fill={i % 2 === 0 ? "#f6f7ff" : "none"}
+              stroke="#d8daf5"
+              strokeWidth="0.8"
+            />
+          );
+        })}
+        {/* Axes */}
+        {keys.map((_, i) => {
+          const end = radarPolarToXY(i, n, RADAR_MAX_R);
+          return (
+            // @ts-ignore
+            <line
+              key={i}
+              x1={RADAR_CENTER}
+              y1={RADAR_CENTER}
+              x2={end.x}
+              y2={end.y}
+              stroke="#e0e0f0"
+              strokeWidth="0.8"
+            />
+          );
+        })}
+        {/* Data polygon */}
+        {/* @ts-ignore */}
+        <polygon
+          points={dataPointsStr}
+          fill="rgba(108,99,255,0.22)"
+          stroke="#6c63ff"
+          strokeWidth="1.5"
+        />
+        {/* Data dots */}
+        {keys.map((key, i) => {
+          const val = Math.min((data[key] as number) * PERSONALITY_SCALE_FACTOR, 100);
+          const r = (val / 100) * RADAR_MAX_R;
+          const { x, y } = radarPolarToXY(i, n, r);
+          // @ts-ignore
+          return <circle key={i} cx={x} cy={y} r="3" fill="#6c63ff" />;
+        })}
+        {/* Labels */}
+        {keys.map((key, i) => {
+          const { x, y } = radarPolarToXY(i, n, RADAR_MAX_R + 16);
+          const label = PERSONALITY_LABELS[key] ?? key;
+          const val = Math.round((data[key] as number) * PERSONALITY_SCALE_FACTOR);
+          // @ts-ignore
+          return (
+            // @ts-ignore
+            <text
+              key={i}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="8"
+              fill="#666"
+            >
+              {`${label} ${val}`}
+            </text>
+          );
+        })}
+      </svg>
+    </View>
+  );
+}
+
+// --- Compatibility Result Card ---
+function CompatResultCard({
+  result,
+  aiName,
+}: {
+  result: { score: number; label: string; matches: string[] };
+  aiName: string;
+}) {
+  const pct = result.score;
+  const barColor =
+    pct >= 80 ? "#e84393" :
+    pct >= 65 ? "#6c63ff" :
+    pct >= 50 ? "#27ae60" :
+               "#95a5a6";
+  return (
+    <View style={compatStyles.card}>
+      <Text style={compatStyles.label}>{result.label}</Text>
+      <View style={compatStyles.scoreRow}>
+        <Text style={[compatStyles.scoreNum, { color: barColor }]}>{pct}</Text>
+        <Text style={compatStyles.scoreUnit}>%</Text>
+      </View>
+      <View style={compatStyles.barOuter}>
+        <View style={[compatStyles.barInner, { width: `${pct}%`, backgroundColor: barColor }]} />
+      </View>
+      {result.matches.length > 0 && (
+        <View style={compatStyles.matchBox}>
+          <Text style={compatStyles.matchLabel}>共通の好み</Text>
+          <View style={compatStyles.matchChips}>
+            {result.matches.map((m, i) => (
+              <View key={i} style={compatStyles.matchChip}>
+                <Text style={compatStyles.matchChipText}>{m}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      {result.matches.length === 0 && (
+        <Text style={compatStyles.noMatchText}>{aiName}とはちょっと違うタイプかも。でも新鮮かも！</Text>
+      )}
+    </View>
+  );
+}
+
+const compatStyles = StyleSheet.create({
+  card: {
+    marginTop: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0f0",
+    padding: 16,
+    alignItems: "center",
+    backgroundColor: "#faf9ff",
+  },
+  label: { fontSize: 16, fontWeight: "700", color: "#333", marginBottom: 8 },
+  scoreRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 8 },
+  scoreNum: { fontSize: 48, fontWeight: "800", lineHeight: 52 },
+  scoreUnit: { fontSize: 18, color: "#888", marginBottom: 6, marginLeft: 2 },
+  barOuter: {
+    width: "100%", height: 10, backgroundColor: "#eeeeee",
+    borderRadius: 5, overflow: "hidden", marginBottom: 12,
+  },
+  barInner: { height: 10, borderRadius: 5 },
+  matchBox: { width: "100%", marginTop: 4 },
+  matchLabel: { fontSize: 12, color: "#888", marginBottom: 6 },
+  matchChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  matchChip: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: "#eef0fe", borderRadius: 12,
+  },
+  matchChipText: { fontSize: 12, color: "#6c63ff" },
+  noMatchText: { fontSize: 13, color: "#888", textAlign: "center", marginTop: 8 },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
@@ -1003,6 +1429,45 @@ const styles = StyleSheet.create({
   },
   catchphraseText: { fontSize: 14, color: "#6c63ff", fontStyle: "italic" },
   bornOn: { fontSize: 12, color: "#aaa", marginTop: 6 },
+  // --- Mood Banner ---
+  moodBanner: {
+    flexDirection: "row", alignItems: "center",
+    borderRadius: 12, padding: 12, marginBottom: 12,
+    borderWidth: 1, borderColor: "#eeeeee",
+  },
+  moodBannerEmoji: { fontSize: 32, marginRight: 12 },
+  moodBannerText: { flex: 1 },
+  moodBannerWhim: { fontSize: 14, fontWeight: "700", color: "#333" },
+  moodBannerMood: { fontSize: 12, color: "#888", marginTop: 2 },
+  // --- Life Events (natural text) ---
+  lifeEventCard: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 10, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: "#f5f5f5",
+  },
+  lifeEventText: { fontSize: 14, color: "#333", flex: 1 },
+  // --- Compatibility ---
+  compatHeader: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+  },
+  compatHeaderEmoji: { fontSize: 18 },
+  compatBody: { marginTop: 12 },
+  compatInstruction: { fontSize: 13, color: "#666", marginBottom: 10 },
+  compatChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: "#f5f5f5", borderWidth: 1, borderColor: "#e0e0e0",
+  },
+  compatChipSelected: {
+    backgroundColor: "#eef0fe", borderColor: "#6c63ff",
+  },
+  compatChipText: { fontSize: 12, color: "#666" },
+  compatChipTextSelected: { color: "#6c63ff", fontWeight: "600" },
+  compatRunButton: {
+    marginTop: 14, paddingVertical: 10, borderRadius: 20,
+    backgroundColor: "#6c63ff", alignItems: "center",
+  },
+  compatRunButtonDisabled: { backgroundColor: "#c0c0c0" },
+  compatRunButtonText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   profileBasicGrid: {
     flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12,
   },
