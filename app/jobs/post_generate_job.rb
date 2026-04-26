@@ -4,8 +4,18 @@ class PostGenerateJob < ApplicationJob
 
   queue_as :critical
 
+  # 削除済み AI ユーザーへのジョブは破棄（再試行不要）
+  discard_on ActiveRecord::RecordNotFound
+
+  # 一時的なネットワーク/タイムアウトエラーは指数バックオフでリトライ
+  retry_on Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, SocketError,
+           wait: :exponentially_longer, attempts: 3
+
   def perform(ai_id, motivation)
     ai = AiUser.find(ai_id)
+    # 非アクティブ AI（違反等で停止済み）はスキップ
+    return unless ai.is_active?
+
     daily_state = ai.today_state
     return unless daily_state
 
