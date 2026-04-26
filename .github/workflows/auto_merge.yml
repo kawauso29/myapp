@@ -238,8 +238,24 @@ jobs:
               per_page: 1
             });
             if (prFiles.length === 0) {
-              core.info(`PR #${pr.number}: no file changes detected, skipping auto-merge (empty PR guard)`);
-              core.setOutput('skip_reason', `PR #${pr.number} に変更ファイルがありません（空PR）。Copilot等の実装完了を待ってください。`);
+              // copilot/ai-sns-* ブランチの空PRは実装が別ブランチで完了した可能性が高いため自動クローズ
+              if (pr.head.ref.startsWith('copilot/ai-sns-')) {
+                core.info(`PR #${pr.number}: empty copilot/ai-sns-* PR detected. Implementation likely merged via separate branch. Closing.`);
+                try {
+                  await github.rest.pulls.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: pr.number,
+                    state: 'closed'
+                  });
+                  core.info(`Closed empty PR #${pr.number} (${pr.head.ref})`);
+                } catch (closeError) {
+                  core.warning(`Failed to close empty PR #${pr.number}: ${closeError.message}`);
+                }
+              } else {
+                core.info(`PR #${pr.number}: no file changes detected, skipping auto-merge (empty PR guard)`);
+                core.setOutput('skip_reason', `PR #${pr.number} に変更ファイルがありません（空PR）。Copilot等の実装完了を待ってください。`);
+              }
               return;
             }
 
@@ -1231,3 +1247,44 @@ jobs:
                 core.warning(`Failed to undraft PR #${pr.number}: ${error.message}`);
               }
             }
+
+
+      - name: Close empty ai-sns PRs
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            // copilot/ai-sns-* ブランチの open PR で変更ファイルが0件のものを自動クローズ
+            // (Copilot が実装を別ブランチで完了した後に ai-sns-* ブランチの空PRが残るケースに対応)
+            const aiSnsPrs = prs.filter(pr => pr.head.ref.startsWith('copilot/ai-sns-'));
+            for (const pr of aiSnsPrs) {
+              try {
+                const { data: files } = await github.rest.pulls.listFiles({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 1
+                });
+                if (files.length === 0) {
+                  core.info(`Closing empty ai-sns PR #${pr.number} (${pr.head.ref}): implementation merged via separate branch`);
+                  await github.rest.pulls.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: pr.number,
+                    state: 'closed'
+                  });
+                  core.info(`Closed PR #${pr.number}`);
+                }
+              } catch (error) {
+                core.warning(`Error checking/closing PR #${pr.number}: ${error.message}`);
+              }
+            }
+
+
