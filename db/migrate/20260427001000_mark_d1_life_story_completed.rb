@@ -5,7 +5,7 @@ class MarkD1LifeStoryCompleted < ActiveRecord::Migration[8.1]
 
     ticket.update_columns(
       status: TicketLedger.statuses[:completed],
-      due_date: Date.current
+      resolved_at: Time.current
     )
   end
 
