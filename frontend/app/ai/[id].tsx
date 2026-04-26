@@ -260,22 +260,42 @@ export default function AiDetailScreen() {
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.avatarLarge}>
+        <View style={[styles.avatarLarge, ai.is_premium_ai && styles.avatarLargePremium]}>
           <Text style={styles.avatarText}>{ai.display_name?.[0] || "?"}</Text>
         </View>
-        <Text style={styles.displayName}>{ai.display_name}</Text>
+        <View style={styles.nameBadgeRow}>
+          <Text style={styles.displayName}>{ai.display_name}</Text>
+          {ai.is_premium_ai && (
+            <View style={styles.premiumBadge}>
+              <Text style={styles.premiumBadgeText}>✦ PREMIUM</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.username}>@{ai.username}</Text>
         {profile?.bio ? (
           <Text style={styles.bio}>{profile.bio}</Text>
         ) : null}
+        {profile?.catchphrase ? (
+          <View style={styles.catchphraseBox}>
+            <Text style={styles.catchphraseText}>「{profile.catchphrase}」</Text>
+          </View>
+        ) : null}
+        {ai.born_on && (
+          <Text style={styles.bornOn}>
+            🎂 {new Date(ai.born_on).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })} 生まれ
+          </Text>
+        )}
         {isLoggedIn && (
-          <TouchableOpacity style={styles.favoriteButton} onPress={handleToggleFavorite}>
+          <TouchableOpacity
+            style={[styles.favoriteButton, isFavorited && styles.favoriteButtonActive]}
+            onPress={handleToggleFavorite}
+          >
             <Ionicons
               name={isFavorited ? "star" : "star-outline"}
-              size={24}
-              color={isFavorited ? "#6c63ff" : "#888"}
+              size={20}
+              color={isFavorited ? "#fff" : "#6c63ff"}
             />
-            <Text style={styles.favoriteButtonText}>
+            <Text style={[styles.favoriteButtonText, isFavorited && styles.favoriteButtonTextActive]}>
               {isFavorited ? "フォロー中" : "フォローする"}
             </Text>
           </TouchableOpacity>
@@ -294,15 +314,99 @@ export default function AiDetailScreen() {
       {profile && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>プロフィール</Text>
-          <InfoRow label="年齢" value={`${profile.age}歳`} />
-          <InfoRow label="職業" value={profile.occupation} />
-          <InfoRow label="居住地" value={profile.location} />
-          <InfoRow label="ライフステージ" value={profile.life_stage} />
-          {profile.hobbies?.length > 0 && (
-            <InfoRow label="趣味" value={profile.hobbies.join("、")} />
+
+          {/* Basic Info */}
+          <View style={styles.profileBasicGrid}>
+            {profile.age != null && (
+              <View style={styles.profileBasicItem}>
+                <Text style={styles.profileBasicIcon}>🎂</Text>
+                <Text style={styles.profileBasicValue}>{profile.age}歳</Text>
+                <Text style={styles.profileBasicLabel}>年齢</Text>
+              </View>
+            )}
+            {profile.gender && (
+              <View style={styles.profileBasicItem}>
+                <Text style={styles.profileBasicIcon}>{genderIcon(profile.gender)}</Text>
+                <Text style={styles.profileBasicValue}>{GENDER_LABELS[profile.gender] ?? profile.gender}</Text>
+                <Text style={styles.profileBasicLabel}>性別</Text>
+              </View>
+            )}
+            {profile.relationship_status && (
+              <View style={styles.profileBasicItem}>
+                <Text style={styles.profileBasicIcon}>💑</Text>
+                <Text style={styles.profileBasicValue}>{RELATIONSHIP_LABELS[profile.relationship_status] ?? profile.relationship_status}</Text>
+                <Text style={styles.profileBasicLabel}>交際</Text>
+              </View>
+            )}
+            {profile.life_stage && (
+              <View style={styles.profileBasicItem}>
+                <Text style={styles.profileBasicIcon}>🌱</Text>
+                <Text style={styles.profileBasicValue}>{LIFE_STAGE_LABELS[profile.life_stage] ?? profile.life_stage}</Text>
+                <Text style={styles.profileBasicLabel}>ライフステージ</Text>
+              </View>
+            )}
+          </View>
+
+          {profile.occupation && <InfoRow label="💼 職業" value={profile.occupation} />}
+          {profile.location && <InfoRow label="📍 居住地" value={profile.location} />}
+          {profile.family_structure && (
+            <InfoRow
+              label="🏠 家族構成"
+              value={FAMILY_STRUCTURE_LABELS[profile.family_structure] ?? profile.family_structure}
+            />
           )}
-          {profile.catchphrase && (
-            <InfoRow label="口癖" value={`「${profile.catchphrase}」`} />
+          {profile.num_children != null && profile.num_children > 0 && (
+            <InfoRow label="👶 子ども" value={`${profile.num_children}人`} />
+          )}
+
+          {profile.personality_note ? (
+            <View style={styles.personalityNoteBox}>
+              <Text style={styles.personalityNoteLabel}>📝 人物像</Text>
+              <Text style={styles.personalityNoteText}>{profile.personality_note}</Text>
+            </View>
+          ) : null}
+
+          {profile.hobbies?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>🎮 趣味</Text>
+              <ChipList items={profile.hobbies} color="#6c63ff" bgColor="#eef0fe" />
+            </View>
+          )}
+          {profile.favorite_foods?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>🍜 好きな食べ物</Text>
+              <ChipList items={profile.favorite_foods} color="#e67e22" bgColor="#fff3e0" />
+            </View>
+          )}
+          {profile.favorite_music?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>🎵 好きな音楽</Text>
+              <ChipList items={profile.favorite_music} color="#1db954" bgColor="#e8f8ee" />
+            </View>
+          )}
+          {profile.favorite_places?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>🗺️ 好きな場所</Text>
+              <ChipList items={profile.favorite_places} color="#3498db" bgColor="#eaf4fd" />
+            </View>
+          )}
+          {profile.values?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>💎 大切にしていること</Text>
+              <ChipList items={profile.values} color="#8e44ad" bgColor="#f5eef8" />
+            </View>
+          )}
+          {profile.strengths?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>⭐ 得意なこと</Text>
+              <ChipList items={profile.strengths} color="#27ae60" bgColor="#eafaf1" />
+            </View>
+          )}
+          {profile.weaknesses?.length > 0 && (
+            <View style={styles.chipSection}>
+              <Text style={styles.chipSectionLabel}>💧 苦手なこと</Text>
+              <ChipList items={profile.weaknesses} color="#95a5a6" bgColor="#f2f3f4" />
+            </View>
           )}
         </View>
       )}
@@ -615,6 +719,43 @@ const PERSONALITY_LABELS: Record<string, string> = {
   patience: "忍耐力",
 };
 
+const GENDER_LABELS: Record<string, string> = {
+  male: "男性",
+  female: "女性",
+  other: "その他",
+  unspecified: "未設定",
+};
+
+const LIFE_STAGE_LABELS: Record<string, string> = {
+  student: "学生",
+  single: "独身",
+  couple: "カップル",
+  parent_young: "子育て中（未就学）",
+  parent_school: "子育て中（学生）",
+  parent_adult: "子育て後",
+  senior: "シニア",
+};
+
+const FAMILY_STRUCTURE_LABELS: Record<string, string> = {
+  alone: "一人暮らし",
+  with_partner: "パートナーと同居",
+  nuclear: "核家族",
+  single_parent: "シングルペアレント",
+  extended: "大家族",
+};
+
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  single: "独身",
+  in_relationship: "恋人あり",
+  married: "既婚",
+  divorced: "離婚・別居",
+};
+
+function genderIcon(gender: string): string {
+  const icons: Record<string, string> = { male: "👨", female: "👩", other: "🧑", unspecified: "👤" };
+  return icons[gender] || "👤";
+}
+
 const POST_THEMES = [
   { value: "job_change", label: "転職" },
   { value: "relocation", label: "引越し" },
@@ -699,6 +840,18 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function ChipList({ items, color, bgColor }: { items: string[]; color: string; bgColor: string }) {
+  return (
+    <View style={styles.chipList}>
+      {items.map((item, i) => (
+        <View key={`${item}-${i}`} style={[styles.chip, { backgroundColor: bgColor, borderColor: color }]}>
+          <Text style={[styles.chipText, { color }]}>{item}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -737,9 +890,14 @@ const styles = StyleSheet.create({
   favoriteButton: {
     flexDirection: "row", alignItems: "center",
     marginTop: 12, paddingHorizontal: 20, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1, borderColor: "#e0e0e0",
+    borderRadius: 20, borderWidth: 1, borderColor: "#6c63ff",
   },
-  favoriteButtonText: { fontSize: 13, color: "#888", marginLeft: 6 },
+  favoriteButtonActive: {
+    backgroundColor: "#6c63ff",
+    borderColor: "#6c63ff",
+  },
+  favoriteButtonText: { fontSize: 13, color: "#6c63ff", marginLeft: 6 },
+  favoriteButtonTextActive: { color: "#fff" },
   loadMoreButton: {
     alignItems: "center", paddingVertical: 12,
     borderWidth: 1, borderColor: "#e0e0f0", borderRadius: 8, marginTop: 4,
@@ -820,6 +978,56 @@ const styles = StyleSheet.create({
   },
   multiverseHeader: { fontSize: 13, fontWeight: "600", color: "#4f46e5", marginBottom: 6 },
   multiverseLine: { fontSize: 13, lineHeight: 20, color: "#333", marginBottom: 4 },
+
+  // --- Profile Card Enhancement ---
+  avatarLargePremium: {
+    borderWidth: 3,
+    borderColor: "#f1c40f",
+  },
+  nameBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  premiumBadge: {
+    backgroundColor: "#f1c40f",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  premiumBadgeText: { fontSize: 10, fontWeight: "800", color: "#7d6200", letterSpacing: 0.5 },
+  catchphraseBox: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: "#f8f0ff",
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: "#6c63ff",
+  },
+  catchphraseText: { fontSize: 14, color: "#6c63ff", fontStyle: "italic" },
+  bornOn: { fontSize: 12, color: "#aaa", marginTop: 6 },
+  profileBasicGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12,
+  },
+  profileBasicItem: {
+    flex: 1, minWidth: 70, alignItems: "center",
+    backgroundColor: "#f8f9fa", borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: "#eeeeee",
+  },
+  profileBasicIcon: { fontSize: 20, marginBottom: 4 },
+  profileBasicValue: { fontSize: 12, fontWeight: "700", color: "#333", textAlign: "center" },
+  profileBasicLabel: { fontSize: 10, color: "#999", marginTop: 2 },
+  personalityNoteBox: {
+    backgroundColor: "#fffbf0", borderRadius: 10, padding: 12,
+    marginVertical: 8, borderWidth: 1, borderColor: "#ffe99a",
+  },
+  personalityNoteLabel: { fontSize: 12, fontWeight: "700", color: "#b8860b", marginBottom: 4 },
+  personalityNoteText: { fontSize: 13, color: "#555", lineHeight: 20 },
+  chipSection: { marginTop: 10 },
+  chipSectionLabel: { fontSize: 12, fontWeight: "700", color: "#666", marginBottom: 6 },
+  chipList: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 14, borderWidth: 1,
+  },
+  chipText: { fontSize: 12 },
 });
 
 // --- Emotion Chart Component ---

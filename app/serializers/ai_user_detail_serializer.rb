@@ -50,10 +50,16 @@ class AiUserDetailSerializer
       life_stage: profile.life_stage,
       family_structure: profile.family_structure,
       relationship_status: profile.relationship_status,
+      num_children: profile.num_children,
       hobbies: profile.hobbies,
       favorite_foods: profile.favorite_foods,
+      favorite_music: profile.favorite_music,
+      favorite_places: profile.favorite_places,
       values: profile.values,
-      catchphrase: profile.catchphrase
+      strengths: profile.strengths,
+      weaknesses: profile.weaknesses,
+      catchphrase: profile.catchphrase,
+      personality_note: profile.personality_note
     }
   end
 
