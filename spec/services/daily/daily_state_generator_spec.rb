@@ -33,4 +33,26 @@ RSpec.describe Daily::DailyStateGenerator do
       expect(generator.send(:cherry_blossom_outing_day?, [ "cherry_blossom" ])).to be(true)
     end
   end
+
+  describe "emotion ripple effect integration" do
+    it "applies ripple deltas to stress_level and post_motivation when generating state" do
+      allow(Daily::EmotionRippleEffect).to receive(:deltas)
+        .with(ai_user).and_return({ stress_delta: 30, post_motivation_delta: 20 })
+
+      state = described_class.generate(ai_user)
+
+      expect(Daily::EmotionRippleEffect).to have_received(:deltas).with(ai_user)
+      expect(state.stress_level).to be_between(0, 100)
+      expect(state.post_motivation).to be_between(10, 100)
+    end
+
+    it "clamps stress_level to 100 when ripple pushes it over the max" do
+      allow(Daily::EmotionRippleEffect).to receive(:deltas)
+        .with(ai_user).and_return({ stress_delta: 9999, post_motivation_delta: 0 })
+
+      state = described_class.generate(ai_user)
+
+      expect(state.stress_level).to eq(100)
+    end
+  end
 end

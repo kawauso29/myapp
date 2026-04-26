@@ -11,6 +11,11 @@ module Daily
     BRIGHT_TIMELINE_STRESS_DELTA = -8
     BRIGHT_TIMELINE_MOTIVATION_DELTA = 6
 
+    # 関係タイプ別の基本波及係数（close_friendほど感情が波及しやすい）
+    RIPPLE_BASE_COEFFICIENT = { close_friend: 1.0, friend: 0.7 }.freeze
+    # interaction_score (0–100) が波及係数に最大 +0.5 の追加ブーストを与える
+    RIPPLE_SCORE_BOOST_DIVISOR = 200.0
+
     def self.deltas(ai_user, date: Date.current)
       new(ai_user, date: date).deltas
     end
@@ -62,17 +67,30 @@ module Daily
     end
 
     def friend_concern_motivation_delta
-      [ sad_friend_count * FRIEND_CONCERN_MOTIVATION_DELTA, FRIEND_CONCERN_MOTIVATION_DELTA * 3 ].min
+      score = weighted_sad_friend_score
+      [ (score * FRIEND_CONCERN_MOTIVATION_DELTA).round, FRIEND_CONCERN_MOTIVATION_DELTA * 3 ].min
     end
 
     def friend_concern_stress_delta
-      [ sad_friend_count * FRIEND_CONCERN_STRESS_DELTA, FRIEND_CONCERN_STRESS_DELTA * 3 ].min
+      score = weighted_sad_friend_score
+      [ (score * FRIEND_CONCERN_STRESS_DELTA).round, FRIEND_CONCERN_STRESS_DELTA * 3 ].min
     end
 
-    def sad_friend_count
-      return 0 if connected_ai_ids.empty?
+    # interaction_score で重み付けされた「落ち込んでいる友人」スコアを返す。
+    # 関係タイプが close_friend ほど、また interaction_score が高いほど係数が大きくなる。
+    def weighted_sad_friend_score
+      return 0.0 if connected_ai_ids.empty?
 
-      AiDailyState.where(ai_user_id: connected_ai_ids, date: @date, mood: [ :negative, :very_negative ]).count
+      sad_ai_ids = AiDailyState.where(ai_user_id: connected_ai_ids, date: @date,
+                                      mood: [ :negative, :very_negative ]).pluck(:ai_user_id)
+      return 0.0 if sad_ai_ids.empty?
+
+      sad_ai_ids.sum do |ai_id|
+        rel = relationship_score_map[ai_id]
+        next 0.0 unless rel
+
+        ripple_coefficient(rel[:type], rel[:score])
+      end
     end
 
     def bright_timeline_stress_delta
@@ -92,14 +110,38 @@ module Daily
       (positive.to_f / total) >= BRIGHT_TIMELINE_POSITIVE_RATIO
     end
 
-    def connected_ai_ids
-      @connected_ai_ids ||= begin
-        pairs = AiRelationship.where(ai_user_id: @ai.id, relationship_type: [ :friend, :close_friend ])
-                              .or(AiRelationship.where(target_ai_user_id: @ai.id,
-                                                      relationship_type: [ :friend, :close_friend ]))
-                              .pluck(:ai_user_id, :target_ai_user_id)
-        pairs.flatten.uniq - [ @ai.id ]
+    # 波及係数 = 関係タイプの基本値 + interaction_score による追加ブースト
+    def ripple_coefficient(relationship_type, interaction_score)
+      base = RIPPLE_BASE_COEFFICIENT[relationship_type.to_sym] || 0.5
+      boost = interaction_score.to_f / RIPPLE_SCORE_BOOST_DIVISOR
+      base + boost
+    end
+
+    # ai_user_id → { type:, score: } のマップを返す
+    def relationship_score_map
+      @relationship_score_map ||= connected_relationships.each_with_object({}) do |rel, hash|
+        hash[rel[:ai_id]] = rel
       end
+    end
+
+    def connected_relationships
+      @connected_relationships ||= begin
+        rels = AiRelationship
+          .where(ai_user_id: @ai.id, relationship_type: [ :friend, :close_friend ])
+          .select(:target_ai_user_id, :relationship_type, :interaction_score)
+          .map { |r| { ai_id: r.target_ai_user_id, type: r.relationship_type.to_sym, score: r.interaction_score } }
+
+        reverse_rels = AiRelationship
+          .where(target_ai_user_id: @ai.id, relationship_type: [ :friend, :close_friend ])
+          .select(:ai_user_id, :relationship_type, :interaction_score)
+          .map { |r| { ai_id: r.ai_user_id, type: r.relationship_type.to_sym, score: r.interaction_score } }
+
+        (rels + reverse_rels).uniq { |r| r[:ai_id] }
+      end
+    end
+
+    def connected_ai_ids
+      @connected_ai_ids ||= connected_relationships.map { |r| r[:ai_id] }
     end
   end
 end
