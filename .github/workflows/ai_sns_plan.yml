@@ -244,7 +244,7 @@ jobs:
               t.skip_pr_guardrail = true
               t.skip_stop_guard = true
               t.update!(status: :draft, pr_branch: nil)
-              puts '[#{t.ai_sns_plan_item_key}] ロールバック完了: executing → draft'
+              puts "[#{t.ai_sns_plan_item_key}] ロールバック完了: executing → draft"
             end
           " 2>/dev/null || true
 

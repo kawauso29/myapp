@@ -87,14 +87,18 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
         run: |
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          # find_each でバッチ処理し、git ls-remote 結果を配列に蓄積してメモリ効率化
           ORPHAN_ITEMS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
             require 'json'
-            orphans = TicketLedger.ai_sns_plan.status_executing.select do |t|
+            orphans = []
+            TicketLedger.ai_sns_plan.status_executing.find_each do |t|
               key = t.ai_sns_plan_item_key
               branch = t.pr_branch.presence || \"copilot/ai-sns-\#{key}\"
-              !system(\"git ls-remote --exit-code origin refs/heads/\#{branch} > /dev/null 2>&1\")
+              unless system(\"git ls-remote --exit-code origin refs/heads/\#{branch} > /dev/null 2>&1\")
+                orphans << { id: key, title: t.title, pr_branch: t.pr_branch }
+              end
             end
-            print orphans.map { |t| { id: t.ai_sns_plan_item_key, title: t.title, pr_branch: t.pr_branch } }.to_json
+            print orphans.to_json
           " 2>/dev/null || echo "[]")
           ORPHAN_ITEMS=${ORPHAN_ITEMS:-[]}
 
@@ -105,7 +109,6 @@ jobs:
             echo "⚠️ ${ORPHAN_COUNT} 件の孤立 executing 項目（ブランチなし）を検出。即時 draft にリセットします"
 
             cd ~/myapp && RAILS_ENV=production bin/rails runner "
-              require 'json'
               TicketLedger.ai_sns_plan.status_executing.find_each do |t|
                 key = t.ai_sns_plan_item_key
                 branch = t.pr_branch.presence || \"copilot/ai-sns-\#{key}\"
