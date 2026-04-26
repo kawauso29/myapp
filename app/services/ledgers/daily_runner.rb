@@ -62,6 +62,9 @@ module Ledgers
         service_id: @service_id
       )
 
+      # Phase 45: 部署ドキュメント健全性チェック（重複チェック内蔵で高頻度呼び出し安全）
+      Ledgers::DeptHealthChecker.call
+
       meeting
     end
 

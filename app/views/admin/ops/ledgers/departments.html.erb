@@ -3,6 +3,57 @@
 
 <% category_labels = { "executive" => "👔 経営", "department" => "🏢 部門", "specialist" => "🔧 専門" } %>
 <% scope_labels = { "company" => "全社", "portfolio" => "ポートフォリオ", "service" => "サービス", "cross_service" => "横断" } %>
+<% rule_labels = {
+  "no_runbook_update"  => "🔴 Runbook 未更新",
+  "no_customer_notice" => "🔴 顧客通知なし",
+  "stale_artifact"     => "🟡 成果物陳腐化",
+  "missing_adr"        => "🔴 ADR 未作成",
+  "dept_meeting_skip"  => "🔴 週次会議スキップ"
+} %>
+
+<%# Phase 45: 部署ドキュメント健全性サマリー %>
+<% if @dept_health_tickets.present? || @artifact_summary.present? %>
+  <div class="card" style="border:1px solid #c05621;">
+    <h2 style="color:#ed8936;">⚠️ 部署ドキュメント健全性アラート (<%= @dept_health_tickets.size %> 件)</h2>
+    <% if @global_health_issues.present? %>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:0.82em; color:#718096; margin-bottom:4px;">全社レベル:</div>
+        <% @global_health_issues.each do |t| %>
+          <% linked = t.linked_kpis.is_a?(Hash) ? t.linked_kpis : {} %>
+          <div style="font-size:0.84em; color:#fc8181; margin-bottom:2px;">
+            <%= rule_labels[linked["rule"]] || linked["rule"] %> — <%= t.title %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @dept_health_issues_by_service.present? %>
+      <% @dept_health_issues_by_service.each do |service_id, tickets| %>
+        <% next if service_id == "company" %>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:0.82em; color:#718096; margin-bottom:4px;">サービス: <strong style="color:#e2e8f0;"><%= service_id %></strong></div>
+          <% tickets.each do |t| %>
+            <% linked = t.linked_kpis.is_a?(Hash) ? t.linked_kpis : {} %>
+            <div style="font-size:0.84em; color:#fc8181; margin-bottom:2px;">
+              <%= rule_labels[linked["rule"]] || linked["rule"] %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
+
+<%# Phase 45: 月次ドキュメント発行サマリー %>
+<% if @artifact_summary.present? %>
+  <div class="card">
+    <h2>📊 ドキュメント発行状況（直近30日）</h2>
+    <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:0.88em;">
+      <div><span style="color:#718096;">✅ 公開済み成果物 </span><strong style="color:#68d391;"><%= @artifact_summary[:published] || 0 %></strong></div>
+      <div><span style="color:#718096;">📝 ドラフト中 </span><strong style="color:#f6e05e;"><%= @artifact_summary[:draft] || 0 %></strong></div>
+      <div><span style="color:#718096;">📚 知識台帳エントリ </span><strong style="color:#63b3ed;"><%= @artifact_summary[:knowledge] || 0 %></strong></div>
+    </div>
+  </div>
+<% end %>
 
 <% if @roles_by_category.present? %>
   <% @roles_by_category.each do |category, roles| %>
@@ -15,9 +66,15 @@
             hr_count     = @hr_eval_counts[role.role_key] || 0
             role_profile = @role_profiles_by_key[role.role_key] || {}
             role_name = role_profile[:display_name].presence || role.display_name
+            # DeptHealthChecker のチケットは service_id またはグローバル（company）スコープで起票される。
+            # role_key とは直接対応しないため、全社レベルの問題があれば全ロールを警告表示する。
+            health_ok = @global_health_issues.blank? && @dept_health_tickets.blank?
           %>
-          <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:180px; flex:1; border:1px solid #2d3748;">
-            <div style="font-size:1.0em; font-weight:700; color:#e2e8f0; margin-bottom:2px;"><%= role_name %></div>
+          <div style="background:#1a202c; border-radius:8px; padding:12px 16px; min-width:180px; flex:1; border:1px solid <%= health_ok ? '#2d3748' : '#c05621' %>;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+              <span style="font-size:0.75em;" title="<%= health_ok ? '正常' : '要確認' %>"><%= health_ok ? '🟢' : '🔴' %></span>
+              <div style="font-size:1.0em; font-weight:700; color:#e2e8f0;"><%= role_name %></div>
+            </div>
             <div style="font-size:0.72em; color:#4a5568; margin-bottom:8px; font-family:monospace;"><%= role.role_key %></div>
             <div style="display:flex; gap:10px; font-size:0.82em; margin-bottom:10px;">
               <div><span style="color:#718096;">議長会議定義 </span><strong style="color:#63b3ed;"><%= chair_count %></strong></div>
