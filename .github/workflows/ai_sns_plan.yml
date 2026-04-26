@@ -123,22 +123,6 @@ jobs:
 
           echo "選択された項目: [${ITEM_ID}] ${TITLE}"
 
-      - name: ステータスを in_progress に更新（DB）
-        if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
-        run: |
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          ITEM_ID="${{ steps.select.outputs.item_id }}"
-          cd ~/myapp && RAILS_ENV=production bin/rails runner "
-            t = TicketLedger.find_ai_sns_plan_by_item_key('${ITEM_ID}')
-            if t
-              t.skip_template_guard = true
-              t.skip_lane_capacity_guard = true
-              t.skip_pr_guardrail = true
-              t.skip_stop_guard = true
-              t.update!(status: :executing)
-            end
-          "
-
       - name: 実装用ブランチを作成して push
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
         id: create_branch
@@ -154,7 +138,8 @@ jobs:
 
           git checkout -b "$BRANCH"
           # 空コミット: Copilot が実装変更を追加するまで auto_merge の空PRガードで保護される
-          git commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
+          # GPG署名を無効化して署名エラーによる失敗を防ぐ
+          git -c commit.gpgsign=false commit --allow-empty -m "chore: [${ITEM_ID}] 実装PR開始"
           git push origin "$BRANCH"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
@@ -225,8 +210,11 @@ jobs:
             core.setOutput('pr_url', pr.html_url)
             core.setOutput('pr_existed', 'false')
 
-      - name: pr_branch を DB に記録
+      - name: ステータスを in_progress に更新 & pr_branch を DB に記録（PR作成成功後）
+        # PR作成が成功してからステータスを executing にセットする
+        # こうすることで PR 作成失敗時に DB が executing のまま詰まるのを防ぐ
         if: steps.wip_check.outputs.wip_exceeded == 'false' && steps.select.outputs.skip == 'false'
+        id: mark_executing
         run: |
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           ITEM_ID="${{ steps.select.outputs.item_id }}"
@@ -238,9 +226,27 @@ jobs:
               t.skip_lane_capacity_guard = true
               t.skip_pr_guardrail = true
               t.skip_stop_guard = true
-              t.update!(pr_branch: '${BRANCH}')
+              t.update!(status: :executing, pr_branch: '${BRANCH}')
             end
           "
+
+      - name: PR作成失敗時のロールバック（ステータスを draft に戻す）
+        if: failure() && steps.select.outputs.skip == 'false' && steps.select.outputs.item_id != ''
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          ITEM_ID="${{ steps.select.outputs.item_id }}"
+          echo "⚠️ PR作成に失敗しました。[${ITEM_ID}] のステータスを draft に戻します"
+          cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            t = TicketLedger.find_ai_sns_plan_by_item_key('${ITEM_ID}')
+            if t && t.status_executing?
+              t.skip_template_guard = true
+              t.skip_lane_capacity_guard = true
+              t.skip_pr_guardrail = true
+              t.skip_stop_guard = true
+              t.update!(status: :draft, pr_branch: nil)
+              puts "[#{t.ai_sns_plan_item_key}] ロールバック完了: executing → draft"
+            end
+          " 2>/dev/null || true
 
       - name: Copilot に実装を依頼（PRコメント）
         # DEPLOY_TOKEN は fine-grained PAT で Issues: Read and Write スコープが必要

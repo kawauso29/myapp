@@ -79,6 +79,67 @@ jobs:
             echo "WIP: ${WIP_COUNT}/${WIP_LIMIT}, todo: ${TODO_COUNT} → 未着手項目なし"
           fi
 
+      # executing 状態なのに対応するリモートブランチが存在しない項目を即時 draft にリセット。
+      # PR作成失敗や手動ブランチ削除で発生する「幽霊 executing」を7日待たずに解消する。
+      - name: 孤立 executing 検知 & 即時リセット（ブランチ不在）
+        id: orphan_check
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL_ERROR }}
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          # find_each でバッチ処理し、git ls-remote 結果を配列に蓄積してメモリ効率化
+          ORPHAN_ITEMS=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
+            require 'json'
+            orphans = []
+            TicketLedger.ai_sns_plan.status_executing.find_each do |t|
+              key = t.ai_sns_plan_item_key
+              branch = t.pr_branch.presence || \"copilot/ai-sns-\#{key}\"
+              unless system(\"git ls-remote --exit-code origin refs/heads/\#{branch} > /dev/null 2>&1\")
+                orphans << { id: key, title: t.title, pr_branch: t.pr_branch }
+              end
+            end
+            print orphans.to_json
+          " 2>/dev/null || echo "[]")
+          ORPHAN_ITEMS=${ORPHAN_ITEMS:-[]}
+
+          ORPHAN_COUNT=$(echo "$ORPHAN_ITEMS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+          echo "orphan_count=${ORPHAN_COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [ "$ORPHAN_COUNT" -gt 0 ]; then
+            echo "⚠️ ${ORPHAN_COUNT} 件の孤立 executing 項目（ブランチなし）を検出。即時 draft にリセットします"
+
+            cd ~/myapp && RAILS_ENV=production bin/rails runner "
+              TicketLedger.ai_sns_plan.status_executing.find_each do |t|
+                key = t.ai_sns_plan_item_key
+                branch = t.pr_branch.presence || \"copilot/ai-sns-\#{key}\"
+                next if system(\"git ls-remote --exit-code origin refs/heads/\#{branch} > /dev/null 2>&1\")
+                t.skip_template_guard = true
+                t.skip_lane_capacity_guard = true
+                t.skip_pr_guardrail = true
+                t.skip_stop_guard = true
+                t.update!(status: :draft, pr_branch: nil)
+                puts \"[\#{key}] 孤立リセット: executing → draft (branch: \#{branch})\"
+              end
+            " 2>/dev/null
+
+            # Slack 通知（エラーカテゴリ）
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              PAYLOAD=$(python3 -c "
+          import json
+          orphans = json.loads('''$ORPHAN_ITEMS''')
+          lines = []
+          for s in orphans:
+              branch = s.get('pr_branch') or 'copilot/ai-sns-' + s['id']
+              lines.append('  • [' + s['id'] + '] ' + s['title'] + ' (branch: ' + branch + ')')
+          text = ':warning: *PDCA: 孤立 executing 項目を即時リセット*\n以下の項目はブランチが存在しないため draft に戻しました:\n' + chr(10).join(lines)
+          print(json.dumps({'text': text}))
+          ")
+              curl -s -X POST -H "Content-Type: application/json" --data "$PAYLOAD" "$SLACK_WEBHOOK"
+            fi
+          else
+            echo "✅ 孤立 executing 項目はありません"
+          fi
+
       # in_progress 項目が executing 状態のまま 7 日以上経過していたら todo にリセット。
       # NOTE: TicketLedger には `started_at` 列が無いため `updated_at` を proxy として使用する。
       # 通常 executing 中はステータス遷移以外の更新が走らない運用のため実害は小さいが、
