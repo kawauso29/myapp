@@ -19,7 +19,7 @@ module Ledgers
     STALE_ARTIFACT_DAYS         = 90
     MEETING_SKIP_DAYS           = 14
     IMPROVEMENT_DUE_DAYS        = 14
-    OPEN_STATUSES               = %i[waiting_review overdue].freeze
+    OPEN_STATUSES               = %i[waiting_review overdue approved planned executing].freeze
 
     # ルールキー一覧（コントローラ・ビューからの参照用）
     RULES = %w[
@@ -194,7 +194,7 @@ module Ledgers
         linked_kpis:,
         linked_artifacts: [],
         priority: :medium,
-        status: :waiting_review,
+        status: :approved,
         assignee: "dept_health_checker",
         due_date: Date.current + IMPROVEMENT_DUE_DAYS.days,
         due_cycle: :weekly,

@@ -4,7 +4,7 @@ module Ledgers
     STALE_SERVICE_DAYS = 14
     OVERDUE_RATE_THRESHOLD = 0.2
     IMPROVEMENT_DUE_DAYS = 14
-    OPEN_STATUSES = %i[waiting_review overdue].freeze
+    OPEN_STATUSES = %i[waiting_review overdue approved planned executing].freeze
     # Phase 42 / UI伴走管理: UI チェック会議が連続して未実施の場合に検知する閾値
     UI_CHECK_STALE_DAYS = 3
     UI_CHECK_SERVICE_ID = "ai_sns".freeze
@@ -200,7 +200,7 @@ module Ledgers
         linked_kpis:,
         linked_artifacts: [],
         priority: :medium,
-        status: :waiting_review,
+        status: :approved,
         assignee: "improvement_detector",
         due_date: Date.current + IMPROVEMENT_DUE_DAYS.days,
         due_cycle: :weekly,
