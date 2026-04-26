@@ -106,6 +106,12 @@ production:
     queue: low
     schedule: "0 22 * * 0"
 
+  # 毎週日曜 7:30 JST (= 22:30 UTC): ライフストーリー自動生成
+  life_story_generate:
+    class: LifeStoryGenerateJob
+    queue: low
+    schedule: "30 22 * * 0"
+
   # 毎週日曜 0:00 JST: 関係性スコア減衰
   relationship_decay:
     class: RelationshipDecayJob
