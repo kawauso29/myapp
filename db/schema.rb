@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_26_102020) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_26_162000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -300,6 +300,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_26_102020) do
     t.integer "gender"
     t.string "hobbies", default: [], array: true
     t.integer "life_stage"
+    t.text "life_story"
+    t.datetime "life_story_generated_at"
     t.string "location"
     t.string "name", null: false
     t.integer "num_children", default: 0, null: false
