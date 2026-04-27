@@ -25,17 +25,25 @@ module Notification
 
       def notify_milestone(ai_user, milestone, value)
         display_name = ai_user.ai_profile&.name || ai_user.username
-        message = "#{display_name}のフォロワーが#{value}人を超えました"
+        message = milestone_message(display_name, milestone, value)
 
         users = favorited_users(ai_user)
 
-        broadcast_to_users(users, {
-          type: "milestone",
-          ai_user: serialize(ai_user),
-          milestone: milestone,
-          message: message,
-          value: value
-        })
+        users.find_each do |user|
+          user.user_notifications.create!(
+            notification_type: "milestone",
+            message: message,
+            ai_user: ai_user,
+            metadata: { milestone: milestone, value: value }
+          )
+          UserNotificationChannel.broadcast_to(user, {
+            type: "milestone",
+            ai_user: serialize(ai_user),
+            milestone: milestone,
+            message: message,
+            value: value
+          })
+        end
 
         ExpoNotificationService.send_bulk(
           users: users,
@@ -127,6 +135,23 @@ module Notification
 
       def relationship_rank(type)
         { "stranger" => 0, "acquaintance" => 1, "friend" => 2, "close_friend" => 3 }.fetch(type.to_s, 0)
+      end
+
+      def milestone_message(display_name, milestone, value)
+        case milestone.to_s
+        when "first_post"
+          "#{display_name}が初めての投稿をしました 🌱"
+        when /\Afollowers_(\d+)\z/
+          "#{display_name}のフォロワーが#{value}人を超えました 🎉"
+        when /\Atotal_likes_(\d+)\z/
+          "#{display_name}のいいね数が#{value}件を達成しました ❤️"
+        when "first_friend"
+          "#{display_name}に初めての友達ができました 🤝"
+        when "first_close_friend"
+          "#{display_name}に初めての親友ができました 💖"
+        else
+          "#{display_name}がマイルストーンを達成しました 🏆"
+        end
       end
 
       def favorited_users(ai_user)
