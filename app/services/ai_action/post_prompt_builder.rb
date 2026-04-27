@@ -1,5 +1,26 @@
 module AiAction
   class PostPromptBuilder
+    EVENT_LABELS = {
+      "new_year"          => "お正月・年明け",
+      "setsubun"          => "節分",
+      "valentine"         => "バレンタインデー",
+      "hinamatsuri"       => "ひなまつり",
+      "fiscal_year_end"   => "年度末",
+      "new_season"        => "新年度スタート",
+      "childrens_day"     => "子どもの日",
+      "tanabata"          => "七夕",
+      "obon"              => "お盆",
+      "halloween"         => "ハロウィン",
+      "shichigosan"       => "七五三",
+      "christmas_eve"     => "クリスマスイブ",
+      "new_year_eve"      => "大晦日",
+      "cherry_blossom"    => "お花見シーズン",
+      "sports_day_season" => "スポーツの秋",
+      "bonus_summer"      => "夏のボーナス時期",
+      "bonus_winter"      => "冬のボーナス時期",
+      "payday"            => "給料日"
+    }.freeze
+
     def self.build(ai_user, daily_state, motivation)
       new(ai_user, daily_state, motivation).build
     end
@@ -36,6 +57,8 @@ module AiAction
 
         ## 今日の外部状況
         #{external_context_section}
+
+        #{event_guidance_section}
 
         ## 今日のスケジュールと現在の状況
         #{schedule_section}
@@ -101,7 +124,10 @@ module AiAction
       parts << "現在時刻: #{@current_hour}時"
       parts << "曜日: #{%w[日 月 火 水 木 金 土][Date.current.wday]}曜日"
       parts << "天気: #{@state.weather_condition || 'normal'}"
-      parts << "イベント: #{@state.today_events.join('、')}" if @state.today_events.any?
+      if @state.today_events.any?
+        event_names = @state.today_events.map { |k| EVENT_LABELS[k] || k }.join("、")
+        parts << "今日のイベント: #{event_names}"
+      end
       season = case Date.current.month
       when 3..5 then "春"
       when 6..8 then "夏"
@@ -225,6 +251,71 @@ module AiAction
 
     def output_language_instruction
       "出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする"
+    end
+
+    def event_guidance_section
+      return "" if @state.today_events.empty?
+
+      lines = @state.today_events.filter_map { |key| event_guidance_for(key) }
+      return "" if lines.empty?
+
+      "## 今日のイベント投稿テーマ（強く意識して投稿に反映すること）\n#{lines.join("\n")}"
+    end
+
+    def event_guidance_for(event_key)
+      label = EVENT_LABELS[event_key] || event_key
+      case event_key
+      when "cherry_blossom"
+        if outgoing_ai?
+          "【#{label}】外出してお花見を楽しんでいる様子や、桜の美しさへの感想を投稿する。"
+        else
+          "【#{label}】桜の話題に触れつつも、自分らしいペースで春の訪れを表現する。"
+        end
+      when "valentine"
+        if coupled_ai?
+          "【#{label}】パートナーへの愛情や、バレンタインを一緒に楽しんでいる様子を投稿する。"
+        else
+          "【#{label}】一人のバレンタインを軽くいじる、または甘いものを楽しむ投稿にする。"
+        end
+      when "christmas_eve"
+        if coupled_ai?
+          "【#{label}】クリスマスイブのロマンチックな雰囲気や、パートナーとの特別な夜を投稿する。"
+        else
+          "【#{label}】一人のクリスマスを楽しむ・または軽くぼやく、チキンやケーキの話題もOK。"
+        end
+      when "new_year"
+        "【#{label}】新年の抱負・去年の振り返り・今年への期待を投稿する。"
+      when "new_year_eve"
+        "【#{label}】今年一年の振り返り・大晦日の感慨・年越しへのカウントダウン気分を投稿する。"
+      when "halloween"
+        "【#{label}】ハロウィンの仮装・イベント・お菓子など、ハロウィンらしい雰囲気の投稿にする。"
+      when "tanabata"
+        "【#{label}】七夕の短冊に込めた願い事や、夏の夜の情緒を感じる投稿にする。"
+      when "setsubun"
+        "【#{label}】豆まき・恵方巻き・鬼退治など、節分らしいユーモアを交えた投稿にする。"
+      when "obon"
+        "【#{label}】お盆の帰省・先祖への想い・夏の終わりの感慨を込めた投稿にする。"
+      when "new_season"
+        "【#{label}】新年度のスタート。新しい環境への期待や抱負、気持ちの切り替えを投稿する。"
+      when "payday"
+        "【#{label}】給料日。自分へのご褒美計画や、ちょっと気が大きくなる話題を軽く投稿してもOK。"
+      when "bonus_summer", "bonus_winter"
+        "【ボーナス時期】ボーナスの使い道や、気持ちが大きくなっている様子を軽く投稿してもOK。"
+      when "hinamatsuri"
+        "【#{label}】ひなまつりらしい和菓子や春の訪れを感じる、ほっこりした投稿にする。"
+      when "childrens_day"
+        "【#{label}】子どもの日らしい思い出やこどもらしさ、柏餅や鯉のぼりの話題を投稿する。"
+      when "sports_day_season"
+        "【#{label}】スポーツの秋。体を動かす話題や、スポーツ観戦の感想を投稿してもOK。"
+      end
+    end
+
+    def coupled_ai?
+      @profile&.relationship_status_in_relationship? || @profile&.relationship_status_married?
+    end
+
+    def outgoing_ai?
+      @personality&.sociability_high? || @personality&.sociability_very_high?
     end
   end
 end
