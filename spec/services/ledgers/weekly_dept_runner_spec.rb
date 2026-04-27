@@ -375,5 +375,55 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         expect(approved_ticket.reload).to be_status_planned
       end
     end
+
+    context "Phase 45b: customer_notice draft generation" do
+      it "creates a customer_notice draft on every weekly meeting regardless of feedback" do
+        expect do
+          described_class.call(service_id: "ai_sns", ticket_inputs: [])
+        end.to change { ArtifactLedger.artifact_type_customer_notice.count }.by(1)
+
+        notice = ArtifactLedger.artifact_type_customer_notice.last
+        expect(notice.status).to eq("draft")
+        expect(notice.scope_level).to eq("service")
+        expect(notice.service_id).to eq("ai_sns")
+        expect(notice.content).to include("meeting_id", "held_at", "approved_tickets", "note")
+      end
+
+      it "does not create a duplicate customer_notice when one with the same title already exists" do
+        week_label = Date.current.beginning_of_week(:monday).iso8601
+        create(:artifact_ledger,
+               artifact_type: :customer_notice,
+               scope_level: :service,
+               service_id: "ai_sns",
+               title: "Customer Notice Draft (ai_sns) #{week_label}",
+               status: :draft)
+
+        expect do
+          described_class.call(service_id: "ai_sns", ticket_inputs: [])
+        end.not_to change { ArtifactLedger.artifact_type_customer_notice.count }
+      end
+
+      it "lists approved tickets in the customer_notice content" do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+        described_class.call(
+          service_id: "ai_sns",
+          ticket_inputs: [
+            {
+              ticket_type: "operations",
+              title: "Ship feature X",
+              linked_kpis: [ "kpi:service_health" ],
+              audit_ok: true,
+              owner_dept: "dev",
+              owner_agent: "weekly_dept_runner"
+            }
+          ]
+        )
+
+        notice = ArtifactLedger.artifact_type_customer_notice.last
+        approved = notice.content["approved_tickets"]
+        expect(approved).to be_an(Array)
+        expect(approved.map { |t| t["title"] }).to include("Ship feature X")
+      end
+    end
   end
 end
