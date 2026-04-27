@@ -376,6 +376,77 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       end
     end
 
+    context "デフォルトチケット（ticket_inputs 未指定時）" do
+      before do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+      end
+
+      it "ticket_inputs 未指定時に 'weekly_dept default ticket for ai_sns' を作成する" do
+        expect do
+          described_class.call(service_id: "ai_sns")
+        end.to change(TicketLedger, :count).by(1)
+
+        ticket = TicketLedger.find_by(title: "weekly_dept default ticket for ai_sns")
+        expect(ticket).to be_present
+      end
+
+      it "デフォルトチケットは正しい属性を持つ" do
+        described_class.call(service_id: "ai_sns")
+
+        ticket = TicketLedger.find_by(title: "weekly_dept default ticket for ai_sns")
+        expect(ticket.ticket_type).to eq("operations")
+        expect(ticket.service_id).to eq("ai_sns")
+        expect(ticket.linked_kpis).to eq([ "kpi:service_health" ])
+        expect(ticket.status).to eq("approved")
+        expect(ticket.due_cycle).to eq("weekly")
+        expect(ticket.owner_dept).to eq("planning")
+        expect(ticket.owner_agent).to eq("weekly_dept_runner")
+        expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:weekly))
+      end
+
+      it "デフォルトチケットが既にアクティブな場合は重複作成をスキップする" do
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :approved)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.not_to change(TicketLedger, :count)
+
+        meeting = MeetingLedger.last
+        expect(meeting.decisions).to include(
+          a_hash_including("title" => "weekly_dept default ticket for ai_sns",
+                           "result" => "skipped_duplicate_default")
+        )
+      end
+
+      it "既存デフォルトチケットが completed の場合は新規作成する" do
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :completed)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.to change(TicketLedger, :count).by(1)
+      end
+
+      it "既存デフォルトチケットが cancelled の場合は新規作成する" do
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :cancelled)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.to change(TicketLedger, :count).by(1)
+      end
+    end
+
     context "Phase 45b: customer_notice draft generation" do
       it "creates a customer_notice draft on every weekly meeting regardless of feedback" do
         expect do
