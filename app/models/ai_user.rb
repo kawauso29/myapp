@@ -67,6 +67,10 @@ class AiUser < ApplicationRecord
     ai_daily_states.find_by(date: Date.current)
   end
 
+  def display_name
+    ai_profile&.name || username
+  end
+
   def last_posted_at
     ai_posts.maximum(:created_at)
   end

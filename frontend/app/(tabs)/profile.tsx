@@ -26,8 +26,8 @@ function milestoneIcon(metadata: { milestone?: string } | Record<string, unknown
   if (!milestone) return "🎖️";
   if (milestone === "first_post") return "🌱";
   if (milestone === "first_friend") return "🤝";
-  if (milestone === "first_close_friend") return "💖";
-  if (milestone.startsWith("total_likes_")) return "❤️";
+  if (milestone === "first_love") return "💕";
+  if (milestone.startsWith("likes_")) return "💯";
   if (milestone.startsWith("followers_")) return "👥";
   return "🏆";
 }

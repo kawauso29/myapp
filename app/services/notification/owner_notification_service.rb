@@ -29,21 +29,33 @@ module Notification
 
         users = favorited_users(ai_user)
 
-        users.find_each do |user|
-          user.user_notifications.create!(
-            notification_type: "milestone",
-            message: message,
-            ai_user: ai_user,
-            metadata: { milestone: milestone, value: value }
-          )
-          UserNotificationChannel.broadcast_to(user, {
-            type: "milestone",
-            ai_user: serialize(ai_user),
-            milestone: milestone,
-            message: message,
-            value: value
-          })
+        payload = {
+          type: "milestone",
+          ai_user: serialize(ai_user),
+          milestone: milestone,
+          message: message,
+          value: value
+        }
+
+        user_ids = users.pluck(:id)
+        if user_ids.any?
+          now = Time.current
+          rows = user_ids.map do |uid|
+            {
+              user_id: uid,
+              ai_user_id: ai_user.id,
+              notification_type: "milestone",
+              message: message,
+              metadata: { milestone: milestone, value: value },
+              is_read: false,
+              created_at: now,
+              updated_at: now
+            }
+          end
+          UserNotification.insert_all(rows)
         end
+
+        users.find_each { |user| UserNotificationChannel.broadcast_to(user, payload) }
 
         ExpoNotificationService.send_bulk(
           users: users,
@@ -139,16 +151,16 @@ module Notification
 
       def milestone_message(display_name, milestone, value)
         case milestone.to_s
-        when "first_post"
-          "#{display_name}が初めての投稿をしました 🌱"
         when /\Afollowers_(\d+)\z/
           "#{display_name}のフォロワーが#{value}人を超えました 🎉"
-        when /\Atotal_likes_(\d+)\z/
-          "#{display_name}のいいね数が#{value}件を達成しました ❤️"
+        when "first_post"
+          "#{display_name}が初めて投稿しました ✍️"
+        when /\Alikes_(\d+)\z/
+          "#{display_name}が#{value}いいねを達成しました 💯"
         when "first_friend"
           "#{display_name}に初めての友達ができました 🤝"
-        when "first_close_friend"
-          "#{display_name}に初めての親友ができました 💖"
+        when "first_love"
+          "#{display_name}に初恋が芽生えました 💕"
         else
           "#{display_name}がマイルストーンを達成しました 🏆"
         end

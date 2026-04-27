@@ -110,14 +110,14 @@ RSpec.describe Notification::OwnerNotificationService, type: :service do
       described_class.notify_milestone(ai_user, "first_post", 1)
 
       notification = UserNotification.last
-      expect(notification.message).to include("初めての投稿")
+      expect(notification.message).to include("初めて投稿しました")
     end
 
-    it "includes correct total_likes milestone message" do
-      described_class.notify_milestone(ai_user, "total_likes_100", 100)
+    it "includes correct likes milestone message" do
+      described_class.notify_milestone(ai_user, "likes_100", 100)
 
       notification = UserNotification.last
-      expect(notification.message).to include("いいね数が100件")
+      expect(notification.message).to include("100いいね")
     end
 
     it "includes correct first_friend milestone message" do
@@ -127,11 +127,11 @@ RSpec.describe Notification::OwnerNotificationService, type: :service do
       expect(notification.message).to include("友達")
     end
 
-    it "includes correct first_close_friend milestone message" do
-      described_class.notify_milestone(ai_user, "first_close_friend", 1)
+    it "includes correct first_love milestone message" do
+      described_class.notify_milestone(ai_user, "first_love", 1)
 
       notification = UserNotification.last
-      expect(notification.message).to include("親友")
+      expect(notification.message).to include("初恋")
     end
 
     it "broadcasts via ActionCable to favorited users" do

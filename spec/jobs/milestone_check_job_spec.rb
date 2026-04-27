@@ -1,168 +1,173 @@
 require "rails_helper"
 
 RSpec.describe MilestoneCheckJob, type: :job do
-  let(:user) { create(:user) }
-  let(:ai) { create(:ai_user) }
-
   before do
-    UserFavoriteAi.create!(user: user, ai_user: ai)
-    allow(Notification::ExpoNotificationService).to receive(:send_bulk)
-    allow(UserNotificationChannel).to receive(:broadcast_to)
+    Rails.cache.clear
+    allow(Notification::OwnerNotificationService).to receive(:notify_milestone)
   end
 
   describe "#perform" do
-    context "follower milestones" do
-      it "fires followers_10 milestone when followers_count >= 10" do
-        ai.update!(followers_count: 10)
+    let!(:ai) { create(:ai_user, is_active: true, followers_count: 0, posts_count: 0, total_likes: 0) }
 
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(1)
+    before do
+      # テスト対象のAIのみを対象にする (シードデータの影響を排除)
+      allow(AiUser).to receive(:active).and_return(AiUser.where(id: ai.id))
+    end
 
-        notification = UserNotification.last
-        expect(notification.notification_type).to eq("milestone")
-        expect(notification.metadata["milestone"]).to eq("followers_10")
+    context "フォロワー数マイルストーン" do
+      it "フォロワー10人達成で通知が送られる" do
+        ai.update_columns(followers_count: 10)
+
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "followers_10", 10)
       end
 
-      it "does not fire followers_10 twice when cache prevents it" do
-        ai.update!(followers_count: 10)
-        cache_key = "milestone_notified:#{ai.id}:followers:10"
-        allow(Rails.cache).to receive(:exist?) { |key| key == cache_key }
+      it "同じマイルストーンは2回通知されない" do
+        ai.update_columns(followers_count: 10)
+
+        cache_key = "milestone_notified:#{ai.id}:followers_10"
+        allow(Rails.cache).to receive(:exist?).and_return(false)
+        allow(Rails.cache).to receive(:exist?).with(cache_key).and_return(false, true)
         allow(Rails.cache).to receive(:write)
 
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification.where("metadata->>'milestone' = 'followers_10'"), :count)
+        described_class.new.perform
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "followers_10", 10).once
       end
 
-      it "does not fire milestone when below threshold" do
-        ai.update!(followers_count: 5)
+      it "フォロワー数が閾値未満の場合は通知されない" do
+        ai.update_columns(followers_count: 5)
 
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification, :count)
-      end
-    end
+        described_class.new.perform
 
-    context "likes milestones" do
-      it "fires total_likes_100 when total_likes >= 100" do
-        ai.update!(total_likes: 100)
-
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(1)
-
-        notification = UserNotification.last
-        expect(notification.metadata["milestone"]).to eq("total_likes_100")
-      end
-
-      it "fires multiple likes milestones when total_likes reaches multiple thresholds" do
-        ai.update!(total_likes: 500)
-
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(2) # 100 and 500
-      end
-
-      it "does not fire likes milestone when below threshold" do
-        ai.update!(total_likes: 99)
-
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification, :count)
+        expect(Notification::OwnerNotificationService).not_to have_received(:notify_milestone)
       end
     end
 
-    context "first_post milestone" do
-      it "fires first_post milestone when posts_count >= 1" do
-        ai.update!(posts_count: 1)
+    context "初投稿マイルストーン" do
+      it "posts_count >= 1 で first_post 通知が送られる" do
+        ai.update_columns(posts_count: 1)
 
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(1)
+        described_class.new.perform
 
-        notification = UserNotification.last
-        expect(notification.notification_type).to eq("milestone")
-        expect(notification.metadata["milestone"]).to eq("first_post")
-        expect(notification.message).to include("初めての投稿")
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_post", 1)
       end
 
-      it "does not fire first_post when posts_count is 0" do
-        ai.update!(posts_count: 0)
+      it "posts_count == 0 では通知されない" do
+        ai.update_columns(posts_count: 0)
 
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification, :count)
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .not_to have_received(:notify_milestone).with(ai, "first_post", anything)
+      end
+
+      it "初投稿は一度だけ通知される" do
+        ai.update_columns(posts_count: 5)
+
+        cache_key = "milestone_notified:#{ai.id}:first_post"
+        allow(Rails.cache).to receive(:exist?).and_return(false)
+        allow(Rails.cache).to receive(:exist?).with(cache_key).and_return(false, true)
+        allow(Rails.cache).to receive(:write)
+
+        described_class.new.perform
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_post", 1).once
       end
     end
 
-    context "first_friend milestone" do
-      it "fires first_friend milestone when AI has a friend relationship" do
+    context "いいね数マイルストーン" do
+      it "100いいね達成で likes_100 通知が送られる" do
+        ai.update_columns(total_likes: 100)
+
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "likes_100", 100)
+      end
+
+      it "99いいねでは通知されない" do
+        ai.update_columns(total_likes: 99)
+
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .not_to have_received(:notify_milestone).with(ai, "likes_100", anything)
+      end
+    end
+
+    context "初めての友達マイルストーン" do
+      it "friend 関係があると first_friend 通知が送られる" do
         other_ai = create(:ai_user)
         create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :friend)
 
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(1)
+        described_class.new.perform
 
-        notification = UserNotification.last
-        expect(notification.metadata["milestone"]).to eq("first_friend")
-        expect(notification.message).to include("友達")
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_friend", 1)
       end
 
-      it "fires first_friend and first_close_friend when AI has a close_friend relationship" do
-        other_ai = create(:ai_user)
-        create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :close_friend)
-
-        expect {
-          described_class.perform_now
-        }.to change(UserNotification, :count).by(2)
-
-        milestones = UserNotification.where("metadata->>'milestone' IN ('first_friend', 'first_close_friend')")
-                                     .pluck(Arel.sql("metadata->>'milestone'"))
-        expect(milestones).to include("first_friend", "first_close_friend")
-      end
-
-      it "does not fire first_friend when only stranger/acquaintance relationships exist" do
+      it "acquaintance 関係だけでは通知されない" do
         other_ai = create(:ai_user)
         create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :acquaintance)
 
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification, :count)
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .not_to have_received(:notify_milestone).with(ai, "first_friend", anything)
       end
     end
 
-    context "first_close_friend milestone" do
-      it "fires first_close_friend milestone when AI has a close_friend relationship" do
+    context "初恋マイルストーン" do
+      it "close_friend 関係があると first_love 通知が送られる" do
         other_ai = create(:ai_user)
         create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :close_friend)
 
-        described_class.perform_now
+        described_class.new.perform
 
-        notification = UserNotification.where("metadata->>'milestone' = 'first_close_friend'").last
-        expect(notification).to be_present
-        expect(notification.message).to include("親友")
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_love", 1)
       end
 
-      it "does not fire first_close_friend when only friend relationship exists" do
+      it "friend 関係だけでは first_love は通知されない" do
         other_ai = create(:ai_user)
         create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :friend)
 
-        described_class.perform_now
+        described_class.new.perform
 
-        close_friend_notification = UserNotification.where("metadata->>'milestone' = 'first_close_friend'").last
-        expect(close_friend_notification).to be_nil
+        expect(Notification::OwnerNotificationService)
+          .not_to have_received(:notify_milestone).with(ai, "first_love", anything)
+      end
+
+      it "close_friend があると first_friend と first_love 両方通知される" do
+        other_ai = create(:ai_user)
+        create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :close_friend)
+
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_friend", 1)
+        expect(Notification::OwnerNotificationService)
+          .to have_received(:notify_milestone).with(ai, "first_love", 1)
       end
     end
 
-    context "with inactive AI" do
-      it "skips inactive AI users" do
-        ai.update!(is_active: false, posts_count: 10, total_likes: 200)
+    context "非アクティブなAI" do
+      it "is_active: false のAIはスキップされる" do
+        inactive = create(:ai_user, is_active: false, posts_count: 1)
+        allow(AiUser).to receive(:active).and_return(AiUser.where(id: inactive.id).none)
 
-        expect {
-          described_class.perform_now
-        }.not_to change(UserNotification, :count)
+        described_class.new.perform
+
+        expect(Notification::OwnerNotificationService)
+          .not_to have_received(:notify_milestone)
       end
     end
   end
