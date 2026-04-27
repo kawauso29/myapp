@@ -53,7 +53,7 @@ jobs:
               require 'json'
               t = TicketLedger.find_ai_sns_plan_by_item_key('${INPUT_ID}')
               if t
-                legacy_status = { 'draft' => 'todo', 'executing' => 'in_progress', 'completed' => 'done' }[t.status] || t.status
+                legacy_status = { 'draft' => 'todo', 'planned' => 'todo', 'executing' => 'in_progress', 'completed' => 'done' }[t.status] || t.status
                 print({
                   item_key: t.ai_sns_plan_item_key,
                   status: legacy_status,
@@ -70,7 +70,7 @@ jobs:
           else
             ITEM_JSON=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "
               require 'json'
-              t = TicketLedger.ai_sns_plan.status_draft.order(priority: :desc, idempotency_key: :asc).first
+              t = TicketLedger.ai_sns_plan.status_planned.order(priority: :desc, idempotency_key: :asc).first
               if t
                 print({
                   item_key: t.ai_sns_plan_item_key,
@@ -243,8 +243,8 @@ jobs:
               t.skip_lane_capacity_guard = true
               t.skip_pr_guardrail = true
               t.skip_stop_guard = true
-              t.update!(status: :draft, pr_branch: nil)
-              puts "[#{t.ai_sns_plan_item_key}] ロールバック完了: executing → draft"
+              t.update!(status: :planned, pr_branch: nil)
+              puts "[#{t.ai_sns_plan_item_key}] ロールバック完了: executing → planned"
             end
           " 2>/dev/null || true
 

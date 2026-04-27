@@ -58,7 +58,7 @@ jobs:
           export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
           WIP_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_executing.count" 2>/dev/null || echo 0)
           WIP_COUNT=${WIP_COUNT:-0}
-          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_draft.count" 2>/dev/null || echo 0)
+          TODO_COUNT=$(cd ~/myapp && RAILS_ENV=production bin/rails runner "print TicketLedger.ai_sns_plan.status_planned.count" 2>/dev/null || echo 0)
           TODO_COUNT=${TODO_COUNT:-0}
           WIP_LIMIT=2
           FORCE="${{ github.event.inputs.force_advance }}"

@@ -100,8 +100,10 @@ module Ledgers
         details: Array(detector_result.fetch(:details, [])) + Array(resolver_result.fetch(:details, []))
       }
 
+      planned_ai_sns = advance_ai_sns_plan_approved!
+
       meeting.update!(
-        decisions:,
+        decisions: decisions + planned_ai_sns,
         hold_items:,
         carry_over_items: hold_items,
         tickets_to_create: created,
@@ -198,6 +200,21 @@ module Ledgers
       else
         "callback_blocked"
       end
+    end
+
+    # Phase 46: monthly_ops で approved になった ai_sns_plan チケットを
+    # 週次会議で確認し planned に昇格させる（approved → planned）。
+    # これにより MeetingLedger に週次確認の記録が残り、governance が完成する。
+    def advance_ai_sns_plan_approved!
+      advanced = []
+      TicketLedger.ai_sns_plan.status_approved.find_each do |ticket|
+        ticket.update!(
+          status: :planned,
+          due_date: ticket.due_date || Ledgers::TimeAxis.due_date_for(:weekly)
+        )
+        advanced << { ticket_id: ticket.id, title: ticket.title, result: "planned" }
+      end
+      advanced
     end
 
     def hold_payload(attrs, reason: "missing_linked_kpis", missing_kpi_keys: nil)
