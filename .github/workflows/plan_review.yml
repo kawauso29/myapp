@@ -15,6 +15,13 @@ name: AI SNS 計画レビュー 自動起票
 on:
   workflow_dispatch:
 
+# 複数インスタンスの並走を防止する（重複 Issue 作成の根本原因）
+# cancel-in-progress: false にすることで、実行中の場合は後続をキューイングし
+# 完了後に実行させる（その時点で既存 Issue が存在し skip される）
+concurrency:
+  group: plan-review
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write
@@ -103,7 +110,7 @@ jobs:
 
       - name: plan-review Issue を作成
         id: create_issue
-        if: steps.existing_check.outputs.skip != 'true'
+        if: steps.existing_check.outcome == 'success' && steps.existing_check.outputs.skip != 'true'
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
@@ -199,7 +206,7 @@ jobs:
       - name: "@copilot メンションコメントを投稿"
         # Issue 本文への @copilot 埋め込みは機能しないため別コメントとして投稿する
         # DEPLOY_TOKEN（fine-grained PAT）が必須。GITHUB_TOKEN では Copilot Webhook が起動しない。
-        if: steps.existing_check.outputs.skip != 'true'
+        if: steps.existing_check.outcome == 'success' && steps.existing_check.outputs.skip != 'true'
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
