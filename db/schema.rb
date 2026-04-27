@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_27_001001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -702,6 +702,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_001001) do
     t.decimal "meeting_health_score", precision: 5, scale: 4
     t.string "meeting_key", null: false
     t.integer "meeting_type", null: false
+    t.jsonb "minutes", default: {}, null: false
     t.jsonb "participants", default: [], null: false
     t.decimal "role_fill_rate", precision: 5, scale: 4
     t.integer "scope_level", null: false
@@ -727,6 +728,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_001001) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["ai_post_id"], name: "index_notifications_on_ai_post_id"
+    t.index ["ai_user_id", "notification_type", "created_at"], name: "index_notifications_on_ai_user_id_type_created_at"
     t.index ["ai_user_id"], name: "index_notifications_on_ai_user_id"
     t.index ["target_ai_user_id"], name: "index_notifications_on_target_ai_user_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
