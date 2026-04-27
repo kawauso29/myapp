@@ -173,11 +173,7 @@ module Ledgers
           k.current_value = attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601) if attrs[:initial_current_value]
         end
 
-        # 既存レコードで current_value が未設定の場合に初期値を補完する（冪等）。
-        # KpiAutoCollectJob が実行されれば上書きされるため、一時的な初期値として機能する。
-        if kpi.current_value.blank? && attrs[:initial_current_value].present?
-          kpi.update!(current_value: attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601))
-        end
+        backfill_kpi_initial_value!(kpi, attrs[:initial_current_value])
       end
     end
 
@@ -218,9 +214,7 @@ module Ledgers
           k.current_value = attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601) if attrs[:initial_current_value]
         end
 
-        if kpi.current_value.blank? && attrs[:initial_current_value].present?
-          kpi.update!(current_value: attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601))
-        end
+        backfill_kpi_initial_value!(kpi, attrs[:initial_current_value])
       end
     end
 
@@ -342,6 +336,16 @@ module Ledgers
           s.description = "Default: #{cadence} = #{duration.inspect}"
         end
       end
+    end
+
+    # KpiLedger の current_value が未設定の場合に初期値を補完する（冪等）。
+    # find_or_create_by! は既存レコードのブロックを実行しないため、
+    # 既存レコードの current_value が nil の場合はここで補完する。
+    # KpiAutoCollectJob が実行されれば実測値に上書きされる（一時的な初期値として機能）。
+    def backfill_kpi_initial_value!(kpi, initial_value)
+      return unless kpi.current_value.blank? && initial_value.present?
+
+      kpi.update!(current_value: initial_value.merge("recorded_at" => Time.current.iso8601))
     end
   end
 end

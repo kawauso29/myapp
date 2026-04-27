@@ -37,7 +37,7 @@ class BackfillKpiInitialCurrentValues < ActiveRecord::Migration[8.1]
         kpi.update_columns(current_value: payload, updated_at: Time.current)
         kpi.apply_grade!
       rescue StandardError => e
-        Rails.logger.warn("[BackfillKpiInitialCurrentValues] failed for #{kpi_key}: #{e.message}")
+        Rails.logger.warn("[BackfillKpiInitialCurrentValues] failed for #{kpi_key} (id: #{kpi.id}): #{e.message}")
       end
     end
   end
