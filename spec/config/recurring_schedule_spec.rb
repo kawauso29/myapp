@@ -28,4 +28,14 @@ RSpec.describe "recurring schedule config" do
     expect(config.dig(:production, :ticket_overdue_check, :class)).to eq("TicketOverdueCheckJob")
     expect(config.dig(:production, :ticket_overdue_check, :schedule)).to eq("0 21 * * *")
   end
+
+  it "includes ui_check_ledger_run schedule in production" do
+    config = YAML.safe_load_file(
+      File.expand_path("../../config/recurring.yml", __dir__),
+      symbolize_names: true
+    )
+
+    expect(config.dig(:production, :ui_check_ledger_run, :class)).to eq("UiCheckLedgerRunJob")
+    expect(config.dig(:production, :ui_check_ledger_run, :schedule)).to eq("0 4 */2 * *")
+  end
 end
