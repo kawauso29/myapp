@@ -7,10 +7,10 @@ module Ledgers
     def initialize(service_id:, ticket_inputs: nil, present_roles: nil, meeting_key: "weekly_dept", use_daily_anomalies: true)
       @service_id = service_id
       @meeting_key = meeting_key
-      raw_inputs = ticket_inputs.presence || default_ticket_inputs
-      @ticket_inputs = raw_inputs.map(&:symbolize_keys)
       @present_roles = present_roles
       @use_daily_anomalies = use_daily_anomalies
+      raw_inputs = ticket_inputs.presence || default_ticket_inputs
+      @ticket_inputs = raw_inputs.map(&:symbolize_keys)
     end
 
     def call
