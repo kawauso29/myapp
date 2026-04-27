@@ -313,7 +313,7 @@ module Ledgers
       return if ArtifactLedger.exists?(artifact_type: :customer_notice, title: title)
 
       approved_tickets = Array(meeting.tickets_to_create).select do |t|
-        t[:status].to_s == "approved" || t["status"].to_s == "approved"
+        t["status"].to_s == "approved"
       end
 
       ArtifactLedger.create!(

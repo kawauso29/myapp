@@ -382,7 +382,7 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         notice = ArtifactLedger.artifact_type_customer_notice.last
         approved = notice.content["approved_tickets"]
         expect(approved).to be_an(Array)
-        expect(approved.map { |t| t["title"] || t[:title] }).to include("Ship feature X")
+        expect(approved.map { |t| t["title"] }).to include("Ship feature X")
       end
     end
   end
