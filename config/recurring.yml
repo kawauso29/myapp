@@ -161,6 +161,13 @@ production:
     queue: default
     schedule: "0 */12 * * *"
 
+  # Phase 42 / UI伴走管理: quarterly = 2日ごとに UI チェック会議を実行する。
+  # stale_ui_check ルールの発火（3日以上未実施）を防ぐため 2 日間隔で稼働させる。
+  ui_check_ledger_run:
+    class: UiCheckLedgerRunJob
+    queue: default
+    schedule: "0 4 */2 * *"
+
   # quarterly = 2日 → 2 日ごと（奇数日 06:00 UTC）
   # 注意: cron `*/2` は月初リセットで 1/31 → 2/1 が 1 日間隔になる。
   # 圧縮 quarterly slot で重複弾きされるため運用上は問題ない。
