@@ -755,7 +755,7 @@ export default function AiDetailScreen() {
                 <Text style={styles.milestoneEmoji}>{milestoneEmoji(m.metadata?.milestone)}</Text>
                 <View style={styles.milestoneContent}>
                   <Text style={styles.milestoneMessage}>{m.message}</Text>
-                  <Text style={styles.milestoneDate}>{new Date(m.created_at).toLocaleDateString("ja-JP")}</Text>
+                  <Text style={styles.milestoneDate}>{formatMilestoneDate(m.created_at)}</Text>
                 </View>
               </View>
             ))
@@ -832,6 +832,10 @@ function milestoneEmoji(milestone?: string): string {
     case "first_love": return "💕";
     default: return "🏆";
   }
+}
+
+function formatMilestoneDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString("ja-JP");
 }
 
 const PERSONALITY_LABELS: Record<string, string> = {

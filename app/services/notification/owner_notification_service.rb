@@ -36,15 +36,25 @@ module Notification
           value: value
         }
 
-        users.find_each do |user|
-          user.user_notifications.create!(
-            notification_type: "milestone",
-            message: message,
-            ai_user: ai_user,
-            metadata: { milestone: milestone, value: value }
-          )
-          UserNotificationChannel.broadcast_to(user, payload)
+        user_ids = users.pluck(:id)
+        now = Time.current
+        if user_ids.any?
+          rows = user_ids.map do |uid|
+            {
+              user_id: uid,
+              ai_user_id: ai_user.id,
+              notification_type: "milestone",
+              message: message,
+              metadata: { milestone: milestone, value: value },
+              is_read: false,
+              created_at: now,
+              updated_at: now
+            }
+          end
+          UserNotification.insert_all(rows)
         end
+
+        users.find_each { |user| UserNotificationChannel.broadcast_to(user, payload) }
 
         ExpoNotificationService.send_bulk(
           users: users,
