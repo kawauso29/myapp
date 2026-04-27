@@ -18,6 +18,7 @@ import {
   getAiUserRelationshipMap,
   getAiUserMultiverse,
   getAiUserDmPeeks,
+  getAiUserMilestones,
   toggleFavorite,
   getToken,
   likePost,
@@ -29,6 +30,7 @@ import {
   type RelationshipEdge,
   type MultiversePayload,
   type DmPeekThread,
+  type MilestoneEntry,
 } from "../../lib/api";
 import PostCard from "../../components/PostCard";
 
@@ -67,6 +69,9 @@ export default function AiDetailScreen() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [compatResult, setCompatResult] = useState<{ score: number; label: string; matches: string[] } | null>(null);
   const [compatNoData, setCompatNoData] = useState(false);
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [milestonesLoaded, setMilestonesLoaded] = useState(false);
 
   useEffect(() => {
     setDmPeekThreads([]);
@@ -79,6 +84,8 @@ export default function AiDetailScreen() {
     setRelMapEdges([]);
     setRelMapLoading(false);
     setRelMapLoaded(false);
+    setMilestones([]);
+    setMilestonesLoaded(false);
     loadAiUser();
     loadPosts();
     getToken().then(async (t) => {
@@ -181,6 +188,20 @@ export default function AiDetailScreen() {
       setDmPeekError(e?.message || "秘密の会話の取得に失敗しました");
     } finally {
       setDmPeekLoading(false);
+    }
+  };
+
+  const loadMilestones = async () => {
+    if (milestonesLoading || milestonesLoaded) return;
+    setMilestonesLoading(true);
+    try {
+      const res = await getAiUserMilestones(Number(id));
+      setMilestones(res.data || []);
+      setMilestonesLoaded(true);
+    } catch (e) {
+      console.warn("Failed to load milestones:", e);
+    } finally {
+      setMilestonesLoading(false);
     }
   };
   const loadMultiverse = async (eventKey = selectedMultiverseEvent) => {
@@ -722,6 +743,33 @@ export default function AiDetailScreen() {
         </View>
       )}
 
+      {/* 育成日記 (Milestone Diary) */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>育成日記 🌱</Text>
+        {milestonesLoaded ? (
+          milestones.length === 0 ? (
+            <Text style={styles.emptyText}>まだマイルストーンがありません</Text>
+          ) : (
+            milestones.map((m) => (
+              <View key={m.id} style={styles.milestoneCard}>
+                <Text style={styles.milestoneEmoji}>{milestoneEmoji(m.metadata?.milestone)}</Text>
+                <View style={styles.milestoneContent}>
+                  <Text style={styles.milestoneMessage}>{m.message}</Text>
+                  <Text style={styles.milestoneDate}>{new Date(m.created_at).toLocaleDateString("ja-JP")}</Text>
+                </View>
+              </View>
+            ))
+          )
+        ) : milestonesLoading ? (
+          <ActivityIndicator size="small" color="#6c63ff" style={{ marginVertical: 12 }} />
+        ) : (
+          <TouchableOpacity style={styles.lifeStoryButton} onPress={loadMilestones}>
+            <Ionicons name="trophy-outline" size={16} color="#6c63ff" />
+            <Text style={styles.lifeStoryButtonText}>育成日記を見る</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Life Story */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ライフストーリー</Text>
@@ -769,6 +817,21 @@ export default function AiDetailScreen() {
       <View style={{ height: 40 }} />
     </ScrollView>
   );
+}
+
+function milestoneEmoji(milestone?: string): string {
+  if (!milestone) return "🏆";
+  if (milestone.startsWith("followers_")) return "👥";
+  switch (milestone) {
+    case "first_post": return "✍️";
+    case "likes_100": return "💯";
+    case "likes_500": return "🔥";
+    case "likes_1000": return "⭐";
+    case "likes_10000": return "💎";
+    case "first_friend": return "🤝";
+    case "first_love": return "💕";
+    default: return "🏆";
+  }
 }
 
 const PERSONALITY_LABELS: Record<string, string> = {
@@ -1271,6 +1334,14 @@ const styles = StyleSheet.create({
   },
   lifeStoryButtonText: { fontSize: 14, color: "#6c63ff", marginLeft: 6 },
   lifeStoryText: { fontSize: 14, color: "#333", lineHeight: 22 },
+  milestoneCard: {
+    flexDirection: "row", alignItems: "flex-start",
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f0f0f8",
+  },
+  milestoneEmoji: { fontSize: 22, marginRight: 10, marginTop: 1 },
+  milestoneContent: { flex: 1 },
+  milestoneMessage: { fontSize: 14, color: "#333", lineHeight: 20 },
+  milestoneDate: { fontSize: 11, color: "#aaa", marginTop: 2 },
   interveneHeader: {
     flexDirection: "row", alignItems: "center", gap: 6,
   },

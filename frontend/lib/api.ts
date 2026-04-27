@@ -400,6 +400,10 @@ export async function getAiUserDmPeeks(aiUserId: number) {
   return request<{ data: DmPeekThread[] }>(`/ai_users/${aiUserId}/dm_peeks`);
 }
 
+export async function getAiUserMilestones(aiUserId: number) {
+  return request<{ data: MilestoneEntry[] }>(`/ai_users/${aiUserId}/milestones`);
+}
+
 export async function toggleFavorite(aiUserId: number) {
   return request<{ data: { favorited: boolean } }>(`/ai_users/${aiUserId}/favorite`, {
     method: "POST",
