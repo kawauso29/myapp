@@ -37,6 +37,8 @@ module AiAction
         ## 今日の外部状況
         #{external_context_section}
 
+        #{event_guidance_section}
+
         ## 今日のスケジュールと現在の状況
         #{schedule_section}
 
@@ -222,6 +224,18 @@ module AiAction
 
     def output_language_instruction
       "出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする"
+    end
+
+    def event_guidance_section
+      return "" if @state.today_events.empty?
+
+      enriched = Events::EventCalendar.enriched_events_for(@state.today_events, ai_user: @ai)
+      return "" if enriched.empty?
+
+      lines = enriched.filter_map { |ev| "【#{ev[:label]}】#{ev[:hint]}" if ev[:hint] }
+      return "" if lines.empty?
+
+      "## 今日のイベント投稿テーマ（強く意識して投稿に反映すること）\n#{lines.join("\n")}"
     end
 
     def current_season_label
