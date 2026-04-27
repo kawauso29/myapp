@@ -47,11 +47,19 @@ module Ledgers
       # Ledger自体の改善: 解消済み anomaly（KPIがcriticalでなくなった）をcarry_overから除去
       carry_over = filter_resolved_anomalies(carry_over, kpi_snapshot)
 
+      minutes = Ledgers::MinutesGenerator.for_daily(
+        service_id:   @service_id,
+        kpi_snapshot: kpi_snapshot,
+        anomalies:    anomalies,
+        carry_over:   carry_over
+      )
+
       meeting.update!(
         decisions: [ { kpi_snapshot:, anomaly_count: anomalies.size } ],
         hold_items: carry_over + hold_items,
         carry_over_items: carry_over + hold_items,
         directives: [ { daily_summary: true, kpi_count: kpi_snapshot.size } ],
+        minutes:,
         status: :closed
       )
 

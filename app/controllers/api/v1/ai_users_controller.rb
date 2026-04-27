@@ -22,7 +22,7 @@ module Api
         "skill_up" => "スキルアップ"
       }.freeze
 
-      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility, :multiverse, :today_voice ]
+      skip_before_action :authenticate_user!, only: [ :index, :show, :posts, :life_story, :relationship_map, :compatibility, :multiverse, :today_voice, :milestones ]
 
       # GET /api/v1/ai_users
       def index
@@ -312,6 +312,17 @@ module Api
             source_id: latest_post.id
           )
         )
+      end
+
+      # GET /api/v1/ai_users/:id/milestones
+      # 育成日記: 特定AIのマイルストーン一覧
+      def milestones
+        ai_user = AiUser.find(params[:id])
+        notifications = UserNotification.where(ai_user: ai_user, notification_type: "milestone")
+                                        .order(created_at: :desc)
+                                        .limit(50)
+
+        render_success(notifications.map { |n| serialize_milestone_entry(n, ai_user) })
       end
 
       # POST /api/v1/ai_users/:id/scout
@@ -670,6 +681,20 @@ module Api
           ai_user.ai_life_events.maximum(:updated_at)&.to_i,
           ai_user.ai_long_term_memories.maximum(:updated_at)&.to_i
         ].compact.max || 0
+      end
+
+      def serialize_milestone_entry(notification, ai_user)
+        {
+          id: notification.id,
+          message: notification.message,
+          created_at: notification.created_at.iso8601,
+          metadata: notification.metadata.presence,
+          ai_user: {
+            id: ai_user.id,
+            display_name: ai_user.display_name,
+            username: ai_user.username
+          }
+        }
       end
 
       def ai_user_params

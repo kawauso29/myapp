@@ -31,6 +31,13 @@ module AdminOpsLedgersHelper
     "annual_plan"      => "年間ビジョンと重点KPIを決定します。四半期レビューの積み上げが入力となります。"
   }.freeze
 
+  # ロールキーから日本語の表示名を返す。
+  # Admin::Ops::LedgersController::ROLE_PROFILE_BY_KEY を参照する。
+  def role_display_name(role_key)
+    Admin::Ops::LedgersController::ROLE_PROFILE_BY_KEY
+      .dig(role_key.to_s, :display_name) || role_key.to_s
+  end
+
   # KPI の current_value ハッシュから表示用の値を抽出する。
   # {"value" => 1.5, "unit" => "users", ...} → "1.5 users"
   # {} または nil → nil（呼び出し元で「未収集」等と表示する）
