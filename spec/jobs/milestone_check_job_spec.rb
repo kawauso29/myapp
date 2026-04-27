@@ -27,8 +27,7 @@ RSpec.describe MilestoneCheckJob, type: :job do
       it "does not fire followers_10 twice when cache prevents it" do
         ai.update!(followers_count: 10)
         cache_key = "milestone_notified:#{ai.id}:followers:10"
-        allow(Rails.cache).to receive(:exist?).and_return(false)
-        allow(Rails.cache).to receive(:exist?).with(cache_key).and_return(true)
+        allow(Rails.cache).to receive(:exist?) { |key| key == cache_key }
         allow(Rails.cache).to receive(:write)
 
         expect {
@@ -115,7 +114,9 @@ RSpec.describe MilestoneCheckJob, type: :job do
         other_ai = create(:ai_user)
         create(:ai_relationship, ai_user: ai, target_ai_user: other_ai, relationship_type: :close_friend)
 
-        described_class.perform_now
+        expect {
+          described_class.perform_now
+        }.to change(UserNotification, :count).by(2)
 
         milestones = UserNotification.where("metadata->>'milestone' IN ('first_friend', 'first_close_friend')")
                                      .pluck(Arel.sql("metadata->>'milestone'"))

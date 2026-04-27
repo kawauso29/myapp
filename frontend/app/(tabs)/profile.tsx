@@ -21,8 +21,8 @@ function moodEmoji(mood: string | null): string {
   }
 }
 
-function milestoneIcon(metadata: Record<string, any> | null): string {
-  const milestone = metadata?.milestone as string | undefined;
+function milestoneIcon(metadata: { milestone?: string } | Record<string, unknown> | null): string {
+  const milestone = (metadata as { milestone?: string } | null)?.milestone;
   if (!milestone) return "🎖️";
   if (milestone === "first_post") return "🌱";
   if (milestone === "first_friend") return "🤝";

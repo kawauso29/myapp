@@ -71,7 +71,8 @@ class MilestoneCheckJob < ApplicationJob
     fire_milestone(ai, "first_close_friend", 1)
   end
 
-  def fire_milestone(ai, milestone, value, cache_key: "milestone_notified:#{ai.id}:#{milestone}")
+  def fire_milestone(ai, milestone, value, cache_key: nil)
+    cache_key ||= "milestone_notified:#{ai.id}:#{milestone}"
     return if Rails.cache.exist?(cache_key)
 
     Rails.cache.write(cache_key, true, expires_in: nil)
