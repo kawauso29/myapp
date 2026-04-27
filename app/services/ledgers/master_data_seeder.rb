@@ -311,7 +311,10 @@ module Ledgers
           args: [], description: "quarterly = 2日周期（quarterly_reviewの30分後）" },
         { job_key: "portfolio_rebalance_run", job_class: "PortfolioRebalanceRunJob",
           cron: "0 7 */2 * *", service_id: nil, cadence: :quarterly,
-          args: [], description: "quarterly = 2日周期（quarterly_reviewの1時間後）" }
+          args: [], description: "quarterly = 2日周期（quarterly_reviewの1時間後）" },
+        { job_key: "ui_check_ledger_run", job_class: "UiCheckLedgerRunJob",
+          cron: "0 4 */2 * *", service_id: "ai_sns", cadence: :quarterly,
+          args: [], description: "Phase 42 / UI伴走管理: 2日周期で ui_check 会議を実行し stale_ui_check を防ぐ" }
       ].each do |attrs|
         ServiceScheduleDefinition.find_or_create_by!(job_key: attrs[:job_key]) do |s|
           s.job_class = attrs[:job_class]

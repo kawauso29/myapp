@@ -231,6 +231,48 @@ module Ledgers
       )
     end
 
+    def self.for_ui_check(service_id:, kpi_snapshot:, anomalies:)
+      kpi_count     = kpi_snapshot.size
+      anomaly_count = anomalies.size
+
+      agenda = [ "UI固有KPI確認（#{kpi_count}件）" ]
+      agenda << "異常検知（#{anomaly_count}件）" if anomaly_count > 0
+
+      log = []
+      log << {
+        speaker: "dev（議長）",
+        topic:   "UI KPI確認",
+        content: "#{kpi_count}件のUI KPIをスキャンしました。" +
+                 (anomaly_count > 0 ? "#{anomaly_count}件の異常（critical）を検知。" : "異常なし。")
+      }
+      anomalies.each do |a|
+        a_s     = a.transform_keys(&:to_s)
+        kpi_key = a_s["kpi_key"]
+        grade   = a_s["grade"]
+        val     = a_s["current_value"]
+        log << {
+          speaker: "dev（議長）",
+          topic:   "異常検知",
+          content: "KPI #{kpi_key} が #{grade} グレードです。" +
+                   (val.present? ? "（現在値: #{val.is_a?(Hash) ? val.to_json : val}）" : "")
+        }
+      end
+
+      outcome =
+        if anomaly_count > 0
+          "#{anomaly_count}件のUI KPI異常を hold_items に記録しました。次週の weekly 会議で審査します。"
+        else
+          "#{kpi_count}件のUI KPIをすべて正常確認しました。stale_ui_check 解消。"
+        end
+
+      generate(
+        purpose:        "#{service_id} UI チェック（画面稼働率・クラッシュ率・WAU 確認）",
+        agenda:         agenda,
+        discussion_log: log,
+        outcome:        outcome
+      )
+    end
+
     def self.for_annual(metrics:, year:)
       agenda = [
         "年間 KPI 総括",
