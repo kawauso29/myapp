@@ -1,0 +1,48 @@
+# frozen_string_literal: true
+
+# データ操作専用 migration テンプレート
+#
+# このテンプレートのルール（必ず守ること）:
+#   1. 冪等に書く  → 何度実行しても結果が同じになるよう guard を入れる
+#   2. down を書く → ロールバック可能にする（本当に不可逆な場合は raise IrreversibleMigration）
+#   3. モデルに強く依存する操作は update_columns / execute(SQL) を使う
+#      （マイグレーション実行時点でモデル定義が変わっていても壊れないようにする）
+#   4. DDL 変更なしでもこの migration を追加したら db/schema.rb の version が更新されることに注意
+#      （schema.rb の version が古いと CI で PendingMigrationError が発生する）
+#
+# 生成元: bin/rails generate data_migration <%= migration_class_name %>
+class <%= migration_class_name %> < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  # == 冪等チェックのパターン例 ==
+  #
+  # ■ レコード状態を更新する場合（mark_xxx.rb パターン）
+  #   ticket = TicketLedger.find_by(idempotency_key: "your_key")
+  #   return unless ticket
+  #   return if ticket.status_completed?   # 冪等ガード
+  #   ticket.update_columns(status: TicketLedger.statuses[:completed], resolved_at: Time.current)
+  #
+  # ■ レコードを作成する場合（seed_xxx.rb パターン）
+  #   Model.find_or_create_by!(unique_key: "value") do |r|
+  #     r.attribute = "value"
+  #   end
+  #
+  # ■ 大量 backfill の場合（backfill_xxx.rb パターン）
+  #   Model.where(column: nil).find_each do |record|
+  #     record.update_columns(column: compute_value(record))
+  #   end
+  #
+  # ■ DDL 変更なしで SQL を直書きする場合
+  #   execute <<~SQL
+  #     UPDATE table_name SET column = 'value'
+  #     WHERE column IS NULL
+  #   SQL
+
+  def up
+    # TODO: 冪等な処理をここに書く
+  end
+
+  def down
+    # TODO: ロールバック処理をここに書く
+    # 本当に不可逆な場合は以下に置き換える:
+    # raise ActiveRecord::IrreversibleMigration
+  end
+end
