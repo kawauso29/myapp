@@ -336,6 +336,67 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       end
     end
 
+    context "default ticket behavior (ticket_inputs not provided)" do
+      before do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+      end
+
+      it "creates a default operations ticket with the expected title when ticket_inputs is omitted" do
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.to change(TicketLedger, :count).by(1)
+
+        ticket = TicketLedger.find_by(title: "weekly_dept default ticket for ai_sns")
+        expect(ticket).to be_present
+        expect(ticket.ticket_type).to eq("operations")
+        expect(ticket.linked_kpis).to eq(["kpi:service_health"])
+        expect(ticket.due_cycle).to eq("weekly")
+        expect(ticket.assignee).to eq("ai_sns")
+        expect(ticket).to be_status_approved
+        expect(ticket.resolved_at).to be_present
+        expect(ticket.scope_level).to eq("service")
+        expect(ticket.service_id).to eq("ai_sns")
+        expect(ticket.due_date).to eq(Ledgers::TimeAxis.due_date_for(:weekly))
+      end
+
+      it "skips default ticket creation when an active default ticket already exists" do
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               ticket_type: :operations,
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :approved)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.not_to change(TicketLedger, :count)
+
+        meeting = MeetingLedger.last
+        expect(meeting.decisions).to include(
+          a_hash_including("result" => "skipped_duplicate_default")
+        )
+      end
+
+      it "creates a new default ticket when the previous one is completed" do
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               ticket_type: :operations,
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :completed)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.to change(TicketLedger, :count).by(1)
+
+        ticket = TicketLedger.ticket_type_operations
+                             .where(title: "weekly_dept default ticket for ai_sns", service_id: "ai_sns")
+                             .where(status: TicketLedger.statuses[:approved])
+                             .first
+        expect(ticket).to be_present
+      end
+    end
+
     context "AI SNS 計画チケット（approved → planned）" do
       let!(:approved_ticket) do
         create(:ticket_ledger,
