@@ -9,6 +9,16 @@ module Ledgers
   #   outcome      : 結果サマリ（1〜3行テキスト）
   #   generated_at : 生成日時（ISO8601）
   class MinutesGenerator
+    # weekly の decisions で「保留・スキップ」扱いにする result 値の一覧
+    NON_APPROVED_RESULTS = %w[
+      held_for_missing_kpis
+      held_for_missing_kpi_definition
+      held_for_active_stop
+      held_for_lane_capacity_exceeded
+      held_for_callback_blocked
+      skipped_duplicate_default
+    ].freeze
+
     def self.generate(purpose:, agenda:, discussion_log:, outcome:)
       {
         "purpose"       => purpose.to_s,
@@ -22,7 +32,7 @@ module Ledgers
     # ---------- ランナー別ファクトリメソッド ----------
 
     def self.for_daily(service_id:, kpi_snapshot:, anomalies:, carry_over:)
-      kpi_count    = kpi_snapshot.size
+      kpi_count     = kpi_snapshot.size
       anomaly_count = anomalies.size
 
       agenda = [ "KPIスナップショット収集（#{kpi_count}件）", "異常検知" ]
@@ -36,9 +46,10 @@ module Ledgers
                  (anomaly_count > 0 ? "#{anomaly_count}件の異常（critical）を検知。" : "異常なし。")
       }
       anomalies.each do |a|
-        kpi_key = a[:kpi_key] || a["kpi_key"]
-        grade   = a[:grade]   || a["grade"]
-        val     = a[:current_value] || a["current_value"]
+        a_s     = a.transform_keys(&:to_s)
+        kpi_key = a_s["kpi_key"]
+        grade   = a_s["grade"]
+        val     = a_s["current_value"]
         log << {
           speaker: "system",
           topic:   "異常検知",
@@ -62,15 +73,15 @@ module Ledgers
         end
 
       generate(
-        purpose:       "#{service_id} 日次自動監視（KPI収集・異常検知）",
-        agenda:        agenda,
+        purpose:        "#{service_id} 日次自動監視（KPI収集・異常検知）",
+        agenda:         agenda,
         discussion_log: log,
-        outcome:       outcome
+        outcome:        outcome
       )
     end
 
     def self.for_weekly(service_id:, decisions:, hold_items:, improvements:, escalations:)
-      approved = decisions.count { |d| !%w[held_for_missing_kpis held_for_missing_kpi_definition held_for_active_stop held_for_lane_capacity_exceeded held_for_callback_blocked skipped_duplicate_default].include?((d["result"] || d[:result]).to_s) }
+      approved = decisions.count { |d| !NON_APPROVED_RESULTS.include?(d.transform_keys(&:to_s)["result"].to_s) }
       held     = hold_items.size
       detected = improvements&.fetch(:detected, 0).to_i
       resolved = improvements&.fetch(:resolved, 0).to_i
@@ -78,15 +89,16 @@ module Ledgers
       agenda = []
       agenda << "チケット審議（#{decisions.size}件）" if decisions.any?
       agenda << "改善検知・解消レビュー"
-      agenda << "AI SNS計画 approved 昇格確認" if decisions.any? { |d| (d["result"] || d[:result]).to_s == "planned" }
+      agenda << "AI SNS計画 approved 昇格確認" if decisions.any? { |d| d.transform_keys(&:to_s)["result"].to_s == "planned" }
 
       log = []
-      decisions.each do |d|
-        title  = d["title"]  || d[:title]
-        result = d["result"] || d[:result]
-        tid    = d["ticket_id"] || d[:ticket_id]
+      decisions.each do |raw_d|
+        d      = raw_d.transform_keys(&:to_s)
+        title  = d["title"]
+        result = d["result"].to_s
+        tid    = d["ticket_id"]
         content =
-          case result.to_s
+          case result
           when "approved"
             "チケット「#{title}」を承認しました。（チケットID: #{tid}）"
           when "waiting_review"
@@ -124,11 +136,12 @@ module Ledgers
         end
       end
 
-      escalations.each do |esc|
+      escalations.each do |raw_esc|
+        esc = raw_esc.transform_keys(&:to_s)
         log << {
           speaker: "audit（監査）",
           topic:   "監査エスカレーション",
-          content: "チケット ##{esc[:ticket_id] || esc["ticket_id"]} を #{esc[:escalation_to] || esc["escalation_to"]} にエスカレーションしました。"
+          content: "チケット ##{esc["ticket_id"]} を #{esc["escalation_to"]} にエスカレーションしました。"
         }
       end
 
@@ -139,10 +152,10 @@ module Ledgers
       outcome = outcome_parts.any? ? outcome_parts.join("、") + "。" : "処理対象なし。"
 
       generate(
-        purpose:       "#{service_id} 週次部門会議（運営チェックポイント）",
-        agenda:        agenda,
+        purpose:        "#{service_id} 週次部門会議（運営チェックポイント）",
+        agenda:         agenda,
         discussion_log: log,
-        outcome:       outcome
+        outcome:        outcome
       )
     end
 
@@ -152,15 +165,16 @@ module Ledgers
       agenda << "改善解消・エスカレーション処理"
 
       log = []
-      decisions.each do |d|
-        tid        = d["ticket_id"]  || d[:ticket_id]
-        resolution = d["resolution"] || d[:resolution]
+      decisions.each do |raw_d|
+        d          = raw_d.transform_keys(&:to_s)
+        tid        = d["ticket_id"]
+        resolution = d["resolution"].to_s
         label =
-          case resolution.to_s
+          case resolution
           when "approved"   then "承認"
           when "draft"      then "ドラフト（週次へ差し戻し）"
           when "cancelled"  then "キャンセル"
-          else resolution.to_s
+          else resolution
           end
         log << { speaker: "ceo（議長）", topic: "チケット審議", content: "チケット ##{tid} を #{label} としました。" }
       end
@@ -172,17 +186,18 @@ module Ledgers
         }
       end
 
-      outcome_parts = []
-      outcome_parts << "承認 #{decisions.count { |d| (d["resolution"] || d[:resolution]).to_s == "approved" }}件" if decisions.any?
+      approved_count = decisions.count { |d| d.transform_keys(&:to_s)["resolution"].to_s == "approved" }
+      outcome_parts  = []
+      outcome_parts << "承認 #{approved_count}件" if decisions.any?
       outcome_parts << "解消 #{resolved}件" if resolved > 0
       outcome_parts << "期限超過マーク #{overdue_marked}件" if overdue_marked > 0
       outcome = outcome_parts.any? ? outcome_parts.join("、") + "。" : "処理対象なし。"
 
       generate(
-        purpose:       "月次運営会議（待機中チケット審査・改善処置）",
-        agenda:        agenda,
+        purpose:        "月次運営会議（待機中チケット審査・改善処置）",
+        agenda:         agenda,
         discussion_log: log,
-        outcome:       outcome
+        outcome:        outcome
       )
     end
 
@@ -209,10 +224,10 @@ module Ledgers
                 "会議 #{total}回、チケット #{t_total}件（承認 #{approved}件、遅延 #{overdue}件）。"
 
       generate(
-        purpose:       "四半期レビュー（Q#{quarter} #{year}）",
-        agenda:        agenda,
+        purpose:        "四半期レビュー（Q#{quarter} #{year}）",
+        agenda:         agenda,
         discussion_log: log,
-        outcome:       outcome
+        outcome:        outcome
       )
     end
 
@@ -237,10 +252,10 @@ module Ledgers
                 "チケット #{metrics[:tickets_total].to_i}件（期限超過率 #{metrics[:overdue_rate]}）。"
 
       generate(
-        purpose:       "年次計画会議（FY#{year}）",
-        agenda:        agenda,
+        purpose:        "年次計画会議（FY#{year}）",
+        agenda:         agenda,
         discussion_log: log,
-        outcome:       outcome
+        outcome:        outcome
       )
     end
   end
