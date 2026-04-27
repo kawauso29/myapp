@@ -65,6 +65,12 @@ module AiAction
         candidates[:killing_time] = 40
       end
 
+      # Event day boost: seasonal/holiday events encourage sharing and self-expression
+      if @state.today_events.any?
+        candidates[:sharing] = (candidates[:sharing] || 0) + 25
+        candidates[:self_expressing] = (candidates[:self_expressing] || 0) + 15
+      end
+
       candidates
     end
 
