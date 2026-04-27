@@ -62,9 +62,33 @@ jobs:
                   state: 'closed'
                 });
                 core.info(`Closed stale plan-review issue #${issue.number} (older than 7 days)`);
-              } else if (!activeIssue) {
-                activeIssue = issue;
-                core.info(`Active plan-review issue found: #${activeIssue.number}`);
+              } else {
+                // Copilot がエラーで起動失敗しているか確認する。
+                // "encountered an error" コメントがあり、対応 PR が存在しない場合は
+                // 即時クローズして次の実行で新規 Issue を作成（リトライ）する。
+                // これにより Copilot 一回の起動失敗で PDCA が7日間止まる問題を解消する。
+                const { data: comments } = await github.rest.issues.listComments({
+                  owner, repo,
+                  issue_number: issue.number,
+                  per_page: 10
+                });
+                const copilotError = comments.find(c =>
+                  (c.user.login === 'Copilot' || c.user.type === 'Bot') &&
+                  c.body.includes('encountered an error')
+                );
+
+                if (copilotError) {
+                  // Copilot の起動失敗を検知 → クローズしてリトライサイクルへ
+                  await github.rest.issues.update({
+                    owner, repo,
+                    issue_number: issue.number,
+                    state: 'closed'
+                  });
+                  core.info(`Closed errored plan-review issue #${issue.number} (Copilot startup error detected — will retry)`);
+                } else if (!activeIssue) {
+                  activeIssue = issue;
+                  core.info(`Active plan-review issue found: #${activeIssue.number}`);
+                }
               }
             }
 
