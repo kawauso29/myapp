@@ -311,6 +311,7 @@ module AiAction
         "【#{label}】年度末。仕事の追い込みや、今年度を締めくくる感慨をさらっと投稿する。"
       when "shichigosan"
         "【#{label}】七五三の季節。子どもや家族の成長、着物姿の微笑ましいシーンについて投稿する。"
+        # Unknown event keys intentionally return nil; filter_map in the caller skips nil entries.
       end
     end
 
