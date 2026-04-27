@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_27_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_27_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -936,6 +936,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_130000) do
   create_table "ticket_ledgers", force: :cascade do |t|
     t.string "assignee"
     t.string "business_owner"
+    t.datetime "copilot_triggered_at"
     t.datetime "created_at", null: false
     t.integer "due_cycle"
     t.date "due_date"
@@ -972,6 +973,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_130000) do
     t.string "ticket_type", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["copilot_triggered_at"], name: "index_ticket_ledgers_on_copilot_triggered_at"
     t.index ["idempotency_key"], name: "index_ticket_ledgers_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["improvement_pattern_key"], name: "index_ticket_ledgers_on_improvement_pattern_key"
     t.index ["operating_lane", "status"], name: "idx_ticket_operating_lane_status"
