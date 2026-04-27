@@ -28,6 +28,8 @@ class HeartbeatSchedulerJob < ApplicationJob
         end
 
         scheduled_count += 1
+      # 各 heartbeat のエラーをローカルで捕捉してジョブ全体が失敗しないようにする。
+      # 一時的な DB エラーや予期しない例外が発生しても、他の heartbeat の処理を継続する。
       rescue StandardError => e
         error_count += 1
         Rails.logger.error("[HeartbeatScheduler] error processing heartbeat=#{heartbeat.id}: #{e.class}: #{e.message}")

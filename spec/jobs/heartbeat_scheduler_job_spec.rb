@@ -164,11 +164,25 @@ RSpec.describe HeartbeatSchedulerJob, type: :job do
         expect(MonthlyOpsLedgerRunJob).to have_received(:perform_later)
       end
 
-      it "does not generate a trailing-colon candidate key" do
-        # Verify that only "monthly_ops_ledger_run" is looked up (not "monthly_ops_ledger_run:")
-        expect(ServiceScheduleDefinition).to receive(:active).and_call_original.at_least(:once)
+      it "does not treat a trailing-colon job_key as a valid candidate" do
+        # Create a schedule only with the malformed trailing-colon key
+        # The old code generated ["monthly_ops_ledger_run:", "monthly_ops_ledger_run"] as candidates,
+        # so the colon key could accidentally match. The fix generates only ["monthly_ops_ledger_run"].
+        colon_schedule = ServiceScheduleDefinition.create!(
+          job_key: "monthly_ops_ledger_run:",
+          job_class: "MonthlyOpsLedgerRunJob",
+          cron: "0 */12 * * *",
+          cadence: :monthly,
+          args: [],
+          enabled: true
+        )
+        company_schedule_def.destroy!
+
         described_class.new.perform
-        expect(MonthlyOpsLedgerRunJob).to have_received(:perform_later)
+
+        expect(MonthlyOpsLedgerRunJob).not_to have_received(:perform_later)
+      ensure
+        colon_schedule&.destroy
       end
     end
   end
