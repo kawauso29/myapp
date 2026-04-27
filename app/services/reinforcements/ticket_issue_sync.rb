@@ -14,7 +14,7 @@ module Reinforcements
     # draft / waiting_review は承認前のため除外する（§12.4 月次運営会議で議決されてから流す）。
     # completed / cancelled は既に閉じているため除外する。
     TARGET_STATUSES = %i[approved planned executing].freeze
-    MAX_PER_RUN = 20 # 一度に大量 Issue 化するのを防ぐ上限
+    MAX_PER_RUN = 20 # フェーズ1（Issue 作成）・フェーズ2（Copilot リトライ）それぞれの上限
 
     # @copilot コメントを送る対象 ticket_type のホワイトリスト。
     # サマリー・レコード系（quarterly_review / annual_plan 等）はコード実装なし。
@@ -138,11 +138,18 @@ module Reinforcements
     end
 
     # Issue 作成済みだが Copilot トリガーに失敗したチケット（quota 不足等）を再試行対象とする。
+    # copilot_eligible_base との共通条件を再利用し、重複を排除する。
     def copilot_retry_candidates
-      TicketLedger
-        .where(status: TARGET_STATUSES.map { |s| TicketLedger.statuses[s] })
+      copilot_eligible_base
         .where.not(github_issue_number: nil)
         .where(copilot_triggered_at: nil)
+    end
+
+    # Copilot トリガー対象チケットの共通フィルタ。
+    # candidates / copilot_retry_candidates の両フェーズで利用する。
+    def copilot_eligible_base
+      TicketLedger
+        .where(status: TARGET_STATUSES.map { |s| TicketLedger.statuses[s] })
         .where(ticket_type: COPILOT_ELIGIBLE_TYPES)
         .where.not(title: nil)
         .where("title !~* ?", TicketLedger::DEFAULT_TICKET_TITLE_PATTERN.source)
