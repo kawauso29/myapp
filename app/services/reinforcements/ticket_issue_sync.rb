@@ -6,12 +6,15 @@ module Reinforcements
   # `github_issue_number` を書き戻し済みの ticket は LedgerSyncService が skip する（冪等）。
   # DEPLOY_TOKEN 未設定時は GithubIssueService 側が nil を返すため、
   # ここでは結果を `failed` に計上するだけにとどめる（壊さない運用）。
+  #
+  # Copilot トリガーに失敗した場合（quota 不足など）は `copilot_triggered_at` が nil のまま残り、
+  # 次回実行時に `copilot_retry_candidates` で再試行される。
   class TicketIssueSync
     # 「承認済み → Issue に流す」境界をどこに置くかの設計判断。
     # draft / waiting_review は承認前のため除外する（§12.4 月次運営会議で議決されてから流す）。
     # completed / cancelled は既に閉じているため除外する。
     TARGET_STATUSES = %i[approved planned executing].freeze
-    MAX_PER_RUN = 20 # 一度に大量 Issue 化するのを防ぐ上限
+    MAX_PER_RUN = 20 # フェーズ1（Issue 作成）・フェーズ2（Copilot リトライ）それぞれの上限
 
     # @copilot コメントを送る対象 ticket_type のホワイトリスト。
     # サマリー・レコード系（quarterly_review / annual_plan 等）はコード実装なし。
@@ -30,7 +33,9 @@ module Reinforcements
       skipped = []
       failed = []
       copilot_triggered = []
+      copilot_retried = []
 
+      # フェーズ1: Issue 未作成チケットを同期し、Copilot トリガーも試みる。
       candidates.limit(MAX_PER_RUN).find_each do |ticket|
         result = GithubMapping::LedgerSyncService.sync_ticket_to_issue(ticket)
         if result[:synced]
@@ -49,16 +54,27 @@ module Reinforcements
         end
       end
 
+      # フェーズ2: Issue 作成済みだが Copilot 未トリガーのチケットを再試行する。
+      # quota 不足や一時的なエラーで前回失敗した分を拾い直す。
+      copilot_retry_candidates.limit(MAX_PER_RUN).find_each do |ticket|
+        if post_copilot_comment(ticket: ticket, issue_number: ticket.github_issue_number)
+          copilot_triggered << { ticket_id: ticket.id, issue_number: ticket.github_issue_number, retried: true }
+          copilot_retried << ticket.id
+        end
+      end
+
       {
         synced: synced.size,
         skipped: skipped.size,
         failed: failed.size,
         copilot_triggered: copilot_triggered.size,
+        copilot_retried: copilot_retried.size,
         details: {
           synced: synced,
           skipped: skipped,
           failed: failed,
-          copilot_triggered: copilot_triggered
+          copilot_triggered: copilot_triggered,
+          copilot_retried: copilot_retried
         }
       }
     end
@@ -103,7 +119,12 @@ module Reinforcements
           custom_instructions: "ticket_ledger ##{ticket.id} に基づく実装PRを `copilot/ledger-#{ticket.id}` ブランチで作成してください。§31 の実装ルールに従うこと。"
         }
       )
-      result.present?
+      if result.present?
+        ticket.update_columns(copilot_triggered_at: Time.current)
+        return true
+      end
+
+      false
     rescue => e
       Rails.logger.warn("[TicketIssueSync] @copilot comment failed for ticket ##{ticket.id}: #{e.message}")
       false
@@ -114,6 +135,24 @@ module Reinforcements
         .where(status: TARGET_STATUSES.map { |s| TicketLedger.statuses[s] })
         .where(github_issue_number: nil)
         .where.not(ticket_type: RUNNER_SUMMARY_TYPES)
+    end
+
+    # Issue 作成済みだが Copilot トリガーに失敗したチケット（quota 不足等）を再試行対象とする。
+    # copilot_eligible_base との共通条件を再利用し、重複を排除する。
+    def copilot_retry_candidates
+      copilot_eligible_base
+        .where.not(github_issue_number: nil)
+        .where(copilot_triggered_at: nil)
+    end
+
+    # Copilot トリガー対象チケットの共通フィルタ。
+    # candidates / copilot_retry_candidates の両フェーズで利用する。
+    def copilot_eligible_base
+      TicketLedger
+        .where(status: TARGET_STATUSES.map { |s| TicketLedger.statuses[s] })
+        .where(ticket_type: COPILOT_ELIGIBLE_TYPES)
+        .where.not(title: nil)
+        .where("title !~* ?", TicketLedger::DEFAULT_TICKET_TITLE_PATTERN.source)
     end
   end
 end
