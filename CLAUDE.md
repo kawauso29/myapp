@@ -497,3 +497,88 @@ CI 通過 → 即マージ → デプロイ          CI 通過 → session-hold 
 - Copilot coding agent を Issue から起動するには `@copilot` コメントだけでなく、issueの **assignees に `copilot-swe-agent[bot]` を追加** することが必要。`GithubIssueService.add_assignees(issue_number:, assignees: ['copilot-swe-agent[bot]'], agent_assignment: { target_repo: REPO, base_branch: 'main', custom_instructions: '...' })` を呼ぶ。**`copilot` ではなく `copilot-swe-agent[bot]` が正しいユーザー名**（前者は無視される）。`agent_assignment` パラメータも必須。コメントは assignee 追加の**前**に投稿すること（Copilot はアサイン時点の既存コメントのみ読む）。`DEPLOY_TOKEN` には `Issues: Read and Write` に加えて `Actions: Read and Write`、`Contents: Read and Write`、`Pull requests: Read and Write` も必要。`TicketIssueSync#post_copilot_comment` で実装済み。
 - **self-hosted runner OOM キルと自動再起動失敗（2026-04-26 実績）**: Copilot coding agent が `parallel_validation`（CodeQL）実行時に Java プロセスが 1.36GB 消費、1.9GB VPS で OOM キル発生。runner サービスは result: oom-kill で停止。`check_runner_health` の自動再起動も失敗した。**失敗の原因**: `sudo systemctl restart actions.runner...` が sudoers NOPASSWD に未登録のため、cron（TTY なし）から実行するとパスワード要求で失敗する。**2つの対処**:①OOM 再発防止: `$HOME/actions-runner/.env` に `JAVA_TOOL_OPTIONS=-Xmx600m` を追加し Java ヒープ上限を制限（`deploy.yml` の `Setup runner environment` ステップで自動設定）②sudo 権限の一時手動設定（一度だけ実行）: `echo 'ubuntu ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart actions.runner.kawauso29-myapp.os3-392-29108.service, /usr/bin/systemctl reset-failed actions.runner.kawauso29-myapp.os3-392-29108.service, /bin/systemctl restart actions.runner.kawauso29-myapp.os3-392-29108.service, /bin/systemctl reset-failed actions.runner.kawauso29-myapp.os3-392-29108.service' | sudo tee /etc/sudoers.d/github-runner-health && sudo chmod 440 /etc/sudoers.d/github-runner-health`
 - **Copilot が `copilot/ai-sns-*` ではなく `copilot/copilotledger-*` ブランチで実装を完了したとき**: `copilot/ai-sns-*` ブランチの PR は変更ファイルが0件の空PRとして残り永久 open になる。plan status も done 更新されない。**対処**: ①`auto_merge.yml` の空PRガード（`merge_on_ci_pass` / `undraft_ai_sns_prs` スケジュール）が空の ai-sns-* PRを自動クローズする（修正済み）。②plan status を本番DBで手動更新: `cd ~/myapp && RAILS_ENV=production bin/rails runner "t = TicketLedger.find_ai_sns_plan_by_item_key('KEY'); t.skip_template_guard=true; t.skip_lane_capacity_guard=true; t.skip_pr_guardrail=true; t.skip_stop_guard=true; t.update!(status: :completed)"`
+
+## データ migration ガイド（現行 Rails migration 方式の強化ルール）
+
+自動 PR デプロイフローのデータ操作は **Rails migration** で管理する（追加ツール不要）。
+`bin/rails db:migrate` はデプロイフローに組み込み済みで、PR マージ → デプロイ → migration 自動実行が保証される。
+
+### 4 つの必須ルール
+
+1. **冪等に書く**（何度実行しても結果が同じになるよう guard を入れる）
+   - `find_or_create_by!` / `upsert` / `update_columns WHERE xxx IS NULL` を使う
+   - `Ledgers::AiSnsPlanSync.create_plan_item!` は内部で upsert しているので idempotent
+   - `create_table` は `if_not_exists: true`、`add_index` は `if_not_exists: true` を付ける
+
+2. **`down` を必ず書く**
+   - ロールバック可能な場合は逆操作を書く
+   - 本当に不可逆な場合は `raise ActiveRecord::IrreversibleMigration`（`NotImplementedError` のまま放置しない）
+
+3. **`db/schema.rb` の `version` を必ず更新する**
+   - DDL 変更なしのデータ操作 migration でも `schema.rb` の version は最新番号に更新される
+   - version を更新せずコミットすると CI で `ActiveRecord::PendingMigrationError` が発生する
+
+4. **モデルに強く依存する操作は `update_columns` / `execute(SQL直書き)` を使う**
+   - migration 実行時点でモデル定義が変わっていても壊れないようにする
+   - `before_validation` / `after_save` などのコールバックを bypass できる `update_columns` が安全
+
+### 命名規則（ファイル名プレフィックスで種別を明示）
+
+| プレフィックス | 用途 | 例 |
+|---|---|---|
+| `backfill_` | 既存レコードの NULL 埋め・カラム補完 | `backfill_missing_source_meeting_ids` |
+| `seed_` | マスタデータ・初期値の投入 | `seed_organization_roles` |
+| `mark_` | ステータス・フラグの一括更新 | `mark_d1_life_story_completed` |
+| `disable_` / `enable_` | スケジュール・フラグの有効/無効切替 | `disable_ui_check_ledger_run_schedule` |
+| `add_xxx_plan_items` | AI SNS 計画項目の追加 | `add_ai_sns_plan_items_phase2` |
+| 通常の migration | DDL 変更（スキーマ変更）を伴う場合 | `add_column_to_ticket_ledgers` |
+
+### ツール
+
+- **専用ジェネレーター**: `bin/rails generate data_migration <名前>` で冪等テンプレートつき migration を生成
+  - 例: `bin/rails generate data_migration mark_a1_as_completed`
+  - 生成元: `lib/generators/data_migration/`
+- **健全性チェック**: `bin/rails db:migrate:lint` で `down` 未実装の data migration を検出
+  - 定義元: `lib/tasks/db_migrate.rake`
+
+### ユースケース別の実装パターン
+
+```ruby
+# ■ AI SNS 計画アイテム追加（自動 PR デプロイ標準パターン）
+def up
+  Ledgers::AiSnsPlanSync.create_plan_item!(item_key: "X1", title: "...", priority: :high, ...)
+end
+def down
+  ikey = Ledgers::AiSnsPlanSync.idempotency_key_for("X1")
+  TicketLedger.find_by(idempotency_key: ikey)&.destroy
+end
+
+# ■ チケットステータス更新（mark_xxx.rb パターン）
+def up
+  ticket = TicketLedger.find_by(idempotency_key: "ai_sns_plan:X1")
+  return unless ticket
+  return if ticket.status_completed?  # 冪等ガード
+  ticket.update_columns(status: TicketLedger.statuses[:completed], resolved_at: Time.current)
+end
+def down
+  raise ActiveRecord::IrreversibleMigration
+end
+
+# ■ スケジュール無効化（disable_xxx.rb パターン）
+def up
+  ServiceScheduleDefinition.where(job_key: "xxx").update_all(enabled: false) if table_exists?(:service_schedule_definitions)
+end
+def down
+  ServiceScheduleDefinition.where(job_key: "xxx").update_all(enabled: true) if table_exists?(:service_schedule_definitions)
+end
+
+# ■ 大量 backfill（backfill_xxx.rb パターン）
+def up
+  Model.where(column: nil).find_each do |record|
+    record.update_columns(column: compute_value(record))
+  end
+end
+def down
+  raise ActiveRecord::IrreversibleMigration
+end
+```
