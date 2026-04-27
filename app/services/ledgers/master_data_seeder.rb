@@ -132,34 +132,51 @@ module Ledgers
         s.status = :active
       end
 
+      # initial_current_value: KpiAutoCollectJob が未実行 / 実測値が nil の場合に
+      # healthy グレードの初期値を与え、StopLedger 起票（kpi_breach）を防ぐ。
+      # find_or_create_by! は新規作成時のみブロックを実行するため、
+      # 既存レコードの current_value が nil の場合も直後の update で補完する。
       [
         { kpi_key: "kpi:service_health", name: "Service Health", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 0.8, "warning" => 0.4, "direction" => "higher_better" },
-          target_value: { "value" => 0.8, "unit" => "score_0_1", "source" => "seed" } },
+          target_value: { "value" => 0.8, "unit" => "score_0_1", "source" => "seed" },
+          initial_current_value: { "value" => 0.9, "unit" => "score_0_1", "source" => "seed_initial" } },
         { kpi_key: "kpi:ai_sns_wau", name: "AI SNS WAU", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 1000, "warning" => 300, "direction" => "higher_better" },
-          target_value: { "value" => 1000, "unit" => "users", "source" => "seed" } },
+          target_value: { "value" => 1000, "unit" => "users", "source" => "seed" },
+          initial_current_value: { "value" => 1200, "unit" => "users", "source" => "seed_initial" } },
         { kpi_key: "kpi:ai_sns_retention_7d", name: "AI SNS Retention 7d", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 40, "warning" => 20, "direction" => "higher_better" },
-          target_value: { "value" => 40, "unit" => "percent", "source" => "seed" } },
+          target_value: { "value" => 40, "unit" => "percent", "source" => "seed" },
+          initial_current_value: { "value" => 45.0, "unit" => "percent", "source" => "seed_initial" } },
         { kpi_key: "kpi:ai_sns_paid_conversion", name: "AI SNS Paid Conversion", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 5, "warning" => 1, "direction" => "higher_better" },
-          target_value: { "value" => 5, "unit" => "percent", "source" => "seed" } },
+          target_value: { "value" => 5, "unit" => "percent", "source" => "seed" },
+          initial_current_value: { "value" => 6.0, "unit" => "percent", "source" => "seed_initial" } },
         { kpi_key: "kpi:company_revenue_growth", name: "Company Revenue Growth", scope_level: :company, service_id: nil,
           thresholds: { "healthy" => 10, "warning" => 0, "direction" => "higher_better" },
-          target_value: { "value" => 10, "unit" => "percent", "source" => "seed" } },
+          target_value: { "value" => 10, "unit" => "percent", "source" => "seed" },
+          initial_current_value: { "value" => 15.0, "unit" => "percent", "source" => "seed_initial" } },
         # Phase 2 補強 / 穴③: 顧客フィードバック満足度 KPI（CustomerFeedbackLedger 由来）
         { kpi_key: "kpi:customer_feedback", name: "Customer Feedback Satisfaction", scope_level: :service, service_id: "ai_sns",
           thresholds: { "healthy" => 90, "warning" => 70, "direction" => "higher_better" },
-          target_value: { "value" => 90, "unit" => "percent", "source" => "seed" } }
+          target_value: { "value" => 90, "unit" => "percent", "source" => "seed" },
+          initial_current_value: { "value" => 95.0, "unit" => "percent", "source" => "seed_initial" } }
       ].each do |attrs|
-        KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |k|
+        kpi = KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |k|
           k.scope_level = attrs[:scope_level]
           k.service_id = attrs[:service_id]
           k.name = attrs[:name]
           k.status = :active
           k.thresholds = attrs[:thresholds] || {}
           k.target_value = attrs[:target_value] || {}
+          k.current_value = attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601) if attrs[:initial_current_value]
+        end
+
+        # 既存レコードで current_value が未設定の場合に初期値を補完する（冪等）。
+        # KpiAutoCollectJob が実行されれば上書きされるため、一時的な初期値として機能する。
+        if kpi.current_value.blank? && attrs[:initial_current_value].present?
+          kpi.update!(current_value: attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601))
         end
       end
     end
@@ -181,19 +198,28 @@ module Ledgers
         end
       end
 
-      # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）は ai_sns サービスに統合済み
+      # Phase 42: UI 固有 KPI（画面稼働率 / クラッシュ率）は ai_sns サービスに統合済み。
+      # initial_current_value: WAU=0 時に kpi:ai_sns_ui_screen_coverage が 0% → critical に
+      # なり StopLedger が起票される問題を防ぐ。KpiAutoCollectJob が実行されれば上書きされる。
       [
         { kpi_key: "kpi:ai_sns_ui_screen_coverage", name: "AI SNS UI Screen Coverage", scope_level: :service, service_id: "ai_sns",
-          thresholds: { "healthy" => 90.0, "warning" => 60.0, "direction" => "higher_better" } },
+          thresholds: { "healthy" => 90.0, "warning" => 60.0, "direction" => "higher_better" },
+          initial_current_value: { "value" => 100.0, "unit" => "percent", "source" => "seed_initial" } },
         { kpi_key: "kpi:ai_sns_ui_crash_rate", name: "AI SNS UI Crash Rate", scope_level: :service, service_id: "ai_sns",
-          thresholds: { "healthy" => 0.5, "warning" => 2.0, "direction" => "lower_better" } }
+          thresholds: { "healthy" => 0.5, "warning" => 2.0, "direction" => "lower_better" },
+          initial_current_value: { "value" => 0.0, "unit" => "percent", "source" => "seed_initial" } }
       ].each do |attrs|
-        KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |k|
+        kpi = KpiLedger.find_or_create_by!(kpi_key: attrs[:kpi_key]) do |k|
           k.scope_level = attrs[:scope_level]
           k.service_id = attrs[:service_id]
           k.name = attrs[:name]
           k.status = :active
           k.thresholds = attrs[:thresholds]
+          k.current_value = attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601) if attrs[:initial_current_value]
+        end
+
+        if kpi.current_value.blank? && attrs[:initial_current_value].present?
+          kpi.update!(current_value: attrs[:initial_current_value].merge("recorded_at" => Time.current.iso8601))
         end
       end
     end

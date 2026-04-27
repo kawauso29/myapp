@@ -265,7 +265,10 @@ module Ledgers
                        .first
       return [] unless latest_daily
 
-      existing_titles = ticket_inputs.map { |i| i[:title].to_s }
+      # seen_titles はループ中に更新し、同一 kpi_key からの重複タイトルを排除する。
+      # daily hold_items に同じ kpi_key のエントリが複数ある（蓄積バグの残留データ）場合でも
+      # 安全に先頭 1 件だけを使用する。
+      seen_titles = ticket_inputs.map { |i| i[:title].to_s }.to_set
 
       Array(latest_daily.hold_items)
         .select { |item| (item["type"] || item[:type]).to_s == "anomaly" }
@@ -274,7 +277,9 @@ module Ledgers
           next if kpi_key.blank?
 
           anomaly_title = "Anomaly: #{kpi_key}"
-          next if existing_titles.include?(anomaly_title)
+          next if seen_titles.include?(anomaly_title)
+
+          seen_titles << anomaly_title
 
           {
             ticket_type: "operations",

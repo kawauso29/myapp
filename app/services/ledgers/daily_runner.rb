@@ -54,10 +54,17 @@ module Ledgers
         carry_over:   carry_over
       )
 
+      # carry_over と新規 anomaly を kpi_key でユニーク化して重複蓄積を防ぐ。
+      # carry_over 側を優先（元の検知タイムスタンプを保持）し、
+      # carry_over に同一 kpi_key が既にある新規 anomaly はスキップする。
+      carry_over_kpi_keys = carry_over.map { |i| (i["kpi_key"] || i[:kpi_key]).to_s }.to_set
+      new_anomalies = hold_items.reject { |a| carry_over_kpi_keys.include?(a[:kpi_key].to_s) }
+      merged_hold_items = carry_over + new_anomalies
+
       meeting.update!(
         decisions: [ { kpi_snapshot:, anomaly_count: anomalies.size } ],
-        hold_items: carry_over + hold_items,
-        carry_over_items: carry_over + hold_items,
+        hold_items: merged_hold_items,
+        carry_over_items: merged_hold_items,
         directives: [ { daily_summary: true, kpi_count: kpi_snapshot.size } ],
         minutes:,
         status: :closed
