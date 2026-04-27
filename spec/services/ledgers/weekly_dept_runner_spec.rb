@@ -376,6 +376,47 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
       end
     end
 
+    context "default ticket (ticket_inputs 未指定)" do
+      before do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+      end
+
+      it "ticket_inputs 未指定時に default ticket を作成する" do
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.to change(TicketLedger, :count).by(1)
+
+        ticket = TicketLedger.last
+        expect(ticket.title).to eq("weekly_dept default ticket for ai_sns")
+        expect(ticket.ticket_type).to eq("operations")
+        expect(ticket.linked_kpis).to eq([ "kpi:service_health" ])
+        expect(ticket).to be_status_approved
+        expect(ticket.due_cycle).to eq("weekly")
+        expect(ticket.service_id).to eq("ai_sns")
+        expect(ticket.assignee).to eq("ai_sns")
+        expect(ticket.priority).to eq("medium")
+      end
+
+      it "同一スロットに active なデフォルトチケットが存在する場合はスキップする" do
+        # activeなデフォルトチケットを事前作成（MeetingLedgerは別スロットのものを使用）
+        create(:ticket_ledger,
+               title: "weekly_dept default ticket for ai_sns",
+               ticket_type: "operations",
+               service_id: "ai_sns",
+               due_cycle: :weekly,
+               status: :approved)
+
+        expect do
+          described_class.call(service_id: "ai_sns", use_daily_anomalies: false)
+        end.not_to change(TicketLedger, :count)
+
+        meeting = MeetingLedger.last
+        expect(meeting.decisions).to include(
+          a_hash_including("title" => "weekly_dept default ticket for ai_sns", "result" => "skipped_duplicate_default")
+        )
+      end
+    end
+
     context "Phase 45b: customer_notice draft generation" do
       it "creates a customer_notice draft on every weekly meeting regardless of feedback" do
         expect do
