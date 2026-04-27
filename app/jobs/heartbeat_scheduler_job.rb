@@ -15,20 +15,26 @@ class HeartbeatSchedulerJob < ApplicationJob
                        .where("next_run_at <= ?", Time.current)
 
     scheduled_count = 0
+    error_count = 0
 
     due_heartbeats.find_each do |heartbeat|
-      schedule = find_schedule_for(heartbeat)
-      next unless schedule
+      begin
+        schedule = find_schedule_for(heartbeat)
+        next unless schedule
 
-      unless dry_run
-        enqueue_job(schedule, heartbeat)
-        advance_next_run!(heartbeat)
+        unless dry_run
+          enqueue_job(schedule, heartbeat)
+          advance_next_run!(heartbeat)
+        end
+
+        scheduled_count += 1
+      rescue StandardError => e
+        error_count += 1
+        Rails.logger.error("[HeartbeatScheduler] error processing heartbeat=#{heartbeat.id}: #{e.class}: #{e.message}")
       end
-
-      scheduled_count += 1
     end
 
-    Rails.logger.info("[HeartbeatScheduler] scheduled=#{scheduled_count} dry_run=#{dry_run}")
+    Rails.logger.info("[HeartbeatScheduler] scheduled=#{scheduled_count} errors=#{error_count} dry_run=#{dry_run}")
     scheduled_count
   end
 
@@ -41,10 +47,12 @@ class HeartbeatSchedulerJob < ApplicationJob
     return nil unless meeting_def
 
     # job_key の命名規則: "<meeting_key>_ledger_run" or "<meeting_key>_ledger_run:<service_id>"
-    candidates = [
-      "#{meeting_def.meeting_key}_ledger_run:#{heartbeat.service_id}",
-      "#{meeting_def.meeting_key}_ledger_run"
-    ].compact_blank
+    base_key = "#{meeting_def.meeting_key}_ledger_run"
+    candidates = if heartbeat.service_id.present?
+      ["#{base_key}:#{heartbeat.service_id}", base_key]
+    else
+      [base_key]
+    end
 
     ServiceScheduleDefinition.active.find_by(job_key: candidates)
   end
