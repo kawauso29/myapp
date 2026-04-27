@@ -120,8 +120,8 @@ module Ledgers
       # Phase 45a: 週次会議後に tech_record ドラフトを自動生成する
       publish_weekly_tech_record!(meeting:)
 
-      # Phase 45b: 顧客フィードバックが閾値超過の場合に customer_notice ドラフトを自動生成する
-      maybe_publish_customer_notice_draft!(meeting:)
+      # Phase 45b: 週次会議後に customer_notice（顧客向けリリースノート）ドラフトを自動生成する
+      publish_weekly_customer_notice_draft!(meeting:)
 
       # Phase 45c: dev / audit 向け KnowledgeLedger（ADR/Runbook）未作成警告
       check_and_warn_missing_knowledge_entry!(meeting:)
@@ -265,11 +265,9 @@ module Ledgers
 
     # ---- Phase 45 additions ----
 
-    FEEDBACK_ACTIVITY_THRESHOLD = 3
-    FEEDBACK_WINDOW_DAYS        = 7
-    KNOWLEDGE_CHECK_DAYS        = 14
+    KNOWLEDGE_CHECK_DAYS = 14
 
-    # 週次会議後に tech_record（作業メモ）ドラフトを自動生成する。
+    # 週次会議後に tech_record（内部向け作業メモ）ドラフトを自動生成する。
     # meeting.idempotency_key を使った idempotency_key で二重作成を防ぐ。
     def publish_weekly_tech_record!(meeting:)
       ikey = "draft:tech_record:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
@@ -301,18 +299,22 @@ module Ledgers
       Rails.logger.warn("[WeeklyDeptRunner] publish_weekly_tech_record! skipped: #{e.message}")
     end
 
-    # 顧客フィードバックが急増している場合に customer_notice ドラフトを自動生成する。
-    # FEEDBACK_ACTIVITY_THRESHOLD 件以上のフィードバックが FEEDBACK_WINDOW_DAYS 日以内にある場合に作成。
-    def maybe_publish_customer_notice_draft!(meeting:)
-      count = recent_feedback_count
-      return if count < FEEDBACK_ACTIVITY_THRESHOLD
-
+    # 週次会議後に customer_notice（顧客向けリリースノート）ドラフトを自動生成する。
+    #
+    # tech_record（内部向け）と対になる外部向け成果物として、
+    # 会議が開催されるたびに毎回生成する。フィードバック件数には依存しない。
+    # 内容は「今週の承認済みチケット一覧」で、CS チームが編集・公開する前提のドラフト。
+    def publish_weekly_customer_notice_draft!(meeting:)
       ikey = "draft:customer_notice:weekly_dept:#{service_id}:#{meeting.idempotency_key}"
       return if ArtifactLedger.exists?(idempotency_key: ikey)
 
       week_label = Date.current.beginning_of_week(:monday).iso8601
       title      = "Customer Notice Draft (#{service_id}) #{week_label}"
       return if ArtifactLedger.exists?(artifact_type: :customer_notice, title: title)
+
+      approved_tickets = Array(meeting.tickets_to_create).select do |t|
+        t["status"].to_s == "approved"
+      end
 
       ArtifactLedger.create!(
         artifact_type: :customer_notice,
@@ -323,9 +325,8 @@ module Ledgers
         content: {
           meeting_id: meeting.id,
           held_at: meeting.held_at.iso8601,
-          feedback_count: count,
-          trigger: "high_feedback_activity",
-          note: "Customer feedback spike detected (#{count} in #{FEEDBACK_WINDOW_DAYS} days). Please review and publish a customer notice."
+          approved_tickets: approved_tickets,
+          note: "Auto-generated draft. Review approved tickets above and publish as a release note for customers."
         },
         status: :draft,
         source_meeting: meeting,
@@ -333,7 +334,7 @@ module Ledgers
         idempotency_key: ikey
       )
     rescue ActiveRecord::RecordNotSaved, ActiveRecord::RecordInvalid => e
-      Rails.logger.warn("[WeeklyDeptRunner] maybe_publish_customer_notice_draft! skipped: #{e.message}")
+      Rails.logger.warn("[WeeklyDeptRunner] publish_weekly_customer_notice_draft! skipped: #{e.message}")
     end
 
     # 過去 KNOWLEDGE_CHECK_DAYS 日間に ADR または Runbook が作成されていなければ
@@ -367,15 +368,6 @@ module Ledgers
     # このサービスに関連する MeetingLedger の ID を返す（knowledge check のスコープ用）
     def service_meeting_ids
       @service_meeting_ids ||= MeetingLedger.where(service_id:).pluck(:id)
-    end
-
-    def recent_feedback_count
-      @recent_feedback_count ||= CustomerFeedbackLedger
-                                   .where(service_id: service_id)
-                                   .where(created_at: FEEDBACK_WINDOW_DAYS.days.ago..)
-                                   .count
-    rescue StandardError
-      0
     end
   end
 end
