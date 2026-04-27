@@ -246,10 +246,10 @@ module Ledgers
                  (anomaly_count > 0 ? "#{anomaly_count}件の異常（critical）を検知。" : "異常なし。")
       }
       anomalies.each do |a|
-        a_s     = a.transform_keys(&:to_s)
-        kpi_key = a_s["kpi_key"]
-        grade   = a_s["grade"]
-        val     = a_s["current_value"]
+        anomaly_data = a.transform_keys(&:to_s)
+        kpi_key = anomaly_data["kpi_key"]
+        grade   = anomaly_data["grade"]
+        val     = anomaly_data["current_value"]
         log << {
           speaker: "dev（議長）",
           topic:   "異常検知",

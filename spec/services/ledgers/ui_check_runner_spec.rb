@@ -15,7 +15,7 @@ RSpec.describe Ledgers::UiCheckRunner do
 
     let!(:ui_screen_kpi) do
       create(:kpi_ledger,
-             kpi_key: "kpi:ai_sns_ui_screen_coverage",
+             kpi_key: Ledgers::UiCheckRunner::UI_KPI_KEYS[0],
              scope_level: :service,
              service_id: "ai_sns",
              status: :active,
@@ -25,7 +25,7 @@ RSpec.describe Ledgers::UiCheckRunner do
 
     let!(:ui_crash_kpi) do
       create(:kpi_ledger,
-             kpi_key: "kpi:ai_sns_ui_crash_rate",
+             kpi_key: Ledgers::UiCheckRunner::UI_KPI_KEYS[1],
              scope_level: :service,
              service_id: "ai_sns",
              status: :active,
@@ -68,7 +68,7 @@ RSpec.describe Ledgers::UiCheckRunner do
       meeting = described_class.call
 
       expect(meeting.hold_items).to include(
-        a_hash_including("type" => "anomaly", "kpi_key" => "kpi:ai_sns_ui_screen_coverage")
+        a_hash_including("type" => "anomaly", "kpi_key" => Ledgers::UiCheckRunner::UI_KPI_KEYS[0])
       )
       expect(meeting.decisions.first["anomaly_count"]).to eq(1)
     end
