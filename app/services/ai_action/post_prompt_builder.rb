@@ -101,14 +101,11 @@ module AiAction
       parts << "現在時刻: #{@current_hour}時"
       parts << "曜日: #{%w[日 月 火 水 木 金 土][Date.current.wday]}曜日"
       parts << "天気: #{@state.weather_condition || 'normal'}"
-      parts << "イベント: #{@state.today_events.join('、')}" if @state.today_events.any?
-      season = case Date.current.month
-      when 3..5 then "春"
-      when 6..8 then "夏"
-      when 9..11 then "秋"
-      else "冬"
+      parts << "季節: #{current_season_label}"
+      if @state.today_events.any?
+        enriched = Events::EventCalendar.enriched_events_for(@state.today_events, ai_user: @ai)
+        parts << "今日のイベント・季節: #{format_event_lines(enriched)}" if enriched.any?
       end
-      parts << "季節: #{season}"
       parts.join("\n")
     end
 
@@ -225,6 +222,19 @@ module AiAction
 
     def output_language_instruction
       "出力言語は#{AiTranslation::LanguageCatalog.label_for(@ai.preferred_language)}にする"
+    end
+
+    def current_season_label
+      case Date.current.month
+      when 3..5 then "春"
+      when 6..8 then "夏"
+      when 9..11 then "秋"
+      else "冬"
+      end
+    end
+
+    def format_event_lines(enriched_events)
+      enriched_events.map { |ev| ev[:hint] ? "#{ev[:label]}（#{ev[:hint]}）" : ev[:label] }.join(" / ")
     end
   end
 end
