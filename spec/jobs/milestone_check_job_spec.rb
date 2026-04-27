@@ -27,7 +27,6 @@ RSpec.describe MilestoneCheckJob, type: :job do
       it "同じマイルストーンは2回通知されない" do
         ai.update_columns(followers_count: 10)
 
-        # 1回目のキャッシュヒットをシミュレート
         cache_key = "milestone_notified:#{ai.id}:followers_10"
         allow(Rails.cache).to receive(:exist?).and_return(false)
         allow(Rails.cache).to receive(:exist?).with(cache_key).and_return(false, true)

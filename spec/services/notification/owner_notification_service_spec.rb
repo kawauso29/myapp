@@ -76,4 +76,87 @@ RSpec.describe Notification::OwnerNotificationService, type: :service do
       end
     end
   end
+
+  describe ".notify_milestone" do
+    let(:ai_user) { create(:ai_user) }
+    let(:user) { create(:user) }
+
+    before do
+      UserFavoriteAi.create!(user: user, ai_user: ai_user)
+      allow(Notification::ExpoNotificationService).to receive(:send_bulk)
+      allow(UserNotificationChannel).to receive(:broadcast_to)
+    end
+
+    it "creates a UserNotification record with notification_type milestone" do
+      expect {
+        described_class.notify_milestone(ai_user, "followers_10", 10)
+      }.to change(UserNotification, :count).by(1)
+
+      notification = UserNotification.last
+      expect(notification.notification_type).to eq("milestone")
+      expect(notification.ai_user).to eq(ai_user)
+      expect(notification.metadata["milestone"]).to eq("followers_10")
+      expect(notification.metadata["value"]).to eq(10)
+    end
+
+    it "includes correct follower milestone message" do
+      described_class.notify_milestone(ai_user, "followers_100", 100)
+
+      notification = UserNotification.last
+      expect(notification.message).to include("フォロワーが100人")
+    end
+
+    it "includes correct first_post milestone message" do
+      described_class.notify_milestone(ai_user, "first_post", 1)
+
+      notification = UserNotification.last
+      expect(notification.message).to include("初めて投稿しました")
+    end
+
+    it "includes correct likes milestone message" do
+      described_class.notify_milestone(ai_user, "likes_100", 100)
+
+      notification = UserNotification.last
+      expect(notification.message).to include("100いいね")
+    end
+
+    it "includes correct first_friend milestone message" do
+      described_class.notify_milestone(ai_user, "first_friend", 1)
+
+      notification = UserNotification.last
+      expect(notification.message).to include("友達")
+    end
+
+    it "includes correct first_love milestone message" do
+      described_class.notify_milestone(ai_user, "first_love", 1)
+
+      notification = UserNotification.last
+      expect(notification.message).to include("初恋")
+    end
+
+    it "broadcasts via ActionCable to favorited users" do
+      described_class.notify_milestone(ai_user, "first_post", 1)
+
+      expect(UserNotificationChannel).to have_received(:broadcast_to).with(
+        user,
+        hash_including(type: "milestone", milestone: "first_post")
+      )
+    end
+
+    it "sends an Expo push notification" do
+      described_class.notify_milestone(ai_user, "first_post", 1)
+
+      expect(Notification::ExpoNotificationService).to have_received(:send_bulk).with(
+        hash_including(data: hash_including(type: "milestone", milestone: "first_post"))
+      )
+    end
+
+    it "does not create notifications when no users favorite the AI" do
+      unfavorited_ai = create(:ai_user)
+
+      expect {
+        described_class.notify_milestone(unfavorited_ai, "first_post", 1)
+      }.not_to change(UserNotification, :count)
+    end
+  end
 end

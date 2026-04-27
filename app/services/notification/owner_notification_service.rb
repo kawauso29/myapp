@@ -28,6 +28,7 @@ module Notification
         message = milestone_message(display_name, milestone, value)
 
         users = favorited_users(ai_user)
+
         payload = {
           type: "milestone",
           ai_user: serialize(ai_user),
@@ -37,8 +38,8 @@ module Notification
         }
 
         user_ids = users.pluck(:id)
-        now = Time.current
         if user_ids.any?
+          now = Time.current
           rows = user_ids.map do |uid|
             {
               user_id: uid,
@@ -154,8 +155,8 @@ module Notification
           "#{display_name}のフォロワーが#{value}人を超えました 🎉"
         when "first_post"
           "#{display_name}が初めて投稿しました ✍️"
-        when "likes_100"
-          "#{display_name}が100いいねを達成しました 💯"
+        when /\Alikes_(\d+)\z/
+          "#{display_name}が#{value}いいねを達成しました 💯"
         when "first_friend"
           "#{display_name}に初めての友達ができました 🤝"
         when "first_love"

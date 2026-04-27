@@ -21,6 +21,17 @@ function moodEmoji(mood: string | null): string {
   }
 }
 
+function milestoneIcon(metadata: { milestone?: string } | Record<string, unknown> | null): string {
+  const milestone = (metadata as { milestone?: string } | null)?.milestone;
+  if (!milestone) return "🎖️";
+  if (milestone === "first_post") return "🌱";
+  if (milestone === "first_friend") return "🤝";
+  if (milestone === "first_love") return "💕";
+  if (milestone.startsWith("likes_")) return "💯";
+  if (milestone.startsWith("followers_")) return "👥";
+  return "🏆";
+}
+
 const RANK_META: Record<string, { label: string; color: string; icon: string }> = {
   bronze:   { label: "ブロンズ",  color: "#cd7f32", icon: "🥉" },
   silver:   { label: "シルバー",  color: "#a0a0a0", icon: "🥈" },
@@ -232,7 +243,7 @@ export default function ProfileScreen() {
         ) : (
           milestones.slice(0, 10).map((m) => (
             <View key={m.id} style={styles.milestoneRow}>
-              <Text style={styles.milestoneIcon}>🎖️</Text>
+              <Text style={styles.milestoneIcon}>{milestoneIcon(m.metadata)}</Text>
               <View style={styles.milestoneInfo}>
                 <Text style={styles.milestoneMessage}>{m.message}</Text>
                 {m.ai_user && (

@@ -4,7 +4,7 @@ class MilestoneCheckJob < ApplicationJob
   queue_as :low
 
   FOLLOWER_MILESTONES = [ 10, 50, 100, 500, 1_000, 5_000, 10_000 ].freeze
-  LIKE_MILESTONES = [ 100, 500, 1_000, 10_000 ].freeze
+  LIKE_MILESTONES     = [ 100, 500, 1_000, 10_000 ].freeze
 
   def perform
     Rails.logger.info("[MilestoneCheckJob] Starting milestone check")
