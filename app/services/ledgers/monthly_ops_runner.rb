@@ -92,6 +92,7 @@ module Ledgers
 
     def target_tickets
       TicketLedger.status_waiting_review.escalation_to_monthly
+                  .or(TicketLedger.ai_sns_plan.status_draft)
     end
 
     def normalize_resolution(value)

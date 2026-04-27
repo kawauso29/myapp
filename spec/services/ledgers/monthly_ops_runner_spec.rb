@@ -86,5 +86,30 @@ RSpec.describe Ledgers::MonthlyOpsRunner do
         expect(MeetingLedger.where(meeting_key: "monthly_ops").count).to eq(1)
       end
     end
+
+    context "AI SNS 計画チケット（draft → approved）" do
+      let!(:ai_sns_draft_ticket) do
+        create(:ticket_ledger,
+               status: :draft,
+               idempotency_key: "ai_sns_plan:test-item-001",
+               due_cycle: :monthly)
+      end
+
+      it "ai_sns_plan の draft チケットを approved に昇格させる" do
+        described_class.call(resolution_map: {})
+
+        expect(ai_sns_draft_ticket.reload).to be_status_approved
+        expect(ai_sns_draft_ticket.assignee).to eq("monthly_ops_runner")
+        expect(ai_sns_draft_ticket.escalation_to).to be_nil
+      end
+
+      it "ai_sns_plan の draft チケットを meeting decisions に記録する" do
+        meeting = described_class.call(resolution_map: {})
+
+        expect(meeting.decisions).to include(
+          a_hash_including("ticket_id" => ai_sns_draft_ticket.id, "resolution" => "approved")
+        )
+      end
+    end
   end
 end

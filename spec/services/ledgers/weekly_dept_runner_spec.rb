@@ -335,5 +335,45 @@ RSpec.describe Ledgers::WeeklyDeptRunner do
         end.not_to change(TicketLedger, :count)
       end
     end
+
+    context "AI SNS 計画チケット（approved → planned）" do
+      let!(:approved_ticket) do
+        create(:ticket_ledger,
+               status: :approved,
+               idempotency_key: "ai_sns_plan:test-item-002",
+               due_cycle: :monthly)
+      end
+
+      it "ai_sns_plan の approved チケットを planned に昇格させる" do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+        described_class.call(service_id: "ai_sns")
+
+        expect(approved_ticket.reload).to be_status_planned
+      end
+
+      it "昇格した ai_sns_plan チケットを meeting decisions に記録する" do
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+        meeting = described_class.call(service_id: "ai_sns")
+
+        expect(meeting.decisions).to include(
+          a_hash_including("ticket_id" => approved_ticket.id, "result" => "planned")
+        )
+      end
+
+      it "approved でない ai_sns_plan チケットには影響しない" do
+        draft_ticket = create(:ticket_ledger,
+                              status: :draft,
+                              idempotency_key: "ai_sns_plan:test-item-003",
+                              due_cycle: :monthly)
+        create(:kpi_ledger, kpi_key: "kpi:service_health", scope_level: :service, service_id: "ai_sns")
+
+        described_class.call(service_id: "ai_sns")
+
+        expect(draft_ticket.reload).to be_status_draft
+        expect(approved_ticket.reload).to be_status_planned
+      end
+    end
   end
 end
