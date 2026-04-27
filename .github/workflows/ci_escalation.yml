@@ -193,6 +193,7 @@ jobs:
                 continue;
               }
 
+              // コメントは assignee 追加より先に投稿する（Copilot はアサイン時点の既存コメントのみ読む）
               await github.rest.issues.createComment({
                 owner, repo,
                 issue_number: pr.number,
@@ -211,6 +212,24 @@ jobs:
                   '*このコメントはCI Escalationワークフローにより自動生成されました*'
                 ].join('\n')
               });
+
+              // copilot-swe-agent[bot] をアサインして Copilot を確実にトリガーする
+              // agent_assignment パラメータでコンテキストを渡す
+              try {
+                await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+                  owner, repo,
+                  issue_number: pr.number,
+                  assignees: ['copilot-swe-agent[bot]'],
+                  agent_assignment: {
+                    target_repo: `${owner}/${repo}`,
+                    base_branch: 'main',
+                    custom_instructions: `PR #${pr.number} (\`${pr.head.ref}\`) の main ブランチとのマージ競合を解決してください。git fetch origin && git merge origin/main を実行し、競合ファイルを修正して commit & push してください。`
+                  }
+                });
+                core.info(`PR #${pr.number}: added copilot-swe-agent[bot] as assignee`);
+              } catch (assignErr) {
+                core.warning(`PR #${pr.number}: failed to add copilot-swe-agent[bot] as assignee: ${assignErr.message}`);
+              }
 
               requestedCount++;
               conflictedPrs.push(`#${pr.number} (${pr.head.ref})`);
