@@ -702,6 +702,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_120000) do
     t.decimal "meeting_health_score", precision: 5, scale: 4
     t.string "meeting_key", null: false
     t.integer "meeting_type", null: false
+    t.jsonb "minutes", default: {}, null: false
     t.jsonb "participants", default: [], null: false
     t.decimal "role_fill_rate", precision: 5, scale: 4
     t.integer "scope_level", null: false

@@ -108,6 +108,115 @@
   <% end %>
 </div>
 
+<%# ===== 参加者 ===== %>
+<% participants = Array(@meeting.participants) %>
+<% definition_roles = Array(@meeting.meeting_definition&.participant_roles) %>
+<div class="card">
+  <h2>参加者</h2>
+  <% if @meeting.meeting_type_daily? %>
+    <p style="color:#718096; font-size:0.85em;">日次は会議なし（system が自動実行）</p>
+  <% elsif participants.blank? && definition_roles.blank? %>
+    <p style="color:#4a5568;">参加者情報なし</p>
+  <% else %>
+    <div style="margin-bottom:8px;">
+      <span style="font-size:0.78em; color:#718096; margin-right:8px;">議長:</span>
+      <span style="background:#2d3748; border:1px solid #4299e155; border-radius:12px; padding:3px 10px; font-size:0.85em; color:#63b3ed; font-weight:600;">
+        <%= role_display_name(@meeting.chair) %> <span style="color:#4a5568; font-size:0.9em;">（<%= @meeting.chair %>）</span>
+      </span>
+    </div>
+    <% if participants.any? %>
+      <div style="font-size:0.78em; color:#718096; margin-bottom:6px;">出席ロール:</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+        <% participants.each do |role| %>
+          <span style="background:#1a365d; border:1px solid #2b6cb055; border-radius:12px; padding:3px 10px; font-size:0.82em; color:#90cdf4;">
+            <%= role_display_name(role) %> <span style="color:#4a5568; font-size:0.85em;">(<%= role %>)</span>
+          </span>
+        <% end %>
+      </div>
+    <% end %>
+    <% missing = definition_roles - participants %>
+    <% if missing.any? %>
+      <div style="font-size:0.78em; color:#718096; margin-bottom:4px;">欠席ロール:</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        <% missing.each do |role| %>
+          <span style="background:#2d1515; border:1px solid #fc818155; border-radius:12px; padding:3px 10px; font-size:0.82em; color:#fc8181;">
+            <%= role_display_name(role) %> <span style="color:#742a2a; font-size:0.85em;">(<%= role %>)</span>
+          </span>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @meeting.role_fill_rate %>
+      <div style="margin-top:8px; font-size:0.82em; color:#718096;">
+        参加率: <strong style="color:<%= @meeting.role_fill_rate >= 0.7 ? "#68d391" : "#f6ad55" %>"><%= (@meeting.role_fill_rate * 100).round(0) %>%</strong>
+      </div>
+    <% end %>
+  <% end %>
+</div>
+
+<%# ===== 議事録（minutes）===== %>
+<% minutes = @meeting.minutes.presence %>
+<% if minutes.present? %>
+  <div class="card" style="border-left:4px solid #805ad5; background:#1a1a2e;">
+    <h2 style="color:#b794f4;">📝 議事録</h2>
+    <%# 目的 %>
+    <% if (purpose = minutes["purpose"]).present? %>
+      <div style="background:#2d2d4e; border-radius:6px; padding:10px 14px; margin-bottom:12px;">
+        <div style="font-size:0.75em; color:#805ad5; font-weight:600; margin-bottom:4px;">🎯 目的</div>
+        <div style="color:#e2e8f0; font-weight:600;"><%= purpose %></div>
+      </div>
+    <% end %>
+    <%# 議題 %>
+    <% agenda = Array(minutes["agenda"]).reject(&:blank?) %>
+    <% if agenda.any? %>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:0.78em; color:#805ad5; font-weight:600; margin-bottom:6px;">📋 議題</div>
+        <ol style="margin:0; padding-left:20px;">
+          <% agenda.each do |item| %>
+            <li style="color:#e2e8f0; font-size:0.88em; margin-bottom:3px;"><%= item %></li>
+          <% end %>
+        </ol>
+      </div>
+    <% end %>
+    <%# 議論ログ %>
+    <% discussion_log = Array(minutes["discussion_log"]).reject(&:blank?) %>
+    <% if discussion_log.any? %>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:0.78em; color:#805ad5; font-weight:600; margin-bottom:8px;">💬 議論ログ</div>
+        <% discussion_log.each do |entry| %>
+          <%
+            speaker = entry["speaker"] || "system"
+            topic   = entry["topic"]
+            content = entry["content"]
+          %>
+          <div style="display:flex; gap:10px; margin-bottom:10px; align-items:flex-start;">
+            <div style="flex-shrink:0; background:#44337a; border-radius:8px; padding:4px 8px; font-size:0.75em; color:#d6bcfa; white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis;" title="<%= speaker %>">
+              <%= speaker %>
+            </div>
+            <div style="flex:1;">
+              <% if topic.present? %>
+                <div style="font-size:0.72em; color:#805ad5; margin-bottom:2px;"><%= topic %></div>
+              <% end %>
+              <div style="font-size:0.85em; color:#e2e8f0; line-height:1.5;"><%= content %></div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+    <%# 結果 %>
+    <% if (outcome = minutes["outcome"]).present? %>
+      <div style="background:#1a3326; border:1px solid #276749; border-radius:6px; padding:10px 14px;">
+        <div style="font-size:0.75em; color:#68d391; font-weight:600; margin-bottom:4px;">✅ 結果・結論</div>
+        <div style="color:#c6f6d5; font-size:0.9em;"><%= outcome %></div>
+      </div>
+    <% end %>
+    <% if (gen_at = minutes["generated_at"]).present? %>
+      <div style="margin-top:8px; font-size:0.72em; color:#4a5568; text-align:right;">
+        generated_at: <%= gen_at %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
 <%# ===== SolidQueue ジョブ情報 ===== %>
 <% if @job_row %>
   <div class="card" style="border-color:<%= @job_row[:failed] ? "#fc8181" : "#68d391" %>55;">

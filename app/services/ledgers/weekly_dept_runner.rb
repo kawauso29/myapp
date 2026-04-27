@@ -109,6 +109,13 @@ module Ledgers
         tickets_to_create: created,
         escalations:,
         directives: [ { improvements: } ],
+        minutes: Ledgers::MinutesGenerator.for_weekly(
+          service_id:  service_id,
+          decisions:   decisions + planned_ai_sns,
+          hold_items:  hold_items,
+          improvements: improvements,
+          escalations: escalations
+        ),
         status: :closed
       )
 

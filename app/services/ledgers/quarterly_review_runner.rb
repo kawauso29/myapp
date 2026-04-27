@@ -74,6 +74,11 @@ module Ledgers
         decisions: [ { summary_ticket_id: ticket.id, metrics: } ],
         tickets_to_create: [ { ticket_id: ticket.id, title: ticket.title, status: ticket.status } ],
         carry_over_items: previous_hold_items,
+        minutes: Ledgers::MinutesGenerator.for_quarterly(
+          metrics: metrics,
+          quarter: quarter_number,
+          year:    Date.current.year
+        ),
         status: :closed
       )
       Ledgers::ImprovementEscalator.call
