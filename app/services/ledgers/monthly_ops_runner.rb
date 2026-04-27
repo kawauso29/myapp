@@ -71,8 +71,16 @@ module Ledgers
       # Phase 45: 月次で各部署ロール別の ArtifactLedger 発行数をまとめる
       artifact_summary = artifact_publish_summary
 
+      monthly_minutes = Ledgers::MinutesGenerator.for_monthly(
+        decisions:     decisions,
+        resolved:      improvements[:resolved].to_i,
+        overdue_marked: improvements.fetch(:overdue_marked, 0).to_i,
+        escalated:     (improvements.fetch(:escalated_monthly, 0).to_i +
+                        improvements.fetch(:escalated_quarterly, 0).to_i)
+      )
+
       meeting.update!(decisions:, directives: [ { improvements:, artifact_summary: } ], status: :closed,
-                     carry_over_items: previous_hold_items)
+                     carry_over_items: previous_hold_items, minutes: monthly_minutes)
 
       # Phase 31c: 月次会議の議事要約を成果物台帳に自動記録する
       Ledgers::RunnerArtifactPublisher.publish_for!(
