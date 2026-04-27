@@ -51,6 +51,11 @@ RSpec.describe AiAction::MotivationSelector do
         candidates = selector.send(:evaluate_candidates)
         expect(candidates[:sharing].to_i).to eq(0)
       end
+
+      it "does not add event boost to self_expressing (default personality means self_expressing is 0)" do
+        candidates = selector.send(:evaluate_candidates)
+        expect(candidates[:self_expressing].to_i).to eq(0)
+      end
     end
   end
 end

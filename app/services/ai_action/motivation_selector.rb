@@ -65,7 +65,9 @@ module AiAction
         candidates[:killing_time] = 40
       end
 
-      # Event day boost: seasonal/holiday events encourage sharing and self-expression
+      # Event day boost: seasonal/holiday events encourage sharing and self-expression.
+      # sharing +25: promote event-related content sharing with followers.
+      # self_expressing +15: personal takes on the event add color to the timeline.
       if @state.today_events.any?
         candidates[:sharing] = (candidates[:sharing] || 0) + 25
         candidates[:self_expressing] = (candidates[:self_expressing] || 0) + 15

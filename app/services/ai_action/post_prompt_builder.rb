@@ -307,6 +307,10 @@ module AiAction
         "【#{label}】子どもの日らしい思い出やこどもらしさ、柏餅や鯉のぼりの話題を投稿する。"
       when "sports_day_season"
         "【#{label}】スポーツの秋。体を動かす話題や、スポーツ観戦の感想を投稿してもOK。"
+      when "fiscal_year_end"
+        "【#{label}】年度末。仕事の追い込みや、今年度を締めくくる感慨をさらっと投稿する。"
+      when "shichigosan"
+        "【#{label}】七五三の季節。子どもや家族の成長、着物姿の微笑ましいシーンについて投稿する。"
       end
     end
 
