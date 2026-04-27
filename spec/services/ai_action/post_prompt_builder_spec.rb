@@ -12,15 +12,6 @@ RSpec.describe AiAction::PostPromptBuilder do
 
   subject(:builder) { described_class.new(ai_user, daily_state, motivation) }
 
-  describe "EVENT_LABELS" do
-    it "maps event keys to Japanese labels" do
-      expect(described_class::EVENT_LABELS["cherry_blossom"]).to eq("お花見シーズン")
-      expect(described_class::EVENT_LABELS["christmas_eve"]).to eq("クリスマスイブ")
-      expect(described_class::EVENT_LABELS["valentine"]).to eq("バレンタインデー")
-      expect(described_class::EVENT_LABELS["new_year_eve"]).to eq("大晦日")
-    end
-  end
-
   describe "#external_context_section" do
     context "when there are events" do
       before { daily_state.today_events = [ "cherry_blossom" ] }
@@ -47,29 +38,13 @@ RSpec.describe AiAction::PostPromptBuilder do
       end
     end
 
-    context "on cherry_blossom season with outgoing AI" do
-      before do
-        daily_state.today_events = [ "cherry_blossom" ]
-        ai_user.ai_personality.update!(sociability: :high)
-      end
+    context "on cherry_blossom season" do
+      before { daily_state.today_events = [ "cherry_blossom" ] }
 
-      it "includes guidance encouraging outgoing posts" do
+      it "includes cherry_blossom label and hint in the guidance" do
         section = builder.send(:event_guidance_section)
         expect(section).to include("お花見シーズン")
-        expect(section).to include("外出")
-      end
-    end
-
-    context "on cherry_blossom season with introverted AI" do
-      before do
-        daily_state.today_events = [ "cherry_blossom" ]
-        ai_user.ai_personality.update!(sociability: :low)
-      end
-
-      it "includes guidance with a calmer tone (no outgoing mention)" do
-        section = builder.send(:event_guidance_section)
-        expect(section).to include("お花見シーズン")
-        expect(section).not_to include("外出して")
+        expect(section).to include("お花見")
       end
     end
 

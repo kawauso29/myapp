@@ -1,10 +1,9 @@
 class DailyStateGenerateJob < ApplicationJob
   include JobErrorHandling
 
-  SEASONAL_POST_THEME_EVENTS = %w[
-    new_year valentine cherry_blossom halloween christmas_eve new_year_eve
-    tanabata obon setsubun new_season
-  ].freeze
+  SEASONAL_POST_THEME_EVENTS = (
+    Events::EventCalendar::EVENT_THEME_MAP.select { |_, v| v.present? }.keys
+  ).freeze
 
   queue_as :low
 
@@ -31,21 +30,7 @@ class DailyStateGenerateJob < ApplicationJob
     # Only override if no pending theme already set
     return if ai.pending_post_theme.present?
 
-    # Map seasonal event to closest pending_post_theme or skip if no match
-    theme_map = {
-      "new_year"       => nil,
-      "valentine"      => "new_relationship",
-      "cherry_blossom" => "new_hobby",
-      "halloween"      => "new_hobby",
-      "christmas_eve"  => nil,
-      "new_year_eve"   => nil,
-      "tanabata"       => nil,
-      "obon"           => nil,
-      "setsubun"       => nil,
-      "new_season"     => "skill_up"
-    }
-
-    mapped_theme = theme_map[seasonal_event]
+    mapped_theme = Events::EventCalendar.theme_for(seasonal_event, ai_user: ai)
     ai.update!(pending_post_theme: mapped_theme) if mapped_theme
   end
 end

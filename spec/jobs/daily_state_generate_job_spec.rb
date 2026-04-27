@@ -46,4 +46,82 @@ RSpec.describe DailyStateGenerateJob, type: :job do
       end
     end
   end
+
+  describe "#apply_seasonal_post_theme" do
+    let(:job) { described_class.new }
+
+    context "when today has a cherry_blossom event" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[cherry_blossom]) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      it "sets pending_post_theme to new_hobby" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to eq("new_hobby")
+      end
+    end
+
+    context "when today has a new_season event" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[new_season]) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      it "sets pending_post_theme to skill_up" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to eq("skill_up")
+      end
+    end
+
+    context "when today has a valentine event and AI is coupled" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[valentine]) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      before { ai.ai_profile.update!(relationship_status: :in_relationship) }
+
+      it "sets pending_post_theme to new_relationship" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to eq("new_relationship")
+      end
+    end
+
+    context "when today has a valentine event and AI is single" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[valentine]) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      before { ai.ai_profile.update!(relationship_status: :single) }
+
+      it "does not set pending_post_theme" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to be_nil
+      end
+    end
+
+    context "when AI already has a pending_post_theme" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[cherry_blossom]) }
+      let(:ai)    { create(:ai_user, is_active: true, pending_post_theme: :job_change) }
+
+      it "does not override the existing theme" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to eq("job_change")
+      end
+    end
+
+    context "when today has no events" do
+      let(:state) { instance_double("AiDailyState", today_events: []) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      it "does not update pending_post_theme" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to be_nil
+      end
+    end
+
+    context "when today has an event with no theme mapping (e.g. tanabata)" do
+      let(:state) { instance_double("AiDailyState", today_events: %w[tanabata]) }
+      let(:ai)    { create(:ai_user, is_active: true) }
+
+      it "does not set pending_post_theme" do
+        job.send(:apply_seasonal_post_theme, ai, state)
+        expect(ai.reload.pending_post_theme).to be_nil
+      end
+    end
+  end
 end
