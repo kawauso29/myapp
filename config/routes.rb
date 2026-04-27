@@ -110,6 +110,7 @@ Rails.application.routes.draw do
           get :multiverse
           get :dm_peeks
           get :today_voice
+          get :milestones
           post :scout
           post :gift
         end
