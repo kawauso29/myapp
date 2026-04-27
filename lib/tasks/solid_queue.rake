@@ -48,6 +48,7 @@ namespace :solid_queue do
     RelationshipMemoryUpdateJob
     RoutingHealthCheckJob
     HeartbeatSchedulerJob
+    UiCheckLedgerRunJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob
