@@ -44,7 +44,9 @@ module LedgerV2
     end
 
     def call
-      # 同一 idempotency_key の Run がある場合は既存を返す（重複実行防止）
+      # 同一 idempotency_key の Run がある場合は既存を返す（重複実行防止）。
+      # 既存 Run の status が :failed / :blocked であっても返す。
+      # 再実行が必要な場合は異なる idempotency_key を使うこと。
       if idempotency_key.present?
         existing = Run.find_by(idempotency_key:)
         return existing if existing
@@ -107,6 +109,8 @@ module LedgerV2
 
     def runner_class
       "LedgerV2::#{runner_name}".constantize
+    rescue NameError
+      raise ArgumentError, "LedgerV2::#{runner_name} は存在しません。runner_name に正しいクラス名を指定してください（例: :daily_runner → LedgerV2::DailyRunner）"
     end
 
     def calculate_duration
