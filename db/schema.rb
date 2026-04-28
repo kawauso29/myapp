@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -717,6 +717,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_090000) do
     t.datetime "updated_at", null: false
     t.index ["active", "expires_at"], name: "index_ledger_v2_stop_conditions_on_active_and_expires_at"
     t.index ["target_type", "active"], name: "index_ledger_v2_stop_conditions_on_target_type_and_active"
+  end
+
+  create_table "ledger_v2_tickets", force: :cascade do |t|
+    t.string "anomaly_type"
+    t.string "canonical_key", null: false
+    t.bigint "closed_by_run_id"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "due_at"
+    t.bigint "duplicate_of_id"
+    t.integer "human_decision", default: 0, null: false
+    t.jsonb "metadata_json"
+    t.string "metric_name"
+    t.bigint "opened_by_run_id"
+    t.string "period_bucket"
+    t.bigint "previous_ticket_id"
+    t.text "rejected_reason"
+    t.datetime "resolved_at"
+    t.integer "review_status", default: 0, null: false
+    t.integer "severity", default: 1, null: false
+    t.string "source_id"
+    t.string "source_type"
+    t.integer "status", default: 0, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["canonical_key"], name: "index_ledger_v2_tickets_on_canonical_key_active", unique: true, where: "(status = ANY (ARRAY[0, 1, 2]))"
+    t.index ["closed_by_run_id"], name: "index_ledger_v2_tickets_on_closed_by_run_id"
+    t.index ["duplicate_of_id"], name: "index_ledger_v2_tickets_on_duplicate_of_id"
+    t.index ["opened_by_run_id"], name: "index_ledger_v2_tickets_on_opened_by_run_id"
+    t.index ["previous_ticket_id"], name: "index_ledger_v2_tickets_on_previous_ticket_id"
+    t.index ["severity"], name: "index_ledger_v2_tickets_on_severity"
+    t.index ["source_type", "source_id"], name: "index_ledger_v2_tickets_on_source_type_and_source_id"
+    t.index ["source_type"], name: "index_ledger_v2_tickets_on_source_type"
+    t.index ["status"], name: "index_ledger_v2_tickets_on_status"
   end
 
   create_table "market_snapshots", force: :cascade do |t|
