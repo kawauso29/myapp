@@ -93,7 +93,10 @@
   - `db/migrate/20260428100000_create_ledger_v2_tickets.rb`
   - `app/models/ledger_v2/ticket.rb`（enum / validation / association / `.active_exists?`）
   - spec: 20 examples, 0 failures ✅
-- [ ] **Ticket 7**: `LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`
+- [x] **Ticket 7**: `LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`
+  - `app/services/ledger_v2/ticket_deduplicator.rb`（Level 1: canonical_key 完全一致 / Level 2: source 属性一致）
+  - `app/services/ledger_v2/open_ticket.rb`（重複抑止 / duplicate Event / ticket_opened Event / dry_run 対応）
+  - spec: 28 examples, 0 failures ✅
 
 ### Metric / Daily フェーズ（Ticket 8〜10）
 
@@ -182,14 +185,15 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | マージ済み |
 | `copilot/ledger-v2-ticket-6-tickets` | `ledger_v2_tickets` migration + `LedgerV2::Ticket` + canonical_key 部分 unique index + spec | Ticket 6 ✅ | レビュー中 |
 
-> 新しい PR が起きたら、ここに 1 行追記する。
+| `copilot/ledger-v2-ticket-7-open-ticket` | `LedgerV2::OpenTicket` + `LedgerV2::TicketDeduplicator` + spec | Ticket 7 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 7** に着手する（`LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`）
-   - ブランチ: `copilot/ledger-v2-ticket-7-open-ticket`
-   - `OpenTicket` サービス: canonical_key を受け取り Ticket を作成する
-   - `TicketDeduplicator`: 重複チェック（`.active_exists?` を利用）と duplicate Event の記録
+1. **Ticket 8** に着手する（`ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` モデル）
+   - ブランチ: `copilot/ledger-v2-ticket-8-metric-snapshots`
+   - `ledger_v2_metric_snapshots` テーブル migration
+   - `LedgerV2::MetricSnapshot` モデル（enum / validation / association）
+   - model spec
 
 ## 参考
 
