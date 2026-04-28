@@ -89,7 +89,10 @@
 
 ### Ticket フェーズ（Ticket 6〜7）
 
-- [ ] **Ticket 6**: `ledger_v2_tickets` と `canonical_key` 制約（部分 unique index）
+- [x] **Ticket 6**: `ledger_v2_tickets` と `canonical_key` 制約（部分 unique index）
+  - `db/migrate/20260428100000_create_ledger_v2_tickets.rb`
+  - `app/models/ledger_v2/ticket.rb`（enum / validation / association / `.active_exists?`）
+  - spec: 20 examples, 0 failures ✅
 - [ ] **Ticket 7**: `LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`
 
 ### Metric / Daily フェーズ（Ticket 8〜10）
@@ -177,15 +180,16 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/ledger-v2-ticket-3-run-executor` | `LedgerV2::RunExecutor` + `RunnerResult` + spec | Ticket 3 ✅ | マージ済み |
 | `copilot/ticket-4-progress` | `LedgerV2::Flags` サービス + initializer + spec | Ticket 4 ✅ | マージ済み |
 | `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | マージ済み |
+| `copilot/ledger-v2-ticket-6-tickets` | `ledger_v2_tickets` migration + `LedgerV2::Ticket` + canonical_key 部分 unique index + spec | Ticket 6 ✅ | レビュー中 |
 
 > 新しい PR が起きたら、ここに 1 行追記する。
 
 ## 次の一手
 
-1. **Ticket 6** に着手する（`ledger_v2_tickets` と `canonical_key` 制約）
-   - ブランチ: `copilot/ledger-v2-ticket-6-tickets`
-   - canonical_key による部分 unique index
-   - 重複 Ticket 防止の基盤
+1. **Ticket 7** に着手する（`LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`）
+   - ブランチ: `copilot/ledger-v2-ticket-7-open-ticket`
+   - `OpenTicket` サービス: canonical_key を受け取り Ticket を作成する
+   - `TicketDeduplicator`: 重複チェック（`.active_exists?` を利用）と duplicate Event の記録
 
 ## 参考
 
