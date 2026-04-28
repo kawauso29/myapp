@@ -175,16 +175,14 @@ PR で持ち込まれた場合は **却下する**。
 | (本 PR: `copilot/review-ledger-v2-design`) | プロジェクト法典と引き継ぎ準備のドキュメント整備 + v1 Ledger recurring 停止 + Ticket 1 namespace 作成 (**法典確立 PR のため命名規約適用前。次 PR から `copilot/ledger-v2-*` 命名を厳守**） | Ticket 1 ✅ | マージ済み |
 | `copilot/ledger-v2-progress` | `ledger_v2_runs` / `ledger_v2_events` migration + モデル + spec | Ticket 2 ✅ | マージ済み |
 | `copilot/ledger-v2-ticket-3-run-executor` | `LedgerV2::RunExecutor` + `RunnerResult` + spec | Ticket 3 ✅ | マージ済み |
-| `copilot/ticket-4-progress` | `LedgerV2::Flags` サービス + initializer + spec | Ticket 4 ✅ | 進行中 |
-
-| `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | 進行中 |
+| `copilot/ticket-4-progress` | `LedgerV2::Flags` サービス + initializer + spec | Ticket 4 ✅ | マージ済み |
+| `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | マージ済み |
 
 > 新しい PR が起きたら、ここに 1 行追記する。
 
 ## 次の一手
 
-1. **本 PR をマージする**（Ticket 5 完了）
-2. 次のセッションで **Ticket 6**（`ledger_v2_tickets` と `canonical_key` 制約）に着手する
+1. **Ticket 6** に着手する（`ledger_v2_tickets` と `canonical_key` 制約）
    - ブランチ: `copilot/ledger-v2-ticket-6-tickets`
    - canonical_key による部分 unique index
    - 重複 Ticket 防止の基盤
