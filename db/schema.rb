@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_060610) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_080001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -654,6 +654,54 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_060610) do
     t.index ["scope_level", "service_id", "operating_lane"], name: "idx_lane_capacity_scope_lane", unique: true
   end
 
+  create_table "ledger_v2_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.text "message"
+    t.datetime "occurred_at", null: false
+    t.jsonb "payload_json"
+    t.bigint "run_id", null: false
+    t.integer "severity", default: 1, null: false
+    t.bigint "source_id"
+    t.string "source_type"
+    t.bigint "subject_id"
+    t.string "subject_type"
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_ledger_v2_events_on_event_type"
+    t.index ["occurred_at"], name: "index_ledger_v2_events_on_occurred_at"
+    t.index ["run_id"], name: "index_ledger_v2_events_on_run_id"
+    t.index ["source_type", "source_id"], name: "index_ledger_v2_events_on_source_type_and_source_id"
+    t.index ["subject_type", "subject_id"], name: "index_ledger_v2_events_on_subject_type_and_subject_id"
+  end
+
+  create_table "ledger_v2_runs", force: :cascade do |t|
+    t.integer "created_artifact_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.integer "created_event_count", default: 0, null: false
+    t.integer "created_ticket_count", default: 0, null: false
+    t.boolean "dry_run", default: false, null: false
+    t.integer "duplicate_prevented_count", default: 0, null: false
+    t.integer "duration_ms"
+    t.string "error_backtrace_digest"
+    t.string "error_class"
+    t.text "error_message"
+    t.datetime "finished_at"
+    t.string "idempotency_key"
+    t.jsonb "metadata_json"
+    t.string "runner_name", null: false
+    t.string "skipped_reason"
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.integer "trigger_type", default: 0, null: false
+    t.string "triggered_by"
+    t.datetime "updated_at", null: false
+    t.integer "updated_ticket_count", default: 0, null: false
+    t.index ["dry_run"], name: "index_ledger_v2_runs_on_dry_run"
+    t.index ["idempotency_key"], name: "index_ledger_v2_runs_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["runner_name", "started_at"], name: "index_ledger_v2_runs_on_runner_name_and_started_at"
+    t.index ["status"], name: "index_ledger_v2_runs_on_status"
+  end
+
   create_table "market_snapshots", force: :cascade do |t|
     t.datetime "captured_at", null: false
     t.datetime "created_at", null: false
@@ -1099,6 +1147,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_060610) do
   add_foreign_key "ai_users", "users"
   add_foreign_key "cost_ledgers", "meeting_ledgers", column: "source_meeting_id"
   add_foreign_key "cost_ledgers", "ticket_ledgers", column: "source_ticket_id"
+  add_foreign_key "ledger_v2_events", "ledger_v2_runs", column: "run_id"
   add_foreign_key "meeting_ledgers", "meeting_definitions"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"
