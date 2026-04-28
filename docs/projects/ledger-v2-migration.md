@@ -127,7 +127,12 @@
   - routes.rb: `namespace :ledger_v2 { root to: "dashboard#index" }`
   - admin layout ナビに LedgerV2 リンク追加
   - spec: 11 examples, 0 failures ✅
-- [ ] **Ticket 14**: Ticket Review UI
+- [x] **Ticket 14**: Ticket Review UI
+  - `app/controllers/admin/ledger_v2/tickets_controller.rb`（index + update: accept/reject/defer/reopen）
+  - `app/views/admin/ledger_v2/tickets/index.html.erb`（フィルター + 操作ボタン付き一覧）
+  - routes.rb: `resources :tickets, only: [:index, :update]`
+  - Dashboard ナビに Tickets リンク追加
+  - spec: 25 examples, 0 failures ✅
 - [ ] **Ticket 15**: Artifact Review UI
 
 ### 健全性 / 接続フェーズ（Ticket 16〜18）
@@ -207,10 +212,10 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-1. **Ticket 14** に着手する（Ticket Review UI — `/admin/ledger_v2` の Ticket 一覧・accept/reject/defer 操作）
-   - ブランチ: `copilot/ledger-v2-ticket-14-ticket-review-ui`
-   - `app/controllers/admin/ledger_v2/tickets_controller.rb`（index + update アクション）
-   - `app/views/admin/ledger_v2/tickets/index.html.erb`
+1. **Ticket 15** に着手する（Artifact Review UI — `/admin/ledger_v2/artifacts` の Artifact 一覧・accept/reject 操作）
+   - ブランチ: `copilot/ledger-v2-ticket-15-artifact-review-ui`
+   - `app/controllers/admin/ledger_v2/artifacts_controller.rb`（index + update アクション）
+   - `app/views/admin/ledger_v2/artifacts/index.html.erb`
    - routes + spec
 
 ## 参考
