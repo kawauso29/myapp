@@ -120,7 +120,13 @@
 
 ### Admin UI フェーズ（Ticket 13〜15）
 
-- [ ] **Ticket 13**: `/admin/ledger_v2` Dashboard
+- [x] **Ticket 13**: `/admin/ledger_v2` Dashboard
+  - `app/controllers/admin/ledger_v2/base_controller.rb` + `dashboard_controller.rb`
+  - `app/views/admin/ledger_v2/dashboard/index.html.erb`
+  - `app/helpers/admin_ledger_v2_helper.rb`（run_status_style / ticket_severity_style）
+  - routes.rb: `namespace :ledger_v2 { root to: "dashboard#index" }`
+  - admin layout ナビに LedgerV2 リンク追加
+  - spec: 11 examples, 0 failures ✅
 - [ ] **Ticket 14**: Ticket Review UI
 - [ ] **Ticket 15**: Artifact Review UI
 
@@ -196,15 +202,16 @@ PR で持ち込まれた場合は **却下する**。
 
 | `copilot/ledger-v2-ticket-7-open-ticket` | `LedgerV2::OpenTicket` + `LedgerV2::TicketDeduplicator` + spec | Ticket 7 ✅ | マージ済み |
 | `copilot/add-tests-for-ledger-v2` | `ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` + spec | Ticket 8 ✅ | レビュー中 |
-| `copilot/12-leder-ticket-progress` | `LedgerV2::WeeklyRunner` + `LedgerV2::BuildWeeklyArtifact` + `LedgerV2::WeeklyRunnerJob` + spec | Ticket 12 ✅ | レビュー中 |
+| `copilot/12-leder-ticket-progress` | `LedgerV2::WeeklyRunner` + `LedgerV2::BuildWeeklyArtifact` + `LedgerV2::WeeklyRunnerJob` + spec | Ticket 12 ✅ | マージ済み |
+| `copilot/12-leder-ticket-progress` | `/admin/ledger_v2` Dashboard controller + view + helper + routing + spec | Ticket 13 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 13** に着手する（`/admin/ledger_v2` Dashboard — Admin UI で Run / Ticket / Artifact の状態を一覧表示する）
-   - ブランチ: `copilot/ledger-v2-ticket-13-admin-ui`
-   - `app/controllers/admin/ledger_v2_controller.rb`
-   - `app/views/admin/ledger_v2/`（index.html.erb）
-   - routing + spec
+1. **Ticket 14** に着手する（Ticket Review UI — `/admin/ledger_v2` の Ticket 一覧・accept/reject/defer 操作）
+   - ブランチ: `copilot/ledger-v2-ticket-14-ticket-review-ui`
+   - `app/controllers/admin/ledger_v2/tickets_controller.rb`（index + update アクション）
+   - `app/views/admin/ledger_v2/tickets/index.html.erb`
+   - routes + spec
 
 ## 参考
 

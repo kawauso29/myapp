@@ -203,6 +203,13 @@
 
     <span class="nav-divider"></span>
 
+    <%# ===== Ledger V2 ===== %>
+    <a href="<%= admin_ledger_v2_root_path %>" class="<%= 'active' if controller_path.start_with?('admin/ledger_v2') %>">
+      LedgerV2
+    </a>
+
+    <span class="nav-divider"></span>
+
     <%# ===== 独立系統 ===== %>
     <a href="<%= admin_trading_path %>" class="<%= 'active' if controller_path.start_with?('admin/dashboard') %>">Trading</a>
     <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
