@@ -76,9 +76,11 @@
   - `RunnerResult` 値オブジェクト定義（Runner 実装の返り値契約）
   - Flags/CircuitBreaker はスタブ（Ticket 4/5 で置き換え予定）
   - spec: 8 examples, 0 failures ✅
-- [ ] **Ticket 4**: `LedgerV2::Flags`（FeatureFlag）を作成
+- [x] **Ticket 4**: `LedgerV2::Flags`（FeatureFlag）を作成
   - 新機能はデフォルト disabled
   - 変更は人間のみ（DB or env）
+  - `app/services/ledger_v2/flags.rb` + `config/initializers/ledger_v2.rb`
+  - service spec: 9 examples, 0 failures ✅
 - [ ] **Ticket 5**: `ledger_v2_stop_conditions` と `LedgerV2::CircuitBreaker`
   - StopCondition 解除は人間のみ
 
@@ -168,16 +170,19 @@ PR で持ち込まれた場合は **却下する**。
 | PR | 概要 | Ticket | 状態 |
 |---|---|---|---|
 | (本 PR: `copilot/review-ledger-v2-design`) | プロジェクト法典と引き継ぎ準備のドキュメント整備 + v1 Ledger recurring 停止 + Ticket 1 namespace 作成 (**法典確立 PR のため命名規約適用前。次 PR から `copilot/ledger-v2-*` 命名を厳守**） | Ticket 1 ✅ | マージ済み |
+| `copilot/ledger-v2-progress` | `ledger_v2_runs` / `ledger_v2_events` migration + モデル + spec | Ticket 2 ✅ | マージ済み |
 | `copilot/ledger-v2-ticket-3-run-executor` | `LedgerV2::RunExecutor` + `RunnerResult` + spec | Ticket 3 ✅ | マージ済み |
+| `copilot/ticket-4-progress` | `LedgerV2::Flags` サービス + initializer + spec | Ticket 4 ✅ | 進行中 |
 
 > 新しい PR が起きたら、ここに 1 行追記する。
 
 ## 次の一手
 
-1. **本 PR をマージする**（Ticket 3 完了）
-2. 次のセッションで **Ticket 4**（`LedgerV2::Flags` 作成）に着手する
-   - ブランチ: `copilot/ledger-v2-ticket-4-flags`
-   - FeatureFlag: 新機能はデフォルト disabled、変更は人間のみ
+1. **本 PR をマージする**（Ticket 4 完了）
+2. 次のセッションで **Ticket 5**（`ledger_v2_stop_conditions` と `LedgerV2::CircuitBreaker`）に着手する
+   - ブランチ: `copilot/ledger-v2-ticket-5-circuit-breaker`
+   - StopCondition 解除は人間のみ
+   - `RunExecutor` の CircuitBreaker スタブを本実装に置き換える
 
 ## 参考
 
