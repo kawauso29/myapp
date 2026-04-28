@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -672,6 +672,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_100000) do
     t.index ["run_id"], name: "index_ledger_v2_events_on_run_id"
     t.index ["source_type", "source_id"], name: "index_ledger_v2_events_on_source_type_and_source_id"
     t.index ["subject_type", "subject_id"], name: "index_ledger_v2_events_on_subject_type_and_subject_id"
+  end
+
+  create_table "ledger_v2_metric_snapshots", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "created_by_run_id"
+    t.datetime "measured_at", null: false
+    t.string "metric_name", null: false
+    t.jsonb "payload_json"
+    t.integer "period", default: 0, null: false
+    t.string "source_id"
+    t.string "source_type"
+    t.string "unit"
+    t.datetime "updated_at", null: false
+    t.decimal "value", precision: 20, scale: 6, null: false
+    t.index ["created_by_run_id"], name: "index_ledger_v2_metric_snapshots_on_created_by_run_id"
+    t.index ["measured_at"], name: "index_ledger_v2_metric_snapshots_on_measured_at"
+    t.index ["metric_name", "source_type", "source_id", "period", "measured_at"], name: "index_ledger_v2_metric_snapshots_on_key"
+    t.index ["metric_name"], name: "index_ledger_v2_metric_snapshots_on_metric_name"
+    t.index ["period"], name: "index_ledger_v2_metric_snapshots_on_period"
+    t.index ["source_type", "source_id"], name: "index_ledger_v2_metric_snapshots_on_source_type_and_source_id"
   end
 
   create_table "ledger_v2_runs", force: :cascade do |t|

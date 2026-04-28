@@ -100,7 +100,10 @@
 
 ### Metric / Daily フェーズ（Ticket 8〜10）
 
-- [ ] **Ticket 8**: `ledger_v2_metric_snapshots`
+- [x] **Ticket 8**: `ledger_v2_metric_snapshots`
+  - `db/migrate/20260428110000_create_ledger_v2_metric_snapshots.rb`
+  - `app/models/ledger_v2/metric_snapshot.rb`（enum / validation / association）
+  - spec: 13 examples, 0 failures ✅
 - [ ] **Ticket 9**: `LedgerV2::DetectMetricAnomalies`
 - [ ] **Ticket 10**: `LedgerV2::DailyRunner`（dry_run 対応）
 
@@ -185,15 +188,15 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | マージ済み |
 | `copilot/ledger-v2-ticket-6-tickets` | `ledger_v2_tickets` migration + `LedgerV2::Ticket` + canonical_key 部分 unique index + spec | Ticket 6 ✅ | レビュー中 |
 
-| `copilot/ledger-v2-ticket-7-open-ticket` | `LedgerV2::OpenTicket` + `LedgerV2::TicketDeduplicator` + spec | Ticket 7 ✅ | レビュー中 |
+| `copilot/ledger-v2-ticket-7-open-ticket` | `LedgerV2::OpenTicket` + `LedgerV2::TicketDeduplicator` + spec | Ticket 7 ✅ | マージ済み |
+| `copilot/add-tests-for-ledger-v2` | `ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` + spec | Ticket 8 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 8** に着手する（`ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` モデル）
-   - ブランチ: `copilot/ledger-v2-ticket-8-metric-snapshots`
-   - `ledger_v2_metric_snapshots` テーブル migration
-   - `LedgerV2::MetricSnapshot` モデル（enum / validation / association）
-   - model spec
+1. **Ticket 9** に着手する（`LedgerV2::DetectMetricAnomalies` — MetricSnapshot を読んで異常を検知するサービス）
+   - ブランチ: `copilot/ledger-v2-ticket-9-detect-anomalies`
+   - `app/services/ledger_v2/detect_metric_anomalies.rb`
+   - service spec
 
 ## 参考
 
