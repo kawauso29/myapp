@@ -112,11 +112,21 @@
 ### Artifact / Weekly フェーズ（Ticket 11〜12）
 
 - [x] **Ticket 11**: `ledger_v2_artifacts` / `ledger_v2_reviews`（17 examples, 0 failures）
-- [ ] **Ticket 12**: `LedgerV2::WeeklyRunner` と `BuildWeeklyArtifact`
+- [x] **Ticket 12**: `LedgerV2::WeeklyRunner` と `BuildWeeklyArtifact`
+  - `app/services/ledger_v2/build_weekly_artifact.rb`
+  - `app/services/ledger_v2/weekly_runner.rb`
+  - `app/jobs/ledger_v2/weekly_runner_job.rb`
+  - spec（weekly_runner_spec + weekly_runner_job_spec）: 20 examples, 0 failures ✅
 
 ### Admin UI フェーズ（Ticket 13〜15）
 
-- [ ] **Ticket 13**: `/admin/ledger_v2` Dashboard
+- [x] **Ticket 13**: `/admin/ledger_v2` Dashboard
+  - `app/controllers/admin/ledger_v2/base_controller.rb` + `dashboard_controller.rb`
+  - `app/views/admin/ledger_v2/dashboard/index.html.erb`
+  - `app/helpers/admin_ledger_v2_helper.rb`（run_status_style / ticket_severity_style）
+  - routes.rb: `namespace :ledger_v2 { root to: "dashboard#index" }`
+  - admin layout ナビに LedgerV2 リンク追加
+  - spec: 11 examples, 0 failures ✅
 - [ ] **Ticket 14**: Ticket Review UI
 - [ ] **Ticket 15**: Artifact Review UI
 
@@ -192,13 +202,16 @@ PR で持ち込まれた場合は **却下する**。
 
 | `copilot/ledger-v2-ticket-7-open-ticket` | `LedgerV2::OpenTicket` + `LedgerV2::TicketDeduplicator` + spec | Ticket 7 ✅ | マージ済み |
 | `copilot/add-tests-for-ledger-v2` | `ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` + spec | Ticket 8 ✅ | レビュー中 |
+| `copilot/12-leder-ticket-progress` | `LedgerV2::WeeklyRunner` + `LedgerV2::BuildWeeklyArtifact` + `LedgerV2::WeeklyRunnerJob` + spec | Ticket 12 ✅ | マージ済み |
+| `copilot/12-leder-ticket-progress` | `/admin/ledger_v2` Dashboard controller + view + helper + routing + spec | Ticket 13 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 9** に着手する（`LedgerV2::DetectMetricAnomalies` — MetricSnapshot を読んで異常を検知するサービス）
-   - ブランチ: `copilot/ledger-v2-ticket-9-detect-anomalies`
-   - `app/services/ledger_v2/detect_metric_anomalies.rb`
-   - service spec
+1. **Ticket 14** に着手する（Ticket Review UI — `/admin/ledger_v2` の Ticket 一覧・accept/reject/defer 操作）
+   - ブランチ: `copilot/ledger-v2-ticket-14-ticket-review-ui`
+   - `app/controllers/admin/ledger_v2/tickets_controller.rb`（index + update アクション）
+   - `app/views/admin/ledger_v2/tickets/index.html.erb`
+   - routes + spec
 
 ## 参考
 

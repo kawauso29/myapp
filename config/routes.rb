@@ -23,6 +23,10 @@ Rails.application.routes.draw do
     post "trigger_db_snapshot", to: "repository#trigger_db_snapshot"
     post "trigger_ai_sns_plan", to: "ai_sns#trigger_ai_sns_plan"
 
+    namespace :ledger_v2 do
+      root to: "dashboard#index"
+    end
+
     resources :ai_sns, only: [ :index ] do
       collection do
         get :ai_users
