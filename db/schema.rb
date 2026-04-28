@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_080001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -700,6 +700,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_080001) do
     t.index ["idempotency_key"], name: "index_ledger_v2_runs_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["runner_name", "started_at"], name: "index_ledger_v2_runs_on_runner_name_and_started_at"
     t.index ["status"], name: "index_ledger_v2_runs_on_status"
+  end
+
+  create_table "ledger_v2_stop_conditions", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.string "created_by", null: false
+    t.datetime "expires_at"
+    t.jsonb "metadata_json"
+    t.text "reason", null: false
+    t.datetime "resolved_at"
+    t.string "resolved_by"
+    t.string "severity", default: "medium", null: false
+    t.string "target_name"
+    t.string "target_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active", "expires_at"], name: "index_ledger_v2_stop_conditions_on_active_and_expires_at"
+    t.index ["target_type", "active"], name: "index_ledger_v2_stop_conditions_on_target_type_and_active"
   end
 
   create_table "market_snapshots", force: :cascade do |t|

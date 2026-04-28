@@ -81,8 +81,11 @@
   - 変更は人間のみ（DB or env）
   - `app/services/ledger_v2/flags.rb` + `config/initializers/ledger_v2.rb`
   - service spec: 9 examples, 0 failures ✅
-- [ ] **Ticket 5**: `ledger_v2_stop_conditions` と `LedgerV2::CircuitBreaker`
+- [x] **Ticket 5**: `ledger_v2_stop_conditions` と `LedgerV2::CircuitBreaker`
   - StopCondition 解除は人間のみ
+  - `app/models/ledger_v2/stop_condition.rb` + `app/services/ledger_v2/circuit_breaker.rb`
+  - `RunExecutor#circuit_breaker_reason` スタブを本実装に置き換え
+  - spec: 32 examples, 0 failures ✅
 
 ### Ticket フェーズ（Ticket 6〜7）
 
@@ -174,15 +177,17 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/ledger-v2-ticket-3-run-executor` | `LedgerV2::RunExecutor` + `RunnerResult` + spec | Ticket 3 ✅ | マージ済み |
 | `copilot/ticket-4-progress` | `LedgerV2::Flags` サービス + initializer + spec | Ticket 4 ✅ | 進行中 |
 
+| `copilot/ledger-v2-ticket-5-circuit-breaker` | `ledger_v2_stop_conditions` migration + `LedgerV2::StopCondition` + `LedgerV2::CircuitBreaker` + RunExecutor 統合 | Ticket 5 ✅ | 進行中 |
+
 > 新しい PR が起きたら、ここに 1 行追記する。
 
 ## 次の一手
 
-1. **本 PR をマージする**（Ticket 4 完了）
-2. 次のセッションで **Ticket 5**（`ledger_v2_stop_conditions` と `LedgerV2::CircuitBreaker`）に着手する
-   - ブランチ: `copilot/ledger-v2-ticket-5-circuit-breaker`
-   - StopCondition 解除は人間のみ
-   - `RunExecutor` の CircuitBreaker スタブを本実装に置き換える
+1. **本 PR をマージする**（Ticket 5 完了）
+2. 次のセッションで **Ticket 6**（`ledger_v2_tickets` と `canonical_key` 制約）に着手する
+   - ブランチ: `copilot/ledger-v2-ticket-6-tickets`
+   - canonical_key による部分 unique index
+   - 重複 Ticket 防止の基盤
 
 ## 参考
 

@@ -52,10 +52,10 @@ module LedgerV2
         return existing if existing
       end
 
-      # FeatureFlag 確認（Ticket 4 で LedgerV2::Flags に置き換える）
+      # FeatureFlag 確認（Ticket 4 で LedgerV2::Flags に置き換え済み）
       return create_skipped_run(:feature_disabled) unless flags_enabled?
 
-      # CircuitBreaker 確認（Ticket 5 で LedgerV2::CircuitBreaker に置き換える）
+      # CircuitBreaker 確認（Ticket 5 で LedgerV2::CircuitBreaker に置き換え済み）
       blocked_reason = circuit_breaker_reason
       return create_blocked_run(blocked_reason) if blocked_reason
 
@@ -102,9 +102,9 @@ module LedgerV2
       true
     end
 
-    # Ticket 5 (LedgerV2::CircuitBreaker) 完成まで常に nil を返す（blocked なし）。
+    # Ticket 5 (LedgerV2::CircuitBreaker) 完成。active な StopCondition があればブロック理由を返す。
     def circuit_breaker_reason
-      nil
+      CircuitBreaker.reason_for(runner_name)
     end
 
     def runner_class
