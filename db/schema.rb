@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -654,6 +654,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_110000) do
     t.index ["scope_level", "service_id", "operating_lane"], name: "idx_lane_capacity_scope_lane", unique: true
   end
 
+  create_table "ledger_v2_artifacts", force: :cascade do |t|
+    t.string "artifact_type", null: false
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.string "format", default: "markdown", null: false
+    t.jsonb "metadata_json"
+    t.datetime "published_at"
+    t.bigint "related_ticket_id"
+    t.text "review_comment"
+    t.integer "review_status", default: 0, null: false
+    t.datetime "reviewed_at"
+    t.string "reviewed_by"
+    t.bigint "run_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_type"], name: "index_ledger_v2_artifacts_on_artifact_type"
+    t.index ["published_at"], name: "index_ledger_v2_artifacts_on_published_at"
+    t.index ["related_ticket_id"], name: "index_ledger_v2_artifacts_on_related_ticket_id"
+    t.index ["review_status"], name: "index_ledger_v2_artifacts_on_review_status"
+    t.index ["run_id"], name: "index_ledger_v2_artifacts_on_run_id"
+  end
+
   create_table "ledger_v2_events", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "event_type", null: false
@@ -692,6 +714,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_110000) do
     t.index ["metric_name"], name: "index_ledger_v2_metric_snapshots_on_metric_name"
     t.index ["period"], name: "index_ledger_v2_metric_snapshots_on_period"
     t.index ["source_type", "source_id"], name: "index_ledger_v2_metric_snapshots_on_source_type_and_source_id"
+  end
+
+  create_table "ledger_v2_reviews", force: :cascade do |t|
+    t.text "comment"
+    t.datetime "created_at", null: false
+    t.string "decision", null: false
+    t.jsonb "metadata_json"
+    t.bigint "reviewable_id", null: false
+    t.string "reviewable_type", null: false
+    t.datetime "reviewed_at", null: false
+    t.bigint "reviewer_id"
+    t.string "reviewer_type"
+    t.datetime "updated_at", null: false
+    t.index ["decision"], name: "index_ledger_v2_reviews_on_decision"
+    t.index ["reviewable_type", "reviewable_id"], name: "index_ledger_v2_reviews_on_reviewable"
+    t.index ["reviewed_at"], name: "index_ledger_v2_reviews_on_reviewed_at"
+    t.index ["reviewer_type", "reviewer_id"], name: "index_ledger_v2_reviews_on_reviewer"
   end
 
   create_table "ledger_v2_runs", force: :cascade do |t|

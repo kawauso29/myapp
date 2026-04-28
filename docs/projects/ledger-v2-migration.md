@@ -111,7 +111,7 @@
 
 ### Artifact / Weekly フェーズ（Ticket 11〜12）
 
-- [ ] **Ticket 11**: `ledger_v2_artifacts` / `ledger_v2_reviews`
+- [x] **Ticket 11**: `ledger_v2_artifacts` / `ledger_v2_reviews`（17 examples, 0 failures）
 - [ ] **Ticket 12**: `LedgerV2::WeeklyRunner` と `BuildWeeklyArtifact`
 
 ### Admin UI フェーズ（Ticket 13〜15）
