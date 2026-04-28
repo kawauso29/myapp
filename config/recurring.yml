@@ -137,141 +137,115 @@ production:
     schedule: "0 21 * * 0"
 
   # ===== Ledger 圧縮時間軸（4年=28日）=====
-  # 設計書 §11 / `Ledgers::TimeAxis::INTERVALS` の固定値に合わせて発火させる。
-  # 各 Runner は `idempotency_key` に cadence ベースの slot を含めるため、
-  # cron が同 slot 内に複数回ヒットしても 2 回目以降は DB ユニーク制約で弾かれる。
-
-  # daily = 30分 → 30 分ごと（設計書 §12.6: 会議なし種別の速報・異常検知・KPI スナップショット）
-  daily_ledger_run:
-    class: DailyLedgerRunJob
-    queue: default
-    args: [ "ai_sns" ]
-    schedule: "*/30 * * * *"
-
-  # weekly = 4時間 → 4 時間ごと（00, 04, 08, 12, 16, 20 UTC）
-  weekly_dept_ledger_run:
-    class: WeeklyDeptLedgerRunJob
-    queue: default
-    args: [ "ai_sns" ]
-    schedule: "0 */4 * * *"
-
-  # monthly = 12時間 → 12 時間ごと（00, 12 UTC）
-  monthly_ops_ledger_run:
-    class: MonthlyOpsLedgerRunJob
-    queue: default
-    schedule: "0 */12 * * *"
-
-  # Phase 42 / UI伴走管理: quarterly = 2日ごとに UI チェック会議を実行する。
-  # stale_ui_check ルールの発火（3日以上未実施）を防ぐため 2 日間隔で稼働させる。
-  ui_check_ledger_run:
-    class: UiCheckLedgerRunJob
-    queue: default
-    schedule: "0 4 */2 * *"
-
-  # quarterly = 2日 → 2 日ごと（奇数日 06:00 UTC）
-  # 注意: cron `*/2` は月初リセットで 1/31 → 2/1 が 1 日間隔になる。
-  # 圧縮 quarterly slot で重複弾きされるため運用上は問題ない。
-  quarterly_review_ledger_run:
-    class: QuarterlyReviewLedgerRunJob
-    queue: default
-    schedule: "0 6 */2 * *"
-
-  # Phase 38b: 人事評価（quarterly = 2日）→ quarterly_review の 30 分後に揃える
-  hr_evaluation_run:
-    class: HrEvaluationRunJob
-    queue: default
-    schedule: "30 6 */2 * *"
-
-  # Phase 41b: ポートフォリオ再編（quarterly = 2日）→ quarterly_review の 1 時間後に揃える
-  portfolio_rebalance_run:
-    class: PortfolioRebalanceRunJob
-    queue: default
-    schedule: "0 7 */2 * *"
-
-  # annual = 7日 → 毎週日曜 08:00 UTC
-  annual_plan_ledger_run:
-    class: AnnualPlanLedgerRunJob
-    queue: default
-    schedule: "0 8 * * 0"
-
-  # Phase 44b: heartbeat 駆動スケジューラ（5分毎に next_run_at を検査）
-  heartbeat_scheduler:
-    class: HeartbeatSchedulerJob
-    queue: default
-    schedule: "*/5 * * * *"
-
-  # 毎日 6:00 JST (= 前日 21:00 UTC): 期限超過チケットを検出
-  ticket_overdue_check:
-    class: TicketOverdueCheckJob
-    queue: default
-    schedule: "0 21 * * *"
-
-  # 毎日 7:00 JST (= 前日 22:00 UTC): 改善チケットの検出と解消判定
-  improvement_detector:
-    class: ImprovementDetectorJob
-    queue: default
-    schedule: "0 22 * * *"
-
-  # 毎日 7:30 JST (= 前日 22:30 UTC): 解消済み条件の改善チケットを自動クローズ
-  improvement_resolver:
-    class: ImprovementResolverJob
-    queue: default
-    schedule: "30 22 * * *"
-
-  # 毎日 8:00 JST (= 前日 23:00 UTC): 未解決改善チケットのエスカレーション
-  improvement_escalation:
-    class: ImprovementEscalationJob
-    queue: default
-    schedule: "0 23 * * *"
-
-  # 毎日 9:00 JST (= 00:00 UTC): 期限切れ実験（R4: experiment_ledger）を自動判定
-  experiment_auto_decide:
-    class: ExperimentAutoDeciderJob
-    queue: default
-    schedule: "0 0 * * *"
-
-  # 1時間ごと: 補強13 SLA deadline 計算と breach 検知
-  sla_sweep:
-    class: SlaSweepJob
-    queue: default
-    schedule: "0 * * * *"
-
-  # Phase A: 毎日 5:30 JST (= 20:30 UTC): KPI を KpiLedger.current_value に自動投入
-  kpi_auto_collect:
-    class: KpiAutoCollectJob
-    queue: default
-    schedule: "30 20 * * *"
-
-  # Phase 34: 毎日 5:45 JST (= 20:45 UTC): KPI grade（healthy/warning/critical）を再評価
-  kpi_grade_evaluate:
-    class: KpiGradeEvaluateJob
-    queue: default
-    schedule: "45 20 * * *"
-
-  # Phase 33: 15 分ごと: 自動停止トリガーを評価し、成立していれば StopLedger を起票
-  # Phase 2 補強 / 穴⑥: 引数なしで呼び出すと company + 全 active service_id を順に評価する。
-  stop_condition_monitor:
-    class: StopConditionMonitorJob
-    queue: default
-    schedule: "*/15 * * * *"
-
-  # Phase D: 毎日 6:15 JST (= 21:15 UTC): 完了 improvement の effectiveness_score 再計算
-  effectiveness_recalc:
-    class: EffectivenessRecalcJob
-    queue: default
-    schedule: "15 21 * * *"
-
-  # Phase B: 毎日 7:30 JST (= 22:30 UTC): KPI 乖離から improvement ticket を自動起票
-  planner:
-    class: PlannerJob
-    queue: default
-    schedule: "30 22 * * *"
-
-  # Phase C: 1時間ごと (毎時 15 分): approved / planned チケットを GitHub Issue に自動同期
-  ticket_issue_sync:
-    class: TicketIssueSyncJob
-    queue: default
-    schedule: "15 * * * *"
+  # [v1 FREEZE] Ledger V2 移行に伴い、v1 Ledger Runner 系の recurring を停止済み（2026-04-28）。
+  # 再開する場合はコメントアウトを外す。詳細: docs/projects/ledger-v2-migration.md
+  #
+  # daily_ledger_run:
+  #   class: DailyLedgerRunJob
+  #   queue: default
+  #   args: [ "ai_sns" ]
+  #   schedule: "*/30 * * * *"
+  #
+  # weekly_dept_ledger_run:
+  #   class: WeeklyDeptLedgerRunJob
+  #   queue: default
+  #   args: [ "ai_sns" ]
+  #   schedule: "0 */4 * * *"
+  #
+  # monthly_ops_ledger_run:
+  #   class: MonthlyOpsLedgerRunJob
+  #   queue: default
+  #   schedule: "0 */12 * * *"
+  #
+  # ui_check_ledger_run:
+  #   class: UiCheckLedgerRunJob
+  #   queue: default
+  #   schedule: "0 4 */2 * *"
+  #
+  # quarterly_review_ledger_run:
+  #   class: QuarterlyReviewLedgerRunJob
+  #   queue: default
+  #   schedule: "0 6 */2 * *"
+  #
+  # hr_evaluation_run:
+  #   class: HrEvaluationRunJob
+  #   queue: default
+  #   schedule: "30 6 */2 * *"
+  #
+  # portfolio_rebalance_run:
+  #   class: PortfolioRebalanceRunJob
+  #   queue: default
+  #   schedule: "0 7 */2 * *"
+  #
+  # annual_plan_ledger_run:
+  #   class: AnnualPlanLedgerRunJob
+  #   queue: default
+  #   schedule: "0 8 * * 0"
+  #
+  # heartbeat_scheduler:
+  #   class: HeartbeatSchedulerJob
+  #   queue: default
+  #   schedule: "*/5 * * * *"
+  #
+  # ticket_overdue_check:
+  #   class: TicketOverdueCheckJob
+  #   queue: default
+  #   schedule: "0 21 * * *"
+  #
+  # improvement_detector:
+  #   class: ImprovementDetectorJob
+  #   queue: default
+  #   schedule: "0 22 * * *"
+  #
+  # improvement_resolver:
+  #   class: ImprovementResolverJob
+  #   queue: default
+  #   schedule: "30 22 * * *"
+  #
+  # improvement_escalation:
+  #   class: ImprovementEscalationJob
+  #   queue: default
+  #   schedule: "0 23 * * *"
+  #
+  # experiment_auto_decide:
+  #   class: ExperimentAutoDeciderJob
+  #   queue: default
+  #   schedule: "0 0 * * *"
+  #
+  # sla_sweep:
+  #   class: SlaSweepJob
+  #   queue: default
+  #   schedule: "0 * * * *"
+  #
+  # kpi_auto_collect:
+  #   class: KpiAutoCollectJob
+  #   queue: default
+  #   schedule: "30 20 * * *"
+  #
+  # kpi_grade_evaluate:
+  #   class: KpiGradeEvaluateJob
+  #   queue: default
+  #   schedule: "45 20 * * *"
+  #
+  # stop_condition_monitor:
+  #   class: StopConditionMonitorJob
+  #   queue: default
+  #   schedule: "*/15 * * * *"
+  #
+  # effectiveness_recalc:
+  #   class: EffectivenessRecalcJob
+  #   queue: default
+  #   schedule: "15 21 * * *"
+  #
+  # planner:
+  #   class: PlannerJob
+  #   queue: default
+  #   schedule: "30 22 * * *"
+  #
+  # ticket_issue_sync:
+  #   class: TicketIssueSyncJob
+  #   queue: default
+  #   schedule: "15 * * * *"
 
   # ===== schedule.yml から移行した AI SNS ジョブ =====
 

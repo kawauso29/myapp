@@ -63,9 +63,10 @@
 
 ### 基盤フェーズ（Ticket 1〜5）
 
-- [ ] **Ticket 1**: `LedgerV2` namespace と基本ディレクトリを作成する
+- [x] **Ticket 1**: `LedgerV2` namespace と基本ディレクトリを作成する
   - `app/models/ledger_v2/.keep`, `app/services/ledger_v2/.keep`, `app/jobs/ledger_v2/.keep`, `spec/models/ledger_v2/.keep`
-  - autoload が効くか smoke test
+  - `app/models/ledger_v2.rb`（module 定義・autoload 起点）
+  - smoke spec（`spec/models/ledger_v2_spec.rb`）: 2 examples, 0 failures ✅
 - [ ] **Ticket 2**: `ledger_v2_runs` / `ledger_v2_events` の migration とモデル
   - 設計書 §「ledger_v2_runs」「ledger_v2_events」のカラムに準拠
   - モデル spec（最低限の create / バリデーション）
@@ -163,15 +164,16 @@ PR で持ち込まれた場合は **却下する**。
 
 | PR | 概要 | Ticket | 状態 |
 |---|---|---|---|
-| (本 PR: `copilot/review-ledger-v2-design`) | プロジェクト法典と引き継ぎ準備のドキュメント整備（**法典確立 PR のため命名規約適用前。次 PR から `copilot/ledger-v2-*` 命名を厳守**） | - | 進行中 |
+| (本 PR: `copilot/review-ledger-v2-design`) | プロジェクト法典と引き継ぎ準備のドキュメント整備 + v1 Ledger recurring 停止 + Ticket 1 namespace 作成 (**法典確立 PR のため命名規約適用前。次 PR から `copilot/ledger-v2-*` 命名を厳守**） | Ticket 1 ✅ | 進行中 |
 
 > 新しい PR が起きたら、ここに 1 行追記する。
 
 ## 次の一手
 
-1. **本ドキュメントをマージする**（法典の確立）
-2. その次のセッションで **Ticket 1**（namespace 作成）に着手する
-3. v1 自動実行停止は **別プロジェクト** として切り出す（本 v2 移行の前提条件として）
+1. **本 PR をマージする**（v1 停止 + Ticket 1 完了）
+2. 次のセッションで **Ticket 2**（`ledger_v2_runs` / `ledger_v2_events` migration とモデル）に着手する
+   - ブランチ: `copilot/ledger-v2-ticket-2-runs-events`
+3. v1 停止範囲の追加（satellite jobs: `monitor_failed_jobs` 以外の v1 Ledger 関連 jobs）は Ticket 2 以降で検討
 
 ## 参考
 
