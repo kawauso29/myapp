@@ -64,7 +64,7 @@ module LedgerV2
     end
 
     def anomaly_section
-      daily_snaps = @metric_snapshots.select { |s| s.period == "daily" }
+      daily_snaps = @metric_snapshots.select(&:period_daily?)
       if daily_snaps.empty?
         return "## 今週の異常\n\n（直近 7 日間の MetricSnapshot なし）"
       end
@@ -95,7 +95,7 @@ module LedgerV2
     end
 
     def improvement_candidates_section
-      high_severity = @open_tickets.select { |t| %w[high critical].include?(t.severity) }
+      high_severity = @open_tickets.select { |t| t.severity_high? || t.severity_critical? }
       lines = ["## 改善候補\n"]
       if high_severity.empty?
         lines << "（high / critical Ticket なし）"
@@ -124,7 +124,7 @@ module LedgerV2
     end
 
     def human_decision_section
-      needs_decision = @open_tickets.select { |t| t.status_deferred? || %w[high critical].include?(t.severity) }
+      needs_decision = @open_tickets.select { |t| t.status_deferred? || t.severity_high? || t.severity_critical? }
       lines = ["## 人間に判断してほしい項目\n"]
       if needs_decision.empty?
         lines << "（判断待ち Ticket なし）"
@@ -138,7 +138,7 @@ module LedgerV2
 
     def stop_condition_candidates_section
       lines = ["## StopCondition 候補\n"]
-      critical_tickets = @open_tickets.select { |t| t.severity == "critical" }
+      critical_tickets = @open_tickets.select(&:severity_critical?)
       if critical_tickets.empty?
         lines << "（今週の critical Ticket なし → StopCondition 候補なし）"
       else
@@ -151,7 +151,7 @@ module LedgerV2
     end
 
     def noise_candidates_section
-      low_tickets = @open_tickets.select { |t| t.severity == "low" }
+      low_tickets = @open_tickets.select(&:severity_low?)
       lines = ["## ノイズ候補\n"]
       if low_tickets.empty?
         lines << "（low severity Ticket なし）"
