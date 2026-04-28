@@ -107,7 +107,7 @@
 - [x] **Ticket 9**: `LedgerV2::DetectMetricAnomalies`
   - `app/services/ledger_v2/detect_metric_anomalies.rb`（閾値ベース、6 metric ルール）
   - spec: 22 examples, 0 failures ✅
-- [ ] **Ticket 10**: `LedgerV2::DailyRunner`（dry_run 対応）
+- [x] **Ticket 10**: `LedgerV2::DailyRunner` + `DailyRunnerJob` + spec（20 examples, 0 failures）
 
 ### Artifact / Weekly フェーズ（Ticket 11〜12）
 
