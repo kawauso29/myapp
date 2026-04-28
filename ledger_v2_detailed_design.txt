@@ -30,7 +30,7 @@ v2は本運用を前提にした最小・安全・拡張可能なLedger基盤と
 12. 人間承認なしに戦略・設定・本番状態を変更しない
 13. Trading / HR / OrgChange / Portfolioは初期接続しない
 14. Monthly / Quarterly / Annualは初期実装しない
-15. AutoMergeはv2初期では禁止する
+15. AutoMergeはv2機構安定まで一時停止する（安定後は自動マージ・自動デプロイへ移行する）
 
 v1とv2の位置づけ
 ----------------
