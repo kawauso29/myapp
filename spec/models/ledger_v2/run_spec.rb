@@ -10,6 +10,7 @@ RSpec.describe LedgerV2::Run, type: :model do
     it "デフォルトの status は pending になる" do
       run = LedgerV2::Run.create!(runner_name: "DailyRunner", trigger_type: :schedule)
       expect(run.status_pending?).to be true
+      expect(run).not_to respond_to(:pending?)
     end
 
     it "デフォルトの dry_run は false になる" do

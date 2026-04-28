@@ -20,6 +20,6 @@ class CreateLedgerV2Events < ActiveRecord::Migration[8.1]
     add_index :ledger_v2_events, [:source_type, :source_id],            if_not_exists: true
     add_index :ledger_v2_events, [:subject_type, :subject_id],          if_not_exists: true
     add_index :ledger_v2_events, :occurred_at,                          if_not_exists: true
-    add_foreign_key :ledger_v2_events, :ledger_v2_runs, column: :run_id
+    add_foreign_key :ledger_v2_events, :ledger_v2_runs, column: :run_id, if_not_exists: true
   end
 end
