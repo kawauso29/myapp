@@ -133,7 +133,13 @@
   - routes.rb: `resources :tickets, only: [:index, :update]`
   - Dashboard ナビに Tickets リンク追加
   - spec: 25 examples, 0 failures ✅
-- [ ] **Ticket 15**: Artifact Review UI
+- [x] **Ticket 15**: Artifact Review UI
+  - `app/controllers/admin/ledger_v2/artifacts_controller.rb`（index + update: accept/reject/defer/publish/reopen）
+  - `app/views/admin/ledger_v2/artifacts/index.html.erb`（フィルター + 操作ボタン付き一覧）
+  - routes.rb: `resources :artifacts, only: [:index, :update]`
+  - `AdminLedgerV2Helper#artifact_review_status_style` 追加
+  - Dashboard / Tickets の sub-nav に Artifacts リンク追加
+  - spec: 30 examples, 0 failures ✅
 
 ### 健全性 / 接続フェーズ（Ticket 16〜18）
 
@@ -209,14 +215,15 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/add-tests-for-ledger-v2` | `ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` + spec | Ticket 8 ✅ | レビュー中 |
 | `copilot/12-leder-ticket-progress` | `LedgerV2::WeeklyRunner` + `LedgerV2::BuildWeeklyArtifact` + `LedgerV2::WeeklyRunnerJob` + spec | Ticket 12 ✅ | マージ済み |
 | `copilot/12-leder-ticket-progress` | `/admin/ledger_v2` Dashboard controller + view + helper + routing + spec | Ticket 13 ✅ | レビュー中 |
+| `copilot/ticket-15-progress` | `/admin/ledger_v2/artifacts` ArtifactsController + view + routes + helper + spec | Ticket 15 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 15** に着手する（Artifact Review UI — `/admin/ledger_v2/artifacts` の Artifact 一覧・accept/reject 操作）
-   - ブランチ: `copilot/ledger-v2-ticket-15-artifact-review-ui`
-   - `app/controllers/admin/ledger_v2/artifacts_controller.rb`（index + update アクション）
-   - `app/views/admin/ledger_v2/artifacts/index.html.erb`
-   - routes + spec
+1. **Ticket 16** に着手する（`LedgerV2::HealthSnapshot` — v2 Kernel の価値測定層）
+   - ブランチ: `copilot/ledger-v2-ticket-16-health-snapshot`
+   - `ledger_v2_health_snapshots` migration + `LedgerV2::HealthSnapshot` モデル
+   - `LedgerV2::BuildHealthSnapshot` サービス（採用率・重複抑止率・Artifact 使用率等）
+   - spec
 
 ## 参考
 

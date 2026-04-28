@@ -25,7 +25,8 @@ Rails.application.routes.draw do
 
     namespace :ledger_v2 do
       root to: "dashboard#index"
-      resources :tickets, only: [ :index, :update ]
+      resources :tickets,   only: [ :index, :update ]
+      resources :artifacts, only: [ :index, :update ]
     end
 
     resources :ai_sns, only: [ :index ] do
