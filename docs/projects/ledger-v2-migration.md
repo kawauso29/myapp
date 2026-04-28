@@ -104,7 +104,9 @@
   - `db/migrate/20260428110000_create_ledger_v2_metric_snapshots.rb`
   - `app/models/ledger_v2/metric_snapshot.rb`（enum / validation / association）
   - spec: 13 examples, 0 failures ✅
-- [ ] **Ticket 9**: `LedgerV2::DetectMetricAnomalies`
+- [x] **Ticket 9**: `LedgerV2::DetectMetricAnomalies`
+  - `app/services/ledger_v2/detect_metric_anomalies.rb`（閾値ベース、6 metric ルール）
+  - spec: 22 examples, 0 failures ✅
 - [ ] **Ticket 10**: `LedgerV2::DailyRunner`（dry_run 対応）
 
 ### Artifact / Weekly フェーズ（Ticket 11〜12）
