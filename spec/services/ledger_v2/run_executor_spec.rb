@@ -82,6 +82,31 @@ RSpec.describe LedgerV2::RunExecutor, type: :service do
     end
   end
 
+  describe "CircuitBreaker 統合" do
+    it "active な StopCondition があると Run が :blocked になる" do
+      LedgerV2::StopCondition.create!(
+        target_type: "runner", target_name: "StubRunner",
+        reason: "統合テスト用停止", severity: "high", created_by: "admin"
+      )
+
+      run = described_class.call(:stub_runner)
+
+      expect(run.status_blocked?).to be true
+      expect(run.skipped_reason).to  eq("統合テスト用停止")
+    end
+
+    it "target_type: all の StopCondition もブロックする" do
+      LedgerV2::StopCondition.create!(
+        target_type: "all",
+        reason: "全停止中", severity: "critical", created_by: "admin"
+      )
+
+      run = described_class.call(:stub_runner)
+
+      expect(run.status_blocked?).to be true
+    end
+  end
+
   describe "RunnerResult" do
     it "カウンタのデフォルトは 0 になる" do
       result = LedgerV2::RunExecutor::RunnerResult.new
