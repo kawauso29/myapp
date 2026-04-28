@@ -41,7 +41,7 @@
 | 状態 | freeze（参照のみ） | 構築中 |
 | コード namespace | `app/models/`, `app/services/Ledgers/` 等の既存配置 | `app/{models,services,jobs}/ledger_v2/` |
 | 自動実行 | 段階的に停止予定（別 PR） | dry_run から開始 |
-| AutoMerge | 既存（v2 範囲外） | **禁止**（v2 初期では永久に） |
+| AutoMerge | 既存（v2 範囲外） | **機構安定まで一時停止**（安定後は自動マージ・自動デプロイへ移行） |
 | 移植方針 | コードは持ち込まない | 仕様・知見・ドメイン概念のみ持ち込む |
 
 ## 引き継ぎプロトコル（別 PR / 別セッションで再開する手順）
