@@ -69,15 +69,23 @@ module LedgerV2
         return "## 今週の異常\n\n（直近 7 日間の MetricSnapshot なし）"
       end
 
-      lines = ["## 今週の異常\n"]
-      grouped = daily_snaps.group_by(&:metric_name)
-      grouped.each do |metric_name, snaps|
-        values = snaps.filter_map(&:value)
-        next if values.empty?
+      # metric_name ごとに最新のスナップショットだけを異常検知にかける
+      latest_per_metric = daily_snaps
+        .group_by(&:metric_name)
+        .transform_values { |snaps| snaps.max_by(&:measured_at) }
+        .values
+      anomalies = DetectMetricAnomalies.call(snapshots: latest_per_metric)
 
-        latest = values.last
-        avg    = values.sum.to_f / values.size
-        lines << "- **#{metric_name}**: 最新値 #{latest}、直近#{values.size}日平均 #{avg.round(2)}"
+      if anomalies.empty?
+        return "## 今週の異常\n\n（今週の期間内に異常なし）"
+      end
+
+      grouped = daily_snaps.group_by(&:metric_name)
+      lines   = ["## 今週の異常\n"]
+      anomalies.each do |anomaly|
+        values = grouped.fetch(anomaly.metric_name, []).filter_map(&:value)
+        avg    = values.empty? ? 0 : (values.sum.to_f / values.size).round(2)
+        lines << "- **#{anomaly.title}**（severity: #{anomaly.severity}）\n  #{anomaly.description}、直近#{values.size}日平均: #{avg}"
       end
       lines.join("\n")
     end
