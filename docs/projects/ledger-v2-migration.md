@@ -149,27 +149,27 @@
   - `app/services/ledger_v2/calculate_health_snapshot.rb`（各指標の集計ロジック / dry_run 対応）
   - spec（health_snapshot_spec + calculate_health_snapshot_spec）: 25 examples, 0 failures ✅
 - [x] **Ticket 17**: AI SNS readonly metrics collector（v2 が AI SNS を観測対象に取り込む最初の接続）
-- [ ] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
+- [x] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
 
 ## 最小完成条件（v2 MVP 受入基準）
 
 設計書の「最小完成条件」15 項目に一致。Ticket 18 完了時にこれを総点検する。
 
-- [ ] 1. DailyRunner が RunExecutor 経由で動く
-- [ ] 2. WeeklyRunner が RunExecutor 経由で動く
-- [ ] 3. Run が記録される
-- [ ] 4. Event が記録される
-- [ ] 5. MetricSnapshot が保存される
-- [ ] 6. 異常検知ができる
-- [ ] 7. Ticket が作られる
-- [ ] 8. canonical_key で重複 Ticket が防がれる
-- [ ] 9. Artifact draft が作られる
-- [ ] 10. Artifact が人間レビュー待ちになる
-- [ ] 11. StopCondition で Runner を止められる
-- [ ] 12. dry_run ができる
-- [ ] 13. Admin UI で状態が見える
-- [ ] 14. HealthSnapshot で価値を測れる
-- [ ] 15. v1 と同時に副作用を起こさない
+- [x] 1. DailyRunner が RunExecutor 経由で動く
+- [x] 2. WeeklyRunner が RunExecutor 経由で動く
+- [x] 3. Run が記録される
+- [x] 4. Event が記録される
+- [x] 5. MetricSnapshot が保存される
+- [x] 6. 異常検知ができる
+- [x] 7. Ticket が作られる
+- [x] 8. canonical_key で重複 Ticket が防がれる
+- [x] 9. Artifact draft が作られる
+- [x] 10. Artifact が人間レビュー待ちになる
+- [x] 11. StopCondition で Runner を止められる
+- [x] 12. dry_run ができる
+- [x] 13. Admin UI で状態が見える
+- [x] 14. HealthSnapshot で価値を測れる
+- [x] 15. v1 と同時に副作用を起こさない
 
 ## v2 初期で作らないもの（明示的禁止）
 
@@ -223,12 +223,19 @@ PR で持ち込まれた場合は **却下する**。
 
 | `copilot/v2-next-ticket` | `LedgerV2::CollectAiSnsMetrics` サービス作成 + DailyRunner をリファクタして CollectAiSnsMetrics に委譲 + `artifact_pending_count` を Artifact モデルから実取得 + spec（14 examples, 0 failures）| Ticket 17 ✅ | レビュー中 |
 
+| `copilot/v2-ticket-18` | `spec/features/ledger_v2/minimal_ops_simulation_spec.rb` — 7日間シミュレーション + MVP 15条件 総点検 (30 examples, 0 failures) | Ticket 18 ✅ | レビュー中 |
+
 ## 次の一手
 
-1. **Ticket 18** に着手する（7 日間の最小運用テスト — dry_run）
-   - ブランチ: `copilot/ledger-v2-ticket-18-dry-run-test`
-   - DailyRunner / WeeklyRunner を dry_run=true で 7 日間相当のデータで通す検証
-   - 最小完成条件 1〜15 の総点検
+**Ticket 18 完了 ＝ v2 MVP 受入基準 15項目 すべて pass。**
+
+次のステップは以下の 2 つ（人間が判断する）:
+
+1. **本番 FeatureFlag を人間が有効化**し、実際の 7〜14 日間の運用観察を行う
+   - `config/initializers/ledger_v2.rb` の `daily_runner: false` → `true`, `weekly_runner: false` → `true`
+   - SolidQueue の recurring.yml に DailyRunnerJob / WeeklyRunnerJob を追加
+   - HealthSnapshot / Admin UI で KPI を観察する
+2. **Monthly 以上・その他の拡張** は v2 Kernel が安定してから別 PR で着手する
 
 ## 参考
 
