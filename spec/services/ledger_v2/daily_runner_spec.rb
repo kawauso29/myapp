@@ -7,21 +7,30 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
     described_class.call(run: run, dry_run: dry_run)
   end
 
-  # テスト高速化: DB アクセスが多い KPI 計算メソッドをスタブ
-  # AI-SNS 指標は CollectAiSnsMetrics に委譲されているためそちらをスタブする
-  # - ai_sns_posts_count: 閾値 5 以上が必要 → 10 を返す
-  # - ai_sns_dm_count:    閾値 1 以上が必要 → 5 を返す
-  # DB に保存して MetricSnapshot カウントテストと冪等テストが通るようにする
-  before do
-    allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, period: :daily, since_at: Time.current.beginning_of_day, **|
-      ai_sns_values = { "ai_sns_posts_count" => 10, "ai_sns_dm_count" => 5, "ai_sns_reaction_count" => 0 }
+  # AI-SNS 指標の CollectAiSnsMetrics スタブ: DB に保存して MetricSnapshot カウントテストと冪等テストが通るようにする。
+  # posts_count のデフォルト値 10 は DetectMetricAnomalies の閾値 5 以上（正常範囲）。
+  def stub_collect_ai_sns_metrics(posts_count: 10, dm_count: 5, reaction_count: 0)
+    ai_sns_values = {
+      "ai_sns_posts_count"    => posts_count,
+      "ai_sns_dm_count"       => dm_count,
+      "ai_sns_reaction_count" => reaction_count
+    }
+    allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, **kwargs|
+      ts = kwargs.fetch(:since_at, Time.current.beginning_of_day)
+      period = kwargs.fetch(:period, :daily)
       ai_sns_values.map do |metric_name, value|
         LedgerV2::MetricSnapshot.find_or_create_by!(
           metric_name: metric_name, period: period,
-          measured_at: since_at, source_type: nil, source_id: nil
+          measured_at: ts, source_type: nil, source_id: nil
         ) { |s| s.value = value; s.created_by_run = run }
       end
     end
+  end
+
+  # テスト高速化: DB アクセスが多い KPI 計算メソッドをスタブ
+  # AI-SNS 指標は CollectAiSnsMetrics に委譲されているためそちらをスタブする
+  before do
+    stub_collect_ai_sns_metrics
     allow_any_instance_of(described_class).to receive(:error_count).and_return(0)
     allow_any_instance_of(described_class).to receive(:ci_success_rate).and_return(1.0)
     allow_any_instance_of(described_class).to receive(:open_ticket_count).and_return(0)
@@ -50,17 +59,7 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
     end
 
     context "投稿数が閾値未満の場合（異常あり）" do
-      before do
-        allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, period: :daily, since_at: Time.current.beginning_of_day, **|
-          ai_sns_values = { "ai_sns_posts_count" => 1, "ai_sns_dm_count" => 5, "ai_sns_reaction_count" => 0 }
-          ai_sns_values.map do |metric_name, value|
-            LedgerV2::MetricSnapshot.find_or_create_by!(
-              metric_name: metric_name, period: period,
-              measured_at: since_at, source_type: nil, source_id: nil
-            ) { |s| s.value = value; s.created_by_run = run }
-          end
-        end
-      end
+      before { stub_collect_ai_sns_metrics(posts_count: 1) }
 
       it "Ticket が 1 件作成される" do
         expect { call_runner }.to change(LedgerV2::Ticket, :count).by(1)
@@ -86,15 +85,7 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
 
     context "複数の KPI が閾値を超えた場合" do
       before do
-        allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, period: :daily, since_at: Time.current.beginning_of_day, **|
-          ai_sns_values = { "ai_sns_posts_count" => 1, "ai_sns_dm_count" => 5, "ai_sns_reaction_count" => 0 }
-          ai_sns_values.map do |metric_name, value|
-            LedgerV2::MetricSnapshot.find_or_create_by!(
-              metric_name: metric_name, period: period,
-              measured_at: since_at, source_type: nil, source_id: nil
-            ) { |s| s.value = value; s.created_by_run = run }
-          end
-        end
+        stub_collect_ai_sns_metrics(posts_count: 1)
         allow_any_instance_of(described_class).to receive(:error_count).and_return(99)
       end
 
@@ -109,17 +100,7 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
     end
 
     context "同じ日に 2 回実行した場合（重複防止）" do
-      before do
-        allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, period: :daily, since_at: Time.current.beginning_of_day, **|
-          ai_sns_values = { "ai_sns_posts_count" => 1, "ai_sns_dm_count" => 5, "ai_sns_reaction_count" => 0 }
-          ai_sns_values.map do |metric_name, value|
-            LedgerV2::MetricSnapshot.find_or_create_by!(
-              metric_name: metric_name, period: period,
-              measured_at: since_at, source_type: nil, source_id: nil
-            ) { |s| s.value = value; s.created_by_run = run }
-          end
-        end
-      end
+      before { stub_collect_ai_sns_metrics(posts_count: 1) }
 
       it "2 回目の Ticket は作成されない" do
         call_runner  # 1 回目
@@ -138,17 +119,7 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
     end
 
     context "dry_run: true の場合" do
-      before do
-        allow(LedgerV2::CollectAiSnsMetrics).to receive(:call) do |run:, period: :daily, since_at: Time.current.beginning_of_day, **|
-          ai_sns_values = { "ai_sns_posts_count" => 1, "ai_sns_dm_count" => 5, "ai_sns_reaction_count" => 0 }
-          ai_sns_values.map do |metric_name, value|
-            LedgerV2::MetricSnapshot.find_or_create_by!(
-              metric_name: metric_name, period: period,
-              measured_at: since_at, source_type: nil, source_id: nil
-            ) { |s| s.value = value; s.created_by_run = run }
-          end
-        end
-      end
+      before { stub_collect_ai_sns_metrics(posts_count: 1) }
 
       it "Ticket を作成しない" do
         expect { call_runner(dry_run: true) }.not_to change(LedgerV2::Ticket, :count)
