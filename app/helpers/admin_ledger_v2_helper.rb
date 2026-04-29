@@ -21,4 +21,18 @@ module AdminLedgerV2Helper
     else "color:#a0aec0;"
     end
   end
+
+  # Artifact review_status に応じたインラインスタイルを返す。
+  def artifact_review_status_style(status)
+    case status.to_s
+    when "published"       then "color:#68d391; font-weight:600;"
+    when "accepted"        then "color:#48bb78;"
+    when "pending"         then "color:#63b3ed;"
+    when "draft"           then "color:#718096;"
+    when "review_rejected" then "color:#fc8181; font-weight:600;"
+    when "review_deferred" then "color:#f6ad55;"
+    when "needs_more_info" then "color:#ed8936;"
+    else "color:#a0aec0;"
+    end
+  end
 end
