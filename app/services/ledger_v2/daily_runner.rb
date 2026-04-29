@@ -14,13 +14,13 @@
 # - AI 人格・記憶を変えない
 #
 # 初期対象 KPI（daily 粒度、measured_at = 呼び出し時刻の日初め）:
-#   - ai_sns_posts_count     … 当日の AI-SNS 投稿数
-#   - ai_sns_dm_count        … 当日の AI-SNS DM スレッド数
-#   - ai_sns_reaction_count  … 当日の AI-SNS いいね数
+#   - ai_sns_posts_count     … 当日の AI-SNS 投稿数（CollectAiSnsMetrics 経由）
+#   - ai_sns_dm_count        … 当日の AI-SNS DM スレッド数（CollectAiSnsMetrics 経由）
+#   - ai_sns_reaction_count  … 当日の AI-SNS いいね数（CollectAiSnsMetrics 経由）
 #   - error_count            … SolidQueue FailedExecution 件数
 #   - ci_success_rate        … 直近 7 日の CI 成功率（未取得時は 1.0 固定）
 #   - open_ticket_count      … LedgerV2::Ticket の open 件数
-#   - artifact_pending_count … LedgerV2::Artifact の pending 件数（v2 初期は 0 固定）
+#   - artifact_pending_count … LedgerV2::Artifact の draft/pending 件数
 #
 # 設計の正本: ledger_v2_detailed_design.txt §「LedgerV2::DailyRunner」
 module LedgerV2
@@ -77,19 +77,19 @@ module LedgerV2
     private
 
     # 各 KPI のスナップショットを集める。
+    # AI-SNS 指標は CollectAiSnsMetrics に委譲する。
     # dry_run でも snapshot は DB に保存する（観測ファクトは残す）。
     # ただし MetricSnapshot 作成自体が失敗しても DailyRunner は落ちない。
     def collect_snapshots
       today_start = Time.current.beginning_of_day
 
-      [
-        snapshot_for("ai_sns_posts_count",    ai_sns_posts_count(today_start),    today_start),
-        snapshot_for("ai_sns_dm_count",       ai_sns_dm_count(today_start),       today_start),
-        snapshot_for("ai_sns_reaction_count", ai_sns_reaction_count(today_start), today_start),
-        snapshot_for("error_count",           error_count,                        today_start),
-        snapshot_for("ci_success_rate",       ci_success_rate,                    today_start),
-        snapshot_for("open_ticket_count",     open_ticket_count,                  today_start),
-        snapshot_for("artifact_pending_count", artifact_pending_count,            today_start)
+      ai_sns_snapshots = CollectAiSnsMetrics.call(run: @run, period: :daily, since_at: today_start)
+
+      ai_sns_snapshots + [
+        snapshot_for("error_count",           error_count,           today_start),
+        snapshot_for("ci_success_rate",       ci_success_rate,       today_start),
+        snapshot_for("open_ticket_count",     open_ticket_count,     today_start),
+        snapshot_for("artifact_pending_count", artifact_pending_count, today_start)
       ]
     end
 
@@ -102,8 +102,8 @@ module LedgerV2
         source_type: nil,
         source_id:   nil
       ) do |snap|
-        snap.value            = value
-        snap.created_by_run   = @run
+        snap.value          = value
+        snap.created_by_run = @run
       end
     rescue => e
       # Snapshot 作成失敗でも Runner を止めない。
@@ -112,28 +112,7 @@ module LedgerV2
       MetricSnapshot.new(metric_name: metric_name, value: value, period: :daily, measured_at: measured_at)
     end
 
-    # ---- KPI 計算 ----
-
-    def ai_sns_posts_count(today_start)
-      AiPost.where("created_at >= ?", today_start).count
-    rescue => e
-      Rails.logger.warn("[LedgerV2::DailyRunner] ai_sns_posts_count: #{e.message}")
-      0
-    end
-
-    def ai_sns_dm_count(today_start)
-      AiDmThread.where("created_at >= ?", today_start).count
-    rescue => e
-      Rails.logger.warn("[LedgerV2::DailyRunner] ai_sns_dm_count: #{e.message}")
-      0
-    end
-
-    def ai_sns_reaction_count(today_start)
-      AiPostLike.where("created_at >= ?", today_start).count
-    rescue => e
-      Rails.logger.warn("[LedgerV2::DailyRunner] ai_sns_reaction_count: #{e.message}")
-      0
-    end
+    # ---- KPI 計算（AI-SNS 以外） ----
 
     def error_count
       SolidQueue::FailedExecution.count
@@ -154,8 +133,10 @@ module LedgerV2
       0
     end
 
-    # v2 初期は Artifact モデル未実装のため 0 固定。
     def artifact_pending_count
+      Artifact.awaiting_review.count
+    rescue => e
+      Rails.logger.warn("[LedgerV2::DailyRunner] artifact_pending_count: #{e.message}")
       0
     end
   end
