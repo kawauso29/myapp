@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_120001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_29_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -694,6 +694,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_120001) do
     t.index ["run_id"], name: "index_ledger_v2_events_on_run_id"
     t.index ["source_type", "source_id"], name: "index_ledger_v2_events_on_source_type_and_source_id"
     t.index ["subject_type", "subject_id"], name: "index_ledger_v2_events_on_subject_type_and_subject_id"
+  end
+
+  create_table "ledger_v2_health_snapshots", force: :cascade do |t|
+    t.float "artifact_acceptance_rate", default: 0.0, null: false
+    t.datetime "created_at", null: false
+    t.integer "duplicate_prevented_count", default: 0, null: false
+    t.float "human_intervention_rate", default: 0.0, null: false
+    t.float "kpi_improvement_after_ticket_rate", default: 0.0, null: false
+    t.datetime "measured_at", null: false
+    t.jsonb "metadata_json"
+    t.integer "open_ticket_count", default: 0, null: false
+    t.integer "pending_review_count", default: 0, null: false
+    t.integer "period", default: 0, null: false
+    t.float "runner_failure_rate", default: 0.0, null: false
+    t.integer "stop_trigger_count", default: 0, null: false
+    t.float "ticket_noise_rate", default: 0.0, null: false
+    t.float "unresolved_ticket_age_avg", default: 0.0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["period", "measured_at"], name: "idx_ledger_v2_health_snapshots_period_measured_at", unique: true
   end
 
   create_table "ledger_v2_metric_snapshots", force: :cascade do |t|

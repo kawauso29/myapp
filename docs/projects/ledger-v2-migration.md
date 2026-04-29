@@ -143,7 +143,11 @@
 
 ### 健全性 / 接続フェーズ（Ticket 16〜18）
 
-- [ ] **Ticket 16**: `LedgerV2::HealthSnapshot`
+- [x] **Ticket 16**: `LedgerV2::HealthSnapshot`
+  - `db/migrate/20260429000000_create_ledger_v2_health_snapshots.rb`
+  - `app/models/ledger_v2/health_snapshot.rb`（enum / validation / scope）
+  - `app/services/ledger_v2/calculate_health_snapshot.rb`（各指標の集計ロジック / dry_run 対応）
+  - spec（health_snapshot_spec + calculate_health_snapshot_spec）: 25 examples, 0 failures ✅
 - [ ] **Ticket 17**: AI SNS readonly metrics collector（v2 が AI SNS を観測対象に取り込む最初の接続）
 - [ ] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
 
@@ -215,14 +219,13 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/add-tests-for-ledger-v2` | `ledger_v2_metric_snapshots` migration + `LedgerV2::MetricSnapshot` + spec | Ticket 8 ✅ | レビュー中 |
 | `copilot/12-leder-ticket-progress` | `LedgerV2::WeeklyRunner` + `LedgerV2::BuildWeeklyArtifact` + `LedgerV2::WeeklyRunnerJob` + spec | Ticket 12 ✅ | マージ済み |
 | `copilot/12-leder-ticket-progress` | `/admin/ledger_v2` Dashboard controller + view + helper + routing + spec | Ticket 13 ✅ | レビュー中 |
-| `copilot/ticket-15-progress` | `/admin/ledger_v2/artifacts` ArtifactsController + view + routes + helper + spec | Ticket 15 ✅ | レビュー中 |
+| `copilot/ledger-v2-ticket-16-health-snapshot` | `ledger_v2_health_snapshots` migration + `LedgerV2::HealthSnapshot` + `LedgerV2::CalculateHealthSnapshot` + spec | Ticket 16 ✅ | レビュー中 |
 
 ## 次の一手
 
-1. **Ticket 16** に着手する（`LedgerV2::HealthSnapshot` — v2 Kernel の価値測定層）
-   - ブランチ: `copilot/ledger-v2-ticket-16-health-snapshot`
-   - `ledger_v2_health_snapshots` migration + `LedgerV2::HealthSnapshot` モデル
-   - `LedgerV2::BuildHealthSnapshot` サービス（採用率・重複抑止率・Artifact 使用率等）
+1. **Ticket 17** に着手する（AI SNS readonly metrics collector — v2 が AI SNS を観測対象に取り込む最初の接続）
+   - ブランチ: `copilot/ledger-v2-ticket-17-ai-sns-collector`
+   - AI SNS の投稿数・DM数・反応数等を readonly で取得して `LedgerV2::MetricSnapshot` に保存するサービス
    - spec
 
 ## 参考
