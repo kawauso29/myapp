@@ -228,14 +228,17 @@ PR で持ち込まれた場合は **却下する**。
 ## 次の一手
 
 **Ticket 18 完了 ＝ v2 MVP 受入基準 15項目 すべて pass。**
+**2026-04-30: FeatureFlag 有効化・recurring.yml 追加 完了。本番稼働中。**
 
-次のステップは以下の 2 つ（人間が判断する）:
+現在の状態:
+- `config/initializers/ledger_v2.rb`: 全フラグ `true`（本番有効）
+- `config/recurring.yml`: `ledger_v2_daily_runner`（30分毎）/ `ledger_v2_weekly_runner`（4時間毎）追加済み
+- Admin UI `/admin/ledger_v2` で Run / Ticket / Artifact / HealthSnapshot を観察できる
 
-1. **本番 FeatureFlag を人間が有効化**し、実際の 7〜14 日間の運用観察を行う
-   - `config/initializers/ledger_v2.rb` の `daily_runner: false` → `true`, `weekly_runner: false` → `true`
-   - SolidQueue の recurring.yml に DailyRunnerJob / WeeklyRunnerJob を追加
-   - HealthSnapshot / Admin UI で KPI を観察する
-2. **Monthly 以上・その他の拡張** は v2 Kernel が安定してから別 PR で着手する
+次のステップ（7〜14日間の観察後に人間が判断）:
+1. `/admin/ledger_v2` で Run 記録・Ticket 作成・HealthSnapshot が蓄積しているか確認
+2. StopCondition が不意に発火しないか観察する
+3. Monthly 以上・その他の拡張は v2 Kernel が安定してから別 PR で着手する
 
 ## 参考
 

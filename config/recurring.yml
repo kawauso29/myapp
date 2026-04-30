@@ -284,3 +284,19 @@ production:
     class: RoutingHealthCheckJob
     queue: default
     schedule: "*/10 * * * *"
+
+  # ===== LedgerV2 =====
+  # 圧縮時間軸: daily=30分, weekly=4時間
+  # Flags が true のときのみ RunExecutor 内で実行される（false なら即 skip）
+
+  # 30分ごと: LedgerV2 DailyRunner（KPI スナップショット + 異常検知）
+  ledger_v2_daily_runner:
+    class: LedgerV2::DailyRunnerJob
+    queue: default
+    schedule: "*/30 * * * *"
+
+  # 4時間ごと: LedgerV2 WeeklyRunner（週次 Artifact 生成・Ticket キャリーオーバー）
+  ledger_v2_weekly_runner:
+    class: LedgerV2::WeeklyRunnerJob
+    queue: default
+    schedule: "0 */4 * * *"

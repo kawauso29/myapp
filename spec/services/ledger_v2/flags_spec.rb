@@ -48,10 +48,19 @@ RSpec.describe LedgerV2::Flags do
       end
     end
 
-    it "デフォルト設定では全フラグが false になっている（保守的初期値）" do
-      described_class::ALL_FLAGS.each do |flag|
+    it "v2 初期で禁止されているフラグ（monthly 以上・auto 系）は false のまま" do
+      prohibited_flags = %i[monthly_runner quarterly_runner annual_runner auto_pr auto_merge]
+      prohibited_flags.each do |flag|
         expect(described_class.all[flag]).to be(false),
-          "#{flag} のデフォルト値は false であるべき"
+          "#{flag} は v2 初期禁止フラグなので false であるべき"
+      end
+    end
+
+    it "v2 MVP 運用フラグ（daily / weekly / health_snapshot 等）は有効化済み" do
+      operational_flags = %i[daily_runner weekly_runner health_snapshot ticket_creation artifact_generation]
+      operational_flags.each do |flag|
+        expect(described_class.all[flag]).to be(true),
+          "#{flag} は Ticket 1〜18 完了後に有効化されているべき"
       end
     end
   end
