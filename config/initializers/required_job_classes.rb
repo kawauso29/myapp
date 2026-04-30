@@ -49,6 +49,8 @@ Rails.application.reloader.to_prepare do
     RoutingHealthCheckJob
     HeartbeatSchedulerJob
     UiCheckLedgerRunJob
+    LedgerV2::DailyRunnerJob
+    LedgerV2::WeeklyRunnerJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e
