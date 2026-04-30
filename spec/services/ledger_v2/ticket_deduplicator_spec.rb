@@ -126,5 +126,64 @@ RSpec.describe LedgerV2::TicketDeduplicator, type: :service do
         expect(result.duplicate?).to be false
       end
     end
+
+    context "Level 3: metric_name + anomaly_type 一致（source なしの跨日重複抑止）" do
+      it "source_type/source_id が nil でも同じ metric_name + anomaly_type の active Ticket があれば duplicate? true" do
+        LedgerV2::Ticket.create!(
+          canonical_key: "ledger_v2:ai_sns_dm_count:below_minimum:daily:2026-04-30",
+          title:         "AI-SNS DM 数が極端に低下しています",
+          status:        :open,
+          metric_name:   "ai_sns_dm_count",
+          anomaly_type:  "below_minimum"
+        )
+
+        result = described_class.call(
+          canonical_key: "ledger_v2:ai_sns_dm_count:below_minimum:daily:2026-05-01",
+          metric_name:   "ai_sns_dm_count",
+          anomaly_type:  "below_minimum"
+        )
+
+        expect(result.duplicate?).to be true
+        expect(result.duplicate_level).to eq(3)
+        expect(result.reason).to be_present
+        expect(result.existing_ticket).to be_a(LedgerV2::Ticket)
+      end
+
+      it "resolved 状態のチケットしかない場合は跨日重複抑止されない（再起票可能）" do
+        LedgerV2::Ticket.create!(
+          canonical_key: "ledger_v2:ai_sns_dm_count:below_minimum:daily:2026-04-30",
+          title:         "AI-SNS DM 数が極端に低下しています",
+          status:        :resolved,
+          metric_name:   "ai_sns_dm_count",
+          anomaly_type:  "below_minimum"
+        )
+
+        result = described_class.call(
+          canonical_key: "ledger_v2:ai_sns_dm_count:below_minimum:daily:2026-05-01",
+          metric_name:   "ai_sns_dm_count",
+          anomaly_type:  "below_minimum"
+        )
+
+        expect(result.duplicate?).to be false
+      end
+
+      it "anomaly_type が異なれば別の問題として扱う" do
+        LedgerV2::Ticket.create!(
+          canonical_key: "ledger_v2:error_count:exceeded_threshold:daily:2026-04-30",
+          title:         "エラー件数が閾値を超えています",
+          status:        :open,
+          metric_name:   "error_count",
+          anomaly_type:  "exceeded_threshold"
+        )
+
+        result = described_class.call(
+          canonical_key: "ledger_v2:ai_sns_dm_count:below_minimum:daily:2026-05-01",
+          metric_name:   "ai_sns_dm_count",
+          anomaly_type:  "below_minimum"
+        )
+
+        expect(result.duplicate?).to be false
+      end
+    end
   end
 end
