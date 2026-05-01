@@ -151,6 +151,41 @@
 - [x] **Ticket 17**: AI SNS readonly metrics collector（v2 が AI SNS を観測対象に取り込む最初の接続）
 - [x] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
 
+## v2 卒業基準（Layer C 接続を許可する 7 つの数値ライン）
+
+> **目的**: 「いつ v2 を卒業して Monthly/Quarterly Runner や HR / OrgChange / Trading 連携など Layer C を接続してよいか」を、人間の感覚ではなく **客観的なしきい値** で判定する。
+> 全 7 基準が満たされた時点で、Layer C 接続の人間レビューを開始してよい。
+>
+> **正本コード**: `app/services/ledger_v2/graduation_check.rb` の `CRITERIA` 定数。
+> **可視化**: `/admin/ledger_v2` Dashboard 上部の「v2 卒業判定」パネル。
+
+| # | 基準 | 演算子 | しきい値 | 出典指標 |
+|---|---|---|---|---|
+| 1 | Ticket ノイズ率（rejected/duplicate 比率） | `<=` | **0.30** | `HealthSnapshot#ticket_noise_rate` |
+| 2 | Artifact 採用率 | `>=` | **0.50** | `HealthSnapshot#artifact_acceptance_rate` |
+| 3 | Runner 失敗率 | `<=` | **0.10** | `HealthSnapshot#runner_failure_rate` |
+| 4 | 現在 active な StopCondition | `==` | **0** | `LedgerV2::StopCondition.active_conditions.count` |
+| 5 | 重複防止が一度でも作動した実績 | `>=` | **1** | `LedgerV2::Run.sum(:duplicate_prevented_count)` |
+| 6 | HealthSnapshot の観測日数 | `>=` | **7** | `HealthSnapshot.distinct.count("DATE(measured_at)")` |
+| 7 | レビュー待ち件数（詰まり防止） | `<=` | **20** | `HealthSnapshot#pending_review_count` |
+
+### しきい値の根拠（なぜこの数字か）
+
+- **#1 ノイズ率 0.30**: 設計書「最終結論」§成功 7 基準。3 件中 1 件以上が無価値なら自動起票自体を見直す必要がある。
+- **#2 採用率 0.50**: Artifact レビューで半数以上が採用されないと「人間がレビューする価値がない」状態。Layer C で増える Artifact 量に耐えられない。
+- **#3 失敗率 0.10**: Runner が 10% 失敗するなら CircuitBreaker が機能していても上位 Runner を載せられない。
+- **#4 active StopCondition 0**: 何かが止まっている状態で次の機能を載せない（運用ルール §11）。
+- **#5 重複防止 ≥ 1**: `canonical_key` 重複抑止が一度も作動していない＝ 機構が「使われていない」ことを除外する。
+- **#6 観測日数 ≥ 7**: 設計書 Ticket 18「7 日間の最小運用テスト」と一致。1 週間未満のサンプルでは判断材料が足りない。
+- **#7 pending ≤ 20**: レビュー待ちが 20 件超 = 人間ボトルネック。Layer C を載せる前に運用フローを見直す必要がある。
+
+### 運用ルール
+
+- しきい値の変更は **本ドキュメント + `CRITERIA` 定数 + spec の 3 か所同時修正** が必須（PR レビュー必須）。
+- `all_pass?` が true でも自動的に Layer C を起動しない（運用ルール §10「自動マージ禁止」）。
+  人間が Dashboard を見て、別 PR で次の Ticket を切る。
+- false の基準が長期間（例: 14 日以上）改善しない場合、しきい値ではなく **設計** を見直す（v1 と同じ轍を踏まない）。
+
 ## 最小完成条件（v2 MVP 受入基準）
 
 設計書の「最小完成条件」15 項目に一致。Ticket 18 完了時にこれを総点検する。
@@ -236,9 +271,9 @@ PR で持ち込まれた場合は **却下する**。
 - Admin UI `/admin/ledger_v2` で Run / Ticket / Artifact / HealthSnapshot を観察できる
 
 次のステップ（7〜14日間の観察後に人間が判断）:
-1. `/admin/ledger_v2` で Run 記録・Ticket 作成・HealthSnapshot が蓄積しているか確認
+1. `/admin/ledger_v2` Dashboard 上部の **「v2 卒業判定」パネル** を毎日確認する（7 基準が全て ✅ になったら卒業）
 2. StopCondition が不意に発火しないか観察する
-3. Monthly 以上・その他の拡張は v2 Kernel が安定してから別 PR で着手する
+3. Monthly 以上・その他の拡張は **`GraduationCheck.all_pass?` が true** になってから別 PR で着手する
 
 ## 参考
 

@@ -20,6 +20,49 @@
   </div>
 <% end %>
 
+<%# ===== v2 卒業判定（7 基準） ===== %>
+<div class="card" style="margin-bottom:16px; border-color: <%= @graduation_pass ? '#38a169' : '#4a5568' %>;">
+  <h2>
+    v2 卒業判定
+    <% if @graduation_pass %>
+      <span style="color:#68d391;">✅ ALL PASS — Layer C 接続を検討可能</span>
+    <% else %>
+      <span style="color:#f6e05e;">⏳ 観察継続中（未達基準あり）</span>
+    <% end %>
+  </h2>
+  <p style="color:#a0aec0; font-size:12px; margin-top:4px;">
+    しきい値の出典: <code>docs/projects/ledger-v2-migration.md</code> §「v2 卒業基準」
+  </p>
+  <table style="margin-top:8px;">
+    <thead>
+      <tr>
+        <th>基準</th>
+        <th style="text-align:right;">現在値</th>
+        <th style="text-align:center;">判定</th>
+        <th style="text-align:right;">しきい値</th>
+        <th style="text-align:center;">OK</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @graduation_results.each do |r| %>
+        <tr>
+          <td><%= r.label %></td>
+          <td style="text-align:right; font-family:monospace;"><%= r.value %></td>
+          <td style="text-align:center; color:#718096;"><%= r.op %></td>
+          <td style="text-align:right; font-family:monospace;"><%= r.threshold %></td>
+          <td style="text-align:center;">
+            <% if r.ok? %>
+              <span style="color:#68d391;">✅</span>
+            <% else %>
+              <span style="color:#fc8181;">❌</span>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
 <%# ===== 統計グリッド ===== %>
 <div class="stats-grid" style="margin-bottom:16px;">
   <div class="stat blue">
