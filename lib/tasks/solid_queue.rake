@@ -51,6 +51,7 @@ namespace :solid_queue do
     UiCheckLedgerRunJob
     LedgerV2::DailyRunnerJob
     LedgerV2::WeeklyRunnerJob
+    LedgerV2::CalculateHealthSnapshotJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

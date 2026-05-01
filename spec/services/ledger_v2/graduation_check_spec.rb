@@ -45,7 +45,8 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
         started_at:                1.hour.ago,
         duplicate_prevented_count: 2
       )
-      # 観測日数を 7 日以上にする（現在の snapshot を含めて 7 件・別日付）
+      # snapshot 件数を 7 件以上にする（criterion #6: HealthSnapshot.count >= 7）
+      # 日付は無関係だが unique(period, measured_at) 制約があるので別 measured_at で作る
       6.times do |i|
         LedgerV2::HealthSnapshot.create!(
           period:                            :daily,

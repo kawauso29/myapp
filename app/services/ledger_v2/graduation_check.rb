@@ -26,7 +26,7 @@ module LedgerV2
       { key: :runner_failure_rate,           label: "Runner 失敗率",                                op: :<=, threshold: 0.10 },
       { key: :stop_trigger_count_active,     label: "現在 active な StopCondition",                op: :==, threshold: 0    },
       { key: :duplicate_prevented_total,     label: "重複防止が一度でも作動した実績",              op: :>=, threshold: 1    },
-      { key: :health_snapshot_days,          label: "HealthSnapshot の観測日数",                   op: :>=, threshold: 7    },
+      { key: :health_snapshot_count,         label: "HealthSnapshot 件数（圧縮日 = 30分毎）",      op: :>=, threshold: 7    },
       { key: :pending_review_count,          label: "レビュー待ち件数（詰まり防止）",              op: :<=, threshold: 20   }
     ].freeze
 
@@ -72,7 +72,7 @@ module LedgerV2
         runner_failure_rate:      snapshot&.runner_failure_rate      || 0.0,
         stop_trigger_count_active: LedgerV2::StopCondition.active_conditions.count,
         duplicate_prevented_total: LedgerV2::Run.sum(:duplicate_prevented_count).to_i,
-        health_snapshot_days:      LedgerV2::HealthSnapshot.distinct.count("DATE(measured_at)"),
+        health_snapshot_count:     LedgerV2::HealthSnapshot.count,
         pending_review_count:      snapshot&.pending_review_count    || LedgerV2::Artifact.awaiting_review.count
       }
     end

@@ -300,3 +300,10 @@ production:
     class: LedgerV2::WeeklyRunnerJob
     queue: default
     schedule: "0 */4 * * *"
+
+  # 30分ごと: LedgerV2 HealthSnapshot（卒業判定の観測。圧縮時間軸 daily=30分 と整合）
+  # 1 snapshot = 1 圧縮日。GraduationCheck の基準 #6（snapshot >= 7）は 30分 × 7 = 3.5時間で達成可能。
+  ledger_v2_health_snapshot:
+    class: LedgerV2::CalculateHealthSnapshotJob
+    queue: default
+    schedule: "*/30 * * * *"

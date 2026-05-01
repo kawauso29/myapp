@@ -166,7 +166,7 @@
 | 3 | Runner 失敗率 | `<=` | **0.10** | `HealthSnapshot#runner_failure_rate` |
 | 4 | 現在 active な StopCondition | `==` | **0** | `LedgerV2::StopCondition.active_conditions.count` |
 | 5 | 重複防止が一度でも作動した実績 | `>=` | **1** | `LedgerV2::Run.sum(:duplicate_prevented_count)` |
-| 6 | HealthSnapshot の観測日数 | `>=` | **7** | `HealthSnapshot.distinct.count("DATE(measured_at)")` |
+| 6 | HealthSnapshot 件数（圧縮日 = 30 分毎） | `>=` | **7** | `LedgerV2::HealthSnapshot.count` |
 | 7 | レビュー待ち件数（詰まり防止） | `<=` | **20** | `HealthSnapshot#pending_review_count` |
 
 ### しきい値の根拠（なぜこの数字か）
@@ -176,7 +176,7 @@
 - **#3 失敗率 0.10**: Runner が 10% 失敗するなら CircuitBreaker が機能していても上位 Runner を載せられない。
 - **#4 active StopCondition 0**: 何かが止まっている状態で次の機能を載せない（運用ルール §11）。
 - **#5 重複防止 ≥ 1**: `canonical_key` 重複抑止が一度も作動していない＝ 機構が「使われていない」ことを除外する。
-- **#6 観測日数 ≥ 7**: 設計書 Ticket 18「7 日間の最小運用テスト」と一致。1 週間未満のサンプルでは判断材料が足りない。
+- **#6 観測 ≥ 7 snapshot**: 設計書 Ticket 18「7 日間の最小運用テスト」を圧縮時間軸に合わせた表現。`config/recurring.yml` で 30 分毎に `LedgerV2::CalculateHealthSnapshotJob` が走るため、**7 snapshot ≒ 3.5 時間**で達成可能。これは Ledger 圧縮時間軸（1 圧縮日 = 30 分、`Ledgers::TimeAxis::INTERVALS`）と整合する。
 - **#7 pending ≤ 20**: レビュー待ちが 20 件超 = 人間ボトルネック。Layer C を載せる前に運用フローを見直す必要がある。
 
 ### 運用ルール
