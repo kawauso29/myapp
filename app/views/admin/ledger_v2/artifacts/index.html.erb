@@ -79,7 +79,10 @@
           <tr>
             <td style="color:#718096;">#<%= artifact.id %></td>
             <td>
-              <div style="font-weight:500;"><%= artifact.title.truncate(60) %></div>
+              <div style="font-weight:500;">
+                <%= link_to artifact.title.truncate(60), admin_ledger_v2_artifact_path(artifact),
+                      style: "color:#e2e8f0; text-decoration:underline; text-decoration-color:#4a5568;" %>
+              </div>
               <% if artifact.body.present? %>
                 <div style="color:#718096; font-size:11px;"><%= artifact.body.truncate(80) %></div>
               <% end %>

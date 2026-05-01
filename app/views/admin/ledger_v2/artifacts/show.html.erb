@@ -1,0 +1,118 @@
+<% content_for :title, "Artifact ##{@artifact.id}" %>
+
+<div class="sub-nav">
+  <a href="<%= admin_ledger_v2_root_path %>">Dashboard</a>
+  <a href="<%= admin_ledger_v2_tickets_path %>">Tickets</a>
+  <a href="<%= admin_ledger_v2_artifacts_path %>" class="current">Artifacts</a>
+</div>
+
+<%# ===== フラッシュ ===== %>
+<% if notice.present? %>
+  <div class="card" style="border-color:#48bb78; background:#1a2e1a; margin-bottom:12px; padding:10px 16px;">
+    <span style="color:#68d391;"><%= notice %></span>
+  </div>
+<% end %>
+<% if alert.present? %>
+  <div class="card" style="border-color:#c53030; background:#2d1515; margin-bottom:12px; padding:10px 16px;">
+    <span style="color:#fc8181;"><%= alert %></span>
+  </div>
+<% end %>
+
+<%# ===== メタ情報 ===== %>
+<div class="card" style="margin-bottom:16px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin-bottom:6px;"><%= @artifact.title %></h2>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <span style="color:#a0aec0; font-size:12px;">Type: <span style="color:#63b3ed;"><%= @artifact.artifact_type %></span></span>
+        <span style="color:#a0aec0; font-size:12px;">Format: <span style="color:#718096;"><%= @artifact.format %></span></span>
+        <span style="color:#a0aec0; font-size:12px;">Status:
+          <span style="<%= artifact_review_status_style(@artifact.review_status) %>"><%= @artifact.review_status %></span>
+        </span>
+        <% if @artifact.run.present? %>
+          <span style="color:#a0aec0; font-size:12px;">Run: <span style="color:#718096;">Run #<%= @artifact.run_id %></span></span>
+        <% end %>
+        <span style="color:#a0aec0; font-size:12px;">作成日: <span style="color:#718096;"><%= @artifact.created_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %></span></span>
+        <% if @artifact.reviewed_by.present? %>
+          <span style="color:#a0aec0; font-size:12px;">レビュー者: <span style="color:#718096;"><%= @artifact.reviewed_by %></span></span>
+        <% end %>
+        <% if @artifact.reviewed_at.present? %>
+          <span style="color:#a0aec0; font-size:12px;">レビュー日: <span style="color:#718096;"><%= @artifact.reviewed_at.in_time_zone("Tokyo").strftime("%Y/%m/%d %H:%M") %></span></span>
+        <% end %>
+      </div>
+      <% if @artifact.review_comment.present? %>
+        <div style="margin-top:8px; color:#f6ad55; font-size:12px;">コメント: <%= @artifact.review_comment %></div>
+      <% end %>
+    </div>
+
+    <%# ===== 操作ボタン群 ===== %>
+    <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
+      <% if %w[draft pending].include?(@artifact.review_status) %>
+        <%= form_with url: admin_ledger_v2_artifact_path(@artifact), method: :patch, local: true, style: "display:inline;" do |f| %>
+          <%= f.hidden_field :review_action, value: "accept" %>
+          <%= f.submit "✓ Accept",
+                style: "background:#276749; color:#68d391; border:none; padding:6px 14px; cursor:pointer; font-size:13px;",
+                data: { confirm: "Artifact ##{@artifact.id} を accept しますか？" } %>
+        <% end %>
+
+        <%= form_with url: admin_ledger_v2_artifact_path(@artifact), method: :patch, local: true, style: "display:inline;" do |f| %>
+          <%= f.hidden_field :review_action, value: "defer" %>
+          <%= f.submit "⏸ Defer",
+                style: "background:#4a3920; color:#f6ad55; border:none; padding:6px 14px; cursor:pointer; font-size:13px;",
+                data: { confirm: "Artifact ##{@artifact.id} を defer しますか？" } %>
+        <% end %>
+
+        <details style="display:inline-block; position:relative;">
+          <summary style="cursor:pointer; color:#fc8181; font-size:13px; padding:6px 14px; background:#2d1515; border:1px solid #c53030; list-style:none;">✗ Reject</summary>
+          <div style="position:absolute; right:0; background:#2d1515; border:1px solid #c53030; padding:12px; z-index:10; min-width:300px; margin-top:4px;">
+            <%= form_with url: admin_ledger_v2_artifact_path(@artifact), method: :patch, local: true do |f| %>
+              <%= f.hidden_field :review_action, value: "reject" %>
+              <div style="margin-bottom:8px;">
+                <label style="color:#a0aec0; font-size:12px; display:block; margin-bottom:4px;">却下理由（任意）</label>
+                <%= f.text_area :review_comment, rows: 3,
+                      style: "width:100%; background:#1a202c; color:#e2e8f0; border:1px solid #4a5568; padding:4px; font-size:12px;" %>
+              </div>
+              <%= f.submit "却下する",
+                    style: "background:#c53030; color:#fff; border:none; padding:5px 14px; cursor:pointer; font-size:13px;" %>
+            <% end %>
+          </div>
+        </details>
+      <% end %>
+
+      <% if @artifact.review_status == "accepted" %>
+        <%= form_with url: admin_ledger_v2_artifact_path(@artifact), method: :patch, local: true, style: "display:inline;" do |f| %>
+          <%= f.hidden_field :review_action, value: "publish" %>
+          <%= f.submit "🚀 Publish",
+                style: "background:#2b4c7e; color:#63b3ed; border:none; padding:6px 14px; cursor:pointer; font-size:13px;",
+                data: { confirm: "Artifact ##{@artifact.id} を publish しますか？" } %>
+        <% end %>
+      <% end %>
+
+      <% if %w[review_rejected review_deferred needs_more_info].include?(@artifact.review_status) %>
+        <%= form_with url: admin_ledger_v2_artifact_path(@artifact), method: :patch, local: true, style: "display:inline;" do |f| %>
+          <%= f.hidden_field :review_action, value: "reopen" %>
+          <%= f.submit "↩ Reopen",
+                style: "background:#2d3748; color:#a0aec0; border:none; padding:6px 14px; cursor:pointer; font-size:13px;",
+                data: { confirm: "Artifact ##{@artifact.id} を reopen しますか？" } %>
+        <% end %>
+      <% end %>
+
+      <%= link_to "← 一覧に戻る", admin_ledger_v2_artifacts_path,
+            style: "color:#718096; font-size:13px; padding:6px 14px; display:inline-block;" %>
+    </div>
+  </div>
+</div>
+
+<%# ===== 本文 ===== %>
+<div class="card">
+  <h3 style="margin-bottom:12px; color:#a0aec0; font-size:14px;">本文（<%= @artifact.format %>）</h3>
+  <% if @artifact.body.present? %>
+    <% if @artifact.format == "markdown" %>
+      <pre style="white-space:pre-wrap; word-break:break-word; color:#e2e8f0; font-family:monospace; font-size:13px; line-height:1.7; background:#1a202c; padding:16px; border-radius:4px; border:1px solid #2d3748; overflow-x:auto;"><%= @artifact.body %></pre>
+    <% else %>
+      <pre style="white-space:pre-wrap; word-break:break-word; color:#e2e8f0; font-family:monospace; font-size:13px; line-height:1.6; background:#1a202c; padding:16px; border-radius:4px; border:1px solid #2d3748; overflow-x:auto;"><%= @artifact.body %></pre>
+    <% end %>
+  <% else %>
+    <p style="color:#718096; font-size:13px;">本文がありません。</p>
+  <% end %>
+</div>

@@ -17,6 +17,10 @@ class Admin::LedgerV2::ArtifactsController < Admin::LedgerV2::BaseController
     @filter_type   = filtered_type
   end
 
+  def show
+    @artifact = ::LedgerV2::Artifact.find(params[:id])
+  end
+
   # PATCH /admin/ledger_v2/artifacts/:id
   # params[:review_action] は "accept" / "reject" / "defer" / "publish" / "reopen" のいずれか。
   def update
