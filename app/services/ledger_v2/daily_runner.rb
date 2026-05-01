@@ -127,7 +127,7 @@ module LedgerV2
     end
 
     def open_ticket_count
-      Ticket.where(status: %i[open active]).count
+      Ticket.active.count
     rescue => e
       Rails.logger.warn("[LedgerV2::DailyRunner] open_ticket_count: #{e.message}")
       0
