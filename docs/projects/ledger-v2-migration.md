@@ -94,7 +94,7 @@
   - `app/models/ledger_v2/ticket.rb`（enum / validation / association / `.active_exists?`）
   - spec: 20 examples, 0 failures ✅
 - [x] **Ticket 7**: `LedgerV2::OpenTicket` / `LedgerV2::TicketDeduplicator`
-  - `app/services/ledger_v2/ticket_deduplicator.rb`（Level 1: canonical_key 完全一致 / Level 2: source 属性一致）
+  - `app/services/ledger_v2/ticket_deduplicator.rb`（Level 1: canonical_key 完全一致 / Level 2: source 属性一致 / Level 3: metric_name+anomaly_type 日付横断重複防止）
   - `app/services/ledger_v2/open_ticket.rb`（重複抑止 / duplicate Event / ticket_opened Event / dry_run 対応）
   - spec: 28 examples, 0 failures ✅
 
