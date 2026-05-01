@@ -149,7 +149,10 @@
   - `app/services/ledger_v2/calculate_health_snapshot.rb`（各指標の集計ロジック / dry_run 対応）
   - spec（health_snapshot_spec + calculate_health_snapshot_spec）: 25 examples, 0 failures ✅
 - [x] **Ticket 17**: AI SNS readonly metrics collector（v2 が AI SNS を観測対象に取り込む最初の接続）
-- [x] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
+- [ ] **Ticket 18**: 7 日間の最小運用テスト（dry_run）
+  - **完了の定義（圧縮時間軸版）**: `LedgerV2::HealthSnapshot.count >= 7` かつ `LedgerV2::GraduationCheck.all_pass?` が成立した時点で初めて完了
+  - 30 分毎の `LedgerV2::CalculateHealthSnapshotJob` が `recurring.yml` から起動するため、本 PR マージ後 **3.5 時間以上**経過 + Dashboard で 7 基準すべてが緑になることを目視確認するまでチェックを付けない
+  - 過去に `[x]` を付けていたが、`HealthSnapshot` の定期生成ジョブが未登録で snapshot 行がほぼ蓄積されていなかったため、事実上未実施だった（2026-05-01 ロールバック）
 
 ## v2 卒業基準（Layer C 接続を許可する 7 つの数値ライン）
 
@@ -203,7 +206,7 @@
 - [x] 11. StopCondition で Runner を止められる
 - [x] 12. dry_run ができる
 - [x] 13. Admin UI で状態が見える
-- [x] 14. HealthSnapshot で価値を測れる
+- [ ] 14. HealthSnapshot で価値を測れる（コードは完成しているが、定期生成ジョブが未登録で snapshot 行が蓄積されていなかったため事実上未達。snapshot >= 7 を観測した時点で `[x]` に戻す）
 - [x] 15. v1 と同時に副作用を起こさない
 
 ## v2 初期で作らないもの（明示的禁止）
