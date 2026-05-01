@@ -116,6 +116,80 @@ RSpec.describe "Admin::LedgerV2::Artifacts", type: :request do
     end
   end
 
+  describe "GET /admin/ledger_v2/artifacts/:id" do
+    let!(:artifact) do
+      create_artifact(
+        title:         "週次レビュー本文テスト",
+        review_status: :pending,
+        body:          "## 週次レビュー\n\nこれは本文のテストです。"
+      )
+    end
+
+    it "200 OK を返す" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "Artifact のタイトルを表示する" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response.body).to include("週次レビュー本文テスト")
+    end
+
+    it "Artifact の本文を表示する" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response.body).to include("週次レビュー\n\nこれは本文のテストです。")
+    end
+
+    it "pending 状態のとき Accept ボタンを表示する" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response.body).to include("Accept")
+    end
+
+    it "pending 状態のとき Defer ボタンを表示する" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response.body).to include("Defer")
+    end
+
+    it "pending 状態のとき Reject ボタンを表示する" do
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response.body).to include("Reject")
+    end
+
+    context "accepted 状態のとき" do
+      let!(:artifact) { create_artifact(review_status: :accepted) }
+
+      it "Publish ボタンを表示する" do
+        get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+        expect(response.body).to include("Publish")
+      end
+    end
+
+    context "review_rejected 状態のとき" do
+      let!(:artifact) { create_artifact(review_status: :review_rejected) }
+
+      it "Reopen ボタンを表示する" do
+        get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+        expect(response.body).to include("Reopen")
+      end
+    end
+
+    it "本文がない場合でも 200 OK を返す" do
+      artifact.update!(body: nil)
+      get "/admin/ledger_v2/artifacts/#{artifact.id}"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("本文がありません")
+    end
+  end
+
   describe "PATCH /admin/ledger_v2/artifacts/:id" do
     context "accept アクション" do
       let!(:artifact) { create_artifact(review_status: :pending) }
