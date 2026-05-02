@@ -47,15 +47,20 @@ module LedgerV2
               .order(created_at: :asc)
               .to_a
     rescue => e
-      Rails.logger.warn("[LedgerV2::MonthlyRunner] collect_weekly_artifacts failed: #{e.message}")
+      log_collection_error("collect_weekly_artifacts", e)
       []
     end
 
     def collect_active_tickets
       Ticket.active.order(created_at: :asc).to_a
     rescue => e
-      Rails.logger.warn("[LedgerV2::MonthlyRunner] collect_active_tickets failed: #{e.message}")
+      log_collection_error("collect_active_tickets", e)
       []
+    end
+
+    def log_collection_error(source, error)
+      backtrace = Array(error.backtrace).first(5).join("\n")
+      Rails.logger.warn("[LedgerV2::MonthlyRunner] #{source} failed: #{error.class}: #{error.message}\n#{backtrace}")
     end
   end
 end

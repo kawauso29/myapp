@@ -42,7 +42,7 @@ RSpec.describe LedgerV2::BuildMonthlyArtifact, type: :service do
         human_decision: :none
       )
 
-      body = build_body(weekly_artifacts: [build(:ledger_v2_artifact_stub)], active_tickets: [ticket])
+      body = build_body(weekly_artifacts: [stub_weekly_artifact], active_tickets: [ticket])
 
       expect(body).to include("継続論点")
       expect(body).to include("重大な月次確認事項")
@@ -73,17 +73,14 @@ RSpec.describe LedgerV2::BuildMonthlyArtifact, type: :service do
     end
   end
 
-  def build(attributes)
-    case attributes
-    when :ledger_v2_artifact_stub
-      LedgerV2::Artifact.new(
-        id: 999,
-        artifact_type: "weekly_review",
-        title: "stub weekly",
-        body: "stub body",
-        review_status: :pending,
-        created_at: Time.current
-      )
-    end
+  def stub_weekly_artifact
+    LedgerV2::Artifact.new(
+      id: 999,
+      artifact_type: "weekly_review",
+      title: "stub weekly",
+      body: "stub body",
+      review_status: :pending,
+      created_at: Time.current
+    )
   end
 end
