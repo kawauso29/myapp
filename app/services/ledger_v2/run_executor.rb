@@ -99,7 +99,9 @@ module LedgerV2
 
     def flags_enabled?
       flag_name = runner_flag_name
-      return true unless Flags::ALL_FLAGS.include?(flag_name)
+      unless Flags::ALL_FLAGS.include?(flag_name)
+        raise ArgumentError, "LedgerV2 runner flag #{flag_name} が Flags::ALL_FLAGS に登録されていません"
+      end
 
       Flags.enabled?(flag_name)
     end
@@ -123,6 +125,8 @@ module LedgerV2
       name.to_s.camelize
     end
 
+    # Runner クラス名から FeatureFlag 名を導出する。
+    # 例: "MonthlyRunner" → :monthly_runner
     def runner_flag_name
       runner_name.underscore.to_sym
     end

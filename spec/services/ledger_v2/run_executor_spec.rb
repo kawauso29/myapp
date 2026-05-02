@@ -16,7 +16,13 @@ RSpec.describe LedgerV2::RunExecutor, type: :service do
     end
   end
 
-  before { stub_const("LedgerV2::StubRunner", stub_runner_class) }
+  before do
+    stub_const("LedgerV2::StubRunner", stub_runner_class)
+    stub_const("LedgerV2::Flags::ALL_FLAGS", (LedgerV2::Flags::ALL_FLAGS + %i[stub_runner failing_runner]).freeze)
+    allow(LedgerV2::Flags).to receive(:enabled?).and_call_original
+    allow(LedgerV2::Flags).to receive(:enabled?).with(:stub_runner).and_return(true)
+    allow(LedgerV2::Flags).to receive(:enabled?).with(:failing_runner).and_return(true)
+  end
 
   describe ".call" do
     it "Run が :running → :success に遷移する" do
@@ -116,13 +122,18 @@ RSpec.describe LedgerV2::RunExecutor, type: :service do
     end
 
     it "monthly_runner フラグが true なら RunExecutor 経由で success になる" do
-      allow(LedgerV2::Flags).to receive(:enabled?).and_call_original
       allow(LedgerV2::Flags).to receive(:enabled?).with(:monthly_runner).and_return(true)
 
       run = described_class.call(:monthly_runner, dry_run: true)
 
       expect(run.status_success?).to be true
       expect(run.runner_name).to eq("MonthlyRunner")
+    end
+
+    it "未登録 Runner は実行前にエラーになる" do
+      expect {
+        described_class.call(:unregistered_runner)
+      }.to raise_error(ArgumentError, /Flags::ALL_FLAGS/)
     end
   end
 
