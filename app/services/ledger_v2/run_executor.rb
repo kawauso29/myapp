@@ -97,9 +97,13 @@ module LedgerV2
 
     attr_reader :runner_name, :dry_run, :trigger_type, :triggered_by, :idempotency_key, :args, :started_at
 
-    # Ticket 4 (LedgerV2::Flags) 完成まで常に true を返す。
     def flags_enabled?
-      true
+      flag_name = runner_flag_name
+      unless Flags::ALL_FLAGS.include?(flag_name)
+        raise ArgumentError, "LedgerV2 runner flag :#{flag_name} が Flags::ALL_FLAGS に登録されていません"
+      end
+
+      Flags.enabled?(flag_name)
     end
 
     # Ticket 5 (LedgerV2::CircuitBreaker) 完成。active な StopCondition があればブロック理由を返す。
@@ -119,6 +123,12 @@ module LedgerV2
 
     def normalize_runner_name(name)
       name.to_s.camelize
+    end
+
+    # Runner クラス名から FeatureFlag 名を導出する。
+    # 例: "MonthlyRunner" → :monthly_runner
+    def runner_flag_name
+      runner_name.underscore.to_sym
     end
 
     def create_skipped_run(reason)

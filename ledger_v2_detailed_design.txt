@@ -1749,6 +1749,11 @@ Coreに昇格してよい条件:
 --------
 
 v2 Kernel安定後に検討する。
+GraduationCheck.all_pass? は Layer C 接続を検討してよい合図であり、
+自動起動・自動マージ・本番設定変更の許可ではない。
+最初に接続する Layer C は Phase Future 1: MonthlyRunner に限定する。
+v1のMonthly / Quarterly / Annual Runnerからは仕様・知見のみ参照し、コードは移植しない。
+Ticketは1 PR = 1関心事 = 1機能 = 1テスト最低で進める。
 
 Phase Future 1: MonthlyRunner
 
@@ -1756,6 +1761,7 @@ Phase Future 1: MonthlyRunner
 - Daily / Weeklyが安定
 - HealthSnapshotが安定
 - Admin UIが使える
+- GraduationCheck.all_pass? が成立し、人間がDashboardで確認済み
 
 役割:
 - Weeklyの集約
@@ -1767,6 +1773,7 @@ Phase Future 1: MonthlyRunner
 - 自動設定変更
 - 自動PR
 - 自動マージ
+- v1コードの移植
 
 Phase Future 2: CustomerFeedbackLedger
 
