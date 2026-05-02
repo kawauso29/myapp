@@ -189,6 +189,72 @@
   人間が Dashboard を見て、別 PR で次の Ticket を切る。
 - false の基準が長期間（例: 14 日以上）改善しない場合、しきい値ではなく **設計** を見直す（v1 と同じ轍を踏まない）。
 
+## Layer C 接続計画（v2 卒業判定 ALL PASS 後）
+
+> **目的**: v2 Kernel が卒業基準を満たした後も、v1 の過剰自動化を再導入せず、法典に沿って Layer C を小さく接続する。
+> `GraduationCheck.all_pass?` は「Layer C 接続を検討してよい」合図であり、自動起動・自動マージ・本番設定変更の許可ではない。
+
+### Phase G-0: 卒業判定の安定確認（観察のみ）
+
+- `/admin/ledger_v2` Dashboard の「v2 卒業判定」パネルで、7 基準すべてが連続 7 snapshot 以上 ✅ を維持していることを確認する。
+- `LedgerV2::StopCondition.active_conditions.count == 0` を維持していることを確認する。
+- 管理画面の `Stops` バッジは、v2 起因の StopCondition ではないことをスポット確認する。
+- 管理画面の `エラー` バッジは、v2 namespace の failed job を含まないことをスポット確認する。
+- 完了条件は **7 snapshot 連続 ALL PASS + active StopCondition 0 + v2 起因 failed job 0**。
+
+### Phase G-1: Layer C 設計レビュー（ドキュメントのみ）
+
+- 最初に接続する Layer C は、設計書 `Phase Future 1: MonthlyRunner` に限定する。
+- v1 の Monthly / Quarterly / Annual Runner は **仕様・知見のみ参照**し、コードは移植しない。
+- Ticket 19 以降は、1 PR = 1 関心事 = 1 機能 = 1 テスト最低で進める。
+- このフェーズではコードを追加しない。Layer C の順序・禁止事項・チェックリストだけを固定する。
+
+### Phase G-2: MonthlyRunner 段階導入（Ticket 19〜22）
+
+| Ticket | 内容 | dry_run | FeatureFlag |
+|---|---|---|---|
+| **Ticket 19** | `LedgerV2::MonthlyRunner` 骨組み（RunExecutor 経由・空ロジック）+ spec | 必須 | `ledger_v2_monthly_runner` = default false |
+| **Ticket 20** | `LedgerV2::BuildMonthlyArtifact`（Weekly Artifact を集約して月次 draft 生成）+ spec | 必須 | 同上 |
+| **Ticket 21** | `LedgerV2::MonthlyRunnerJob` + `recurring.yml` 登録（圧縮時間軸: 12 時間毎）+ `REQUIRED_JOB_CLASSES` 追加 + job spec | 必須 | 同上 |
+| **Ticket 22** | Admin UI に Monthly Run / Monthly Artifact 表示を追加 + spec | — | 同上 |
+
+Monthly で許可するのは **Weekly の集約・長期化 Ticket の整理・月次 Artifact draft 作成**まで。
+自動戦略変更・自動設定変更・自動 PR・自動マージは引き続き禁止する。
+定期実行を追加する PR では、`config/recurring.yml` 登録、`config/initializers/required_job_classes.rb` と `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` 追加、`*_job_spec.rb` を必ず同時に含める。
+
+### Phase G-3: Monthly 観察（Ticket 23）
+
+- **Ticket 23**: 7 圧縮日（3.5 時間以上）Monthly dry_run を観察する。
+- Monthly 起因で HealthSnapshot のノイズ率 / Artifact 採用率 / Runner 失敗率が悪化していないことを確認する。
+- 悪化した場合は、しきい値を緩めず設計に戻る。
+
+### Phase G-4: 次の Layer C 候補（Ticket 24 以降）
+
+Phase G-3 完了後にのみ、以下の順序で別 PR として検討する。
+
+1. CustomerFeedbackLedger（readonly / manual write から）
+2. KnowledgeLedger（readonly、Artifact 参照元として）
+3. ExperimentLedger（manual のみ、結果集計のみ自動化可）
+4. Quarterly / Annual（manual only、artifact draft 作成まで）
+5. Auto PR（draft only、CI 失敗分類と修正案提示に限定）
+
+HR / OrgChange / Portfolio / Trading 連携は、v2 Kernel と Monthly dry_run が安定するまで接続しない。
+
+### Phase G-5: AutoMerge 解除判断（別議題）
+
+- Layer C の dry_run 安定後も、v2 AutoMerge の有効化は別 PR で判断する。
+- Phase G-4 まで含めて 14 日以上 ALL PASS を維持した場合のみ、AutoMerge 解除のレビューを開始してよい。
+- AutoMerge ON は本ドキュメントのチェックリスト更新とは独立した変更として扱う。
+
+### Layer C チェックリスト（Ticket 19〜）
+
+- [ ] **Ticket 19**: `LedgerV2::MonthlyRunner` 骨組み（RunExecutor 経由・空ロジック）+ spec
+- [ ] **Ticket 20**: `LedgerV2::BuildMonthlyArtifact`（Weekly Artifact 集約）+ spec
+- [ ] **Ticket 21**: `LedgerV2::MonthlyRunnerJob` + recurring 登録 + required job class 登録 + job spec
+- [ ] **Ticket 22**: Monthly Run / Monthly Artifact の Admin UI 表示 + spec
+- [ ] **Ticket 23**: Monthly dry_run 7 圧縮日観察 + HealthSnapshot 悪化なし確認
+- [ ] **Ticket 24 以降**: CustomerFeedbackLedger 以降の Layer C 候補を順番に検討
+
 ## 最小完成条件（v2 MVP 受入基準）
 
 設計書の「最小完成条件」15 項目に一致。Ticket 18 完了時にこれを総点検する。
@@ -265,18 +331,19 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-**Ticket 18 完了 ＝ v2 MVP 受入基準 15項目 すべて pass。**
-**2026-04-30: FeatureFlag 有効化・recurring.yml 追加 完了。本番稼働中。**
+**Ticket 18 完了後の次段階は Layer C 接続計画に従う。**
+**2026-05-03: Dashboard の v2 卒業判定が ALL PASS（HealthSnapshot 11 件）になったため、Layer C 接続の設計レビューを開始可能。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: 全フラグ `true`（本番有効）
 - `config/recurring.yml`: `ledger_v2_daily_runner`（30分毎）/ `ledger_v2_weekly_runner`（4時間毎）追加済み
 - Admin UI `/admin/ledger_v2` で Run / Ticket / Artifact / HealthSnapshot を観察できる
 
-次のステップ（7〜14日間の観察後に人間が判断）:
-1. `/admin/ledger_v2` Dashboard 上部の **「v2 卒業判定」パネル** を毎日確認する（7 基準が全て ✅ になったら卒業）
-2. StopCondition が不意に発火しないか観察する
-3. Monthly 以上・その他の拡張は **`GraduationCheck.all_pass?` が true** になってから別 PR で着手する
+次のステップ:
+1. 本ドキュメントの **Layer C 接続計画** に従い、Phase G-0 の安定確認を継続する
+2. Phase G-1 として、コード変更なしの設計レビュー PR で Ticket 19 以降の順序を固定する
+3. 実装に入る場合は **Ticket 19（MonthlyRunner 骨組み）だけ**を別 PR で切る
+4. Monthly 以上の拡張でも AutoMerge / 自動 PR / 自動戦略変更は引き続き禁止する
 
 ## 参考
 
