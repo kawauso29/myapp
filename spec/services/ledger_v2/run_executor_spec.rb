@@ -18,7 +18,20 @@ RSpec.describe LedgerV2::RunExecutor, type: :service do
 
   before do
     stub_const("LedgerV2::StubRunner", stub_runner_class)
-    stub_const("LedgerV2::Flags::ALL_FLAGS", (LedgerV2::Flags::ALL_FLAGS + %i[stub_runner failing_runner]).freeze)
+    stub_const("LedgerV2::Flags::ALL_FLAGS", %i[
+      daily_runner
+      weekly_runner
+      health_snapshot
+      ticket_creation
+      artifact_generation
+      monthly_runner
+      quarterly_runner
+      annual_runner
+      auto_pr
+      auto_merge
+      stub_runner
+      failing_runner
+    ].freeze)
     allow(LedgerV2::Flags).to receive(:enabled?).and_call_original
     allow(LedgerV2::Flags).to receive(:enabled?).with(:stub_runner).and_return(true)
     allow(LedgerV2::Flags).to receive(:enabled?).with(:failing_runner).and_return(true)

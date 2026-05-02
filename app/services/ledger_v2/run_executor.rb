@@ -100,7 +100,7 @@ module LedgerV2
     def flags_enabled?
       flag_name = runner_flag_name
       unless Flags::ALL_FLAGS.include?(flag_name)
-        raise ArgumentError, "LedgerV2 runner flag #{flag_name} が Flags::ALL_FLAGS に登録されていません"
+        raise ArgumentError, "LedgerV2 runner flag :#{flag_name} が Flags::ALL_FLAGS に登録されていません"
       end
 
       Flags.enabled?(flag_name)
