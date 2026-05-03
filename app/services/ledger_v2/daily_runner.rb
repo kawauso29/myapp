@@ -14,13 +14,15 @@
 # - AI 人格・記憶を変えない
 #
 # 初期対象 KPI（daily 粒度、measured_at = 呼び出し時刻の日初め）:
-#   - ai_sns_posts_count     … 当日の AI-SNS 投稿数（CollectAiSnsMetrics 経由）
-#   - ai_sns_dm_count        … 当日の AI-SNS DM スレッド数（CollectAiSnsMetrics 経由）
-#   - ai_sns_reaction_count  … 当日の AI-SNS いいね数（CollectAiSnsMetrics 経由）
-#   - error_count            … SolidQueue FailedExecution 件数
-#   - ci_success_rate        … 直近 7 日の CI 成功率（未取得時は 1.0 固定）
-#   - open_ticket_count      … LedgerV2::Ticket の open 件数
-#   - artifact_pending_count … LedgerV2::Artifact の draft/pending 件数
+#   - ai_sns_posts_count              … 当日の AI-SNS 投稿数（CollectAiSnsMetrics 経由）
+#   - ai_sns_dm_count                 … 当日の AI-SNS DM スレッド数（CollectAiSnsMetrics 経由）
+#   - ai_sns_reaction_count           … 当日の AI-SNS いいね数（CollectAiSnsMetrics 経由）
+#   - customer_feedback_new_count     … 未トリアージのフィードバック件数（CollectCustomerFeedback 経由）
+#   - customer_feedback_escalated_count … エスカレート済みフィードバック件数（CollectCustomerFeedback 経由）
+#   - error_count                     … SolidQueue FailedExecution 件数
+#   - ci_success_rate                 … 直近 7 日の CI 成功率（未取得時は 1.0 固定）
+#   - open_ticket_count               … LedgerV2::Ticket の open 件数
+#   - artifact_pending_count          … LedgerV2::Artifact の draft/pending 件数
 #
 # 設計の正本: ledger_v2_detailed_design.txt §「LedgerV2::DailyRunner」
 module LedgerV2
@@ -83,9 +85,10 @@ module LedgerV2
     def collect_snapshots
       today_start = Time.current.beginning_of_day
 
-      ai_sns_snapshots = CollectAiSnsMetrics.call(run: @run, period: :daily, since_at: today_start)
+      ai_sns_snapshots      = CollectAiSnsMetrics.call(run: @run, period: :daily, since_at: today_start)
+      feedback_snapshots    = CollectCustomerFeedback.call(run: @run, period: :daily, since_at: today_start)
 
-      ai_sns_snapshots + [
+      ai_sns_snapshots + feedback_snapshots + [
         snapshot_for("error_count",           error_count,           today_start),
         snapshot_for("ci_success_rate",       ci_success_rate,       today_start),
         snapshot_for("open_ticket_count",     open_ticket_count,     today_start),

@@ -28,12 +28,13 @@ module LedgerV2
 
     # 閾値定義（運用中に調整する）
     THRESHOLDS = {
-      ai_sns_posts_count_min:      5,    # 1 日の最低投稿数
-      ai_sns_dm_count_min:         1,    # DM 数の最低値
-      error_count_max:             10,   # エラー件数の上限
-      ci_success_rate_min:         0.8,  # CI 成功率の下限（80%）
-      open_ticket_count_max:       20,   # open Ticket の上限
-      artifact_pending_count_max:  5     # pending Artifact の上限
+      ai_sns_posts_count_min:                  5,    # 1 日の最低投稿数
+      ai_sns_dm_count_min:                     1,    # DM 数の最低値
+      error_count_max:                         10,   # エラー件数の上限
+      ci_success_rate_min:                     0.8,  # CI 成功率の下限（80%）
+      open_ticket_count_max:                   20,   # open Ticket の上限
+      artifact_pending_count_max:              5,    # pending Artifact の上限
+      customer_feedback_escalated_count_max:   3     # エスカレート済みフィードバックの上限（period 内）
     }.freeze
 
     # @param snapshots [Array<LedgerV2::MetricSnapshot>]  検査対象のスナップショット群
@@ -75,6 +76,11 @@ module LedgerV2
                   anomaly_type: "exceeded_threshold",
                   title:        "pending Artifact 数が上限を超えています",
                   severity:     :medium)
+      when "customer_feedback_escalated_count"
+        check_max(snap, THRESHOLDS[:customer_feedback_escalated_count_max],
+                  anomaly_type: "exceeded_threshold",
+                  title:        "エスカレート済み顧客フィードバックが上限を超えています",
+                  severity:     :high)
       end
     end
     private_class_method :check_snapshot
