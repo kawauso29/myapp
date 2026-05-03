@@ -10,10 +10,10 @@ module LedgerV2
   class MonthlyRunnerJob < ApplicationJob
     queue_as :default
 
-    # @param dry_run      [Boolean]       デフォルト false
+    # @param dry_run      [Boolean]       Ticket 23 フェーズは dry_run: true を維持する。MonthlyRunner は dry_run のみ許可。
     # @param trigger_type [String/Symbol] schedule / manual / console / test
     # @param triggered_by [String, nil]  呼び出し元の識別子
-    def perform(dry_run: false, trigger_type: :schedule, triggered_by: nil)
+    def perform(dry_run: true, trigger_type: :schedule, triggered_by: nil)
       LedgerV2::RunExecutor.call(
         :monthly_runner,
         dry_run:      dry_run,

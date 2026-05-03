@@ -127,7 +127,16 @@ RSpec.describe LedgerV2::RunExecutor, type: :service do
   end
 
   describe "FeatureFlag 統合" do
-    it "monthly_runner はデフォルト false のため skipped になる" do
+    it "monthly_runner は Ticket 23 で有効化済み（dry_run: true で success になる）" do
+      run = described_class.call(:monthly_runner, dry_run: true)
+
+      expect(run.status_success?).to be true
+      expect(run.runner_name).to eq("MonthlyRunner")
+    end
+
+    it "monthly_runner フラグを false に戻すと skipped になる" do
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:monthly_runner).and_return(false)
+
       run = described_class.call(:monthly_runner, dry_run: true)
 
       expect(run.status_skipped?).to be true

@@ -48,8 +48,12 @@ RSpec.describe LedgerV2::Flags do
       end
     end
 
-    it "v2 初期で禁止されているフラグ（monthly 以上・auto 系）は false のまま" do
-      prohibited_flags = %i[monthly_runner quarterly_runner annual_runner auto_pr auto_merge]
+    it "Ticket 23 で monthly_runner は有効化済み（dry_run: true で Layer C 観察中）" do
+      expect(described_class.all[:monthly_runner]).to be(true)
+    end
+
+    it "v2 初期で禁止されているフラグ（quarterly 以上・auto 系）は false のまま" do
+      prohibited_flags = %i[quarterly_runner annual_runner auto_pr auto_merge]
       prohibited_flags.each do |flag|
         expect(described_class.all[flag]).to be(false),
           "#{flag} は v2 初期禁止フラグなので false であるべき"

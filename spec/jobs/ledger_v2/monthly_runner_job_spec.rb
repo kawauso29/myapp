@@ -10,7 +10,7 @@ RSpec.describe LedgerV2::MonthlyRunnerJob, type: :job do
 
       expect(LedgerV2::RunExecutor).to have_received(:call).with(
         :monthly_runner,
-        hash_including(dry_run: false, trigger_type: :schedule)
+        hash_including(dry_run: true, trigger_type: :schedule)
       )
     end
 

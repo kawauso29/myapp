@@ -14,8 +14,10 @@ Rails.application.config.x.ledger_v2_flags = {
   ticket_creation:      true,
   artifact_generation:  true,
 
+  # 2026-05-03: Ticket 23 で Monthly dry_run を開始。MonthlyRunner は dry_run: true のみ許可。
+  monthly_runner:   true,
+
   # 以下は v2 初期では作らないもの。変更禁止。
-  monthly_runner:   false,
   quarterly_runner: false,
   annual_runner:    false,
   auto_pr:          false,
