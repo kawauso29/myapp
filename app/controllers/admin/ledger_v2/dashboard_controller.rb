@@ -34,26 +34,22 @@ class Admin::LedgerV2::DashboardController < Admin::LedgerV2::BaseController
     @stop_condition_count   = @active_stop_conditions.count
 
     # --- Monthly Run 集計 ---
-    @recent_monthly_runs = ::LedgerV2::Run.where(runner_name: "MonthlyRunner")
-                                          .order(started_at: :desc)
-                                          .limit(5)
+    monthly_runs             = ::LedgerV2::Run.where(runner_name: "MonthlyRunner")
+    @recent_monthly_runs     = monthly_runs.order(started_at: :desc).limit(5)
     @monthly_run_stats = {
-      total:   ::LedgerV2::Run.where(runner_name: "MonthlyRunner").count,
-      success: ::LedgerV2::Run.where(runner_name: "MonthlyRunner", status: ::LedgerV2::Run.statuses[:success]).count,
-      failed:  ::LedgerV2::Run.where(runner_name: "MonthlyRunner", status: ::LedgerV2::Run.statuses[:failed]).count,
-      dry_run: ::LedgerV2::Run.where(runner_name: "MonthlyRunner", dry_run: true).count
+      total:   monthly_runs.count,
+      success: monthly_runs.where(status: ::LedgerV2::Run.statuses[:success]).count,
+      failed:  monthly_runs.where(status: ::LedgerV2::Run.statuses[:failed]).count,
+      dry_run: monthly_runs.where(dry_run: true).count
     }
 
     # --- Monthly Artifact 集計 ---
-    @recent_monthly_artifacts = ::LedgerV2::Artifact.where(artifact_type: "monthly_review")
-                                                    .order(created_at: :desc)
-                                                    .limit(5)
+    monthly_artifacts             = ::LedgerV2::Artifact.where(artifact_type: "monthly_review")
+    @recent_monthly_artifacts     = monthly_artifacts.order(created_at: :desc).limit(5)
     @monthly_artifact_stats = {
-      total:   ::LedgerV2::Artifact.where(artifact_type: "monthly_review").count,
-      pending: ::LedgerV2::Artifact.where(artifact_type: "monthly_review")
-                                   .awaiting_review.count,
-      accepted: ::LedgerV2::Artifact.where(artifact_type: "monthly_review",
-                                           review_status: ::LedgerV2::Artifact.review_statuses[:accepted]).count
+      total:    monthly_artifacts.count,
+      pending:  monthly_artifacts.awaiting_review.count,
+      accepted: monthly_artifacts.where(review_status: ::LedgerV2::Artifact.review_statuses[:accepted]).count
     }
 
     # --- duplicate_prevented 合計 ---
