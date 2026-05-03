@@ -51,6 +51,7 @@ Rails.application.reloader.to_prepare do
     UiCheckLedgerRunJob
     LedgerV2::DailyRunnerJob
     LedgerV2::WeeklyRunnerJob
+    LedgerV2::MonthlyRunnerJob
     LedgerV2::CalculateHealthSnapshotJob
   ].each do |job_class_name|
     job_class_name.constantize
