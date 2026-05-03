@@ -1,10 +1,10 @@
 # LedgerV2::MonthlyRunner — Layer C の最初の接続点。
 #
-# Ticket 19 では RunExecutor 経由で起動できる骨組みだけを提供する。
-# Weekly 集約・Artifact 作成・定期実行は後続 Ticket で別 PR として追加する。
+# RunExecutor 経由で起動し、Weekly Artifact を月次 draft に集約する。
+# Ticket 20 時点では dry_run のみ許可し、DB 書き込みは行わない。
 #
 # やらないこと:
-# - Artifact を作らない
+# - Artifact を DB に保存しない
 # - Ticket を変更しない
 # - 自動 PR を作らない
 # - 自動マージしない
@@ -27,7 +27,40 @@ module LedgerV2
     end
 
     def call
+      BuildMonthlyArtifact.call(
+        run:,
+        weekly_artifacts: collect_weekly_artifacts,
+        active_tickets: collect_active_tickets
+      )
+
       RunExecutor::RunnerResult.new
+    end
+
+    private
+
+    attr_reader :run
+
+    def collect_weekly_artifacts
+      since = Time.current - BuildMonthlyArtifact::MONTHLY_PERIOD_DAYS.days
+      Artifact.where(artifact_type: "weekly_review")
+              .where("created_at >= ?", since)
+              .order(created_at: :asc)
+              .to_a
+    rescue => e
+      log_collection_error("collect_weekly_artifacts", e)
+      []
+    end
+
+    def collect_active_tickets
+      Ticket.active.order(created_at: :asc).to_a
+    rescue => e
+      log_collection_error("collect_active_tickets", e)
+      []
+    end
+
+    def log_collection_error(source, error)
+      backtrace = Array(error.backtrace).first(5).join("\n")
+      Rails.logger.warn("[LedgerV2::MonthlyRunner] #{source} failed: #{error.class}: #{error.message}\n#{backtrace}")
     end
   end
 end
