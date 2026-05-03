@@ -36,7 +36,8 @@ module LedgerV2
       artifact_pending_count_max:              5,    # pending Artifact の上限
       customer_feedback_escalated_count_max:   3,    # エスカレート済みフィードバックの上限（period 内）
       knowledge_incident_count_max:            3,    # period 内 incident エントリの上限
-      knowledge_stale_draft_count_max:         5     # stale draft（7日以上放置）の上限
+      knowledge_stale_draft_count_max:         5,    # stale draft（7日以上放置）の上限
+      experiment_expired_count_max:            2     # 未決定の期限切れ実験の上限
     }.freeze
 
     # @param snapshots [Array<LedgerV2::MetricSnapshot>]  検査対象のスナップショット群
@@ -93,6 +94,11 @@ module LedgerV2
                   anomaly_type: "exceeded_threshold",
                   title:        "放置中の draft 知識エントリが上限を超えています",
                   severity:     :medium)
+      when "experiment_expired_count"
+        check_max(snap, THRESHOLDS[:experiment_expired_count_max],
+                  anomaly_type: "exceeded_threshold",
+                  title:        "未決定の期限切れ実験が上限を超えています",
+                  severity:     :high)
       end
     end
     private_class_method :check_snapshot

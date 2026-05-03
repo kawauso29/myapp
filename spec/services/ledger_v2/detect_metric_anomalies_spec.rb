@@ -147,6 +147,20 @@ RSpec.describe LedgerV2::DetectMetricAnomalies, type: :service do
       end
     end
 
+    context "experiment_expired_count" do
+      it "2 超過のとき Anomaly を返す（severity: high）" do
+        snap = build_snap(metric_name: "experiment_expired_count", value: 3)
+        result = described_class.call(snapshots: [snap])
+        expect(result.length).to eq(1)
+        expect(result.first.severity).to eq(:high)
+      end
+
+      it "2 以下なら正常扱い" do
+        snap = build_snap(metric_name: "experiment_expired_count", value: 2)
+        expect(described_class.call(snapshots: [snap])).to be_empty
+      end
+    end
+
     # ----- Anomaly 値オブジェクトの属性検証 -----
 
     context "Anomaly の canonical_key" do
