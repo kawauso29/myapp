@@ -153,6 +153,7 @@
   - **完了の定義（圧縮時間軸版）**: `LedgerV2::HealthSnapshot.count >= 7` かつ `LedgerV2::GraduationCheck.all_pass?` が成立した時点で初めて完了
   - 30 分毎の `LedgerV2::CalculateHealthSnapshotJob` が `recurring.yml` から起動するため、本 PR マージ後 **3.5 時間以上**経過 + Dashboard で 7 基準すべてが緑になることを目視確認するまでチェックを付けない
   - 過去に `[x]` を付けていたが、`HealthSnapshot` の定期生成ジョブが未登録で snapshot 行がほぼ蓄積されていなかったため、事実上未実施だった（2026-05-01 ロールバック）
+  - **2026-05-04 作業**: `spec/features/ledger_v2/minimal_ops_simulation_spec.rb` の期待値を修正（`CollectCustomerFeedback` 追加で MetricSnapshot が 7/day→9/day に増加していたが spec が旧値のままだった）。全 30 examples, 0 failures ✅。`recurring.yml` + `required_job_classes.rb` + `solid_queue.rake` の 3 点登録済み確認済み。**あとは本番マージ後 3.5 時間を待って `/admin/ledger_v2` Dashboard で 7 基準がすべて緑になったことを人間が目視確認するだけ。**
 
 ## v2 卒業基準（Layer C 接続を許可する 7 つの数値ライン）
 
