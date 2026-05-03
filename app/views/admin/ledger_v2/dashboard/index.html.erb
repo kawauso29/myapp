@@ -197,6 +197,123 @@
   <% end %>
 </div>
 
+<%# ===== Monthly Runner ===== %>
+<div class="card" style="margin-top:16px;">
+  <h2>
+    Monthly Runner
+    <% if @monthly_run_stats[:total] == 0 %>
+      <span style="color:#718096; font-size:13px; font-weight:400;">（まだ実行されていません）</span>
+    <% else %>
+      <span style="color:#718096; font-size:13px; font-weight:400;">
+        計 <%= @monthly_run_stats[:total] %> 回実行 &nbsp;|&nbsp;
+        成功 <%= @monthly_run_stats[:success] %> &nbsp;|&nbsp;
+        失敗 <%= @monthly_run_stats[:failed] %> &nbsp;|&nbsp;
+        dry_run <%= @monthly_run_stats[:dry_run] %>
+      </span>
+    <% end %>
+  </h2>
+
+  <% if @recent_monthly_runs.empty? %>
+    <p style="color:#718096; font-size:13px;">Monthly Run がありません。<code>ledger_v2_monthly_runner</code> フラグが有効になると実行されます。</p>
+  <% else %>
+    <table style="margin-top:8px;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>dry_run</th>
+          <th>Trigger</th>
+          <th>Started</th>
+          <th>Duration</th>
+          <th>Artifacts</th>
+          <th>Dup.Prev.</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_monthly_runs.each do |run| %>
+          <tr>
+            <td style="color:#718096;">#<%= run.id %></td>
+            <td>
+              <span style="<%= run_status_style(run.status) %>">
+                <%= run.status %>
+              </span>
+            </td>
+            <td><%= run.dry_run? ? "🔵 dry" : "" %></td>
+            <td style="color:#718096;"><%= run.trigger_type %></td>
+            <td style="color:#718096; font-size:12px;">
+              <%= run.started_at&.in_time_zone("Tokyo")&.strftime("%m/%d %H:%M") %>
+            </td>
+            <td style="color:#718096;">
+              <% if run.duration_ms %>
+                <%= run.duration_ms %> ms
+              <% end %>
+            </td>
+            <td><%= run.created_artifact_count %></td>
+            <td><%= run.duplicate_prevented_count %></td>
+          </tr>
+          <% if run.error_message.present? %>
+            <tr>
+              <td colspan="8" style="color:#fc8181; font-size:12px; padding:2px 12px 8px;">
+                ⚠ <%= run.error_class %>: <%= run.error_message.truncate(120) %>
+              </td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%# Monthly Artifact サマリー %>
+  <div style="margin-top:16px; border-top:1px solid #2d3748; padding-top:12px;">
+    <h3 style="color:#a0aec0; font-size:13px; margin-bottom:8px;">
+      Monthly Artifact
+      <span style="font-weight:400; margin-left:8px;">
+        計 <%= @monthly_artifact_stats[:total] %> 件 &nbsp;|&nbsp;
+        pending <%= @monthly_artifact_stats[:pending] %> &nbsp;|&nbsp;
+        accepted <%= @monthly_artifact_stats[:accepted] %>
+      </span>
+      <% if @monthly_artifact_stats[:total] > 0 %>
+        &nbsp;—&nbsp;
+        <%= link_to "一覧で確認 →", admin_ledger_v2_artifacts_path(artifact_type: "monthly_review"),
+              style: "color:#63b3ed; font-size:12px;" %>
+      <% end %>
+    </h3>
+    <% if @recent_monthly_artifacts.empty? %>
+      <p style="color:#718096; font-size:12px;">Monthly Artifact がまだありません。MonthlyRunner が実行されると生成されます。</p>
+    <% else %>
+      <table style="font-size:12px;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>タイトル</th>
+            <th>Status</th>
+            <th>作成日</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @recent_monthly_artifacts.each do |artifact| %>
+            <tr>
+              <td style="color:#718096;">#<%= artifact.id %></td>
+              <td>
+                <%= link_to artifact.title.truncate(60), admin_ledger_v2_artifact_path(artifact),
+                      style: "color:#e2e8f0; text-decoration:underline; text-decoration-color:#4a5568;" %>
+              </td>
+              <td>
+                <span style="<%= artifact_review_status_style(artifact.review_status) %>">
+                  <%= artifact.review_status %>
+                </span>
+              </td>
+              <td style="color:#718096;">
+                <%= artifact.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</div>
+
 <%# ===== pending Artifact ===== %>
 <div class="card">
   <h2>レビュー待ち Artifact（最新 5 件）</h2>

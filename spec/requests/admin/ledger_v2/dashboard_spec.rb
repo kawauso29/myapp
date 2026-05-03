@@ -141,5 +141,71 @@ RSpec.describe "Admin::LedgerV2::Dashboard", type: :request do
         expect(response.body).to include("critical error detected")
       end
     end
+
+    context "Monthly Runner セクション" do
+      it "Monthly Runner セクションを含む" do
+        get "/admin/ledger_v2"
+
+        expect(response.body).to include("Monthly Runner")
+      end
+
+      context "MonthlyRunner の Run が存在する場合" do
+        let!(:monthly_run) do
+          LedgerV2::Run.create!(
+            runner_name:  "MonthlyRunner",
+            status:       :success,
+            trigger_type: :schedule,
+            dry_run:      true,
+            started_at:   1.hour.ago,
+            finished_at:  30.minutes.ago,
+            duration_ms:  3000
+          )
+        end
+
+        it "MonthlyRunner の実行履歴を表示する" do
+          get "/admin/ledger_v2"
+
+          expect(response.body).to include("MonthlyRunner")
+        end
+
+        it "Monthly Run のステータスを表示する" do
+          get "/admin/ledger_v2"
+
+          expect(response.body).to include("success")
+        end
+
+        it "dry_run フラグを表示する" do
+          get "/admin/ledger_v2"
+
+          expect(response.body).to include("dry")
+        end
+      end
+
+      context "monthly_review Artifact が存在する場合" do
+        let!(:run) { LedgerV2::Run.create!(runner_name: "MonthlyRunner", trigger_type: :schedule, dry_run: true) }
+        let!(:monthly_artifact) do
+          LedgerV2::Artifact.create!(
+            artifact_type: "monthly_review",
+            title:         "月次 Ledger レビュー 2026-05",
+            body:          "# 月次レビュー\n\n test",
+            format:        "markdown",
+            review_status: :pending,
+            run:           run
+          )
+        end
+
+        it "monthly_review Artifact のタイトルを表示する" do
+          get "/admin/ledger_v2"
+
+          expect(response.body).to include("月次 Ledger レビュー 2026-05")
+        end
+
+        it "Artifacts 一覧へのリンクを表示する" do
+          get "/admin/ledger_v2"
+
+          expect(response.body).to include("monthly_review")
+        end
+      end
+    end
   end
 end

@@ -114,6 +114,24 @@ RSpec.describe "Admin::LedgerV2::Artifacts", type: :request do
         expect(response.body).not_to include("日次")
       end
     end
+
+    context "monthly_review フィルターを指定した場合" do
+      let!(:monthly_artifact) { create_artifact(title: "月次レビュー", artifact_type: "monthly_review") }
+      let!(:weekly_artifact)  { create_artifact(title: "週次レビュー", artifact_type: "weekly_review") }
+
+      it "monthly_review のみ表示される" do
+        get "/admin/ledger_v2/artifacts", params: { artifact_type: "monthly_review" }
+
+        expect(response.body).to include("月次レビュー")
+        expect(response.body).not_to include("週次レビュー")
+      end
+
+      it "フィルターの選択肢に monthly_review が含まれる" do
+        get "/admin/ledger_v2/artifacts"
+
+        expect(response.body).to include("monthly_review")
+      end
+    end
   end
 
   describe "GET /admin/ledger_v2/artifacts/:id" do
