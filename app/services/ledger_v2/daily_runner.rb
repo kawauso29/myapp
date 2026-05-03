@@ -19,6 +19,8 @@
 #   - ai_sns_reaction_count           … 当日の AI-SNS いいね数（CollectAiSnsMetrics 経由）
 #   - customer_feedback_new_count     … 未トリアージのフィードバック件数（CollectCustomerFeedback 経由）
 #   - customer_feedback_escalated_count … エスカレート済みフィードバック件数（CollectCustomerFeedback 経由）
+#   - knowledge_incident_count        … period 内に作成された incident 種別の知識エントリ件数（CollectKnowledgeMetrics 経由）
+#   - knowledge_stale_draft_count     … draft のまま 7 日以上放置されている知識エントリ件数（CollectKnowledgeMetrics 経由）
 #   - error_count                     … SolidQueue FailedExecution 件数
 #   - ci_success_rate                 … 直近 7 日の CI 成功率（未取得時は 1.0 固定）
 #   - open_ticket_count               … LedgerV2::Ticket の open 件数
@@ -87,8 +89,9 @@ module LedgerV2
 
       ai_sns_snapshots      = CollectAiSnsMetrics.call(run: @run, period: :daily, since_at: today_start)
       feedback_snapshots    = CollectCustomerFeedback.call(run: @run, period: :daily, since_at: today_start)
+      knowledge_snapshots   = CollectKnowledgeMetrics.call(run: @run, period: :daily, since_at: today_start)
 
-      ai_sns_snapshots + feedback_snapshots + [
+      ai_sns_snapshots + feedback_snapshots + knowledge_snapshots + [
         snapshot_for("error_count",           error_count,           today_start),
         snapshot_for("ci_success_rate",       ci_success_rate,       today_start),
         snapshot_for("open_ticket_count",     open_ticket_count,     today_start),
