@@ -53,8 +53,8 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
         expect(result.created_ticket_count).to eq(0)
       end
 
-      it "MetricSnapshot が 7 件作成される（KPI 数と同じ）" do
-        expect { call_runner }.to change(LedgerV2::MetricSnapshot, :count).by(7)
+      it "MetricSnapshot が 9 件作成される（KPI 数と同じ）" do
+        expect { call_runner }.to change(LedgerV2::MetricSnapshot, :count).by(9)
       end
     end
 
