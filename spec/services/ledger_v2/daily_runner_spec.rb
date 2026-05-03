@@ -27,10 +27,29 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
     end
   end
 
+  # CollectKnowledgeMetrics スタブ: DB に保存して MetricSnapshot カウントテストと冪等テストが通るようにする。
+  def stub_collect_knowledge_metrics(incident_count: 0, stale_draft_count: 0)
+    knowledge_values = {
+      "knowledge_incident_count"    => incident_count,
+      "knowledge_stale_draft_count" => stale_draft_count
+    }
+    allow(LedgerV2::CollectKnowledgeMetrics).to receive(:call) do |run:, **kwargs|
+      ts = kwargs.fetch(:since_at, Time.current.beginning_of_day)
+      period = kwargs.fetch(:period, :daily)
+      knowledge_values.map do |metric_name, value|
+        LedgerV2::MetricSnapshot.find_or_create_by!(
+          metric_name: metric_name, period: period,
+          measured_at: ts, source_type: nil, source_id: nil
+        ) { |s| s.value = value; s.created_by_run = run }
+      end
+    end
+  end
+
   # テスト高速化: DB アクセスが多い KPI 計算メソッドをスタブ
   # AI-SNS 指標は CollectAiSnsMetrics に委譲されているためそちらをスタブする
   before do
     stub_collect_ai_sns_metrics
+    stub_collect_knowledge_metrics
     allow_any_instance_of(described_class).to receive(:error_count).and_return(0)
     allow_any_instance_of(described_class).to receive(:ci_success_rate).and_return(1.0)
     allow_any_instance_of(described_class).to receive(:open_ticket_count).and_return(0)
@@ -53,8 +72,8 @@ RSpec.describe LedgerV2::DailyRunner, type: :service do
         expect(result.created_ticket_count).to eq(0)
       end
 
-      it "MetricSnapshot が 9 件作成される（KPI 数と同じ）" do
-        expect { call_runner }.to change(LedgerV2::MetricSnapshot, :count).by(9)
+      it "MetricSnapshot が 11 件作成される（KPI 数と同じ）" do
+        expect { call_runner }.to change(LedgerV2::MetricSnapshot, :count).by(11)
       end
     end
 
