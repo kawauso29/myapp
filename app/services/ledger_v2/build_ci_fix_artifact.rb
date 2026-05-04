@@ -77,7 +77,7 @@ module LedgerV2
     # @return [Hash<Symbol, Integer>]  例: { lint: 2, test: 5, unknown: 1 }
     def classify_failures
       categories = Hash.new(0)
-      SolidQueue::FailedExecution.limit(20).each do |fe|
+      SolidQueue::FailedExecution.order(created_at: :desc).limit(20).to_a.each do |fe|
         category = detect_category(fe.error.to_s)
         categories[category] += 1
       end

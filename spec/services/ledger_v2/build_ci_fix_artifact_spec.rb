@@ -141,7 +141,7 @@ RSpec.describe LedgerV2::BuildCiFixArtifact, type: :service do
       end
 
       context "dry_run: true の場合" do
-        it "0 を返す" do
+        it "作成されるはずの件数 1 を返す" do
           expect(call_service(dry_run: true)).to eq(1)
         end
 
@@ -184,7 +184,7 @@ RSpec.describe LedgerV2::BuildCiFixArtifact, type: :service do
 
     context "SolidQueue に lint 系の失敗がある場合" do
       before do
-        allow(SolidQueue::FailedExecution).to receive(:limit).and_return([
+        allow(SolidQueue::FailedExecution).to receive_message_chain(:order, :limit, :to_a).and_return([
           instance_double(SolidQueue::FailedExecution, error: "RuboCop offense detected at app/foo.rb")
         ])
       end
@@ -199,7 +199,7 @@ RSpec.describe LedgerV2::BuildCiFixArtifact, type: :service do
 
     context "SolidQueue に test 系の失敗がある場合" do
       before do
-        allow(SolidQueue::FailedExecution).to receive(:limit).and_return([
+        allow(SolidQueue::FailedExecution).to receive_message_chain(:order, :limit, :to_a).and_return([
           instance_double(SolidQueue::FailedExecution, error: "RSpec::Expectations::ExpectationNotMetError")
         ])
       end
