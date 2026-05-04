@@ -56,7 +56,8 @@ class Admin::LedgerV2::DashboardController < Admin::LedgerV2::BaseController
     @duplicate_prevented_total = ::LedgerV2::Run.sum(:duplicate_prevented_count)
 
     # --- v2 卒業判定（7 基準） ---
-    @graduation_results = ::LedgerV2::GraduationCheck.call
-    @graduation_pass    = @graduation_results.all?(&:ok?)
+    @graduation_results      = ::LedgerV2::GraduationCheck.call
+    @graduation_pass         = @graduation_results.all?(&:ok?)
+    @consecutive_pass_count  = ::LedgerV2::GraduationCheck.consecutive_pass_count
   end
 end

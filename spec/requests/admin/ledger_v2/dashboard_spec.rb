@@ -142,8 +142,49 @@ RSpec.describe "Admin::LedgerV2::Dashboard", type: :request do
       end
     end
 
-    context "Monthly Runner セクション" do
-      it "Monthly Runner セクションを含む" do
+    context "連続 PASS 件数の表示（Phase G-0 観察）" do
+      def create_passing_snapshot(offset_hours:)
+        LedgerV2::HealthSnapshot.create!(
+          period:                            :daily,
+          measured_at:                       offset_hours.hours.ago,
+          ticket_noise_rate:                 0.10,
+          artifact_acceptance_rate:          0.80,
+          runner_failure_rate:               0.05,
+          unresolved_ticket_age_avg:         12.0,
+          human_intervention_rate:           0.10,
+          kpi_improvement_after_ticket_rate: 0.50,
+          stop_trigger_count:                0,
+          duplicate_prevented_count:         1,
+          pending_review_count:              5,
+          open_ticket_count:                 2
+        )
+      end
+
+      it "snapshot が 0 件のとき 0 snapshot と表示する" do
+        get "/admin/ledger_v2"
+
+        expect(response.body).to include("連続 PASS")
+      end
+
+      it "7 件以上連続 PASS で Phase G-0 安定確認 OK バッジを表示する" do
+        7.times { |i| create_passing_snapshot(offset_hours: i) }
+
+        get "/admin/ledger_v2"
+
+        expect(response.body).to include("Phase G-0 安定確認 OK")
+      end
+
+      it "1〜6 件連続 PASS で目標件数とともに表示する" do
+        3.times { |i| create_passing_snapshot(offset_hours: i) }
+
+        get "/admin/ledger_v2"
+
+        expect(response.body).to include("連続 PASS")
+        expect(response.body).to include("3")
+      end
+    end
+
+    context "Monthly Runner セクション" do      it "Monthly Runner セクションを含む" do
         get "/admin/ledger_v2"
 
         expect(response.body).to include("Monthly Runner")

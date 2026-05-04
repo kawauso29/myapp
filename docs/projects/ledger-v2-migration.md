@@ -387,21 +387,72 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/v2-next-ticket-another-one` | `LedgerV2::BuildAnnualArtifact` + `LedgerV2::AnnualRunner`（dry_run only）+ `LedgerV2::AnnualRunnerJob`（manual only）+ spec（16 examples, 0 failures）+ Artifacts UI に annual_review フィルター追加 | Ticket 28 ✅ | マージ済み |
 
 | `copilot/v2-ticket-29` | `LedgerV2::BuildCiFixArtifact`（CI 失敗分類と修正案 draft）+ WeeklyRunner 統合 + Artifacts UI に ci_fix_suggestion フィルター追加 + spec（26 examples, 0 failures）| Ticket 29 ✅ | レビュー中 |
+| `copilot/plan-next-steps-from-current-progress` | `GraduationCheck.consecutive_pass_count` 追加 + Dashboard 連続 PASS 件数バッジ表示 + 観測フェーズ Steps 1〜6 ドキュメント整備 | Step 2 準備 ✅ | レビュー中 |
+
+## 観測・固めフェーズ（Step 1〜6 チェックリスト）
+
+> Ticket 19〜29 でコードは先行実装済み。次フェーズは「機能追加」ではなく「観測と固め」。  
+> **Step 1 が確定するまで Step 2 以降に進まない。**
+
+### Step 1: MVP 完成宣言（Ticket 18 / MVP #14 を本当に閉じる）
+
+- [ ] 本番マージ後 3.5 時間以上経過を待ち、`/admin/ledger_v2` Dashboard で以下を目視確認する（人間のみ）:
+  - [ ] `LedgerV2::HealthSnapshot.count >= 7`
+  - [ ] `GraduationCheck.all_pass?` が true（7 基準すべて ✅）
+  - [ ] `LedgerV2::StopCondition.active_conditions.count == 0`
+  - [ ] v2 namespace の failed job = 0
+- [ ] 確認できたら本ドキュメントの Ticket 18・MVP #14 を `[x]` に戻し、確認した snapshot ID を「直近の PR / 履歴」に追記する PR を出す
+- [ ] 確認できない基準があれば**新機能を一切追加せず**原因究明 PR を切る
+
+### Step 2: Phase G-0 安定確認（連続 7 snapshot ALL PASS）
+
+> Step 1 完了後のみ実施する。
+> Dashboard の「連続 PASS」バッジ（`GraduationCheck.consecutive_pass_count`）は本 PR で実装済み。
+
+- [ ] 「連続 PASS: 7 以上（Phase G-0 安定確認 OK）」バッジが Dashboard に表示されることを目視確認する
+- [ ] v2 起因の StopCondition / failed job がゼロであることをスポット確認した記録を追記する
+
+### Step 3: Phase G-3 Monthly dry_run 観察確定
+
+> Step 2 完了後のみ実施する。`monthly_runner` フラグは既に true・dry_run のみ。
+
+- [ ] 本番で 7 圧縮日（≒ 3.5 時間）以上 Monthly dry_run が回ったあと、HealthSnapshot のノイズ率 / 採用率 / 失敗率が Monthly 起動前と比較して悪化していないことを確認する
+- [ ] 悪化があればしきい値を緩めず Monthly のロジックを戻す
+
+### Step 4: Layer C 観測健全性レビュー（Ticket 24〜29 の事後検証）
+
+> Step 3 完了後のみ実施する。
+
+- [ ] 全 13 指標について 7 snapshot 以上の MetricSnapshot 蓄積と、誤検知 Ticket が立っていないことを確認する
+- [ ] 観測ノイズが出た指標は閾値を見直す PR を別途切る（本ドキュメント + spec + 定数の 3 か所同時更新）
+
+### Step 5: Phase G-5 AutoMerge 解除判断（最も慎重に）
+
+> 前提: Step 1〜4 すべて確定 + **14 日以上 ALL PASS を維持**した後のみ。
+
+- [ ] AutoMerge ON は別議題として独立 PR で扱う（本チェックリスト更新と分離する）
+- [ ] 解除後 7 日間は逆戻り条件（active StopCondition 発生時の自動 OFF）を仕込んだ上で観察する
+
+### Step 6（任意・将来）: 設計書 Phase Future の残り
+
+- [ ] 各 Layer C 観測の Ticket 自動生成（人間承認を経た上で初めて検討する）
+- [ ] GraduationCheck しきい値の継続キャリブレーション
+- HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
 
-**2026-05-04: Ticket 29 完了。`LedgerV2::BuildCiFixArtifact` を実装。CI 失敗（`ci_success_rate` open Ticket）を検知し、SolidQueue エラーを lint/test/schema/unknown に分類して draft `ci_fix_suggestion` Artifact を生成する。WeeklyRunner に統合済み（`auto_pr` フラグが有効な場合のみ動作）。Phase G-4 #5「Auto PR」完結。**
+**2026-05-05: 観測・固めフェーズ開始。Step 1（Ticket 18 / MVP #14 の本番目視確認）から始める。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_pr: false`（手動で `true` に変更するまで動作しない）
-- `BuildCiFixArtifact` は `auto_pr` + `artifact_generation` の両フラグが true の場合のみ Artifact を生成
-- Artifacts Admin UI に `ci_fix_suggestion` フィルター追加済み
-- DailyRunner の観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
+- `monthly_runner` フラグ: `true`（dry_run のみ）
+- Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
+- DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
 
-次のステップ:
-1. **Phase G-5 AutoMerge 解除判断**を検討する（Layer C dry_run 安定後、14 日以上 ALL PASS を維持した場合のみ）
-2. `auto_pr` フラグを `true` にして CI 修正案生成を試したい場合はイニシャライザを編集してデプロイする（人間操作のみ）
-3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は引き続き禁止する
+次のアクション（優先順）:
+1. **Step 1**: 本番 Dashboard を開き、HealthSnapshot.count >= 7 かつ GraduationCheck.all_pass? が true になったら Ticket 18・MVP #14 を `[x]` にする PR を出す
+2. **Step 1 完了後**: Dashboard の「連続 PASS: 7 以上」バッジを確認して Step 2 完了とする
+3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は**引き続き禁止**する
 
 ## 参考
 
