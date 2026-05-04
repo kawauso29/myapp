@@ -184,7 +184,8 @@ RSpec.describe "Admin::LedgerV2::Dashboard", type: :request do
       end
     end
 
-    context "Monthly Runner セクション" do      it "Monthly Runner セクションを含む" do
+    context "Monthly Runner セクション" do
+      it "Monthly Runner セクションを含む" do
         get "/admin/ledger_v2"
 
         expect(response.body).to include("Monthly Runner")
