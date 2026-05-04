@@ -143,4 +143,56 @@ RSpec.describe LedgerV2::WeeklyRunner, type: :service do
       expect(artifact.run).to eq(run)
     end
   end
+
+  describe "auto_pr 統合" do
+    context "auto_pr フラグが有効で CI 失敗 Ticket がある場合" do
+      before do
+        allow(LedgerV2::Flags).to receive(:enabled?).and_call_original
+        allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_pr).and_return(true)
+        allow(LedgerV2::Flags).to receive(:enabled?).with(:artifact_generation).and_return(true)
+
+        LedgerV2::Ticket.create!(
+          canonical_key:  "ledger_v2:ci_success_rate:below_minimum:daily:2026-01-01",
+          title:          "CI 成功率が閾値を下回っています",
+          status:         :open,
+          severity:       :high,
+          metric_name:    "ci_success_rate",
+          review_status:  :not_required,
+          human_decision: :none
+        )
+      end
+
+      it "weekly_review と ci_fix_suggestion の 2 件 Artifact が作成される" do
+        expect { call_runner }.to change(LedgerV2::Artifact, :count).by(2)
+      end
+
+      it "created_artifact_count が 2 になる" do
+        result = call_runner
+        expect(result.created_artifact_count).to eq(2)
+      end
+
+      it "ci_fix_suggestion Artifact が draft で作成される" do
+        call_runner
+        ci_artifact = LedgerV2::Artifact.find_by(artifact_type: "ci_fix_suggestion")
+        expect(ci_artifact).not_to be_nil
+        expect(ci_artifact.review_status).to eq("draft")
+      end
+    end
+
+    context "auto_pr フラグが無効な場合" do
+      before do
+        allow(LedgerV2::Flags).to receive(:enabled?).and_call_original
+        allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_pr).and_return(false)
+      end
+
+      it "weekly_review のみ 1 件作成される" do
+        expect { call_runner }.to change(LedgerV2::Artifact, :count).by(1)
+      end
+
+      it "created_artifact_count が 1 になる" do
+        result = call_runner
+        expect(result.created_artifact_count).to eq(1)
+      end
+    end
+  end
 end

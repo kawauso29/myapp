@@ -11,7 +11,7 @@
 # やらないこと:
 # - 戦略を確定しない
 # - Ticket を大量に新規作成しない
-# - 自動 PR を作らない
+# - 自動 PR を作らない（auto_pr フラグが有効でも draft Artifact 生成に留める）
 # - 自動マージしない
 # - Monthly / Quarterly へ勝手に昇格しない
 #
@@ -72,6 +72,10 @@ module LedgerV2
         )
         created_event_count += 1
       end
+
+      # auto_pr フラグが有効な場合、CI 失敗分類と修正案ドラフト Artifact を生成する。
+      ci_fix_count = BuildCiFixArtifact.call(run: @run, dry_run: @dry_run)
+      created_artifact_count += ci_fix_count
 
       RunExecutor::RunnerResult.new(
         created_artifact_count: created_artifact_count,
