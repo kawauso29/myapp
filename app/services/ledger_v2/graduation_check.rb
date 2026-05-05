@@ -53,6 +53,35 @@ module LedgerV2
       call.all?(&:ok?)
     end
 
+    # @return [Integer] 直近の HealthSnapshot で連続して per-snapshot 基準をすべて満たしている件数。
+    #
+    # 対象基準（snapshot ごとに計算できる 4 項目）:
+    #   ticket_noise_rate / artifact_acceptance_rate / runner_failure_rate / pending_review_count
+    #
+    # 用途: Dashboard で「連続 N snapshot PASS」を表示し、人間が安定傾向を一目で確認できるようにする。
+    #       7 snapshot 連続 PASS（≒3.5 時間）が Phase G-0 安定確認の目安。
+    def self.consecutive_pass_count
+      per_snapshot_keys = %i[ticket_noise_rate artifact_acceptance_rate runner_failure_rate pending_review_count]
+      snapshot_criteria = CRITERIA.select { |c| per_snapshot_keys.include?(c[:key]) }
+
+      snapshots = LedgerV2::HealthSnapshot
+        .where(period: LedgerV2::HealthSnapshot.periods[:daily])
+        .order(measured_at: :desc)
+        .limit(100)
+
+      count = 0
+      snapshots.each do |snapshot|
+        all_ok = snapshot_criteria.all? do |c|
+          v = snapshot.public_send(c[:key])
+          compare(v, c[:op], c[:threshold])
+        end
+        break unless all_ok
+
+        count += 1
+      end
+      count
+    end
+
     # --- 内部実装（private） ---
 
     def self.latest_daily_snapshot

@@ -85,4 +85,59 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
       expect(described_class.all_pass?).to be(false)
     end
   end
+
+  describe ".consecutive_pass_count" do
+    def create_snapshot(offset_hours: 0, noise: 0.10, acceptance: 0.80, failure: 0.05, pending: 5)
+      LedgerV2::HealthSnapshot.create!(
+        period:                            :daily,
+        measured_at:                       offset_hours.hours.ago,
+        ticket_noise_rate:                 noise,
+        artifact_acceptance_rate:          acceptance,
+        runner_failure_rate:               failure,
+        unresolved_ticket_age_avg:         12.0,
+        human_intervention_rate:           0.10,
+        kpi_improvement_after_ticket_rate: 0.50,
+        stop_trigger_count:                0,
+        duplicate_prevented_count:         1,
+        pending_review_count:              pending,
+        open_ticket_count:                 2
+      )
+    end
+
+    it "snapshot が 0 件なら 0 を返す" do
+      expect(described_class.consecutive_pass_count).to eq(0)
+    end
+
+    it "直近 snapshot が per-snapshot 基準をすべて満たしていれば 1 を返す" do
+      create_snapshot(offset_hours: 0)
+
+      expect(described_class.consecutive_pass_count).to eq(1)
+    end
+
+    it "連続した passing snapshot の件数を返す" do
+      # 新しい順: 0h・1h・2h 前（3件すべて passing）
+      create_snapshot(offset_hours: 0)
+      create_snapshot(offset_hours: 1)
+      create_snapshot(offset_hours: 2)
+
+      expect(described_class.consecutive_pass_count).to eq(3)
+    end
+
+    it "途中で failing snapshot があるとそこで止まる" do
+      # 新しい順: 0h（passing）→ 1h（failing: ノイズ率 0.50 > 0.30）→ 2h（passing）
+      create_snapshot(offset_hours: 0)
+      create_snapshot(offset_hours: 1, noise: 0.50)
+      create_snapshot(offset_hours: 2)
+
+      # 最新の 1 件だけカウント（1h 前が NG なのでそこで止まる）
+      expect(described_class.consecutive_pass_count).to eq(1)
+    end
+
+    it "最新 snapshot が failing なら 0 を返す" do
+      create_snapshot(offset_hours: 0, noise: 0.50)  # NG
+      create_snapshot(offset_hours: 1)                # OK
+
+      expect(described_class.consecutive_pass_count).to eq(0)
+    end
+  end
 end

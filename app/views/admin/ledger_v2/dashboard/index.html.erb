@@ -33,6 +33,22 @@
   <p style="color:#a0aec0; font-size:12px; margin-top:4px;">
     しきい値の出典: <code>docs/projects/ledger-v2-migration.md</code> §「v2 卒業基準」
   </p>
+  <%# 連続 PASS 件数バッジ（Phase G-0 安定確認の目安: 7 snapshot 連続 PASS ≒ 3.5 時間） %>
+  <div style="margin-top:8px;">
+    <% if @consecutive_pass_count >= 7 %>
+      <span style="display:inline-block; background:#276749; color:#9ae6b4; padding:4px 10px; border-radius:4px; font-size:13px; font-weight:600;">
+        🟢 連続 PASS: <%= @consecutive_pass_count %> snapshot（Phase G-0 安定確認 OK）
+      </span>
+    <% elsif @consecutive_pass_count > 0 %>
+      <span style="display:inline-block; background:#2d3748; color:#f6e05e; padding:4px 10px; border-radius:4px; font-size:13px; font-weight:600;">
+        🟡 連続 PASS: <%= @consecutive_pass_count %> / 7 snapshot（目標: 7 以上で Phase G-0 完了）
+      </span>
+    <% else %>
+      <span style="display:inline-block; background:#2d3748; color:#a0aec0; padding:4px 10px; border-radius:4px; font-size:13px;">
+        ⚪ 連続 PASS: 0 snapshot（最新 snapshot が未達基準あり）
+      </span>
+    <% end %>
+  </div>
   <table style="margin-top:8px;">
     <thead>
       <tr>
