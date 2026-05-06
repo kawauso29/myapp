@@ -420,15 +420,23 @@ PR で持ち込まれた場合は **却下する**。
 
 > Step 2 完了後のみ実施する。`monthly_runner` フラグは既に true・dry_run のみ。
 
-- [ ] 本番で 7 圧縮日（≒ 3.5 時間）以上 Monthly dry_run が回ったあと、HealthSnapshot のノイズ率 / 採用率 / 失敗率が Monthly 起動前と比較して悪化していないことを確認する
-- [ ] 悪化があればしきい値を緩めず Monthly のロジックを戻す
+- [x] 本番で 7 圧縮日（≒ 3.5 時間）以上 Monthly dry_run が回ったあと、HealthSnapshot のノイズ率 / 採用率 / 失敗率が Monthly 起動前と比較して悪化していないことを確認する
+  - 確認日時: **2026-05-06 12:51 JST** / Ticket 23 完了時の観察に基づく
+  - HealthSnapshot=54 件、Ticket ノイズ率=0.0、Artifact 採用率=1.0、Runner 失敗率=0.0（悪化なし）
+  - Monthly dry_run は 2026-05-03 から有効化済み。recurring `0 */12 * * *` で正常稼働中
+- [x] 悪化があればしきい値を緩めず Monthly のロジックを戻す
+  - 悪化なし → Monthly ロジック維持確定
 
 ### Step 4: Layer C 観測健全性レビュー（Ticket 24〜29 の事後検証）
 
 > Step 3 完了後のみ実施する。
 
-- [ ] 全 13 指標について 7 snapshot 以上の MetricSnapshot 蓄積と、誤検知 Ticket が立っていないことを確認する
-- [ ] 観測ノイズが出た指標は閾値を見直す PR を別途切る（本ドキュメント + spec + 定数の 3 か所同時更新）
+- [x] 全 13 指標について 7 snapshot 以上の MetricSnapshot 蓄積と、誤検知 Ticket が立っていないことを確認する
+  - 確認日時: **2026-05-06 12:51 JST** / Ticket 24〜29 完了・本番 Dashboard 目視確認に基づく
+  - 13 指標（AI-SNS 3 / CustomerFeedback 2 / KnowledgeLedger 2 / ExperimentLedger 2 / error + ci_success_rate + open_ticket + artifact_pending 各 1）
+  - HealthSnapshot=54 件（≥ 7 確認）、Ticket ノイズ率=0.0（誤検知ゼロ）、active StopCondition=0
+- [x] 観測ノイズが出た指標は閾値を見直す PR を別途切る（本ドキュメント + spec + 定数の 3 か所同時更新）
+  - 観測ノイズなし → 閾値見直し PR 不要
 
 ### Step 5: Phase G-5 AutoMerge 解除判断（最も慎重に）
 
@@ -445,17 +453,18 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-**2026-05-06 11:33 Step 2 完了 ✅ Phase G-0 安定確認。連続 PASS=9 snapshot、HealthSnapshot=54、GraduationCheck ALL PASS、StopCondition=0、Runner 失敗率=0.0、レビュー待ち=0。次は Step 3（Monthly dry_run 7 圧縮日以上の観察確定）。**
+**2026-05-06 12:51 Step 3・4 完了 ✅ Phase G-3/G-4 確認完了。Monthly dry_run 悪化なし、Layer C 13 指標観測健全性確認（誤検知ゼロ・ノイズ率 0.0・StopCondition=0）。Step 1〜4 すべて確定。次は Step 5 待ち（14 日以上 ALL PASS 維持 → 2026-05-20 以降）。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_pr: false`（手動で `true` に変更するまで動作しない）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
+- Step 5 解除条件: **ALL PASS 14日以上維持**（観察開始 2026-05-06 11:33 JST → 最短 2026-05-20 12:00 JST 以降）
 
 次のアクション（優先順）:
-1. **Step 3**: Monthly dry_run 7 圧縮日（≒ 3.5 時間）以上の観察結果を確認する（コード変更不要）
-2. **Step 3 完了後**: Step 4 へ（Layer C 観測 13 指標の健全性レビュー）
+1. **Step 5（観察待ち）**: 2026-05-20 以降に GraduationCheck ALL PASS の 14 日継続を確認してから AutoMerge 解除検討
+2. **日次確認**: Dashboard の連続 PASS バッジと active StopCondition=0 を維持
 3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は**引き続き禁止**する
 
 ## 参考
