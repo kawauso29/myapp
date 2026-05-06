@@ -453,17 +453,17 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-**2026-05-06 12:51 Step 3・4 完了 ✅ Phase G-3/G-4 確認完了。Monthly dry_run 悪化なし、Layer C 13 指標観測健全性確認（誤検知ゼロ・ノイズ率 0.0・StopCondition=0）。Step 1〜4 すべて確定。次は Step 5 待ち（14 日以上 ALL PASS 維持 → 2026-05-20 以降）。**
+**2026-05-06 12:51 Step 3・4 完了 ✅ Phase G-3/G-4 確認完了。Monthly dry_run 悪化なし、Layer C 13 指標観測健全性確認（誤検知ゼロ・ノイズ率 0.0・StopCondition=0）。Step 1〜4 すべて確定。次は Step 5 待ち（14 圧縮日 = 7時間リアル → 2026-05-06 18:33 JST 以降）。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_pr: false`（手動で `true` に変更するまで動作しない）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
-- Step 5 解除条件: **ALL PASS 14日以上維持**（観察開始 2026-05-06 11:33 JST → 最短 2026-05-20 12:00 JST 以降）
+- Step 5 解除条件: **ALL PASS 14圧縮日以上維持**（14圧縮日 = 14 × 30分 = 7時間リアル / 観察開始 2026-05-06 11:33 JST → 最短 **2026-05-06 18:33 JST** 以降）
 
 次のアクション（優先順）:
-1. **Step 5（観察待ち）**: 2026-05-20 以降に GraduationCheck ALL PASS の 14 日継続を確認してから AutoMerge 解除検討
+1. **Step 5（観察待ち）**: **2026-05-06 18:33 JST 以降**に GraduationCheck ALL PASS の 14 圧縮日継続を確認してから AutoMerge 解除検討
 2. **日次確認**: Dashboard の連続 PASS バッジと active StopCondition=0 を維持
 3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は**引き続き禁止**する
 
