@@ -411,8 +411,10 @@ PR で持ち込まれた場合は **却下する**。
 > Step 1 完了後のみ実施する。
 > Dashboard の「連続 PASS」バッジ（`GraduationCheck.consecutive_pass_count`）は本 PR で実装済み。
 
-- [ ] 「連続 PASS: 7 以上（Phase G-0 安定確認 OK）」バッジが Dashboard に表示されることを目視確認する
-- [ ] v2 起因の StopCondition / failed job がゼロであることをスポット確認した記録を追記する
+- [x] 「連続 PASS: 7 以上（Phase G-0 安定確認 OK）」バッジが Dashboard に表示されることを目視確認する
+  - 確認日時: **2026-05-06 11:33 JST** / 連続 PASS=9 snapshot, HealthSnapshot=54, Total Runs=98
+- [x] v2 起因の StopCondition / failed job がゼロであることをスポット確認した記録を追記する
+  - Ticket ノイズ率=0.0、Artifact 採用率=1.0、Runner 失敗率=0.0、active StopCondition=0、重複防止実績=157、レビュー待ち件数=0
 
 ### Step 3: Phase G-3 Monthly dry_run 観察確定
 
@@ -443,7 +445,7 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-**2026-05-05 07:35 Step 1 完了 ✅ MVP 完成宣言。HealthSnapshot=38, GraduationCheck ALL PASS, StopCondition=0, 重複防止実績=125。次は Step 2（Dashboard の連続 PASS バッジが「7 以上」になることを確認）。**
+**2026-05-06 11:33 Step 2 完了 ✅ Phase G-0 安定確認。連続 PASS=9 snapshot、HealthSnapshot=54、GraduationCheck ALL PASS、StopCondition=0、Runner 失敗率=0.0、レビュー待ち=0。次は Step 3（Monthly dry_run 7 圧縮日以上の観察確定）。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_pr: false`（手動で `true` に変更するまで動作しない）
@@ -452,8 +454,8 @@ PR で持ち込まれた場合は **却下する**。
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
 
 次のアクション（優先順）:
-1. **Step 2**: Dashboard の「連続 PASS: 7 以上（Phase G-0 安定確認 OK）」バッジを目視確認する（コード変更不要）
-2. **Step 2 完了後**: Step 3 へ（Monthly dry_run 7 圧縮日以上の観察）
+1. **Step 3**: Monthly dry_run 7 圧縮日（≒ 3.5 時間）以上の観察結果を確認する（コード変更不要）
+2. **Step 3 完了後**: Step 4 へ（Layer C 観測 13 指標の健全性レビュー）
 3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は**引き続き禁止**する
 
 ## 参考
