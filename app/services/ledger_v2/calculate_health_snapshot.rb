@@ -77,12 +77,18 @@ module LedgerV2
     end
     private_class_method :calculate_ticket_noise_rate
 
-    # artifact_acceptance_rate: 期間内の Artifact（draft 除く）のうち accepted / published の割合
+    # artifact_acceptance_rate: 期間内の Artifact（draft 除く）のうち accepted / published の割合。
+    # 期間内に Artifact が 0 件の場合は全期間の採用率にフォールバックする。
+    # これにより、過去の Artifact がすべて publish 済みでも採用率が正しく反映される。
     def self.calculate_artifact_acceptance_rate(window_start, window_end)
       scope = LedgerV2::Artifact.where(created_at: window_start..window_end)
                                 .where.not(review_status: LedgerV2::Artifact.review_statuses[:draft])
       total = scope.count
-      return 0.0 if total.zero?
+
+      if total.zero?
+        # ウィンドウ内にデータなし → 全期間の採用率で代替する
+        return calculate_alltime_artifact_acceptance_rate
+      end
 
       accepted = scope.where(review_status: [
         LedgerV2::Artifact.review_statuses[:accepted],
@@ -90,7 +96,21 @@ module LedgerV2
       ]).count
       (accepted.to_f / total).round(4)
     end
+
+    # artifact_acceptance_rate の全期間集計（ウィンドウ内が空のときのフォールバック）
+    def self.calculate_alltime_artifact_acceptance_rate
+      all_scope = LedgerV2::Artifact.where.not(review_status: LedgerV2::Artifact.review_statuses[:draft])
+      total = all_scope.count
+      return 0.0 if total.zero?
+
+      accepted = all_scope.where(review_status: [
+        LedgerV2::Artifact.review_statuses[:accepted],
+        LedgerV2::Artifact.review_statuses[:published]
+      ]).count
+      (accepted.to_f / total).round(4)
+    end
     private_class_method :calculate_artifact_acceptance_rate
+    private_class_method :calculate_alltime_artifact_acceptance_rate
 
     # runner_failure_rate: 期間内の Run のうち failed の割合
     def self.calculate_runner_failure_rate(window_start, window_end)
