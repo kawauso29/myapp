@@ -91,7 +91,7 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
     end
 
     context "artifact_acceptance_rate の計算" do
-      it "期間内の accepted / published Artifact（draft 除く）の割合を返す" do
+      it "期間内の accepted / published Artifact（draft / pending 除く）の割合を返す" do
         create_artifact(review_status: :accepted)
         create_artifact(review_status: :published)
         create_artifact(review_status: :review_rejected)
@@ -102,7 +102,17 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.artifact_acceptance_rate).to be_within(0.001).of(2.0 / 3.0)
       end
 
-      it "ウィンドウ内に Artifact がなくても全期間の採用率にフォールバックする" do
+      it "pending な Artifact は分母に含めない（未決のため採用率を不当に下げない）" do
+        create_artifact(review_status: :accepted)
+        create_artifact(review_status: :pending)  # 未決 → 除外
+        create_artifact(review_status: :draft)     # 未完成 → 除外
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        # 最終判定済み: accepted(1) / 合計決定済み: 1 → 1.0
+        expect(snapshot.artifact_acceptance_rate).to eq(1.0)
+      end
+
+      it "ウィンドウ内に最終判定済み Artifact がなくても全期間の採用率にフォールバックする" do
         # ウィンドウ外（2日前）に published Artifact を作成
         create_artifact(review_status: :published, created_at: now - 2.days)
         create_artifact(review_status: :published, created_at: now - 2.days)
@@ -113,7 +123,11 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.artifact_acceptance_rate).to be_within(0.001).of(2.0 / 3.0)
       end
 
-      it "全体でも Artifact が 0 件なら 0.0 を返す" do
+      it "全体でも最終判定済み Artifact が 0 件（全て pending / draft）なら 0.0 を返す" do
+        create_artifact(review_status: :pending)
+        create_artifact(review_status: :draft)
+
+
         snapshot = described_class.call(period: :daily, measured_at: now)
         expect(snapshot.artifact_acceptance_rate).to eq(0.0)
       end

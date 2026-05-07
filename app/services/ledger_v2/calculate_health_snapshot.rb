@@ -77,12 +77,22 @@ module LedgerV2
     end
     private_class_method :calculate_ticket_noise_rate
 
-    # artifact_acceptance_rate: 期間内の Artifact（draft 除く）のうち accepted / published の割合。
-    # 期間内に Artifact が 0 件の場合は全期間の採用率にフォールバックする。
-    # これにより、過去の Artifact がすべて publish 済みでも採用率が正しく反映される。
+    # artifact_acceptance_rate: 期間内の最終判定済み Artifact（draft / pending 除く）のうち accepted / published の割合。
+    #
+    # draft  : 未完成のためそもそも対象外
+    # pending: レビュー待ち（未決）のため分母に含めない。pending が多くても採用率を不当に下げない。
+    # 対象: accepted / published / review_rejected / review_deferred / needs_more_info
+    # 期間内に最終判定済み Artifact が 0 件の場合は全期間の採用率にフォールバックする。
     def self.calculate_artifact_acceptance_rate(window_start, window_end)
+      decided_statuses = [
+        LedgerV2::Artifact.review_statuses[:accepted],
+        LedgerV2::Artifact.review_statuses[:published],
+        LedgerV2::Artifact.review_statuses[:review_rejected],
+        LedgerV2::Artifact.review_statuses[:review_deferred],
+        LedgerV2::Artifact.review_statuses[:needs_more_info]
+      ]
       scope = LedgerV2::Artifact.where(created_at: window_start..window_end)
-                                .where.not(review_status: LedgerV2::Artifact.review_statuses[:draft])
+                                .where(review_status: decided_statuses)
       total = scope.count
 
       if total.zero?
@@ -98,8 +108,16 @@ module LedgerV2
     end
 
     # artifact_acceptance_rate の全期間集計（ウィンドウ内が空のときのフォールバック）
+    # draft / pending を除いた最終判定済み Artifact で採用率を計算する。
     def self.calculate_alltime_artifact_acceptance_rate
-      all_scope = LedgerV2::Artifact.where.not(review_status: LedgerV2::Artifact.review_statuses[:draft])
+      decided_statuses = [
+        LedgerV2::Artifact.review_statuses[:accepted],
+        LedgerV2::Artifact.review_statuses[:published],
+        LedgerV2::Artifact.review_statuses[:review_rejected],
+        LedgerV2::Artifact.review_statuses[:review_deferred],
+        LedgerV2::Artifact.review_statuses[:needs_more_info]
+      ]
+      all_scope = LedgerV2::Artifact.where(review_status: decided_statuses)
       total = all_scope.count
       return 0.0 if total.zero?
 
