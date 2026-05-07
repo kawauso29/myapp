@@ -23,11 +23,19 @@ module LedgerV2
     # フラグが有効かどうかを返す。
     # 未知のフラグ・未設定フラグは false を返す（保守的デフォルト）。
     #
+    # 逆戻り条件（Phase G-5）:
+    #   initializer で true に設定されていても、active な StopCondition が
+    #   そのフラグ名または "all" を target_type に持つ場合は false を返す。
+    #   これにより、human が StopCondition を作成するだけで機能を自動停止できる。
+    #
     # @param flag_name [Symbol, String]
     # @return [Boolean]
     def self.enabled?(flag_name)
       flags = Rails.application.config.x.ledger_v2_flags
-      !!flags[flag_name.to_sym]
+      return false unless flags[flag_name.to_sym]
+      return false if StopCondition.blocking_feature?(flag_name)
+
+      true
     end
 
     # 全フラグの現在値を Hash で返す。

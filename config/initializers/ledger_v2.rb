@@ -21,5 +21,8 @@ Rails.application.config.x.ledger_v2_flags = {
   quarterly_runner: false,
   annual_runner:    false,
   auto_pr:          false,
-  auto_merge:       false
+
+  # Phase G-5（2026-05-07）: ALL PASS 14圧縮日維持を確認、AutoMerge 解除。
+  # 逆戻り条件: StopCondition target_type "auto_merge" / "all" が active なら Flags.enabled? が false を返す。
+  auto_merge:       true
 }.freeze

@@ -11,6 +11,49 @@ RSpec.describe LedgerV2::Flags do
       it "true を返す" do
         expect(described_class.enabled?(:daily_runner)).to be true
       end
+
+      context "かつ active な StopCondition（target_type: フラグ名）がある場合" do
+        before do
+          allow(Rails.application.config.x).to receive(:ledger_v2_flags)
+            .and_return({ auto_merge: true })
+          LedgerV2::StopCondition.create!(
+            target_type: "auto_merge", reason: "逆戻り", severity: "high", created_by: "admin"
+          )
+        end
+
+        it "false を返す（逆戻り条件）" do
+          expect(described_class.enabled?(:auto_merge)).to be false
+        end
+      end
+
+      context "かつ active な StopCondition（target_type: all）がある場合" do
+        before do
+          allow(Rails.application.config.x).to receive(:ledger_v2_flags)
+            .and_return({ auto_merge: true })
+          LedgerV2::StopCondition.create!(
+            target_type: "all", reason: "全停止", severity: "critical", created_by: "admin"
+          )
+        end
+
+        it "false を返す（逆戻り条件 — all は全フラグを止める）" do
+          expect(described_class.enabled?(:auto_merge)).to be false
+        end
+      end
+
+      context "かつ inactive な StopCondition（active: false）がある場合" do
+        before do
+          allow(Rails.application.config.x).to receive(:ledger_v2_flags)
+            .and_return({ auto_merge: true })
+          LedgerV2::StopCondition.create!(
+            target_type: "auto_merge", reason: "解除済み", severity: "low",
+            created_by: "admin", active: false
+          )
+        end
+
+        it "true を返す（inactive な StopCondition は無視）" do
+          expect(described_class.enabled?(:auto_merge)).to be true
+        end
+      end
     end
 
     context "フラグが false のとき" do
@@ -52,11 +95,15 @@ RSpec.describe LedgerV2::Flags do
       expect(described_class.all[:monthly_runner]).to be(true)
     end
 
-    it "v2 初期で禁止されているフラグ（quarterly 以上・auto 系）は false のまま" do
-      prohibited_flags = %i[quarterly_runner annual_runner auto_pr auto_merge]
-      prohibited_flags.each do |flag|
+    it "Phase G-5（2026-05-07）で auto_merge は有効化済み" do
+      expect(described_class.all[:auto_merge]).to be(true)
+    end
+
+    it "quarterly_runner / annual_runner / auto_pr はまだ false" do
+      still_disabled = %i[quarterly_runner annual_runner auto_pr]
+      still_disabled.each do |flag|
         expect(described_class.all[flag]).to be(false),
-          "#{flag} は v2 初期禁止フラグなので false であるべき"
+          "#{flag} はまだ有効化されていないはず"
       end
     end
 
