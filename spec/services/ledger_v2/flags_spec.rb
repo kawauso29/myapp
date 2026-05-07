@@ -35,8 +35,8 @@ RSpec.describe LedgerV2::Flags do
           )
         end
 
-        it "false を返す（逆戻り条件 — all は全フラグを止める）" do
-          expect(described_class.enabled?(:auto_merge)).to be false
+        it "true を返す（target_type: all は Runner を止めるが feature フラグは変えない）" do
+          expect(described_class.enabled?(:auto_merge)).to be true
         end
       end
 

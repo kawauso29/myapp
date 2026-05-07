@@ -133,11 +133,11 @@ RSpec.describe LedgerV2::StopCondition, type: :model do
       expect(described_class.blocking_feature?(:auto_merge)).to be true
     end
 
-    it "target_type: all の active な条件があればすべての機能フラグをブロック" do
+    it "target_type: all の active な条件があっても feature フラグには影響しない（Runner は CircuitBreaker が担当）" do
       described_class.create!(
         target_type: "all", reason: "全停止", severity: "critical", created_by: "admin"
       )
-      expect(described_class.blocking_feature?("auto_merge")).to be true
+      expect(described_class.blocking_feature?("auto_merge")).to be false
     end
 
     it "target_type が異なれば false" do
