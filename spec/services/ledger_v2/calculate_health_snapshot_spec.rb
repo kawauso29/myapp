@@ -101,6 +101,22 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         # draft 除外後 3件中 2件が承認 → 0.6667
         expect(snapshot.artifact_acceptance_rate).to be_within(0.001).of(2.0 / 3.0)
       end
+
+      it "ウィンドウ内に Artifact がなくても全期間の採用率にフォールバックする" do
+        # ウィンドウ外（2日前）に published Artifact を作成
+        create_artifact(review_status: :published, created_at: now - 2.days)
+        create_artifact(review_status: :published, created_at: now - 2.days)
+        create_artifact(review_status: :review_rejected, created_at: now - 2.days)
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        # ウィンドウ内は 0件 → 全期間で 3件中 2件が承認 → 0.6667
+        expect(snapshot.artifact_acceptance_rate).to be_within(0.001).of(2.0 / 3.0)
+      end
+
+      it "全体でも Artifact が 0 件なら 0.0 を返す" do
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        expect(snapshot.artifact_acceptance_rate).to eq(0.0)
+      end
     end
 
     context "runner_failure_rate の計算" do
