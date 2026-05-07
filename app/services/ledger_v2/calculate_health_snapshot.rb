@@ -77,10 +77,21 @@ module LedgerV2
     end
     private_class_method :calculate_ticket_noise_rate
 
-    # artifact_acceptance_rate: 期間内の Artifact（draft 除く）のうち accepted / published の割合
+    # artifact_acceptance_rate: 期間内の最終判定済み Artifact（draft / pending 除く）のうち accepted / published の割合
+    #
+    # draft  : 未完成のためそもそも対象外
+    # pending: レビュー待ち（未決）のため分母に含めない。pending が多くても採用率を不当に下げない。
+    # 対象: accepted / published / review_rejected / review_deferred / needs_more_info
     def self.calculate_artifact_acceptance_rate(window_start, window_end)
+      decided_statuses = [
+        LedgerV2::Artifact.review_statuses[:accepted],
+        LedgerV2::Artifact.review_statuses[:published],
+        LedgerV2::Artifact.review_statuses[:review_rejected],
+        LedgerV2::Artifact.review_statuses[:review_deferred],
+        LedgerV2::Artifact.review_statuses[:needs_more_info]
+      ]
       scope = LedgerV2::Artifact.where(created_at: window_start..window_end)
-                                .where.not(review_status: LedgerV2::Artifact.review_statuses[:draft])
+                                .where(review_status: decided_statuses)
       total = scope.count
       return 0.0 if total.zero?
 
