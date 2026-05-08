@@ -217,14 +217,16 @@ module LedgerV2
       pr_artifacts = LedgerV2::Artifact
                        .where(artifact_type: "ci_fix_suggestion")
                        .where("metadata_json ? :key", key: "draft_pr")
-      rejected_count = pr_artifacts.where(review_status: LedgerV2::Artifact.review_statuses[:review_rejected]).count
-      total_pr_artifacts = pr_artifacts.count
+      status_counts = pr_artifacts.group(:review_status).count
+      total_pr_artifacts = status_counts.values.sum
+      rejected_count = status_counts["review_rejected"].to_i
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
         "created_count" => success_count,
         "failed_count" => failure_count,
         "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
+        # GitHub PR の CI 再通過結果はまだ LedgerV2 に同期していないため、観測可能になるまで nil で明示する。
         "ci_repass_rate" => nil
       }
     end
