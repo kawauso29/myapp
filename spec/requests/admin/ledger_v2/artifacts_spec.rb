@@ -235,6 +235,26 @@ RSpec.describe "Admin::LedgerV2::Artifacts", type: :request do
 
         expect(response).to redirect_to(admin_ledger_v2_artifacts_path)
       end
+
+      it "draft PR 作成連動サービスを呼び出す" do
+        allow(LedgerV2::CreateDraftPullRequest).to receive(:call).and_return(
+          LedgerV2::CreateDraftPullRequest::Result.new(created?: false, skipped?: true, reason: "unsupported artifact_type")
+        )
+
+        patch "/admin/ledger_v2/artifacts/#{artifact.id}", params: { review_action: "accept" }
+
+        expect(LedgerV2::CreateDraftPullRequest).to have_received(:call).with(artifact: artifact)
+      end
+
+      it "draft PR 作成成功時は PR 番号を notice に含める" do
+        allow(LedgerV2::CreateDraftPullRequest).to receive(:call).and_return(
+          LedgerV2::CreateDraftPullRequest::Result.new(created?: true, skipped?: false, pr_number: 123)
+        )
+
+        patch "/admin/ledger_v2/artifacts/#{artifact.id}", params: { review_action: "accept" }
+
+        expect(flash[:notice]).to include("draft PR #123")
+      end
     end
 
     context "reject アクション" do

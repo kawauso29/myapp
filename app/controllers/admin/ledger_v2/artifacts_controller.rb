@@ -44,7 +44,10 @@ class Admin::LedgerV2::ArtifactsController < Admin::LedgerV2::BaseController
         reviewed_by:   "admin",
         reviewed_at:   Time.current
       )
-      redirect_to admin_ledger_v2_artifacts_path, notice: "Artifact ##{artifact.id} を accept しました。"
+      pr_result = ::LedgerV2::CreateDraftPullRequest.call(artifact: artifact)
+      notice = "Artifact ##{artifact.id} を accept しました。"
+      notice += " draft PR ##{pr_result.pr_number} を作成しました。" if pr_result.created?
+      redirect_to admin_ledger_v2_artifacts_path, notice: notice
     when "reject"
       artifact.update!(
         review_status:  :review_rejected,

@@ -7,11 +7,11 @@ class GithubPrService
   REPO = "kawauso29/myapp"
   BASE_BRANCH = "main"
 
-  def self.create_pr(title:, body:, branch_prefix: "copilot/ai-sns")
-    new.create_pr(title: title, body: body, branch_prefix: branch_prefix)
+  def self.create_pr(title:, body:, branch_prefix: "copilot/ai-sns", draft: false, path_prefix: "docs/ai_sns_proposals")
+    new.create_pr(title: title, body: body, branch_prefix: branch_prefix, draft: draft, path_prefix: path_prefix)
   end
 
-  def create_pr(title:, body:, branch_prefix:)
+  def create_pr(title:, body:, branch_prefix:, draft: false, path_prefix: "docs/ai_sns_proposals")
     token = ENV["DEPLOY_TOKEN"]
     unless token.present?
       Rails.logger.warn("[GithubPrService] DEPLOY_TOKEN が未設定のためPR作成をスキップします")
@@ -25,8 +25,8 @@ class GithubPrService
     return nil unless main_sha
 
     create_branch(token, branch_name: branch_name, sha: main_sha)
-    create_placeholder_commit(token, branch_name: branch_name, title: title, body: body)
-    create_pr_request(token, title: title, body: body, branch_name: branch_name)
+    create_placeholder_commit(token, branch_name: branch_name, title: title, body: body, path_prefix: path_prefix)
+    create_pr_request(token, title: title, body: body, branch_name: branch_name, draft: draft)
   rescue => e
     Rails.logger.error("[GithubPrService] PR作成エラー: #{e.class} #{e.message}")
     nil
@@ -47,9 +47,9 @@ class GithubPrService
     request(:post, uri, token, ref: "refs/heads/#{branch_name}", sha: sha)
   end
 
-  def create_placeholder_commit(token, branch_name:, title:, body:)
+  def create_placeholder_commit(token, branch_name:, title:, body:, path_prefix:)
     sanitized_branch_name = branch_name.gsub("/", "-")
-    path = "docs/ai_sns_proposals/#{sanitized_branch_name}.md"
+    path = "#{path_prefix}/#{sanitized_branch_name}.md"
     content = "# #{title}\n\n#{body}\n"
     uri = URI("#{GITHUB_API_BASE}/repos/#{REPO}/contents/#{path}")
     request(:put, uri, token,
@@ -58,14 +58,14 @@ class GithubPrService
       branch: branch_name)
   end
 
-  def create_pr_request(token, title:, body:, branch_name:)
+  def create_pr_request(token, title:, body:, branch_name:, draft:)
     uri = URI("#{GITHUB_API_BASE}/repos/#{REPO}/pulls")
     res = request(:post, uri, token,
       title: title,
       body: body,
       head: branch_name,
       base: BASE_BRANCH,
-      draft: false)
+      draft: draft)
 
     if res.is_a?(Net::HTTPCreated)
       parsed = JSON.parse(res.body)

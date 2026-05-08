@@ -66,6 +66,17 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         snapshot = described_class.call(period: :daily, measured_at: now, dry_run: true)
         expect(snapshot.metadata_json["dry_run"]).to be true
       end
+
+      it "metadata_json に draft_pr_metrics が記録される" do
+        snapshot = described_class.call(period: :daily, measured_at: now, dry_run: true)
+        expect(snapshot.metadata_json["draft_pr_metrics"]).to include(
+          "creation_success_rate" => 0.0,
+          "created_count" => 0,
+          "failed_count" => 0,
+          "draft_pr_artifact_rejection_rate" => 0.0,
+          "ci_repass_rate" => nil
+        )
+      end
     end
 
     context "ticket_noise_rate の計算" do
@@ -175,6 +186,31 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
 
         snapshot = described_class.call(period: :daily, measured_at: now)
         expect(snapshot.pending_review_count).to eq(3)
+      end
+    end
+
+    context "draft_pr_metrics の集計" do
+      it "draft PR 作成成功率を metadata_json に記録する" do
+        run = create_run
+        LedgerV2::Event.create!(run: run, event_type: "draft_pr_created", occurred_at: now - 10.minutes)
+        LedgerV2::Event.create!(run: run, event_type: "draft_pr_create_failed", occurred_at: now - 5.minutes)
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :review_rejected,
+          metadata_json: { "draft_pr" => { "number" => 101 } }
+        )
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :accepted,
+          metadata_json: { "draft_pr" => { "number" => 102 } }
+        )
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "creation_success_rate")).to eq(0.5)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "created_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.5)
       end
     end
 

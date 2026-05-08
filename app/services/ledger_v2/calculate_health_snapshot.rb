@@ -35,6 +35,7 @@ module LedgerV2
       duplicates_prevented = sum_duplicate_prevented(window_start, measured_at)
       pending_reviews      = count_pending_reviews
       open_tickets         = count_open_tickets
+      draft_pr_metrics     = calculate_draft_pr_metrics(window_start, measured_at)
 
       attrs = {
         period:                              period,
@@ -52,7 +53,8 @@ module LedgerV2
         metadata_json: {
           "window_start" => window_start.iso8601,
           "window_end"   => measured_at.iso8601,
-          "dry_run"      => dry_run
+          "dry_run"      => dry_run,
+          "draft_pr_metrics" => draft_pr_metrics
         }
       }
 
@@ -205,6 +207,30 @@ module LedgerV2
       LedgerV2::Ticket.active.count
     end
     private_class_method :count_open_tickets
+
+    # draft_pr_metrics: Artifact 承認後の draft PR 連動が健全に動いているかを見る補助指標。
+    def self.calculate_draft_pr_metrics(window_start, window_end)
+      success_count = LedgerV2::Event.where(event_type: "draft_pr_created", occurred_at: window_start..window_end).count
+      failure_count = LedgerV2::Event.where(event_type: "draft_pr_create_failed", occurred_at: window_start..window_end).count
+      total_attempts = success_count + failure_count
+
+      pr_artifacts = LedgerV2::Artifact
+                       .where(artifact_type: "ci_fix_suggestion")
+                       .where("metadata_json ? :key", key: "draft_pr")
+      status_counts = pr_artifacts.group(:review_status).count
+      total_pr_artifacts = status_counts.values.sum
+      rejected_count = status_counts["review_rejected"].to_i
+
+      {
+        "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
+        "created_count" => success_count,
+        "failed_count" => failure_count,
+        "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
+        # GitHub PR の CI 再通過結果はまだ LedgerV2 に同期していないため、観測可能になるまで nil で明示する。
+        "ci_repass_rate" => nil
+      }
+    end
+    private_class_method :calculate_draft_pr_metrics
 
     # 集計ウィンドウの開始時刻を返す
     def self.period_window_start(period, measured_at)
