@@ -214,16 +214,17 @@ module LedgerV2
       failure_count = LedgerV2::Event.where(event_type: "draft_pr_create_failed", occurred_at: window_start..window_end).count
       total_attempts = success_count + failure_count
 
-      pr_artifacts = LedgerV2::Artifact.where(artifact_type: "ci_fix_suggestion").where.not(metadata_json: nil).select do |artifact|
-        artifact.metadata_json&.key?("draft_pr")
-      end
-      rejected_count = pr_artifacts.count(&:review_status_review_rejected?)
+      pr_artifacts = LedgerV2::Artifact
+                       .where(artifact_type: "ci_fix_suggestion")
+                       .where("metadata_json ? :key", key: "draft_pr")
+      rejected_count = pr_artifacts.where(review_status: LedgerV2::Artifact.review_statuses[:review_rejected]).count
+      total_pr_artifacts = pr_artifacts.count
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
         "created_count" => success_count,
         "failed_count" => failure_count,
-        "artifact_rejection_rate" => pr_artifacts.empty? ? 0.0 : (rejected_count.to_f / pr_artifacts.size).round(4),
+        "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
         "ci_repass_rate" => nil
       }
     end
