@@ -118,6 +118,44 @@ RSpec.describe LedgerV2::StopCondition, type: :model do
     end
   end
 
+  describe ".blocking_feature?" do
+    it "target_type がフラグ名と一致する active な条件があれば true" do
+      described_class.create!(
+        target_type: "auto_merge", reason: "逆戻り", severity: "high", created_by: "admin"
+      )
+      expect(described_class.blocking_feature?("auto_merge")).to be true
+    end
+
+    it "Symbol でも動作する" do
+      described_class.create!(
+        target_type: "auto_merge", reason: "逆戻り", severity: "high", created_by: "admin"
+      )
+      expect(described_class.blocking_feature?(:auto_merge)).to be true
+    end
+
+    it "target_type: all の active な条件があっても feature フラグには影響しない（Runner は CircuitBreaker が担当）" do
+      described_class.create!(
+        target_type: "all", reason: "全停止", severity: "critical", created_by: "admin"
+      )
+      expect(described_class.blocking_feature?("auto_merge")).to be false
+    end
+
+    it "target_type が異なれば false" do
+      described_class.create!(
+        target_type: "auto_pr", reason: "auto_pr のみ停止", severity: "low", created_by: "admin"
+      )
+      expect(described_class.blocking_feature?("auto_merge")).to be false
+    end
+
+    it "active: false の条件は false" do
+      described_class.create!(
+        target_type: "auto_merge", reason: "解除済み", severity: "low",
+        created_by: "admin", active: false
+      )
+      expect(described_class.blocking_feature?("auto_merge")).to be false
+    end
+  end
+
   describe "#resolve!" do
     it "active を false にし resolved_by / resolved_at を記録する" do
       condition = described_class.create!(

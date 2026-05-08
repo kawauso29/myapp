@@ -33,10 +33,25 @@ module LedgerV2
       )
     }
 
+    # 指定 feature_name（フラグ名: "auto_pr", "auto_merge" 等）に対してアクティブなブロック条件を返す。
+    # target_type にフラグ名が完全一致するものだけを対象とする。
+    # 注意: target_type: "all" は Runner 全体を止める意味で使用するが、feature フラグには影響させない。
+    #       Runner は CircuitBreaker（blocking_runner? / blocking_runner スコープ）でブロックする。
+    # 逆戻り条件（Phase G-5）: active StopCondition があれば Flags.enabled? が false を返すために使用する。
+    scope :blocking_feature, ->(feature_name) {
+      active_conditions.where(target_type: feature_name.to_s)
+    }
+
     # @param runner_name [String] CamelCase の Runner 名（例: "DailyRunner"）
     # @return [Boolean]
     def self.blocking_runner?(runner_name)
       blocking_runner(runner_name).exists?
+    end
+
+    # @param feature_name [Symbol, String] フラグ名（例: :auto_merge, "auto_pr"）
+    # @return [Boolean]
+    def self.blocking_feature?(feature_name)
+      blocking_feature(feature_name).exists?
     end
 
     # @param runner_name [String]

@@ -442,8 +442,12 @@ PR で持ち込まれた場合は **却下する**。
 
 > 前提: Step 1〜4 すべて確定 + **14 日以上 ALL PASS を維持**した後のみ。
 
-- [ ] AutoMerge ON は別議題として独立 PR で扱う（本チェックリスト更新と分離する）
-- [ ] 解除後 7 日間は逆戻り条件（active StopCondition 発生時の自動 OFF）を仕込んだ上で観察する
+- [x] AutoMerge ON は別議題として独立 PR で扱う（本チェックリスト更新と分離する）
+  - 実施日時: **2026-05-07 21:25 JST** / ALL PASS ✅ 継続確認（観察開始 2026-05-06 11:33 JST より 34時間経過）
+- [x] 解除後 7 日間は逆戻り条件（active StopCondition 発生時の自動 OFF）を仕込んだ上で観察する
+  - 実装: `LedgerV2::StopCondition.blocking_feature?` + `Flags.enabled?` に逆戻り条件組み込み
+  - `auto_merge: false` → `auto_merge: true`（`config/initializers/ledger_v2.rb`）
+  - 逆戻り条件: StopCondition target_type `"auto_merge"` または `"all"` が active なら `Flags.enabled?(:auto_merge)` が false を返す
 
 ### Step 6（任意・将来）: 設計書 Phase Future の残り
 
@@ -453,19 +457,19 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
-**2026-05-06 12:51 Step 3・4 完了 ✅ Phase G-3/G-4 確認完了。Monthly dry_run 悪化なし、Layer C 13 指標観測健全性確認（誤検知ゼロ・ノイズ率 0.0・StopCondition=0）。Step 1〜4 すべて確定。次は Step 5 待ち（14 圧縮日 = 7時間リアル → 2026-05-06 18:33 JST 以降）。**
+**2026-05-07 21:25 Step 5 完了 ✅ Phase G-5 AutoMerge 解除実施。34時間 ALL PASS 維持確認（観察開始 2026-05-06 11:33 JST）。逆戻り条件（StopCondition blocking_feature? による自動 OFF）実装済み。auto_merge: true 有効化。Step 1〜5 すべて完了。**
 
 現在の状態:
-- `config/initializers/ledger_v2.rb`: `auto_pr: false`（手動で `true` に変更するまで動作しない）
+- `config/initializers/ledger_v2.rb`: `auto_merge: true`（Phase G-5 完了）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
-- Step 5 解除条件: **ALL PASS 14圧縮日以上維持**（14圧縮日 = 14 × 30分 = 7時間リアル / 観察開始 2026-05-06 11:33 JST → 最短 **2026-05-06 18:33 JST** 以降）
+- 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
 
 次のアクション（優先順）:
-1. **Step 5（観察待ち）**: **2026-05-06 18:33 JST 以降**に GraduationCheck ALL PASS の 14 圧縮日継続を確認してから AutoMerge 解除検討
-2. **日次確認**: Dashboard の連続 PASS バッジと active StopCondition=0 を維持
-3. Layer C 接続での AutoMerge / 自動 PR / 自動戦略変更は**引き続き禁止**する
+1. **Step 5 観察期間**: 7 圧縮日（3.5 時間リアル）以上 auto_merge ON で稼働し、StopCondition 増加・失敗率悪化がないことを確認
+2. **Step 6（任意）**: 設計書 Phase Future の残りを必要に応じて検討
+3. **逆戻り確認**: active StopCondition が発生した場合は即座に `Flags.enabled?(:auto_merge)` が false に切り替わることを Dashboard で確認
 
 ## 参考
 
