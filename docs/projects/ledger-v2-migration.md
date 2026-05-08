@@ -389,6 +389,7 @@ PR で持ち込まれた場合は **却下する**。
 
 | `copilot/v2-ticket-29` | `LedgerV2::BuildCiFixArtifact`（CI 失敗分類と修正案 draft）+ WeeklyRunner 統合 + Artifacts UI に ci_fix_suggestion フィルター追加 + spec（26 examples, 0 failures）| Ticket 29 ✅ | レビュー中 |
 | `copilot/plan-next-steps-from-current-progress` | `GraduationCheck.consecutive_pass_count` 追加 + Dashboard 連続 PASS 件数バッジ表示 + 観測フェーズ Steps 1〜6 ドキュメント整備 | Step 2 準備 ✅ | レビュー中 |
+| `copilot/remove-unnecessary-actions-v2` | v1 自動化 GitHub Actions を 9 本削除（`ai_sns_plan` / `weekly_pdca` / `plan_review` / `auto_merge` / `ci_escalation` / `auto_fix` / `create_pr` / `post_deploy_cleanup` / `pr_guardrails`）+ `bin/dispatch_weekly_pdca` 削除 + `deploy.yml` の weekly_pdca cron 登録削除。残存: `ci.yml` / `deploy.yml` / `copilot-setup-steps.yml` / `db_snapshot.yml` の 4 本のみ。設計書 §「v1 freeze 条件」/ Phase 0 完遂 | v1 freeze ✅ | レビュー中 |
 
 ## 観測・固めフェーズ（Step 1〜6 チェックリスト）
 
