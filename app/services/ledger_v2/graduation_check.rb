@@ -23,7 +23,7 @@ module LedgerV2
     CRITERIA = [
       { key: :ticket_noise_rate,             label: "Ticket ノイズ率（rejected/duplicate 比率）", op: :<=, threshold: 0.30 },
       { key: :artifact_acceptance_rate,      label: "Artifact 採用率",                              op: :>=, threshold: 0.50 },
-      { key: :runner_failure_rate,           label: "Runner 失敗率",                                op: :<=, threshold: 0.10 },
+      { key: :runner_failure_rate,           label: "Runner 失敗率",                                op: :<=, threshold: 0.05 },
       { key: :stop_trigger_count_active,     label: "現在 active な StopCondition",                op: :==, threshold: 0    },
       { key: :duplicate_prevented_total,     label: "重複防止が一度でも作動した実績",              op: :>=, threshold: 1    },
       { key: :health_snapshot_count,         label: "HealthSnapshot 件数（圧縮日 = 30分毎）",      op: :>=, threshold: 7    },
