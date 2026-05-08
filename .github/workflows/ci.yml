@@ -305,7 +305,7 @@ jobs:
 
   # main の CI 成功後に deploy.yml を直接 dispatch する
   # workflow_run トリガーが self-hosted runner 移行後に発火しなくなったため、
-  # CI から直接 deploy を起動する（auto_merge.yml と同じ方式）
+  # CI から直接 deploy を起動する
   dispatch_deploy:
     runs-on: [self-hosted, sakura-vps]
     needs: [scan_ruby, lint, workflow-check, job-check, route-check, test]

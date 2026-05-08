@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Deploy reason (auto-filled by auto_merge/CI or enter manually)'
+        description: 'Deploy reason (auto-filled by CI dispatch or enter manually)'
         required: false
         default: 'Manual deploy'
 
@@ -153,14 +153,11 @@ jobs:
             echo "⚠️  sudoers NOPASSWD 未設定: runner 停止時の自動再起動が機能しません"
           fi
 
-      - name: Setup VPS cron jobs (定期実行 + 監視)
-        # weekly_pdca.yml を3時間おきに VPS cron から dispatch する
-        # GitHub schedule トリガーは高負荷時に遅延・スキップが発生するため VPS cron で確実に実行
-        # 前提: DEPLOY_TOKEN に Actions: Read and Write スコープが必要
+      - name: Setup VPS cron jobs (監視)
         # runner ヘルスチェックを5分おきに実行し、停止時は Slack 通知
         # SolidQueue 死活監視を5分おきに実行し、scheduler 停止時は Slack 通知
+        # 旧 weekly_pdca dispatcher は v1 凍結（Ledger V2 移行 Phase 0）に伴い削除済み
         run: |
-          chmod +x ~/myapp/bin/dispatch_weekly_pdca
           if [ -f ~/myapp/bin/check_runner_health ]; then
             chmod +x ~/myapp/bin/check_runner_health
           else
@@ -171,9 +168,8 @@ jobs:
           else
             echo "check_solid_queue_alive not found; skipping"
           fi
-          # 既存のエントリを削除してから追加（重複防止）
+          # 既存のエントリを削除してから追加（重複防止 / 旧 dispatch_weekly_pdca も削除）
           (crontab -l 2>/dev/null | grep -Ev "dispatch_weekly_pdca|check_runner_health|check_solid_queue_alive") | crontab - || true
-          (crontab -l 2>/dev/null; echo "0 */3 * * * \$HOME/myapp/bin/dispatch_weekly_pdca >> /tmp/weekly_pdca_cron.log 2>&1") | crontab -
           if [ -f ~/myapp/bin/check_runner_health ]; then
             (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_runner_health >> /tmp/runner_health.log 2>&1") | crontab -
           fi
@@ -181,7 +177,7 @@ jobs:
             (crontab -l 2>/dev/null; echo "*/5 * * * * \$HOME/myapp/bin/check_solid_queue_alive >> /tmp/solid_queue_alive.log 2>&1") | crontab -
           fi
           echo "✅ VPS cron 設定完了:"
-          crontab -l | grep -E "dispatch_weekly_pdca|check_runner_health|check_solid_queue_alive" || true
+          crontab -l | grep -E "check_runner_health|check_solid_queue_alive" || true
 
       - name: Deploy Rails + frontend
         id: deploy_rails
