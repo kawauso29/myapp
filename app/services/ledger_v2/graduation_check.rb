@@ -21,7 +21,7 @@ module LedgerV2
     # 7 つの卒業基準。
     # op はそのまま `value.public_send(op, threshold)` で評価する（>=, <=, ==）。
     CRITERIA = [
-      { key: :ticket_noise_rate,             label: "Ticket ノイズ率（rejected/duplicate 比率）", op: :<=, threshold: 0.30 },
+      { key: :ticket_noise_rate,             label: "Ticket ノイズ率（rejected/duplicate 比率）", op: :<=, threshold: 0.20 },
       { key: :artifact_acceptance_rate,      label: "Artifact 採用率",                              op: :>=, threshold: 0.50 },
       { key: :runner_failure_rate,           label: "Runner 失敗率",                                op: :<=, threshold: 0.05 },
       { key: :stop_trigger_count_active,     label: "現在 active な StopCondition",                op: :==, threshold: 0    },

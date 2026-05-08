@@ -8,7 +8,7 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
     LedgerV2::HealthSnapshot.create!(
       period:                            :daily,
       measured_at:                       Time.current,
-      ticket_noise_rate:                 0.10,   # <= 0.30 OK
+      ticket_noise_rate:                 0.10,   # <= 0.20 OK
       artifact_acceptance_rate:          0.80,   # >= 0.50 OK
       runner_failure_rate:               0.02,   # <= 0.05 OK
       unresolved_ticket_age_avg:         12.0,
@@ -124,7 +124,7 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
     end
 
     it "途中で failing snapshot があるとそこで止まる" do
-      # 新しい順: 0h（passing）→ 1h（failing: ノイズ率 0.50 > 0.30）→ 2h（passing）
+      # 新しい順: 0h（passing）→ 1h（failing: ノイズ率 0.50 > 0.20）→ 2h（passing）
       create_snapshot(offset_hours: 0)
       create_snapshot(offset_hours: 1, noise: 0.50)
       create_snapshot(offset_hours: 2)
@@ -149,6 +149,19 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
 
     it "runner_failure_rate が新しきい値 0.05 と等しければ passing と判定される" do
       create_snapshot(offset_hours: 0, failure: 0.05)
+
+      expect(described_class.consecutive_pass_count).to eq(1)
+    end
+
+    it "ticket_noise_rate が新しきい値 0.20 を超えると failing と判定される" do
+      # 旧しきい値 0.30 では通っていた 0.25 が、新しきい値 0.20 では NG
+      create_snapshot(offset_hours: 0, noise: 0.25)
+
+      expect(described_class.consecutive_pass_count).to eq(0)
+    end
+
+    it "ticket_noise_rate が新しきい値 0.20 と等しければ passing と判定される" do
+      create_snapshot(offset_hours: 0, noise: 0.20)
 
       expect(described_class.consecutive_pass_count).to eq(1)
     end
