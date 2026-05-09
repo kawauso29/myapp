@@ -168,14 +168,19 @@ module LedgerV2
     end
     private_class_method :calculate_human_intervention_rate
 
-    # kpi_improvement_after_ticket_rate: 期間内に resolved になった Ticket の割合（KPI 改善の近似）
+    # kpi_improvement_after_ticket_rate: EvaluateImprovement が記録した改善検知 Event の割合。
+    # improvement_detected / (improvement_detected + improvement_not_detected)
+    # 評価 Event が存在しない場合は 0.0 を返す。
+    # 注意: resolved Ticket 割合の近似（旧実装）から Event ベースの実測値に変更（Ticket 31）。
     def self.calculate_kpi_improvement_rate(window_start, window_end)
-      scope = LedgerV2::Ticket.where(created_at: window_start..window_end)
-      total = scope.count
+      detected     = LedgerV2::Event.where(event_type: "improvement_detected",
+                                           occurred_at: window_start..window_end).count
+      not_detected = LedgerV2::Event.where(event_type: "improvement_not_detected",
+                                           occurred_at: window_start..window_end).count
+      total = detected + not_detected
       return 0.0 if total.zero?
 
-      resolved = scope.where(status: LedgerV2::Ticket.statuses[:resolved]).count
-      (resolved.to_f / total).round(4)
+      (detected.to_f / total).round(4)
     end
     private_class_method :calculate_kpi_improvement_rate
 

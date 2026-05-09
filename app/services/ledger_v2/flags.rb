@@ -18,6 +18,7 @@ module LedgerV2
       annual_runner
       auto_pr
       auto_merge
+      evaluate_improvement
     ].freeze
 
     # フラグが有効かどうかを返す。
