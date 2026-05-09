@@ -166,23 +166,23 @@
 
 | # | 基準 | 演算子 | しきい値 | 出典指標 |
 |---|---|---|---|---|
-| 1 | Ticket ノイズ率（rejected/duplicate 比率） | `<=` | **0.30** | `HealthSnapshot#ticket_noise_rate` |
-| 2 | Artifact 採用率 | `>=` | **0.50** | `HealthSnapshot#artifact_acceptance_rate` |
+| 1 | Ticket ノイズ率（rejected/duplicate 比率） | `<=` | **0.20** | `HealthSnapshot#ticket_noise_rate` |
+| 2 | Artifact 採用率 | `>=` | **0.70** | `HealthSnapshot#artifact_acceptance_rate` |
 | 3 | Runner 失敗率 | `<=` | **0.05** | `HealthSnapshot#runner_failure_rate` |
 | 4 | 現在 active な StopCondition | `==` | **0** | `LedgerV2::StopCondition.active_conditions.count` |
 | 5 | 重複防止が一度でも作動した実績 | `>=` | **1** | `LedgerV2::Run.sum(:duplicate_prevented_count)` |
 | 6 | HealthSnapshot 件数（圧縮日 = 30 分毎） | `>=` | **7** | `LedgerV2::HealthSnapshot.count` |
-| 7 | レビュー待ち件数（詰まり防止） | `<=` | **20** | `HealthSnapshot#pending_review_count` |
+| 7 | レビュー待ち件数（詰まり防止） | `<=` | **10** | `HealthSnapshot#pending_review_count` |
 
 ### しきい値の根拠（なぜこの数字か）
 
-- **#1 ノイズ率 0.30**: 設計書「最終結論」§成功 7 基準。3 件中 1 件以上が無価値なら自動起票自体を見直す必要がある。
-- **#2 採用率 0.50**: Artifact レビューで半数以上が採用されないと「人間がレビューする価値がない」状態。Layer C で増える Artifact 量に耐えられない。
+- **#1 ノイズ率 0.20**: 2026-05-09 キャリブレーション PR で 0.30 → 0.20 に厳格化。本番 HealthSnapshot 54+ 件すべてで noise_rate=0.0 を観測しており、初期値 0.30 では「5 件中 1 件以上が無価値」まで許容していた。0.20（5 件に 1 件）は「3 件中 1 件」(0.33) より厳しく、Layer C を接続したときに誤検知 Ticket が増えても早期検知できるラインとして機能する。なお spec では passing 値 0.10 を使用しており、0.20 に下げても既存テストは変更不要。
+- **#2 採用率 0.70**: 2026-05-09 キャリブレーション PR で 0.50 → 0.70 に厳格化。本番 HealthSnapshot 54+ 件すべてで acceptance_rate=1.0 を観測しており、「半数以上採用」という初期ラインは Layer C 接続前の品質保証として甘い。0.70（10 件中 7 件以上採用）に引き締めることで、Artifact が有用であることをより確実に保証する。spec での passing 値 0.80 は変更不要。
 - **#3 失敗率 0.05**: 2026-05-08 キャリブレーション PR で 0.10 → 0.05 に厳格化。本番 HealthSnapshot 54 件すべてで failure_rate=0.0 を観測しており、初期値 0.10 では「Layer C を載せる前の異常検知ライン」として甘い。0.05（1/20 失敗）は通常運転（≈ 0%）から十分余裕を残しつつ、Runner 退化の早期検知ラインとして機能する。
 - **#4 active StopCondition 0**: 何かが止まっている状態で次の機能を載せない（運用ルール §11）。
 - **#5 重複防止 ≥ 1**: `canonical_key` 重複抑止が一度も作動していない＝ 機構が「使われていない」ことを除外する。
 - **#6 観測 ≥ 7 snapshot**: 設計書 Ticket 18「7 日間の最小運用テスト」を圧縮時間軸に合わせた表現。`config/recurring.yml` で 30 分毎に `LedgerV2::CalculateHealthSnapshotJob` が走るため、**7 snapshot ≒ 3.5 時間**で達成可能。これは Ledger 圧縮時間軸（1 圧縮日 = 30 分、`Ledgers::TimeAxis::INTERVALS`）と整合する。
-- **#7 pending ≤ 20**: レビュー待ちが 20 件超 = 人間ボトルネック。Layer C を載せる前に運用フローを見直す必要がある。
+- **#7 pending ≤ 10**: 2026-05-09 キャリブレーション PR で 20 → 10 に厳格化。本番観測でレビュー待ち=0 を継続しており、「20 件未満なら OK」という初期ラインは Layer C 接続前の詰まり防止として甘い。10 件（約半分）に引き締めることで、Artifact レビューが積み上がり始めた段階で早期検知できるラインとして機能する。spec での passing 値 5 は変更不要。
 
 ### 運用ルール
 
@@ -461,6 +461,9 @@ PR で持ち込まれた場合は **却下する**。
 - [ ] 各 Layer C 観測の Ticket 自動生成（人間承認を経た上で初めて検討する）
 - [x] GraduationCheck しきい値の継続キャリブレーション
   - **2026-05-08**: `runner_failure_rate` を `0.10` → `0.05` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+  - **2026-05-09**: `ticket_noise_rate` を `0.30` → `0.20` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+  - **2026-05-09**: `artifact_acceptance_rate` を `0.50` → `0.70` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+  - **2026-05-09**: `pending_review_count` を `20` → `10` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
 - [x] **Ticket 31**: `LedgerV2::EvaluateImprovement` — Ticket 解決後の指標改善追跡（「計測に閉じてる」問題を解消）
   - `app/services/ledger_v2/evaluate_improvement.rb`（metric_name を持つ resolved Ticket を対象に、解決後の MetricSnapshot と閾値を比較して `improvement_detected` / `improvement_not_detected` Event を記録）
   - `app/jobs/ledger_v2/evaluate_improvement_job.rb`（RunExecutor 経由・2時間ごと recurring 登録済み）
@@ -474,6 +477,8 @@ PR で持ち込まれた場合は **却下する**。
 
 ## 次の一手
 
+**2026-05-09 Step 6 継続 ✅ GraduationCheck `pending_review_count` を 20 → 10 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測でレビュー待ち=0 を継続しており、Layer C 接続前に詰まり検知ラインを引き締めた。**
+
 **2026-05-09 Ticket 31 完了 ✅ `LedgerV2::EvaluateImprovement` 実装。「計測に閉じてる」問題への回答として、計測ループを閉じる最小実装を完遂。`kpi_improvement_after_ticket_rate` が resolved Ticket 割合の近似から実測 Event ベース指標に昇格した。2時間ごとに recurring 実行開始。**
 
 現在の状態:
@@ -482,13 +487,17 @@ PR で持ち込まれた場合は **却下する**。
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
+- 卒業基準 #1 `ticket_noise_rate <= 0.20`（2026-05-09 厳格化）
+- 卒業基準 #2 `artifact_acceptance_rate >= 0.70`（2026-05-09 厳格化）
 - 卒業基準 #3 `runner_failure_rate <= 0.05`（2026-05-08 厳格化）
+- 卒業基準 #7 `pending_review_count <= 10`（2026-05-09 厳格化）
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算（Ticket 31 実装）
 
 次のアクション（優先順）:
 1. **本 PR マージ後の本番確認**: `GraduationCheck.all_pass?` が引き続き true、`EvaluateImprovementJob` が recurring 起動されること、`kpi_improvement_after_ticket_rate` が 0.0 以外に動き出すことを Dashboard で目視確認
-2. **キャリブレーション継続**: 改善率が蓄積されたら GraduationCheck に `kpi_improvement_after_ticket_rate >= 0.5` の卒業基準追加を検討
-3. **Step 6 Layer C 観測 Ticket 自動生成**: 上記キャリブレーションが安定した後にのみ検討（AI が自分で Ticket を増やす方向のため最後）
+2. **キャリブレーション完了**: rate 系 3 指標（noise/acceptance/failure）+ レビュー待ち件数の計 4 しきい値を厳格化完了。残る基準（#4 StopCondition=0・#5 重複防止≥1・#6 snapshot≥7）は構造的な boolean 判定で引き締め余地がないため、**キャリブレーションフェーズ完了**と判断する
+3. **kpi_improvement_after_ticket_rate の基準追加**: 改善率が蓄積されたら GraduationCheck に `kpi_improvement_after_ticket_rate >= 0.5` の卒業基準追加を検討
+4. **Step 6 Layer C 観測 Ticket 自動生成**: 人間承認を経た上で検討（AI が自分で Ticket を増やす方向のため最後）
 
 ## 参考
 
