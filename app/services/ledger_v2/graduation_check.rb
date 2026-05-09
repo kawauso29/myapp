@@ -22,7 +22,7 @@ module LedgerV2
     # op はそのまま `value.public_send(op, threshold)` で評価する（>=, <=, ==）。
     CRITERIA = [
       { key: :ticket_noise_rate,             label: "Ticket ノイズ率（rejected/duplicate 比率）", op: :<=, threshold: 0.20 },
-      { key: :artifact_acceptance_rate,      label: "Artifact 採用率",                              op: :>=, threshold: 0.50 },
+      { key: :artifact_acceptance_rate,      label: "Artifact 採用率",                              op: :>=, threshold: 0.70 },
       { key: :runner_failure_rate,           label: "Runner 失敗率",                                op: :<=, threshold: 0.05 },
       { key: :stop_trigger_count_active,     label: "現在 active な StopCondition",                op: :==, threshold: 0    },
       { key: :duplicate_prevented_total,     label: "重複防止が一度でも作動した実績",              op: :>=, threshold: 1    },

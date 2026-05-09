@@ -167,7 +167,7 @@
 | # | 基準 | 演算子 | しきい値 | 出典指標 |
 |---|---|---|---|---|
 | 1 | Ticket ノイズ率（rejected/duplicate 比率） | `<=` | **0.20** | `HealthSnapshot#ticket_noise_rate` |
-| 2 | Artifact 採用率 | `>=` | **0.50** | `HealthSnapshot#artifact_acceptance_rate` |
+| 2 | Artifact 採用率 | `>=` | **0.70** | `HealthSnapshot#artifact_acceptance_rate` |
 | 3 | Runner 失敗率 | `<=` | **0.05** | `HealthSnapshot#runner_failure_rate` |
 | 4 | 現在 active な StopCondition | `==` | **0** | `LedgerV2::StopCondition.active_conditions.count` |
 | 5 | 重複防止が一度でも作動した実績 | `>=` | **1** | `LedgerV2::Run.sum(:duplicate_prevented_count)` |
@@ -177,7 +177,7 @@
 ### しきい値の根拠（なぜこの数字か）
 
 - **#1 ノイズ率 0.20**: 2026-05-09 キャリブレーション PR で 0.30 → 0.20 に厳格化。本番 HealthSnapshot 54+ 件すべてで noise_rate=0.0 を観測しており、初期値 0.30 では「5 件中 1 件以上が無価値」まで許容していた。0.20（5 件に 1 件）は「3 件中 1 件」(0.33) より厳しく、Layer C を接続したときに誤検知 Ticket が増えても早期検知できるラインとして機能する。なお spec では passing 値 0.10 を使用しており、0.20 に下げても既存テストは変更不要。
-- **#2 採用率 0.50**: Artifact レビューで半数以上が採用されないと「人間がレビューする価値がない」状態。Layer C で増える Artifact 量に耐えられない。
+- **#2 採用率 0.70**: 2026-05-09 キャリブレーション PR で 0.50 → 0.70 に厳格化。本番 HealthSnapshot 54+ 件すべてで acceptance_rate=1.0 を観測しており、「半数以上採用」という初期ラインは Layer C 接続前の品質保証として甘い。0.70（10 件中 7 件以上採用）に引き締めることで、Artifact が有用であることをより確実に保証する。spec での passing 値 0.80 は変更不要。
 - **#3 失敗率 0.05**: 2026-05-08 キャリブレーション PR で 0.10 → 0.05 に厳格化。本番 HealthSnapshot 54 件すべてで failure_rate=0.0 を観測しており、初期値 0.10 では「Layer C を載せる前の異常検知ライン」として甘い。0.05（1/20 失敗）は通常運転（≈ 0%）から十分余裕を残しつつ、Runner 退化の早期検知ラインとして機能する。
 - **#4 active StopCondition 0**: 何かが止まっている状態で次の機能を載せない（運用ルール §11）。
 - **#5 重複防止 ≥ 1**: `canonical_key` 重複抑止が一度も作動していない＝ 機構が「使われていない」ことを除外する。
@@ -462,11 +462,12 @@ PR で持ち込まれた場合は **却下する**。
 - [x] GraduationCheck しきい値の継続キャリブレーション
   - **2026-05-08**: `runner_failure_rate` を `0.10` → `0.05` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
   - **2026-05-09**: `ticket_noise_rate` を `0.30` → `0.20` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+  - **2026-05-09**: `artifact_acceptance_rate` を `0.50` → `0.70` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
 
-**2026-05-09 Step 6 継続 ✅ GraduationCheck `ticket_noise_rate` を 0.30 → 0.20 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測 54+ snapshot すべてで noise_rate=0.0 を維持しており、Layer C 接続前に異常検知ラインを引き締めた。**
+**2026-05-09 Step 6 継続 ✅ GraduationCheck `artifact_acceptance_rate` を 0.50 → 0.70 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測 54+ snapshot すべてで acceptance_rate=1.0 を維持しており、Layer C 接続前に採用品質ラインを引き締めた。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_merge: true`（Phase G-5 完了）
@@ -475,12 +476,13 @@ PR で持ち込まれた場合は **却下する**。
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`（2026-05-09 厳格化）
+- 卒業基準 #2 `artifact_acceptance_rate >= 0.70`（2026-05-09 厳格化）
 - 卒業基準 #3 `runner_failure_rate <= 0.05`（2026-05-08 厳格化）
 
 次のアクション（優先順）:
-1. **本 PR マージ後の本番確認**: Dashboard で `ticket_noise_rate` ≤ 0.20 が維持されること、`GraduationCheck.all_pass?` が引き続き true であることを目視確認
-2. **キャリブレーション継続**: さらに 7 圧縮日（≒3.5 リアル時間）以上 ALL PASS が維持されたら、`artifact_acceptance_rate` を 0.50 → 0.70 に厳格化する候補 PR を検討
-3. **Step 6 Layer C 観測 Ticket 自動生成**: 上記キャリブレーションが安定した後にのみ検討（AI が自分で Ticket を増やす方向のため最後）
+1. **本 PR マージ後の本番確認**: Dashboard で `artifact_acceptance_rate` ≥ 0.70 が維持されること、`GraduationCheck.all_pass?` が引き続き true であることを目視確認
+2. **キャリブレーション完了判断**: 3 つの指標（noise_rate / acceptance_rate / failure_rate）が引き締まり、本番観測で ALL PASS が安定継続中。次のキャリブレーション候補があれば別 PR で検討する
+3. **Step 6 Layer C 観測 Ticket 自動生成**: キャリブレーションが安定した後にのみ検討（AI が自分で Ticket を増やす方向のため最後）
 
 ## 参考
 

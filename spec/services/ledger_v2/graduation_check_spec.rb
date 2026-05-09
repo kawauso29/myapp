@@ -9,7 +9,7 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
       period:                            :daily,
       measured_at:                       Time.current,
       ticket_noise_rate:                 0.10,   # <= 0.20 OK
-      artifact_acceptance_rate:          0.80,   # >= 0.50 OK
+      artifact_acceptance_rate:          0.80,   # >= 0.70 OK
       runner_failure_rate:               0.02,   # <= 0.05 OK
       unresolved_ticket_age_avg:         12.0,
       human_intervention_rate:           0.10,
@@ -162,6 +162,19 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
 
     it "ticket_noise_rate が新しきい値 0.20 と等しければ passing と判定される" do
       create_snapshot(offset_hours: 0, noise: 0.20)
+
+      expect(described_class.consecutive_pass_count).to eq(1)
+    end
+
+    it "artifact_acceptance_rate が新しきい値 0.70 を下回ると failing と判定される" do
+      # 旧しきい値 0.50 では通っていた 0.60 が、新しきい値 0.70 では NG
+      create_snapshot(offset_hours: 0, acceptance: 0.60)
+
+      expect(described_class.consecutive_pass_count).to eq(0)
+    end
+
+    it "artifact_acceptance_rate が新しきい値 0.70 と等しければ passing と判定される" do
+      create_snapshot(offset_hours: 0, acceptance: 0.70)
 
       expect(described_class.consecutive_pass_count).to eq(1)
     end
