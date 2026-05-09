@@ -16,7 +16,7 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
       kpi_improvement_after_ticket_rate: 0.50,
       stop_trigger_count:                0,
       duplicate_prevented_count:         3,
-      pending_review_count:              5,      # <= 20 OK
+      pending_review_count:              5,      # <= 10 OK
       open_ticket_count:                 4
     )
   end
@@ -175,6 +175,19 @@ RSpec.describe LedgerV2::GraduationCheck, type: :service do
 
     it "artifact_acceptance_rate が新しきい値 0.70 と等しければ passing と判定される" do
       create_snapshot(offset_hours: 0, acceptance: 0.70)
+
+      expect(described_class.consecutive_pass_count).to eq(1)
+    end
+
+    it "pending_review_count が新しきい値 10 を超えると failing と判定される" do
+      # 旧しきい値 20 では通っていた 11 が、新しきい値 10 では NG
+      create_snapshot(offset_hours: 0, pending: 11)
+
+      expect(described_class.consecutive_pass_count).to eq(0)
+    end
+
+    it "pending_review_count が新しきい値 10 と等しければ passing と判定される" do
+      create_snapshot(offset_hours: 0, pending: 10)
 
       expect(described_class.consecutive_pass_count).to eq(1)
     end

@@ -172,7 +172,7 @@
 | 4 | 現在 active な StopCondition | `==` | **0** | `LedgerV2::StopCondition.active_conditions.count` |
 | 5 | 重複防止が一度でも作動した実績 | `>=` | **1** | `LedgerV2::Run.sum(:duplicate_prevented_count)` |
 | 6 | HealthSnapshot 件数（圧縮日 = 30 分毎） | `>=` | **7** | `LedgerV2::HealthSnapshot.count` |
-| 7 | レビュー待ち件数（詰まり防止） | `<=` | **20** | `HealthSnapshot#pending_review_count` |
+| 7 | レビュー待ち件数（詰まり防止） | `<=` | **10** | `HealthSnapshot#pending_review_count` |
 
 ### しきい値の根拠（なぜこの数字か）
 
@@ -182,7 +182,7 @@
 - **#4 active StopCondition 0**: 何かが止まっている状態で次の機能を載せない（運用ルール §11）。
 - **#5 重複防止 ≥ 1**: `canonical_key` 重複抑止が一度も作動していない＝ 機構が「使われていない」ことを除外する。
 - **#6 観測 ≥ 7 snapshot**: 設計書 Ticket 18「7 日間の最小運用テスト」を圧縮時間軸に合わせた表現。`config/recurring.yml` で 30 分毎に `LedgerV2::CalculateHealthSnapshotJob` が走るため、**7 snapshot ≒ 3.5 時間**で達成可能。これは Ledger 圧縮時間軸（1 圧縮日 = 30 分、`Ledgers::TimeAxis::INTERVALS`）と整合する。
-- **#7 pending ≤ 20**: レビュー待ちが 20 件超 = 人間ボトルネック。Layer C を載せる前に運用フローを見直す必要がある。
+- **#7 pending ≤ 10**: 2026-05-09 キャリブレーション PR で 20 → 10 に厳格化。本番観測でレビュー待ち=0 を継続しており、「20 件未満なら OK」という初期ラインは Layer C 接続前の詰まり防止として甘い。10 件（約半分）に引き締めることで、Artifact レビューが積み上がり始めた段階で早期検知できるラインとして機能する。spec での passing 値 5 は変更不要。
 
 ### 運用ルール
 
@@ -463,11 +463,12 @@ PR で持ち込まれた場合は **却下する**。
   - **2026-05-08**: `runner_failure_rate` を `0.10` → `0.05` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
   - **2026-05-09**: `ticket_noise_rate` を `0.30` → `0.20` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
   - **2026-05-09**: `artifact_acceptance_rate` を `0.50` → `0.70` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+  - **2026-05-09**: `pending_review_count` を `20` → `10` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
 
-**2026-05-09 Step 6 継続 ✅ GraduationCheck `artifact_acceptance_rate` を 0.50 → 0.70 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測 54+ snapshot すべてで acceptance_rate=1.0 を維持しており、Layer C 接続前に採用品質ラインを引き締めた。**
+**2026-05-09 Step 6 継続 ✅ GraduationCheck `pending_review_count` を 20 → 10 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測でレビュー待ち=0 を継続しており、Layer C 接続前に詰まり検知ラインを引き締めた。**
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_merge: true`（Phase G-5 完了）
@@ -478,11 +479,12 @@ PR で持ち込まれた場合は **却下する**。
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`（2026-05-09 厳格化）
 - 卒業基準 #2 `artifact_acceptance_rate >= 0.70`（2026-05-09 厳格化）
 - 卒業基準 #3 `runner_failure_rate <= 0.05`（2026-05-08 厳格化）
+- 卒業基準 #7 `pending_review_count <= 10`（2026-05-09 厳格化）
 
 次のアクション（優先順）:
-1. **本 PR マージ後の本番確認**: Dashboard で `artifact_acceptance_rate` ≥ 0.70 が維持されること、`GraduationCheck.all_pass?` が引き続き true であることを目視確認
-2. **キャリブレーション完了判断**: 3 つの指標（noise_rate / acceptance_rate / failure_rate）が引き締まり、本番観測で ALL PASS が安定継続中。次のキャリブレーション候補があれば別 PR で検討する
-3. **Step 6 Layer C 観測 Ticket 自動生成**: キャリブレーションが安定した後にのみ検討（AI が自分で Ticket を増やす方向のため最後）
+1. **本 PR マージ後の本番確認**: Dashboard で `pending_review_count` ≤ 10 が維持されること、`GraduationCheck.all_pass?` が引き続き true であることを目視確認
+2. **キャリブレーション完了**: rate 系 3 指標（noise/acceptance/failure）+ レビュー待ち件数の計 4 しきい値を厳格化完了。残る基準（#4 StopCondition=0・#5 重複防止≥1・#6 snapshot≥7）は構造的な boolean 判定で引き締め余地がないため、**キャリブレーションフェーズ完了**と判断する
+3. **Step 6 Layer C 観測 Ticket 自動生成**: 人間承認を経た上で検討（AI が自分で Ticket を増やす方向のため最後）
 
 ## 参考
 
