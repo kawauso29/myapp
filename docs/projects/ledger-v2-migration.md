@@ -464,14 +464,25 @@ PR で持ち込まれた場合は **却下する**。
   - **2026-05-09**: `ticket_noise_rate` を `0.30` → `0.20` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
   - **2026-05-09**: `artifact_acceptance_rate` を `0.50` → `0.70` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
   - **2026-05-09**: `pending_review_count` を `20` → `10` に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）
+- [x] **Ticket 31**: `LedgerV2::EvaluateImprovement` — Ticket 解決後の指標改善追跡（「計測に閉じてる」問題を解消）
+  - `app/services/ledger_v2/evaluate_improvement.rb`（metric_name を持つ resolved Ticket を対象に、解決後の MetricSnapshot と閾値を比較して `improvement_detected` / `improvement_not_detected` Event を記録）
+  - `app/jobs/ledger_v2/evaluate_improvement_job.rb`（RunExecutor 経由・2時間ごと recurring 登録済み）
+  - `Flags::ALL_FLAGS` に `:evaluate_improvement` を追加。`config/initializers/ledger_v2.rb` でデフォルト ON
+  - `CalculateHealthSnapshot#calculate_kpi_improvement_rate` を「resolved Ticket 割合の近似」から **Event ベースの実測値**に更新
+    - 旧: resolved Ticket 数 / 全 Ticket 数
+    - 新: `improvement_detected` Event 数 / (`improvement_detected` + `improvement_not_detected`) Event 数
+  - `config/initializers/required_job_classes.rb` + `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に追加
+  - spec（evaluate_improvement_spec.rb）: 38 examples, 0 failures ✅ / calculate_health_snapshot_spec: 22 examples, 0 failures ✅ / LedgerV2 全体: 486 examples, 0 failures ✅
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
 
 **2026-05-09 Step 6 継続 ✅ GraduationCheck `pending_review_count` を 20 → 10 に厳格化（本ドキュメント + `CRITERIA` + spec の 3 か所同時更新）。本番観測でレビュー待ち=0 を継続しており、Layer C 接続前に詰まり検知ラインを引き締めた。**
 
+**2026-05-09 Ticket 31 完了 ✅ `LedgerV2::EvaluateImprovement` 実装。「計測に閉じてる」問題への回答として、計測ループを閉じる最小実装を完遂。`kpi_improvement_after_ticket_rate` が resolved Ticket 割合の近似から実測 Event ベース指標に昇格した。2時間ごとに recurring 実行開始。**
+
 現在の状態:
-- `config/initializers/ledger_v2.rb`: `auto_merge: true`（Phase G-5 完了）
+- `config/initializers/ledger_v2.rb`: `auto_merge: true`（Phase G-5 完了）, `evaluate_improvement: true`（Ticket 31 完了）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
@@ -480,11 +491,13 @@ PR で持ち込まれた場合は **却下する**。
 - 卒業基準 #2 `artifact_acceptance_rate >= 0.70`（2026-05-09 厳格化）
 - 卒業基準 #3 `runner_failure_rate <= 0.05`（2026-05-08 厳格化）
 - 卒業基準 #7 `pending_review_count <= 10`（2026-05-09 厳格化）
+- `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算（Ticket 31 実装）
 
 次のアクション（優先順）:
-1. **本 PR マージ後の本番確認**: Dashboard で `pending_review_count` ≤ 10 が維持されること、`GraduationCheck.all_pass?` が引き続き true であることを目視確認
+1. **本 PR マージ後の本番確認**: `GraduationCheck.all_pass?` が引き続き true、`EvaluateImprovementJob` が recurring 起動されること、`kpi_improvement_after_ticket_rate` が 0.0 以外に動き出すことを Dashboard で目視確認
 2. **キャリブレーション完了**: rate 系 3 指標（noise/acceptance/failure）+ レビュー待ち件数の計 4 しきい値を厳格化完了。残る基準（#4 StopCondition=0・#5 重複防止≥1・#6 snapshot≥7）は構造的な boolean 判定で引き締め余地がないため、**キャリブレーションフェーズ完了**と判断する
-3. **Step 6 Layer C 観測 Ticket 自動生成**: 人間承認を経た上で検討（AI が自分で Ticket を増やす方向のため最後）
+3. **kpi_improvement_after_ticket_rate の基準追加**: 改善率が蓄積されたら GraduationCheck に `kpi_improvement_after_ticket_rate >= 0.5` の卒業基準追加を検討
+4. **Step 6 Layer C 観測 Ticket 自動生成**: 人間承認を経た上で検討（AI が自分で Ticket を増やす方向のため最後）
 
 ## 参考
 

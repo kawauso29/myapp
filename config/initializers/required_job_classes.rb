@@ -53,6 +53,7 @@ Rails.application.reloader.to_prepare do
     LedgerV2::WeeklyRunnerJob
     LedgerV2::MonthlyRunnerJob
     LedgerV2::CalculateHealthSnapshotJob
+    LedgerV2::EvaluateImprovementJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

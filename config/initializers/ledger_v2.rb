@@ -24,5 +24,9 @@ Rails.application.config.x.ledger_v2_flags = {
 
   # Phase G-5（2026-05-07）: ALL PASS 14圧縮日維持を確認、AutoMerge 解除。
   # 逆戻り条件: StopCondition target_type "auto_merge" / "all" が active なら Flags.enabled? が false を返す。
-  auto_merge:       true
+  auto_merge:       true,
+
+  # 2026-05-09: Ticket 31 EvaluateImprovement 実装。Ticket 解決後の指標改善追跡を有効化。
+  # Event 記録のみで戦略変更なし。デフォルト ON（明示的に false で opt-out 可）。
+  evaluate_improvement: true
 }.freeze

@@ -313,3 +313,10 @@ production:
     class: LedgerV2::CalculateHealthSnapshotJob
     queue: default
     schedule: "*/30 * * * *"
+
+  # 2時間ごと: LedgerV2 EvaluateImprovement（Ticket 解決後の指標改善を追跡する）
+  # daily=30分・weekly=4h の中間。resolved Ticket が溜まりすぎる前に定期的に評価する。
+  ledger_v2_evaluate_improvement:
+    class: LedgerV2::EvaluateImprovementJob
+    queue: default
+    schedule: "0 */2 * * *"

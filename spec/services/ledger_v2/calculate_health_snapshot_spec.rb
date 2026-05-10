@@ -79,6 +79,54 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
       end
     end
 
+    context "kpi_improvement_after_ticket_rate の計算（EvaluateImprovement Event ベース）" do
+      it "improvement_detected と improvement_not_detected がどちらもなければ 0.0 を返す" do
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        expect(snapshot.kpi_improvement_after_ticket_rate).to eq(0.0)
+      end
+
+      it "improvement_detected のみ存在する場合は 1.0 になる" do
+        run = create_run
+        LedgerV2::Event.create!(
+          run: run, event_type: "improvement_detected",
+          severity: :info, occurred_at: now - 10.minutes,
+          payload_json: { "ticket_id" => 1, "improved" => true }
+        )
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        expect(snapshot.kpi_improvement_after_ticket_rate).to eq(1.0)
+      end
+
+      it "improvement_detected 1件・improvement_not_detected 1件なら 0.5 になる" do
+        run = create_run
+        LedgerV2::Event.create!(
+          run: run, event_type: "improvement_detected",
+          severity: :info, occurred_at: now - 20.minutes,
+          payload_json: { "ticket_id" => 1, "improved" => true }
+        )
+        LedgerV2::Event.create!(
+          run: run, event_type: "improvement_not_detected",
+          severity: :info, occurred_at: now - 10.minutes,
+          payload_json: { "ticket_id" => 2, "improved" => false }
+        )
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        expect(snapshot.kpi_improvement_after_ticket_rate).to eq(0.5)
+      end
+
+      it "ウィンドウ外の Event は集計対象外" do
+        run = create_run
+        LedgerV2::Event.create!(
+          run: run, event_type: "improvement_detected",
+          severity: :info, occurred_at: now - 3.days,
+          payload_json: { "ticket_id" => 1, "improved" => true }
+        )
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+        expect(snapshot.kpi_improvement_after_ticket_rate).to eq(0.0)
+      end
+    end
+
     context "ticket_noise_rate の計算" do
       it "期間内の rejected / duplicate Ticket の割合を返す" do
         create_ticket(status: :rejected)
