@@ -80,11 +80,26 @@ v2のLedgerは「完全自律意思決定OS」ではない。
 
 v2初期では、Ledgerが直接戦略を変更したり、設定を変更したり、本番に影響する変更を確定してはいけない。
 
-最終的な定義:
+初期フェーズの定義:
 
-Ledger V2は、自律的に意思決定するOSではなく、
+Ledger V2の出発点は、
 人間がより速く・一貫して意思決定するための
 観測・起票・記録・停止・監査・レビュー基盤である。
+
+最終的な定義:
+
+Ledger V2は、自律的に無制限に意思決定するOSではない。
+最終的には、観測・起票・記録・停止・監査・レビューを土台に、
+承認済みArtifactをdraft PRへ接続し、
+CI結果の読取り、継続/停止/エスカレーション判断、
+条件付き自動マージ/自動デプロイ、
+改善効果の再計測までを閉ループで扱う
+**制御された自動開発機構**である。
+
+つまり、人間 approve / publish は最終形そのものではなく、
+初期フェーズで安全に立ち上げるための制御点である。
+Ledger V2は「人間レビュー基盤」で止まるのではなく、
+そこから段階昇格して自動開発機構へ到達することを目標にする。
 
 全体アーキテクチャ
 ------------------
@@ -1701,11 +1716,11 @@ Job tests:
 9. HealthSnapshotが正しく集計される
 10. adminからStopConditionを作成するとRunnerが止まる
 
-運用ルール
-----------
+運用ルール（Phase A / 初期安全制約）
+------------------------------------
 
-1. v2初期はDaily / Weeklyのみ
-2. Monthly以上は作らない
+1. Phase A の起点はDaily / Weekly
+2. Monthly以上は段階昇格レビュー後に追加する
 3. すべてのRunnerはRunExecutor経由
 4. Runなしの副作用は禁止
 5. Eventなしの判断は禁止
@@ -1713,7 +1728,7 @@ Job tests:
 7. Artifactは人間レビュー必須
 8. StopConditionをAIが解除してはいけない
 9. FeatureFlag変更は人間のみ
-10. 自動マージは禁止
+10. Phase A では自動マージしない
 11. 本番影響変更は禁止
 12. dry_runを先に通す
 13. 新機能はデフォルトdisabled
@@ -1745,23 +1760,88 @@ Coreに昇格してよい条件:
 - 人間が状態を追えない
 - KPI改善との関係が見えない
 
-将来拡張
---------
+段階昇格ロードマップ
+--------------------
 
 v2 Kernel安定後に検討する。
 GraduationCheck.all_pass? は Layer C 接続を検討してよい合図であり、
-自動起動・自動マージ・本番設定変更の許可ではない。
-最初に接続する Layer C は Phase Future 1: MonthlyRunner に限定する。
-v1のMonthly / Quarterly / Annual Runnerからは仕様・知見のみ参照し、コードは移植しない。
+自動起動・自動マージ・本番設定変更の無条件許可ではない。
 Ticketは1 PR = 1関心事 = 1機能 = 1テスト最低で進める。
 
-Phase Future 1: MonthlyRunner
+このロードマップは、Ledger V2の完成像を以下の5段階で管理する。
+Phase A〜E は「どこまで閉ループが進んだか」を表し、
+初期安全制約は主に Phase A のための制御である。
 
-条件:
+Phase A: Kernel / 観測・レビュー基盤
+
+役割:
+- 観測
+- 異常検知
+- Ticket候補生成
+- Artifact draft生成
+- 人間レビュー
+- StopCondition / CircuitBreaker / dry_run
+
+到達条件:
 - Daily / Weeklyが安定
 - HealthSnapshotが安定
 - Admin UIが使える
 - GraduationCheck.all_pass? が成立し、人間がDashboardで確認済み
+
+備考:
+- ここまでは「人間レビュー基盤」の段階
+- approve / publish は安全装置として人間が保持する
+
+Phase B: 承認済みArtifact → draft PR 接続
+
+役割:
+- 承認済みArtifactからdraft PRを作成する
+- draft PR作成結果をRun / Event / metadataへ記録する
+- PR作成成功率を計測する
+
+禁止:
+- draft以外のPRを作らない
+- 自動マージしない
+- 本番設定を自動変更しない
+
+Phase C: CI結果読取りと継続判断
+
+役割:
+- draft PRのCI結果を読取る
+- retry / stop / human-escalate を判定して記録する
+- CI再試行の収束率を計測する
+
+禁止:
+- CI失敗を隠蔽しない
+- StopConditionを無視しない
+- 人間が追えない判断をしない
+
+Phase D: 条件付き自動マージ / 自動デプロイ
+
+役割:
+- 事前定義した条件を満たす変更だけを自動マージする
+- デプロイ結果とロールバック判断を記録する
+- active StopConditionで即座に逆戻りできるようにする
+
+禁止:
+- 条件外PRの自動マージ
+- 本番影響変更の無制御実行
+
+Phase E: 効果計測を含む自律改善ループ
+
+役割:
+- 修正後の改善実測まで閉ループで追う
+- 自動生成Ticketのノイズ率を評価する
+- 改善率を次の昇格判断へ返す
+
+禁止:
+- 改善が見えないまま自動化を強めること
+- 人間の監査なしに戦略変更へ進むこと
+
+Phase Future 1: MonthlyRunner
+
+位置づけ:
+- Phase A の延長で追加する最初の Layer C
 
 役割:
 - Weeklyの集約
@@ -1777,15 +1857,24 @@ Phase Future 1: MonthlyRunner
 
 Phase Future 2: CustomerFeedbackLedger
 
+位置づけ:
+- Phase A の観測対象拡張
+
 最初はreadonlyまたはmanual write。
 FeedbackからTicketを作る場合は人間承認を挟む。
 
 Phase Future 3: KnowledgeLedger
 
+位置づけ:
+- Phase A の観測対象拡張
+
 最初はreadonly。
 Artifact作成時の参照元にする。
 
 Phase Future 4: ExperimentLedger
+
+位置づけ:
+- Phase A の観測対象拡張
 
 manualから開始。
 実験開始・終了は自動化しない。
@@ -1793,15 +1882,28 @@ manualから開始。
 
 Phase Future 5: Quarterly / Annual
 
+位置づけ:
+- Phase A の延長としての長周期Artifact
+
 manual only。
 artifact draft作成まで。
 戦略確定は人間承認必須。
 
 Phase Future 6: Auto PR
 
+位置づけ:
+- Phase B の最初の具体化
+
 draft only。
 CI失敗分類と修正案提示に限定。
-自動マージは禁止継続。
+
+Phase Future 7: Conditional AutoMerge / AutoDeploy
+
+位置づけ:
+- Phase D の最初の具体化
+
+事前条件を満たすPRのみ対象。
+active StopConditionで即停止できることを前提にする。
 
 リスクと対策
 ------------
