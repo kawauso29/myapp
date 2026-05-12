@@ -225,9 +225,8 @@ module LedgerV2
       status_counts = pr_artifacts.group(:review_status).count
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
-      ci_statuses = pr_artifacts.pluck(Arel.sql("metadata_json -> 'draft_pr' ->> 'ci_status'"))
-      ci_success_count = ci_statuses.count("success")
-      ci_failure_count = ci_statuses.count("failure")
+      ci_success_count = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_status' = ?", "success").count
+      ci_failure_count = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_status' = ?", "failure").count
       terminal_ci_count = ci_success_count + ci_failure_count
 
       {

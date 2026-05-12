@@ -12,7 +12,16 @@
 # - Artifact / Ticket の review_status を自動変更しない
 module LedgerV2
   class SyncDraftPrStatus
-    TERMINAL_CI_STATUSES = %w[success failure].freeze
+    TRACKED_DRAFT_PR_FIELDS = %w[
+      ci_status
+      ci_conclusion
+      ci_decision
+      failed_checks
+      head_sha
+      ci_sync_error
+      create_status
+      creation_error
+    ].freeze
 
     def self.call(run:, dry_run: false, **)
       new(run: run, dry_run: dry_run).call
@@ -116,7 +125,7 @@ module LedgerV2
       current_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
       next_draft_pr = metadata.fetch("draft_pr", {})
 
-      %w[ci_status ci_conclusion ci_decision failed_checks head_sha ci_sync_error create_status creation_error].any? do |key|
+      TRACKED_DRAFT_PR_FIELDS.any? do |key|
         current_draft_pr[key] != next_draft_pr[key]
       end
     end
