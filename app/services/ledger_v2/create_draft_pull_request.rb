@@ -92,7 +92,11 @@ module LedgerV2
           "number" => result["number"],
           "url" => result["html_url"],
           "created_at" => Time.current.iso8601,
-          "source" => "ledger_v2_ci_fix_suggestion"
+          "source" => "ledger_v2_ci_fix_suggestion",
+          "create_status" => "created",
+          "ci_status" => "pending",
+          "ci_decision" => "continue",
+          "failed_checks" => []
         }
       )
       @artifact.update!(metadata_json: metadata)
@@ -100,18 +104,34 @@ module LedgerV2
         event_type: "draft_pr_created",
         severity: :info,
         message: "Artifact ##{@artifact.id} から draft PR ##{result['number']} を作成しました",
-        payload: metadata["draft_pr"]
+        payload: metadata["draft_pr"].merge(
+          "artifact_id" => @artifact.id,
+          "related_ticket_id" => @artifact.related_ticket_id
+        )
       )
 
       Result.new(created?: true, skipped?: false, pr_number: result["number"], pr_url: result["html_url"])
     end
 
     def record_failure(reason: "GitHub PR creation failed")
+      existing_draft_pr = (@artifact.metadata_json || {}).fetch("draft_pr", {})
+      metadata = merged_metadata(
+        "draft_pr" => existing_draft_pr.merge(
+          "create_status" => "failed",
+          "creation_error" => reason,
+          "creation_failed_at" => Time.current.iso8601
+        )
+      )
+      @artifact.update!(metadata_json: metadata)
       create_event(
         event_type: "draft_pr_create_failed",
         severity: :warning,
         message: "Artifact ##{@artifact.id} から draft PR を作成できませんでした: #{reason}",
-        payload: { "artifact_id" => @artifact.id, "reason" => reason }
+        payload: {
+          "artifact_id" => @artifact.id,
+          "related_ticket_id" => @artifact.related_ticket_id,
+          "reason" => reason
+        }
       )
       Result.new(created?: false, skipped?: false, reason: reason)
     end
@@ -133,7 +153,9 @@ module LedgerV2
         severity: severity,
         occurred_at: Time.current,
         message: message,
-        payload_json: payload
+        payload_json: payload,
+        subject_type: "LedgerV2::Artifact",
+        subject_id: @artifact.id
       )
     end
   end

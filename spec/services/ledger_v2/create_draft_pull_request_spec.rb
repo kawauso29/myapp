@@ -52,6 +52,8 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
 
     expect(artifact.reload.metadata_json.dig("draft_pr", "number")).to eq(123)
     expect(artifact.metadata_json.dig("draft_pr", "url")).to eq("https://example.com/pr/123")
+    expect(artifact.metadata_json.dig("draft_pr", "ci_status")).to eq("pending")
+    expect(artifact.metadata_json.dig("draft_pr", "ci_decision")).to eq("continue")
   end
 
   it "draft_pr_created Event を記録する" do
@@ -102,5 +104,14 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     }.to change {
       LedgerV2::Event.where(event_type: "draft_pr_create_failed").count
     }.by(1)
+  end
+
+  it "GitHub PR 作成失敗時は metadata_json に失敗理由を保存する" do
+    allow(GithubPrService).to receive(:create_pr).and_return(nil)
+
+    described_class.call(artifact: artifact)
+
+    expect(artifact.reload.metadata_json.dig("draft_pr", "create_status")).to eq("failed")
+    expect(artifact.metadata_json.dig("draft_pr", "creation_error")).to eq("GitHub PR creation failed")
   end
 end

@@ -22,6 +22,10 @@ Rails.application.config.x.ledger_v2_flags = {
   annual_runner:    false,
   auto_pr:          false,
 
+  # 2026-05-12: Phase C 最小実装。draft PR の CI 状態を読んで Event / metadata に記録する。
+  # 読み取り専用で merge / deploy は行わないためデフォルト ON。
+  sync_draft_pr_status: true,
+
   # Phase G-5（2026-05-07）: ALL PASS 14圧縮日維持を確認、AutoMerge 解除。
   # 逆戻り条件: StopCondition target_type "auto_merge" / "all" が active なら Flags.enabled? が false を返す。
   auto_merge:       true,

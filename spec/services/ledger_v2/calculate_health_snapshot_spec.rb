@@ -245,12 +245,12 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         create_artifact(
           artifact_type: "ci_fix_suggestion",
           review_status: :review_rejected,
-          metadata_json: { "draft_pr" => { "number" => 101 } }
+          metadata_json: { "draft_pr" => { "number" => 101, "ci_status" => "failure" } }
         )
         create_artifact(
           artifact_type: "ci_fix_suggestion",
           review_status: :accepted,
-          metadata_json: { "draft_pr" => { "number" => 102 } }
+          metadata_json: { "draft_pr" => { "number" => 102, "ci_status" => "success" } }
         )
 
         snapshot = described_class.call(period: :daily, measured_at: now)
@@ -259,6 +259,7 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "created_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.5)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(0.5)
       end
     end
 

@@ -225,14 +225,17 @@ module LedgerV2
       status_counts = pr_artifacts.group(:review_status).count
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
+      ci_statuses = pr_artifacts.pluck(Arel.sql("metadata_json -> 'draft_pr' ->> 'ci_status'"))
+      ci_success_count = ci_statuses.count("success")
+      ci_failure_count = ci_statuses.count("failure")
+      terminal_ci_count = ci_success_count + ci_failure_count
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
         "created_count" => success_count,
         "failed_count" => failure_count,
         "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
-        # GitHub PR の CI 再通過結果はまだ LedgerV2 に同期していないため、観測可能になるまで nil で明示する。
-        "ci_repass_rate" => nil
+        "ci_repass_rate" => terminal_ci_count.zero? ? nil : (ci_success_count.to_f / terminal_ci_count).round(4)
       }
     end
     private_class_method :calculate_draft_pr_metrics

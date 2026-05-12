@@ -425,6 +425,7 @@ PR で持ち込まれた場合は **却下する**。
 | `copilot/v2-next-ticket-another-one` | `LedgerV2::BuildAnnualArtifact` + `LedgerV2::AnnualRunner`（dry_run only）+ `LedgerV2::AnnualRunnerJob`（manual only）+ spec（16 examples, 0 failures）+ Artifacts UI に annual_review フィルター追加 | Ticket 28 ✅ | マージ済み |
 
 | `copilot/v2-ticket-29` | `LedgerV2::BuildCiFixArtifact`（CI 失敗分類と修正案 draft）+ WeeklyRunner 統合 + Artifacts UI に ci_fix_suggestion フィルター追加 + spec（26 examples, 0 failures）| Ticket 29 ✅ | レビュー中 |
+| `copilot/next-steps-v2` | `LedgerV2::SyncDraftPrStatus`（draft PR CI 状態同期 + continue/stop/human_escalate Event）+ `CreateDraftPullRequest` metadata 補強 + `ci_repass_rate` 実測化 + recurring/required job/spec 追加 | Ticket 32 ✅ | レビュー中 |
 | `copilot/plan-next-steps-from-current-progress` | `GraduationCheck.consecutive_pass_count` 追加 + Dashboard 連続 PASS 件数バッジ表示 + 観測フェーズ Steps 1〜6 ドキュメント整備 | Step 2 準備 ✅ | レビュー中 |
 | `copilot/remove-unnecessary-actions-v2` | v1 自動化 GitHub Actions を 9 本削除（`ai_sns_plan` / `weekly_pdca` / `plan_review` / `auto_merge` / `ci_escalation` / `auto_fix` / `create_pr` / `post_deploy_cleanup` / `pr_guardrails`）+ `bin/dispatch_weekly_pdca` 削除 + `deploy.yml` の weekly_pdca cron 登録削除。残存: `ci.yml` / `deploy.yml` / `copilot-setup-steps.yml` / `db_snapshot.yml` の 4 本のみ。設計書 §「v1 freeze 条件」/ Phase 0 完遂 | v1 freeze ✅ | レビュー中 |
 
@@ -517,6 +518,13 @@ PR で持ち込まれた場合は **却下する**。
     - 新: `improvement_detected` Event 数 / (`improvement_detected` + `improvement_not_detected`) Event 数
   - `config/initializers/required_job_classes.rb` + `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に追加
   - spec（evaluate_improvement_spec.rb）: 38 examples, 0 failures ✅ / calculate_health_snapshot_spec: 22 examples, 0 failures ✅ / LedgerV2 全体: 486 examples, 0 failures ✅
+- [x] **Ticket 32**: `LedgerV2::SyncDraftPrStatus` — draft PR の CI 状態同期と判定 Event 記録（Phase C 最小実装）
+  - `app/services/ledger_v2/sync_draft_pr_status.rb`（draft PR の CI 状態を GitHub から読取り、Artifact metadata と `draft_pr_ci_continue` / `draft_pr_ci_stop` / `draft_pr_ci_human_escalate` Event に同期）
+  - `app/jobs/ledger_v2/sync_draft_pr_status_job.rb`（RunExecutor 経由・15分ごと recurring 登録済み）
+  - `CreateDraftPullRequest` に `draft_pr.create_status` / `ci_status` / `ci_decision` / failure metadata を追加し、Phase B → C の状態遷移を明示化
+  - `CalculateHealthSnapshot#calculate_draft_pr_metrics` の `ci_repass_rate` を `draft_pr.ci_status`（success / failure）から実測計算
+  - `config/initializers/required_job_classes.rb` + `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に追加
+  - spec（sync_draft_pr_status_spec.rb / sync_draft_pr_status_job_spec.rb / github_pr_service_spec.rb）: 84 examples, 0 failures ✅
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -526,24 +534,26 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_merge: true`（限定運用）, `evaluate_improvement: true`
+- `sync_draft_pr_status: true`（Phase C 最小実装。15分ごとに draft PR の CI 状態を同期）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
-- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → 条件付き自動マージ / デプロイ → 改善再計測、の閉ループ定義がまだ分断されている
+- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate` を HealthSnapshot で実測
+- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断までは Event / metadata に接続済み。次は retry 条件・停止条件・自動マージ / デプロイ完了条件の整理
 
 次のアクション（優先順）:
-1. **Phase B の連結強化**: 承認済み Artifact → draft PR → `draft_pr_created` / `draft_pr_create_failed` Event / metadata 記録の流れを棚卸しし、欠けている状態遷移を埋める
-2. **Phase C の着手**: CI 結果を Ledger V2 が読める形で記録し、`continue` / `stop` / `human_escalate` の判断結果を Event として残す最小実装を切り出す
+1. **Phase C の次段階**: `continue` / `stop` / `human_escalate` の最小記録は入ったため、次は retry 条件・terminal 判定・CI 収束率の定義を詰める
+2. **Phase D の説明責任を整理**: AutoMerge / AutoDeploy を「既に一部動いているもの」として扱うのではなく、Ledger V2 の制御対象として完了条件・逆戻り条件・停止条件を文書化する
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率
    - 自動生成 Ticket ノイズ率
    - 修正後改善率（`kpi_improvement_after_ticket_rate`）
-4. **Phase D の説明責任を整理**: AutoMerge / AutoDeploy を「既に一部動いているもの」として扱うのではなく、Ledger V2 の制御対象として完了条件・逆戻り条件・停止条件を文書化する
-5. **観測対象の追加は後回し**: readonly 指標追加だけの PR は、Phase B/C の整理が終わるまで優先しない
+4. **Phase B の細部整備**: 承認済み Artifact → draft PR の状態遷移を見直し、retry時の metadata ルールや PR close ケースの扱いを明文化する
+5. **観測対象の追加は後回し**: readonly 指標追加だけの PR は、Phase B/C/D の整理が終わるまで優先しない
 
 ## 参考
 
