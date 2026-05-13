@@ -52,6 +52,7 @@ namespace :solid_queue do
     LedgerV2::DailyRunnerJob
     LedgerV2::WeeklyRunnerJob
     LedgerV2::MonthlyRunnerJob
+    LedgerV2::SyncDraftPrStatusJob
     LedgerV2::CalculateHealthSnapshotJob
     LedgerV2::EvaluateImprovementJob
   ].freeze

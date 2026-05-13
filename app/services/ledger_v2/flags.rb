@@ -17,6 +17,7 @@ module LedgerV2
       quarterly_runner
       annual_runner
       auto_pr
+      sync_draft_pr_status
       auto_merge
       evaluate_improvement
     ].freeze

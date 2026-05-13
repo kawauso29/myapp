@@ -52,6 +52,7 @@ Rails.application.reloader.to_prepare do
     LedgerV2::DailyRunnerJob
     LedgerV2::WeeklyRunnerJob
     LedgerV2::MonthlyRunnerJob
+    LedgerV2::SyncDraftPrStatusJob
     LedgerV2::CalculateHealthSnapshotJob
     LedgerV2::EvaluateImprovementJob
   ].each do |job_class_name|

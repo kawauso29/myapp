@@ -307,6 +307,12 @@ production:
     queue: default
     schedule: "0 */12 * * *"
 
+  # 15分ごと: LedgerV2 draft PR の CI 状態同期（Phase C 最小実装）
+  ledger_v2_sync_draft_pr_status:
+    class: LedgerV2::SyncDraftPrStatusJob
+    queue: default
+    schedule: "*/15 * * * *"
+
   # 30分ごと: LedgerV2 HealthSnapshot（卒業判定の観測。圧縮時間軸 daily=30分 と整合）
   # 1 snapshot = 1 圧縮日。GraduationCheck の基準 #6（snapshot >= 7）は 30分 × 7 = 3.5時間で達成可能。
   ledger_v2_health_snapshot:
