@@ -20,10 +20,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node runtime for Copilot toolchain
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Ensure Node.js is installed (system-wide, stable path)
+        run: |
+          if ! command -v node >/dev/null 2>&1; then
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+          fi
+          node --version
+          npm --version
 
       - name: Ensure jq is installed
         run: |
@@ -33,23 +37,24 @@ jobs:
           fi
           jq --version
 
-      - name: Verify node and npm
-        run: |
-          command -v node
-          node --version
-          command -v npm
-          npm --version
-
-      - name: Expose setup-node runtime to Copilot temp path
+      - name: Expose Node runtime to Copilot temp path
         run: |
           set -euo pipefail
-          NODE_BIN_DIR="$(dirname "$(command -v node)")"
+          NODE_BIN="$(command -v node)"
+          # ghcca-node は RUNNER_TEMP 配下に毎回作成する
           mkdir -p "$RUNNER_TEMP/ghcca-node/node/bin"
-          ln -sf "$NODE_BIN_DIR/node" "$RUNNER_TEMP/ghcca-node/node/bin/node"
-          if [ -x "$NODE_BIN_DIR/npm" ]; then
-            ln -sf "$NODE_BIN_DIR/npm" "$RUNNER_TEMP/ghcca-node/node/bin/npm"
+          ln -sf "$NODE_BIN" "$RUNNER_TEMP/ghcca-node/node/bin/node"
+          NPM_BIN="$(command -v npm || true)"
+          if [ -x "$NPM_BIN" ]; then
+            ln -sf "$NPM_BIN" "$RUNNER_TEMP/ghcca-node/node/bin/npm"
           fi
           ls -l "$RUNNER_TEMP/ghcca-node/node/bin"
+          # 永続パスにも配置（ジョブをまたいでも有効）
+          sudo mkdir -p /usr/local/lib/ghcca-node/bin
+          sudo ln -sf "$NODE_BIN" /usr/local/lib/ghcca-node/bin/node
+          if [ -x "$NPM_BIN" ]; then
+            sudo ln -sf "$NPM_BIN" /usr/local/lib/ghcca-node/bin/npm
+          fi
 
       - name: Setup Ruby via rbenv
         run: |
