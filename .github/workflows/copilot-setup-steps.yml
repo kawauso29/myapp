@@ -1,6 +1,5 @@
 name: "Copilot Setup Steps"
 
-# セットアップ変更時に自動検証、または手動実行で確認
 on:
   workflow_dispatch:
   push:
@@ -11,7 +10,6 @@ on:
       - .github/workflows/copilot-setup-steps.yml
 
 jobs:
-  # このジョブ名は変更不可（Copilot がこの名前で検出する）
   copilot-setup-steps:
     runs-on: [self-hosted, sakura-vps]
 
@@ -22,22 +20,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Ruby のセットアップ（VPS の rbenv を使用、ci.yml と同じ方式）
+      - name: Ensure jq is installed
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify node and npm
+        run: |
+          command -v node
+          node --version
+          command -v npm
+          npm --version
+
       - name: Setup Ruby via rbenv
         run: |
           echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
 
+      - name: Verify Ruby
+        run: |
+          command -v ruby
+          ruby -v
+          command -v bundle
+          bundle -v
+
       - name: Install gems
         run: bundle install --jobs 2 --retry 3
 
-      # フロントエンド依存のインストール（VPS の Node.js を使用）
       - name: Install frontend dependencies
         env:
           NODE_OPTIONS: --max-old-space-size=512
         run: cd frontend && npm ci
 
-      # テスト用DBをあらかじめ準備しておく（VPS の PostgreSQL/Redis を使用）
       - name: Prepare test database
         env:
           RAILS_ENV: test
@@ -49,7 +71,6 @@ jobs:
           bin/rails db:migrate || bin/rails db:schema:load
           bin/rails db:test:prepare
 
-      # 本番スナップショットをテストDBにロード（db/snapshots/db_snapshot.json が存在する場合）
       - name: Load production snapshot into test DB
         env:
           RAILS_ENV: test
@@ -63,7 +84,6 @@ jobs:
             echo "No snapshot found, skipping load (run 'DB Snapshot for Copilot' workflow to create one)"
           fi
 
-      # Zeitwerk（オートロード）確認
       - name: Check autoload integrity
         env:
           RAILS_ENV: test
