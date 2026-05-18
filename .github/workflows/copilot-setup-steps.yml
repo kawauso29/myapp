@@ -20,6 +20,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node runtime for Copilot toolchain
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Ensure jq is installed
         run: |
           if ! command -v jq >/dev/null 2>&1; then
@@ -28,17 +33,23 @@ jobs:
           fi
           jq --version
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Verify node and npm
         run: |
           command -v node
           node --version
           command -v npm
           npm --version
+
+      - name: Expose setup-node runtime to Copilot temp path
+        run: |
+          set -euo pipefail
+          NODE_BIN_DIR="$(dirname "$(command -v node)")"
+          mkdir -p "$RUNNER_TEMP/ghcca-node/node/bin"
+          ln -sf "$NODE_BIN_DIR/node" "$RUNNER_TEMP/ghcca-node/node/bin/node"
+          if [ -x "$NODE_BIN_DIR/npm" ]; then
+            ln -sf "$NODE_BIN_DIR/npm" "$RUNNER_TEMP/ghcca-node/node/bin/npm"
+          fi
+          ls -l "$RUNNER_TEMP/ghcca-node/node/bin"
 
       - name: Setup Ruby via rbenv
         run: |
