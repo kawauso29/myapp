@@ -20,57 +20,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ensure Node.js is installed (system-wide, stable path)
+      - name: Verify Node.js
         run: |
-          if ! command -v node >/dev/null 2>&1; then
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-          fi
+          command -v node
           node --version
+          command -v npm
           npm --version
 
-      - name: Ensure jq is installed
+      - name: Verify jq
         run: |
-          if ! command -v jq >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y jq
-          fi
+          command -v jq
           jq --version
-
-      - name: Install pre-job hook for Copilot Node path
-        run: |
-          set -euo pipefail
-          HOOK_SCRIPT="/home/ubuntu/setup-copilot-node.sh"
-          RUNNER_ENV_FILE="/home/ubuntu/actions-runner/.env"
-
-          # フックスクリプトを作成・更新
-          sudo tee "$HOOK_SCRIPT" > /dev/null <<'HOOK'
-          #!/bin/bash
-          set -euo pipefail
-          NODE_BIN="$(command -v node 2>/dev/null || echo '')"
-          NPM_BIN="$(command -v npm 2>/dev/null || echo '')"
-          if [ -z "$NODE_BIN" ]; then
-            echo "[copilot-hook] node not found, skipping"
-            exit 0
-          fi
-          mkdir -p "$RUNNER_TEMP/ghcca-node/node/bin"
-          ln -sf "$NODE_BIN" "$RUNNER_TEMP/ghcca-node/node/bin/node"
-          if [ -x "$NPM_BIN" ]; then
-            ln -sf "$NPM_BIN" "$RUNNER_TEMP/ghcca-node/node/bin/npm"
-          fi
-          echo "[copilot-hook] ghcca-node linked: $RUNNER_TEMP/ghcca-node/node/bin/node -> $NODE_BIN"
-          HOOK
-
-          sudo chmod +x "$HOOK_SCRIPT"
-
-          # .env に ACTIONS_RUNNER_HOOK_JOB_STARTED を登録（重複防止）
-          if [ -f "$RUNNER_ENV_FILE" ]; then
-            sudo sed -i '/^ACTIONS_RUNNER_HOOK_JOB_STARTED=/d' "$RUNNER_ENV_FILE"
-          fi
-          echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOOK_SCRIPT" | sudo tee -a "$RUNNER_ENV_FILE" > /dev/null
-
-          echo "Hook installed: $HOOK_SCRIPT"
-          echo "Runner .env updated: $RUNNER_ENV_FILE"
 
       - name: Setup Ruby via rbenv
         run: |
