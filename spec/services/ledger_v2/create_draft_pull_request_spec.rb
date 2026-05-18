@@ -54,6 +54,9 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     expect(artifact.metadata_json.dig("draft_pr", "url")).to eq("https://example.com/pr/123")
     expect(artifact.metadata_json.dig("draft_pr", "ci_status")).to eq("pending")
     expect(artifact.metadata_json.dig("draft_pr", "ci_decision")).to eq("continue")
+    expect(artifact.metadata_json.dig("draft_pr", "ci_retry_count")).to eq(0)
+    expect(artifact.metadata_json.dig("draft_pr", "ci_terminal")).to be false
+    expect(artifact.metadata_json.dig("draft_pr", "ci_terminal_reason")).to be_nil
   end
 
   it "draft_pr_created Event を記録する" do

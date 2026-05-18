@@ -9,7 +9,7 @@ module LedgerV2
   class StopCondition < ApplicationRecord
     self.table_name = "ledger_v2_stop_conditions"
 
-    TARGET_TYPES = %w[runner feature ticket_creation artifact_generation auto_pr auto_merge all].freeze
+    TARGET_TYPES = %w[runner feature ticket_creation artifact_generation auto_pr auto_merge auto_deploy all].freeze
     SEVERITIES   = %w[low medium high critical].freeze
 
     validates :target_type, presence: true, inclusion: { in: TARGET_TYPES }
@@ -33,7 +33,7 @@ module LedgerV2
       )
     }
 
-    # 指定 feature_name（フラグ名: "auto_pr", "auto_merge" 等）に対してアクティブなブロック条件を返す。
+    # 指定 feature_name（フラグ名: "auto_pr", "auto_merge", "auto_deploy" 等）に対してアクティブなブロック条件を返す。
     # target_type にフラグ名が完全一致するものだけを対象とする。
     # 注意: target_type: "all" は Runner 全体を止める意味で使用するが、feature フラグには影響させない。
     #       Runner は CircuitBreaker（blocking_runner? / blocking_runner スコープ）でブロックする。

@@ -63,8 +63,8 @@
 |---|---|---|
 | **Phase A** | 観測・起票・artifact draft・人間レビュー・停止・監査 | **ほぼ完了**（Kernel MVP 完成済み） |
 | **Phase B** | 承認済み Artifact → draft PR 作成 | **部分実装**（Ticket 29/30） |
-| **Phase C** | CI 結果読取り、retry / stop / human-escalate 判定記録 | **未整理** |
-| **Phase D** | 条件付き自動マージ / 自動デプロイ | **限定的に着手済みだが、完成条件が未整理** |
+| **Phase C** | CI 結果読取り、retry / stop / human-escalate 判定記録 | **最小実装 + terminal 判定まで完了** |
+| **Phase D** | 条件付き自動マージ / 自動デプロイ | **判定責務を service 化、実行有効化は未着手** |
 | **Phase E** | 効果計測を含む自律改善ループ | **入口のみ実装**（Ticket 31） |
 
 ### 各フェーズの定義
@@ -499,7 +499,7 @@ PR で持ち込まれた場合は **却下する**。
 - [x] 解除後 7 日間は逆戻り条件（active StopCondition 発生時の自動 OFF）を仕込んだ上で観察する
   - 実装: `LedgerV2::StopCondition.blocking_feature?` + `Flags.enabled?` に逆戻り条件組み込み
   - `auto_merge: false` → `auto_merge: true`（`config/initializers/ledger_v2.rb`）
-  - 逆戻り条件: StopCondition target_type `"auto_merge"` または `"all"` が active なら `Flags.enabled?(:auto_merge)` が false を返す
+  - 逆戻り条件: StopCondition target_type `"auto_merge"` が active なら `Flags.enabled?(:auto_merge)` が false を返す
 
 ### Step 6（任意・将来）: 設計書 Phase Future の残り
 
@@ -525,6 +525,19 @@ PR で持ち込まれた場合は **却下する**。
   - `CalculateHealthSnapshot#calculate_draft_pr_metrics` の `ci_repass_rate` を `draft_pr.ci_status`（success / failure）から実測計算
   - `config/initializers/required_job_classes.rb` + `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に追加
   - spec（sync_draft_pr_status_spec.rb / sync_draft_pr_status_job_spec.rb / github_pr_service_spec.rb）: 84 examples, 0 failures ✅
+- [x] **Ticket 33**: `LedgerV2::SyncDraftPrStatus` — retry 条件 / terminal 判定 / CI 収束率定義の明確化（Phase C 次段階）
+  - `SyncDraftPrStatus` に pending retry（`MAX_PENDING_RETRIES=3`）と terminal 判定を追加
+  - `draft_pr` metadata に `ci_retry_count` / `ci_terminal` / `ci_terminal_at` / `ci_terminal_reason` を追加
+  - Event を最小追加: `draft_pr_ci_retrying` / `draft_pr_ci_terminal`（既存 `continue` / `stop` / `human_escalate` は維持）
+  - `CalculateHealthSnapshot#calculate_draft_pr_metrics` の `ci_repass_rate` を terminal 定義ベースへ更新（`ci_passed` / `ci_failed` / `ci_pending_timeout`）
+  - spec（sync_draft_pr_status_spec.rb / create_draft_pull_request_spec.rb / calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 34**: `LedgerV2::PhaseDGate` — AutoMerge / AutoDeploy の完了条件・停止条件を判定サービスとして明文化（Phase D 入口）
+  - `app/services/ledger_v2/phase_d_gate.rb` を追加（判定のみ。merge/deploy の実行は行わない）
+  - merge 条件: `auto_merge` 有効 + draft PR が `ci_terminal=true` かつ `ci_terminal_reason=ci_passed`
+  - deploy 条件: merge 条件 + `auto_deploy` 有効
+  - `Flags::ALL_FLAGS` と initializer に `auto_deploy` を追加（デフォルト false）
+  - `StopCondition::TARGET_TYPES` に `auto_deploy` を追加し、逆戻り条件の対象を明示
+  - spec（phase_d_gate_spec.rb / flags_spec.rb / stop_condition_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -535,18 +548,19 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_merge: true`（限定運用）, `evaluate_improvement: true`
 - `sync_draft_pr_status: true`（Phase C 最小実装。15分ごとに draft PR の CI 状態を同期）
+- `auto_deploy: false`（Phase D 判定は導入済み、実行有効化は未着手）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
-- 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
+- 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` / `Flags.enabled?(:auto_deploy)` は対応する target_type の active StopCondition があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
-- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate` を HealthSnapshot で実測
+- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
 - **未完の本丸**: 承認済み Artifact → draft PR → CI 判断までは Event / metadata に接続済み。次は retry 条件・停止条件・自動マージ / デプロイ完了条件の整理
 
 次のアクション（優先順）:
-1. **Phase C の次段階**: `continue` / `stop` / `human_escalate` の最小記録は入ったため、次は retry 条件・terminal 判定・CI 収束率の定義を詰める
-2. **Phase D の説明責任を整理**: AutoMerge / AutoDeploy を「既に一部動いているもの」として扱うのではなく、Ledger V2 の制御対象として完了条件・逆戻り条件・停止条件を文書化する
+1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
+2. **Phase D の実行接続**: `PhaseDGate` の判定結果を AutoMerge / Deploy 実行経路に接続し、判定と実行の乖離をなくす
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率

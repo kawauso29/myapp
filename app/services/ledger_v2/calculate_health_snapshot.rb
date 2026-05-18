@@ -17,6 +17,9 @@
 # 設計の正本: ledger_v2_detailed_design.txt §「LedgerV2::CalculateHealthSnapshot」
 module LedgerV2
   module CalculateHealthSnapshot
+    TERMINAL_SUCCESS_REASON = "ci_passed"
+    TERMINAL_FAILURE_REASONS = %w[ci_failed ci_pending_timeout].freeze
+
     # @param period [Symbol]  :daily または :weekly
     # @param measured_at [Time]  集計基準時点（デフォルト: 現在時刻）
     # @param dry_run [Boolean]  true の場合は DB に書き込まない
@@ -225,8 +228,9 @@ module LedgerV2
       status_counts = pr_artifacts.group(:review_status).count
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
-      ci_success_count = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_status' = ?", "success").count
-      ci_failure_count = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_status' = ?", "failure").count
+      terminal_scope = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "true")
+      ci_success_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' = ?", TERMINAL_SUCCESS_REASON).count
+      ci_failure_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' IN (?)", TERMINAL_FAILURE_REASONS).count
       terminal_ci_count = ci_success_count + ci_failure_count
 
       {
@@ -234,7 +238,9 @@ module LedgerV2
         "created_count" => success_count,
         "failed_count" => failure_count,
         "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
-        "ci_repass_rate" => terminal_ci_count.zero? ? nil : (ci_success_count.to_f / terminal_ci_count).round(4)
+        "ci_repass_rate" => terminal_ci_count.zero? ? nil : (ci_success_count.to_f / terminal_ci_count).round(4),
+        "ci_terminal_count" => terminal_scope.count,
+        "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count
       }
     end
     private_class_method :calculate_draft_pr_metrics

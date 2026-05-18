@@ -12,10 +12,16 @@
 # - Artifact / Ticket の review_status を自動変更しない
 module LedgerV2
   class SyncDraftPrStatus
+    MAX_PENDING_RETRIES = 3
+
     TRACKED_DRAFT_PR_FIELDS = %w[
       ci_status
       ci_conclusion
       ci_decision
+      ci_retry_count
+      ci_terminal
+      ci_terminal_at
+      ci_terminal_reason
       failed_checks
       head_sha
       ci_sync_error
@@ -53,23 +59,26 @@ module LedgerV2
     end
 
     def sync_artifact(artifact)
-      pr_number = artifact.metadata_json.dig("draft_pr", "number")
+      current_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
+      return { created_event_count: 0 } if current_draft_pr["ci_terminal"] == true
+
+      pr_number = current_draft_pr["number"]
       return { created_event_count: 0 } if pr_number.blank?
 
       ci_status = GithubPrService.fetch_ci_status(pr_number: pr_number)
       return sync_failure(artifact, pr_number) if ci_status.blank?
 
-      decision = decision_for(ci_status["status"])
-      metadata = build_metadata(artifact, ci_status, decision)
+      retry_count = next_retry_count(current_draft_pr, ci_status["status"])
+      decision_result = decision_for(status: ci_status["status"], retry_count: retry_count)
+      decision = decision_result.fetch(:decision)
+      metadata = build_metadata(artifact, ci_status, decision_result, retry_count)
       return { created_event_count: 0 } unless state_changed?(artifact, metadata)
 
       return { created_event_count: 0 } if dry_run
 
       artifact.update!(metadata_json: metadata)
 
-      created_event_count = 0
-      create_decision_event(artifact, ci_status, decision)
-      created_event_count += 1
+      created_event_count = create_decision_events(artifact, ci_status, decision_result, retry_count)
       { created_event_count: created_event_count }
     end
 
@@ -100,11 +109,17 @@ module LedgerV2
       { created_event_count: 1 }
     end
 
-    def build_metadata(artifact, ci_status, decision)
-      draft_pr_metadata = artifact.metadata_json.fetch("draft_pr", {}).merge(
+    def build_metadata(artifact, ci_status, decision_result, retry_count)
+      existing_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
+      terminal = decision_result.fetch(:terminal)
+      draft_pr_metadata = existing_draft_pr.merge(
         "ci_status" => ci_status["status"],
         "ci_conclusion" => ci_status["conclusion"],
-        "ci_decision" => decision,
+        "ci_decision" => decision_result.fetch(:decision),
+        "ci_retry_count" => retry_count,
+        "ci_terminal" => terminal,
+        "ci_terminal_at" => terminal_timestamp(existing_draft_pr, terminal),
+        "ci_terminal_reason" => terminal ? decision_result.fetch(:terminal_reason) : nil,
         "ci_checked_at" => Time.current.iso8601,
         "failed_checks" => ci_status["failed_checks"],
         "head_sha" => ci_status["head_sha"],
@@ -114,11 +129,32 @@ module LedgerV2
       merged_metadata(artifact, "draft_pr" => draft_pr_metadata)
     end
 
-    def decision_for(status)
-      return "human_escalate" if status == "failure"
-      return "stop" unless Flags.enabled?(:auto_merge)
+    def next_retry_count(current_draft_pr, status)
+      current_count = current_draft_pr["ci_retry_count"].to_i
+      return current_count + 1 if status == "pending"
 
-      "continue"
+      current_count
+    end
+
+    def decision_for(status:, retry_count:)
+      return terminal_decision("human_escalate", "ci_failed") if status == "failure"
+      return terminal_decision("stop", "auto_merge_disabled") unless Flags.enabled?(:auto_merge)
+      return terminal_decision("continue", "ci_passed") if status == "success"
+
+      return terminal_decision("human_escalate", "ci_pending_timeout") if status == "pending" && retry_count >= MAX_PENDING_RETRIES
+
+      { decision: "continue", terminal: false, terminal_reason: nil }
+    end
+
+    def terminal_decision(decision, reason)
+      { decision: decision, terminal: true, terminal_reason: reason }
+    end
+
+    def terminal_timestamp(current_draft_pr, terminal)
+      return current_draft_pr["ci_terminal_at"] if current_draft_pr["ci_terminal"] == true
+      return Time.current.iso8601 if terminal
+
+      nil
     end
 
     def state_changed?(artifact, metadata)
@@ -134,7 +170,25 @@ module LedgerV2
       (artifact.metadata_json || {}).merge(extra)
     end
 
-    def create_decision_event(artifact, ci_status, decision)
+    def create_decision_events(artifact, ci_status, decision_result, retry_count)
+      decision = decision_result.fetch(:decision)
+      terminal = decision_result.fetch(:terminal)
+
+      create_decision_event(artifact, ci_status, decision, decision_result.fetch(:terminal_reason), terminal, retry_count)
+      created_event_count = 1
+
+      if terminal
+        create_terminal_event(artifact, ci_status, decision, decision_result.fetch(:terminal_reason), retry_count)
+        created_event_count += 1
+      elsif ci_status["status"] == "pending"
+        create_retrying_event(artifact, ci_status, retry_count)
+        created_event_count += 1
+      end
+
+      created_event_count
+    end
+
+    def create_decision_event(artifact, ci_status, decision, terminal_reason, terminal, retry_count)
       severity =
         case decision
         when "human_escalate" then :warning
@@ -163,9 +217,46 @@ module LedgerV2
           "pr_url" => ci_status["pr_url"],
           "ci_status" => ci_status["status"],
           "ci_conclusion" => ci_status["conclusion"],
+          "ci_retry_count" => retry_count,
+          "ci_terminal" => terminal,
+          "ci_terminal_reason" => terminal_reason,
           "decision" => decision,
           "failed_checks" => ci_status["failed_checks"],
           "head_sha" => ci_status["head_sha"]
+        }
+      )
+    end
+
+    def create_retrying_event(artifact, ci_status, retry_count)
+      create_event(
+        artifact: artifact,
+        event_type: "draft_pr_ci_retrying",
+        severity: :info,
+        message: "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} は CI pending のため再試行中です（#{retry_count}/#{MAX_PENDING_RETRIES}）",
+        payload: {
+          "artifact_id" => artifact.id,
+          "pr_number" => ci_status["pr_number"],
+          "ci_status" => ci_status["status"],
+          "retry_count" => retry_count
+        }
+      )
+    end
+
+    def create_terminal_event(artifact, ci_status, decision, terminal_reason, retry_count)
+      severity = decision == "continue" ? :info : :warning
+      create_event(
+        artifact: artifact,
+        event_type: "draft_pr_ci_terminal",
+        severity: severity,
+        message: "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} が terminal に到達しました（decision=#{decision}, reason=#{terminal_reason}）",
+        payload: {
+          "artifact_id" => artifact.id,
+          "pr_number" => ci_status["pr_number"],
+          "decision" => decision,
+          "terminal_reason" => terminal_reason,
+          "retry_count" => retry_count,
+          "ci_status" => ci_status["status"],
+          "ci_conclusion" => ci_status["conclusion"]
         }
       )
     end

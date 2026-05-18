@@ -99,8 +99,8 @@ RSpec.describe LedgerV2::Flags do
       expect(described_class.all[:auto_merge]).to be(true)
     end
 
-    it "quarterly_runner / annual_runner / auto_pr はまだ false" do
-      still_disabled = %i[quarterly_runner annual_runner auto_pr]
+    it "quarterly_runner / annual_runner / auto_pr / auto_deploy はまだ false" do
+      still_disabled = %i[quarterly_runner annual_runner auto_pr auto_deploy]
       still_disabled.each do |flag|
         expect(described_class.all[flag]).to be(false),
           "#{flag} はまだ有効化されていないはず"
