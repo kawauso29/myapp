@@ -538,6 +538,11 @@ PR で持ち込まれた場合は **却下する**。
   - `Flags::ALL_FLAGS` と initializer に `auto_deploy` を追加（デフォルト false）
   - `StopCondition::TARGET_TYPES` に `auto_deploy` を追加し、逆戻り条件の対象を明示
   - spec（phase_d_gate_spec.rb / flags_spec.rb / stop_condition_spec.rb）更新
+- [x] **Ticket 35**: `LedgerV2::ExecutePhaseD` — PhaseDGate の判定結果を実際の merge 経路へ接続（Phase D 最小実行）
+  - `app/services/ledger_v2/execute_phase_d.rb` を追加し、`SyncDraftPrStatus` から `ci_terminal_reason=ci_passed` の Artifact に対して起動
+  - `GithubPrService.merge_pr` を追加し、`head_sha` guard 付きで GitHub merge API を呼ぶ
+  - **このリポジトリでは main merge が CI→deploy に直結するため、`deploy_allowed=true` のときだけ merge 実行**。`auto_deploy=false` 中は `phase_d_execution_blocked` Event と `metadata_json["phase_d"]` に保留理由を記録する
+  - spec（execute_phase_d_spec.rb / sync_draft_pr_status_spec.rb / github_pr_service_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -548,7 +553,7 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 現在の状態:
 - `config/initializers/ledger_v2.rb`: `auto_merge: true`（限定運用）, `evaluate_improvement: true`
 - `sync_draft_pr_status: true`（Phase C 最小実装。15分ごとに draft PR の CI 状態を同期）
-- `auto_deploy: false`（Phase D 判定は導入済み、実行有効化は未着手）
+- `auto_deploy: false`（Phase D の merge 実行経路は接続済みだが、flag が false の間は `phase_d_execution_blocked` を記録して保留）
 - `monthly_runner` フラグ: `true`（dry_run のみ）
 - Dashboard に「連続 PASS」バッジ追加済み（`GraduationCheck.consecutive_pass_count`）
 - DailyRunner 観測 KPI: AI-SNS 3指標 + CustomerFeedback 2指標 + KnowledgeLedger 2指標 + ExperimentLedger 2指標 + error / ci_success_rate / open_ticket / artifact_pending（計13指標）
@@ -556,11 +561,11 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
 - `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
-- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断までは Event / metadata に接続済み。次は retry 条件・停止条件・自動マージ / デプロイ完了条件の整理
+- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge 実行までは接続済み。次は merge 失敗時の再試行方針・deploy 結果 / rollback の Ledger 記録を詰める
 
 次のアクション（優先順）:
 1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
-2. **Phase D の実行接続**: `PhaseDGate` の判定結果を AutoMerge / Deploy 実行経路に接続し、判定と実行の乖離をなくす
+2. **Phase D の次段階**: merge 失敗時の retry / human_escalate 方針と、deploy 成否・rollback を Ledger Event / metadata に残す
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率

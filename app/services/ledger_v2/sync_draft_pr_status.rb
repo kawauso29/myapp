@@ -60,7 +60,10 @@ module LedgerV2
 
     def sync_artifact(artifact)
       current_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
-      return { created_event_count: 0 } if current_draft_pr["ci_terminal"] == true
+      if current_draft_pr["ci_terminal"] == true
+        phase_d_result = maybe_execute_phase_d(artifact)
+        return { created_event_count: phase_d_result.created_event_count }
+      end
 
       pr_number = current_draft_pr["number"]
       return { created_event_count: 0 } if pr_number.blank?
@@ -74,11 +77,12 @@ module LedgerV2
       metadata = build_metadata(artifact, ci_status, decision_result, retry_count)
       return { created_event_count: 0 } unless state_changed?(artifact, metadata)
 
-      return { created_event_count: 0 } if dry_run
+      return { created_event_count: maybe_execute_phase_d(artifact, metadata: metadata).created_event_count } if dry_run
 
       artifact.update!(metadata_json: metadata)
 
       created_event_count = create_decision_events(artifact, ci_status, decision_result, retry_count)
+      created_event_count += maybe_execute_phase_d(artifact).created_event_count
       { created_event_count: created_event_count }
     end
 
@@ -168,6 +172,14 @@ module LedgerV2
 
     def merged_metadata(artifact, extra)
       (artifact.metadata_json || {}).merge(extra)
+    end
+
+    def maybe_execute_phase_d(artifact, metadata: artifact.metadata_json)
+      draft_pr = metadata.fetch("draft_pr", {})
+      return ExecutePhaseD::Result.new unless draft_pr["ci_terminal"] == true
+      return ExecutePhaseD::Result.new unless draft_pr["ci_terminal_reason"] == "ci_passed"
+
+      ExecutePhaseD.call(run: run, artifact: artifact, dry_run: dry_run)
     end
 
     def create_decision_events(artifact, ci_status, decision_result, retry_count)

@@ -87,4 +87,46 @@ RSpec.describe GithubPrService do
       ENV["DEPLOY_TOKEN"] = original
     end
   end
+
+  describe ".merge_pr" do
+    around do |example|
+      original = ENV["DEPLOY_TOKEN"]
+      ENV["DEPLOY_TOKEN"] = "token"
+      example.run
+      ENV["DEPLOY_TOKEN"] = original
+    end
+
+    it "merge API 成功時はレスポンスを返す" do
+      response = double(body: { "merged" => true, "sha" => "merge123", "message" => "Pull Request successfully merged" }.to_json)
+      allow(response).to receive(:is_a?) { |klass| klass == Net::HTTPOK }
+      http = instance_double(Net::HTTP)
+
+      allow(Net::HTTP).to receive(:new).with("api.github.com", 443).and_return(http)
+      allow(http).to receive(:use_ssl=)
+      allow(http).to receive(:open_timeout=)
+      allow(http).to receive(:read_timeout=)
+      allow(http).to receive(:request).and_return(response)
+
+      result = described_class.merge_pr(pr_number: 123, sha: "abc123", commit_title: "ledger-v2 merge")
+
+      expect(result["merged"]).to be true
+      expect(result["sha"]).to eq("merge123")
+    end
+
+    it "merge API 失敗時は message を返す" do
+      response = double(body: { "message" => "Pull Request is not mergeable" }.to_json, code: "405")
+      allow(response).to receive(:is_a?) { |_klass| false }
+      http = instance_double(Net::HTTP)
+
+      allow(Net::HTTP).to receive(:new).with("api.github.com", 443).and_return(http)
+      allow(http).to receive(:use_ssl=)
+      allow(http).to receive(:open_timeout=)
+      allow(http).to receive(:read_timeout=)
+      allow(http).to receive(:request).and_return(response)
+
+      result = described_class.merge_pr(pr_number: 123, sha: "abc123")
+
+      expect(result["message"]).to eq("Pull Request is not mergeable")
+    end
+  end
 end
