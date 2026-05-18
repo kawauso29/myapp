@@ -74,7 +74,9 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
           "created_count" => 0,
           "failed_count" => 0,
           "draft_pr_artifact_rejection_rate" => 0.0,
-          "ci_repass_rate" => nil
+          "ci_repass_rate" => nil,
+          "ci_terminal_count" => 0,
+          "ci_retrying_count" => 0
         )
       end
     end
@@ -245,12 +247,26 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         create_artifact(
           artifact_type: "ci_fix_suggestion",
           review_status: :review_rejected,
-          metadata_json: { "draft_pr" => { "number" => 101, "ci_status" => "failure" } }
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 101,
+              "ci_status" => "failure",
+              "ci_terminal" => true,
+              "ci_terminal_reason" => "ci_failed"
+            }
+          }
         )
         create_artifact(
           artifact_type: "ci_fix_suggestion",
           review_status: :accepted,
-          metadata_json: { "draft_pr" => { "number" => 102, "ci_status" => "success" } }
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 102,
+              "ci_status" => "success",
+              "ci_terminal" => true,
+              "ci_terminal_reason" => "ci_passed"
+            }
+          }
         )
 
         snapshot = described_class.call(period: :daily, measured_at: now)
@@ -260,6 +276,41 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.5)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(0.5)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(2)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(0)
+      end
+
+      it "terminal 未到達の pending は ci_repass_rate の分母に含めない" do
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :accepted,
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 201,
+              "ci_status" => "pending",
+              "ci_terminal" => false,
+              "ci_terminal_reason" => nil
+            }
+          }
+        )
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :accepted,
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 202,
+              "ci_status" => "success",
+              "ci_terminal" => true,
+              "ci_terminal_reason" => "ci_passed"
+            }
+          }
+        )
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(1.0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(1)
       end
     end
 

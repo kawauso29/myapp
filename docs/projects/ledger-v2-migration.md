@@ -525,6 +525,12 @@ PR で持ち込まれた場合は **却下する**。
   - `CalculateHealthSnapshot#calculate_draft_pr_metrics` の `ci_repass_rate` を `draft_pr.ci_status`（success / failure）から実測計算
   - `config/initializers/required_job_classes.rb` + `lib/tasks/solid_queue.rake` の `REQUIRED_JOB_CLASSES` に追加
   - spec（sync_draft_pr_status_spec.rb / sync_draft_pr_status_job_spec.rb / github_pr_service_spec.rb）: 84 examples, 0 failures ✅
+- [x] **Ticket 33**: `LedgerV2::SyncDraftPrStatus` — retry 条件 / terminal 判定 / CI 収束率定義の明確化（Phase C 次段階）
+  - `SyncDraftPrStatus` に pending retry（`MAX_PENDING_RETRIES=3`）と terminal 判定を追加
+  - `draft_pr` metadata に `ci_retry_count` / `ci_terminal` / `ci_terminal_at` / `ci_terminal_reason` を追加
+  - Event を最小追加: `draft_pr_ci_retrying` / `draft_pr_ci_terminal`（既存 `continue` / `stop` / `human_escalate` は維持）
+  - `CalculateHealthSnapshot#calculate_draft_pr_metrics` の `ci_repass_rate` を terminal 定義ベースへ更新（`ci_passed` / `ci_failed` / `ci_pending_timeout`）
+  - spec（sync_draft_pr_status_spec.rb / create_draft_pull_request_spec.rb / calculate_health_snapshot_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -541,11 +547,11 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` は active StopCondition（target_type: "auto_merge" / "all"）があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
-- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate` を HealthSnapshot で実測
+- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
 - **未完の本丸**: 承認済み Artifact → draft PR → CI 判断までは Event / metadata に接続済み。次は retry 条件・停止条件・自動マージ / デプロイ完了条件の整理
 
 次のアクション（優先順）:
-1. **Phase C の次段階**: `continue` / `stop` / `human_escalate` の最小記録は入ったため、次は retry 条件・terminal 判定・CI 収束率の定義を詰める
+1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
 2. **Phase D の説明責任を整理**: AutoMerge / AutoDeploy を「既に一部動いているもの」として扱うのではなく、Ledger V2 の制御対象として完了条件・逆戻り条件・停止条件を文書化する
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率

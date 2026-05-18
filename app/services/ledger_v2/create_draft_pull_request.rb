@@ -96,6 +96,10 @@ module LedgerV2
           "create_status" => "created",
           "ci_status" => "pending",
           "ci_decision" => "continue",
+          "ci_retry_count" => 0,
+          "ci_terminal" => false,
+          "ci_terminal_at" => nil,
+          "ci_terminal_reason" => nil,
           "failed_checks" => []
         }
       )

@@ -59,6 +59,12 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       expect(draft_pr["ci_status"]).to eq("success")
       expect(draft_pr["ci_decision"]).to eq("continue")
       expect(draft_pr["head_sha"]).to eq("abc123")
+      expect(draft_pr["ci_terminal"]).to be true
+      expect(draft_pr["ci_terminal_reason"]).to eq("ci_passed")
+      expect(draft_pr["ci_retry_count"]).to eq(0)
+      expect(draft_pr["ci_terminal_at"]).to be_present
+
+      expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
     end
 
     it "CI failure を human_escalate Event に同期する" do
@@ -85,6 +91,10 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       expect(draft_pr["ci_status"]).to eq("failure")
       expect(draft_pr["ci_decision"]).to eq("human_escalate")
       expect(draft_pr["failed_checks"]).to eq(["test"])
+      expect(draft_pr["ci_terminal"]).to be true
+      expect(draft_pr["ci_terminal_reason"]).to eq("ci_failed")
+
+      expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
     end
 
     it "auto_merge が停止中なら stop Event を記録する" do
@@ -108,6 +118,9 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       }.by(1)
 
       expect(artifact.reload.metadata_json.dig("draft_pr", "ci_decision")).to eq("stop")
+      expect(artifact.reload.metadata_json.dig("draft_pr", "ci_terminal")).to be true
+      expect(artifact.reload.metadata_json.dig("draft_pr", "ci_terminal_reason")).to eq("auto_merge_disabled")
+      expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
     end
 
     it "同じ CI 状態は重複記録しない" do
@@ -119,6 +132,10 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
             "ci_status" => "success",
             "ci_conclusion" => "success",
             "ci_decision" => "continue",
+            "ci_retry_count" => 0,
+            "ci_terminal" => true,
+            "ci_terminal_at" => Time.current.iso8601,
+            "ci_terminal_reason" => "ci_passed",
             "failed_checks" => [],
             "head_sha" => "abc123"
           }
@@ -152,6 +169,67 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       }.by(1)
 
       expect(artifact.reload.metadata_json.dig("draft_pr", "ci_status")).to eq("unknown")
+    end
+
+    it "CI pending は retrying Event を記録し、retry_count を増やす" do
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
+        {
+          "pr_number" => 123,
+          "pr_url" => "https://example.com/pr/123",
+          "head_sha" => "pending123",
+          "status" => "pending",
+          "conclusion" => "pending",
+          "failed_checks" => [],
+          "check_runs" => [{ "name" => "test", "status" => "in_progress", "conclusion" => nil }]
+        }
+      )
+
+      expect {
+        described_class.call(run: run)
+      }.to change {
+        LedgerV2::Event.where(event_type: "draft_pr_ci_retrying").count
+      }.by(1)
+
+      draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
+      expect(draft_pr["ci_decision"]).to eq("continue")
+      expect(draft_pr["ci_retry_count"]).to eq(1)
+      expect(draft_pr["ci_terminal"]).to be false
+      expect(draft_pr["ci_terminal_reason"]).to be_nil
+    end
+
+    it "pending が規定回数を超えると human_escalate terminal にする" do
+      artifact.update!(
+        metadata_json: artifact.metadata_json.deep_merge(
+          "draft_pr" => {
+            "ci_retry_count" => 2
+          }
+        )
+      )
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
+        {
+          "pr_number" => 123,
+          "pr_url" => "https://example.com/pr/123",
+          "head_sha" => "pending999",
+          "status" => "pending",
+          "conclusion" => "pending",
+          "failed_checks" => [],
+          "check_runs" => [{ "name" => "test", "status" => "in_progress", "conclusion" => nil }]
+        }
+      )
+
+      expect {
+        described_class.call(run: run)
+      }.to change {
+        LedgerV2::Event.where(event_type: "draft_pr_ci_human_escalate").count
+      }.by(1)
+
+      draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
+      expect(draft_pr["ci_retry_count"]).to eq(3)
+      expect(draft_pr["ci_terminal"]).to be true
+      expect(draft_pr["ci_terminal_reason"]).to eq("ci_pending_timeout")
+      expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
     end
   end
 end
