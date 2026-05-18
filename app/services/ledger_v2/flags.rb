@@ -19,6 +19,7 @@ module LedgerV2
       auto_pr
       sync_draft_pr_status
       auto_merge
+      auto_deploy
       evaluate_improvement
     ].freeze
 
