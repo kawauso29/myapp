@@ -33,9 +33,24 @@ RSpec.describe LedgerV2::ExecutePhaseD, type: :service do
   end
 
   describe ".call" do
+    it "auto_merge が無効なら gate に従って blocked を記録する" do
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(false)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(true)
+      allow(GithubPrService).to receive(:merge_pr)
+
+      expect {
+        described_class.call(run: run, artifact: artifact)
+      }.to change {
+        LedgerV2::Event.where(event_type: "phase_d_execution_blocked").count
+      }.by(1)
+
+      expect(GithubPrService).not_to have_received(:merge_pr)
+      expect(artifact.reload.metadata_json.dig("phase_d", "merge_block_reasons")).to include("auto_merge_disabled")
+    end
+
     it "auto_deploy が無効なら merge せず blocked を記録する" do
-      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
       allow(GithubPrService).to receive(:merge_pr)
 
       expect {
@@ -53,8 +68,8 @@ RSpec.describe LedgerV2::ExecutePhaseD, type: :service do
     end
 
     it "deploy_allowed なら draft PR を merge する" do
-      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
       allow(GithubPrService).to receive(:merge_pr).and_return(
         { "merged" => true, "sha" => "merge123", "message" => "Pull Request successfully merged" }
       )

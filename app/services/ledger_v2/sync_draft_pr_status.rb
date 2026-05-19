@@ -59,9 +59,10 @@ module LedgerV2
     end
 
     def sync_artifact(artifact)
-      current_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
+      current_metadata = artifact.reload.metadata_json || {}
+      current_draft_pr = current_metadata.fetch("draft_pr", {})
       if current_draft_pr["ci_terminal"] == true
-        phase_d_result = maybe_execute_phase_d(artifact)
+        phase_d_result = maybe_execute_phase_d(artifact, metadata: current_metadata)
         return { created_event_count: phase_d_result.created_event_count }
       end
 
