@@ -19,6 +19,10 @@ class GithubPrService
     new.fetch_ci_status(pr_number: pr_number)
   end
 
+  def self.merge_pr(pr_number:, sha:, commit_title: nil, merge_method: "squash")
+    new.merge_pr(pr_number: pr_number, sha: sha, commit_title: commit_title, merge_method: merge_method)
+  end
+
   def create_pr(title:, body:, branch_prefix:, draft: false, path_prefix: "docs/ai_sns_proposals")
     token = ENV["DEPLOY_TOKEN"]
     unless token.present?
@@ -59,6 +63,31 @@ class GithubPrService
     summarize_ci_status(pr_number: pr_number, pr: pr, head_sha: head_sha, check_runs: check_runs, statuses: statuses)
   rescue => e
     Rails.logger.error("[GithubPrService] CI状態取得エラー: #{e.class} #{e.message}")
+    nil
+  end
+
+  def merge_pr(pr_number:, sha:, commit_title: nil, merge_method: "squash")
+    token = ENV["DEPLOY_TOKEN"]
+    unless token.present?
+      Rails.logger.warn("[GithubPrService] DEPLOY_TOKEN が未設定のためPR mergeをスキップします")
+      return nil
+    end
+
+    uri = URI("#{GITHUB_API_BASE}/repos/#{REPO}/pulls/#{pr_number}/merge")
+    res = request(:put, uri, token, {
+      sha: sha,
+      commit_title: commit_title,
+      merge_method: merge_method
+    }.compact)
+
+    if res.is_a?(Net::HTTPOK)
+      JSON.parse(res.body)
+    else
+      Rails.logger.error("[GithubPrService] PR merge失敗 (#{res.code}): #{res.body}")
+      parsed_error_response(res)
+    end
+  rescue => e
+    Rails.logger.error("[GithubPrService] PR mergeエラー: #{e.class} #{e.message}")
     nil
   end
 
@@ -214,5 +243,11 @@ class GithubPrService
     req.body = payload.to_json if payload
 
     http.request(req)
+  end
+
+  def parsed_error_response(response)
+    JSON.parse(response.body)
+  rescue JSON::ParserError
+    { "message" => response.body, "status" => response.code }
   end
 end
