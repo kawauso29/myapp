@@ -78,7 +78,7 @@ module LedgerV2
       metadata = build_metadata(artifact, ci_status, decision_result, retry_count)
       return { created_event_count: 0 } unless state_changed?(artifact, metadata)
 
-      return { created_event_count: maybe_execute_phase_d(artifact, metadata: metadata).created_event_count } if dry_run
+      return { created_event_count: 0 } if dry_run
 
       artifact.update!(metadata_json: metadata)
 

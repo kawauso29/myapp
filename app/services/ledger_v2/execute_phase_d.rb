@@ -48,6 +48,7 @@ module LedgerV2
     end
 
     def execute_merge(gate)
+      current_phase_d = phase_d_payload(gate)
       merge_result = GithubPrService.merge_pr(
         pr_number: draft_pr.fetch("number"),
         sha: draft_pr.fetch("head_sha"),
@@ -59,7 +60,7 @@ module LedgerV2
           event_type: "phase_d_pr_merged",
           severity: :info,
           message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} を Phase D で merge しました",
-          phase_d_payload: phase_d_payload(gate).merge(
+          phase_d_payload: current_phase_d.merge(
             "execution_status" => "merged",
             "merged_at" => Time.current.iso8601,
             "merge_commit_sha" => merge_result["sha"],
@@ -78,7 +79,7 @@ module LedgerV2
           event_type: "phase_d_merge_failed",
           severity: :warning,
           message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} の Phase D merge に失敗しました: #{reason}",
-          phase_d_payload: phase_d_payload(gate).merge(
+          phase_d_payload: current_phase_d.merge(
             "execution_status" => "failed",
             "merged_at" => nil,
             "merge_commit_sha" => nil,
