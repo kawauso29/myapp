@@ -37,6 +37,7 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
   describe ".call" do
     it "CI success を metadata と continue Event に同期する" do
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(true)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
@@ -47,6 +48,9 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
           "failed_checks" => [],
           "check_runs" => [{ "name" => "test", "status" => "completed", "conclusion" => "success" }]
         }
+      )
+      allow(GithubPrService).to receive(:merge_pr).and_return(
+        { "merged" => true, "sha" => "merge123", "message" => "Pull Request successfully merged" }
       )
 
       expect {
@@ -65,10 +69,13 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       expect(draft_pr["ci_terminal_at"]).to be_present
 
       expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
+      expect(LedgerV2::Event.where(event_type: "phase_d_pr_merged").count).to eq(1)
+      expect(artifact.reload.metadata_json.dig("phase_d", "execution_status")).to eq("merged")
     end
 
     it "CI failure を human_escalate Event に同期する" do
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
@@ -99,6 +106,7 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
 
     it "auto_merge が停止中なら stop Event を記録する" do
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(false)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
@@ -138,10 +146,15 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
             "ci_terminal_reason" => "ci_passed",
             "failed_checks" => [],
             "head_sha" => "abc123"
+          },
+          "phase_d" => {
+            "execution_status" => "merged",
+            "merge_commit_sha" => "merge123"
           }
         }
       )
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(true)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
@@ -173,6 +186,7 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
 
     it "CI pending は retrying Event を記録し、retry_count を増やす" do
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
@@ -207,6 +221,7 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
         )
       )
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
       allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
         {
           "pr_number" => 123,
