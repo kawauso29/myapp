@@ -40,6 +40,8 @@ module LedgerV2
       open_tickets         = count_open_tickets
       draft_pr_metrics     = calculate_draft_pr_metrics(window_start, measured_at)
 
+      phase_d_metrics = calculate_phase_d_metrics(window_start, measured_at)
+
       attrs = {
         period:                              period,
         measured_at:                         measured_at,
@@ -54,10 +56,11 @@ module LedgerV2
         pending_review_count:                pending_reviews,
         open_ticket_count:                   open_tickets,
         metadata_json: {
-          "window_start" => window_start.iso8601,
-          "window_end"   => measured_at.iso8601,
-          "dry_run"      => dry_run,
-          "draft_pr_metrics" => draft_pr_metrics
+          "window_start"     => window_start.iso8601,
+          "window_end"       => measured_at.iso8601,
+          "dry_run"          => dry_run,
+          "draft_pr_metrics" => draft_pr_metrics,
+          "phase_d_metrics"  => phase_d_metrics
         }
       }
 
@@ -244,6 +247,32 @@ module LedgerV2
       }
     end
     private_class_method :calculate_draft_pr_metrics
+
+    # phase_d_metrics: Phase D deploy / rollback の収束状況を表す補助指標。
+    # deploy 成否・rollback 結果を Event ベースで集計する。
+    def self.calculate_phase_d_metrics(window_start, window_end)
+      deploy_succeeded_count = LedgerV2::Event.where(event_type: "phase_d_deploy_succeeded",
+                                                     occurred_at: window_start..window_end).count
+      deploy_failed_count    = LedgerV2::Event.where(event_type: "phase_d_deploy_failed",
+                                                     occurred_at: window_start..window_end).count
+      rollback_succeeded_count = LedgerV2::Event.where(event_type: "phase_d_rollback_succeeded",
+                                                       occurred_at: window_start..window_end).count
+      rollback_failed_count    = LedgerV2::Event.where(event_type: "phase_d_rollback_failed",
+                                                       occurred_at: window_start..window_end).count
+
+      total_deploys   = deploy_succeeded_count + deploy_failed_count
+      total_rollbacks = rollback_succeeded_count + rollback_failed_count
+
+      {
+        "deploy_succeeded_count"  => deploy_succeeded_count,
+        "deploy_failed_count"     => deploy_failed_count,
+        "deploy_success_rate"     => total_deploys.zero? ? nil : (deploy_succeeded_count.to_f / total_deploys).round(4),
+        "rollback_succeeded_count" => rollback_succeeded_count,
+        "rollback_failed_count"    => rollback_failed_count,
+        "rollback_success_rate"    => total_rollbacks.zero? ? nil : (rollback_succeeded_count.to_f / total_rollbacks).round(4)
+      }
+    end
+    private_class_method :calculate_phase_d_metrics
 
     # 集計ウィンドウの開始時刻を返す
     def self.period_window_start(period, measured_at)
