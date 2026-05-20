@@ -113,13 +113,15 @@ RSpec.describe LedgerV2::ExecutePhaseD, type: :service do
     end
 
     it "merge 失敗が上限に達すると human_escalate を記録し以後は再実行しない" do
+      retries_before_escalation = described_class::MAX_MERGE_RETRIES - 1
+
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(true)
       allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
       allow(GithubPrService).to receive(:merge_pr).and_return(
         { "merged" => false, "message" => "merge conflict" }
       )
 
-      2.times { described_class.call(run: run, artifact: artifact) }
+      retries_before_escalation.times { described_class.call(run: run, artifact: artifact) }
 
       expect {
         described_class.call(run: run, artifact: artifact)
@@ -129,17 +131,17 @@ RSpec.describe LedgerV2::ExecutePhaseD, type: :service do
 
       phase_d = artifact.reload.metadata_json.fetch("phase_d")
       expect(phase_d["execution_status"]).to eq("human_escalate")
-      expect(phase_d["merge_retry_count"]).to eq(3)
+      expect(phase_d["merge_retry_count"]).to eq(described_class::MAX_MERGE_RETRIES)
       expect(phase_d["merge_terminal"]).to be true
       expect(phase_d["merge_terminal_reason"]).to eq("merge_failed_retry_exhausted")
 
       expect {
         described_class.call(run: run, artifact: artifact)
       }.not_to change(LedgerV2::Event, :count)
-      expect(GithubPrService).to have_received(:merge_pr).exactly(3).times
+      expect(GithubPrService).to have_received(:merge_pr).exactly(described_class::MAX_MERGE_RETRIES).times
 
       described_class.call(run: run, artifact: artifact)
-      expect(GithubPrService).to have_received(:merge_pr).exactly(3).times
+      expect(GithubPrService).to have_received(:merge_pr).exactly(described_class::MAX_MERGE_RETRIES).times
     end
 
     it "同じ merged 状態は重複記録しない" do
