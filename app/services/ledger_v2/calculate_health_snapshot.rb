@@ -232,7 +232,7 @@ module LedgerV2
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
       terminal_scope = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "true")
-      terminal_reason_counts = terminal_scope.group("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason'").count
+      terminal_reason_counts = terminal_scope.group("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason'").count.compact
       ci_success_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' = ?", TERMINAL_SUCCESS_REASON).count
       ci_failure_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' IN (?)", TERMINAL_FAILURE_REASONS).count
       terminal_ci_count = ci_success_count + ci_failure_count

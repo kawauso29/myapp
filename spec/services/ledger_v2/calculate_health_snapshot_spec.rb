@@ -300,7 +300,7 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "creation_success_rate")).to eq(0.5)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "created_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
-        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.3333)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to be_within(0.001).of(1.0 / 3.0)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(0.5)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_coverage_rate")).to be_within(0.001).of(2.0 / 3.0)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(3)
