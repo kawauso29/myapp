@@ -57,6 +57,7 @@ module LedgerV2
 
     def artifact
       @artifact ||= Artifact.where(artifact_type: "ci_fix_suggestion")
+                           .where("metadata_json -> 'phase_d' ->> 'execution_status' = ?", "merged")
                            .where("metadata_json -> 'phase_d' ->> 'merge_commit_sha' = ?", commit_sha)
                            .order(updated_at: :desc)
                            .first
