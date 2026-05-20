@@ -246,5 +246,37 @@ RSpec.describe LedgerV2::SyncDraftPrStatus, type: :service do
       expect(draft_pr["ci_terminal_reason"]).to eq("ci_pending_timeout")
       expect(LedgerV2::Event.where(event_type: "draft_pr_ci_terminal").count).to eq(1)
     end
+
+    it "PR が closed の場合は stop terminal（pr_closed）にする" do
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_merge).and_return(true)
+      allow(LedgerV2::Flags).to receive(:enabled?).with(:auto_deploy).and_return(false)
+      allow(GithubPrService).to receive(:fetch_ci_status).with(pr_number: 123).and_return(
+        {
+          "pr_number" => 123,
+          "pr_url" => "https://example.com/pr/123",
+          "head_sha" => "closed123",
+          "state" => "closed",
+          "draft" => true,
+          "status" => "success",
+          "conclusion" => "success",
+          "failed_checks" => [],
+          "check_runs" => []
+        }
+      )
+
+      expect {
+        described_class.call(run: run)
+      }.to change {
+        LedgerV2::Event.where(event_type: "draft_pr_ci_stop").count
+      }.by(1)
+
+      draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
+      expect(draft_pr["ci_decision"]).to eq("stop")
+      expect(draft_pr["ci_terminal"]).to be true
+      expect(draft_pr["ci_terminal_reason"]).to eq("pr_closed")
+      expect(draft_pr["pr_state"]).to eq("closed")
+      expect(draft_pr["pr_draft"]).to be true
+      expect(LedgerV2::Event.where(event_type: "phase_d_pr_merged").count).to eq(0)
+    end
   end
 end

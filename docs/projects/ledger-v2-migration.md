@@ -557,6 +557,11 @@ PR で持ち込まれた場合は **却下する**。
   - `calculate_phase_d_metrics` を追加し `metadata_json["phase_d_metrics"]` に deploy_success_rate / rollback_success_rate を保存
   - `phase_d_deploy_succeeded` / `phase_d_deploy_failed` / `phase_d_rollback_succeeded` / `phase_d_rollback_failed` Event を集計
   - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 39**: `LedgerV2::SyncDraftPrStatus` — Phase B 細部整備（PR close ケースの状態遷移明文化）
+  - PR state / draft を metadata（`draft_pr.pr_state` / `draft_pr.pr_draft`）に保存
+  - `state != open` の場合は `ci_terminal=true` + `ci_terminal_reason=pr_closed` で `draft_pr_ci_stop` を記録
+  - closed PR は `ci_status=success` でも `ci_passed` とみなさず、Phase D merge に進めないことを仕様化
+  - spec（sync_draft_pr_status_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
