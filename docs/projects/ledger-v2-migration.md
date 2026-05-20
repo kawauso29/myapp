@@ -548,6 +548,11 @@ PR で持ち込まれた場合は **却下する**。
   - `MAX_MERGE_RETRIES=3` 到達時は `phase_d_merge_human_escalate` Event + `execution_status=human_escalate` + `merge_terminal_reason=merge_failed_retry_exhausted` を記録
   - terminal（`merged` / `human_escalate`）到達後は `ExecutePhaseD` の再実行を抑止
   - spec（execute_phase_d_spec.rb）更新
+- [x] **Ticket 37**: `LedgerV2::RecordPhaseDDeploy` — deploy 成否・rollback 結果を Ledger Event / metadata に記録（Phase D 次段階）
+  - `app/services/ledger_v2/record_phase_d_deploy.rb` を追加し、`phase_d.merge_commit_sha` から該当 Artifact を特定して `phase_d.deployment` metadata を更新
+  - deploy 成功時は `phase_d_deploy_succeeded`、deploy 失敗時は `phase_d_deploy_failed`、rollback 実行時は `phase_d_rollback_succeeded` / `phase_d_rollback_failed` を記録
+  - `.github/workflows/deploy.yml` から workspace 上の `bin/rails runner` で呼び出し、deploy/rollback 後に Ledger へ反映
+  - spec（record_phase_d_deploy_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -566,11 +571,11 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
 - `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
-- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge 実行 + merge失敗時 retry / human_escalate までは接続済み。次は deploy 結果 / rollback の Ledger 記録を詰める
+- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge / deploy / rollback 記録までは接続済み。次は Phase D の収束状況を追える最小指標を HealthSnapshot に加える
 
 次のアクション（優先順）:
 1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
-2. **Phase D の次段階**: deploy 成否・rollback を Ledger Event / metadata に残す
+2. **Phase D の次段階**: deploy / rollback の収束状況を追える最小指標を HealthSnapshot に追加する
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率
