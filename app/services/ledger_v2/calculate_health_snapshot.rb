@@ -232,9 +232,11 @@ module LedgerV2
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
       terminal_scope = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "true")
+      terminal_reason_counts = terminal_scope.group("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason'").count
       ci_success_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' = ?", TERMINAL_SUCCESS_REASON).count
       ci_failure_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' IN (?)", TERMINAL_FAILURE_REASONS).count
       terminal_ci_count = ci_success_count + ci_failure_count
+      terminal_count = terminal_scope.count
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
@@ -242,8 +244,10 @@ module LedgerV2
         "failed_count" => failure_count,
         "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
         "ci_repass_rate" => terminal_ci_count.zero? ? nil : (ci_success_count.to_f / terminal_ci_count).round(4),
-        "ci_terminal_count" => terminal_scope.count,
-        "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count
+        "ci_repass_coverage_rate" => terminal_count.zero? ? nil : (terminal_ci_count.to_f / terminal_count).round(4),
+        "ci_terminal_count" => terminal_count,
+        "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count,
+        "ci_terminal_reason_counts" => terminal_reason_counts
       }
     end
     private_class_method :calculate_draft_pr_metrics

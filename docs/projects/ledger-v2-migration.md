@@ -562,6 +562,11 @@ PR で持ち込まれた場合は **却下する**。
   - `state != open` の場合は `ci_terminal=true` + `ci_terminal_reason=pr_closed` で `draft_pr_ci_stop` を記録
   - closed PR は `ci_status=success` でも `ci_passed` とみなさず、Phase D merge に進めないことを仕様化
   - spec（sync_draft_pr_status_spec.rb）更新
+- [x] **Ticket 40**: `LedgerV2::CalculateHealthSnapshot` — terminal reason の運用キャリブレーション指標を追加（Phase C 次段階）
+  - `draft_pr_metrics` に `ci_terminal_reason_counts`（terminal reason 別件数）を追加
+  - `ci_repass_coverage_rate`（terminal 全体に対する CI 評価対象 reason の割合）を追加し、`ci_repass_rate` の分母妥当性を可視化
+  - `ci_passed` / `ci_failed` / `ci_pending_timeout` 以外（例: `pr_closed`）が増えたときの運用判定をしやすくした
+  - spec（calculate_health_snapshot_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手

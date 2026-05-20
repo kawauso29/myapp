@@ -75,8 +75,10 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
           "failed_count" => 0,
           "draft_pr_artifact_rejection_rate" => 0.0,
           "ci_repass_rate" => nil,
+          "ci_repass_coverage_rate" => nil,
           "ci_terminal_count" => 0,
-          "ci_retrying_count" => 0
+          "ci_retrying_count" => 0,
+          "ci_terminal_reason_counts" => {}
         )
       end
 
@@ -280,16 +282,34 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
             }
           }
         )
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :accepted,
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 103,
+              "ci_status" => "success",
+              "ci_terminal" => true,
+              "ci_terminal_reason" => "pr_closed"
+            }
+          }
+        )
 
         snapshot = described_class.call(period: :daily, measured_at: now)
 
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "creation_success_rate")).to eq(0.5)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "created_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
-        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.5)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.3333)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(0.5)
-        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(2)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_coverage_rate")).to be_within(0.001).of(2.0 / 3.0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(3)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_reason_counts")).to eq(
+          "ci_failed" => 1,
+          "ci_passed" => 1,
+          "pr_closed" => 1
+        )
       end
 
       it "terminal 未到達の pending は ci_repass_rate の分母に含めない" do
@@ -321,8 +341,12 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         snapshot = described_class.call(period: :daily, measured_at: now)
 
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(1.0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_coverage_rate")).to eq(1.0)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_reason_counts")).to eq(
+          "ci_passed" => 1
+        )
       end
     end
 
