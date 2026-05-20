@@ -543,6 +543,11 @@ PR で持ち込まれた場合は **却下する**。
   - `GithubPrService.merge_pr` を追加し、`head_sha` guard 付きで GitHub merge API を呼ぶ
   - **このリポジトリでは main merge が CI→deploy に直結するため、`deploy_allowed=true` のときだけ merge 実行**。`auto_deploy=false` 中は `phase_d_execution_blocked` Event と `metadata_json["phase_d"]` に保留理由を記録する
   - spec（execute_phase_d_spec.rb / sync_draft_pr_status_spec.rb / github_pr_service_spec.rb）更新
+- [x] **Ticket 36**: `LedgerV2::ExecutePhaseD` — merge失敗時の retry / human_escalate 判定と記録を追加（Phase D 次段階）
+  - merge 失敗時に `phase_d.merge_retry_count` を増分し、上限未到達は `phase_d_merge_retrying` Event + `execution_status=retrying` を記録
+  - `MAX_MERGE_RETRIES=3` 到達時は `phase_d_merge_human_escalate` Event + `execution_status=human_escalate` + `merge_terminal_reason=merge_failed_retry_exhausted` を記録
+  - terminal（`merged` / `human_escalate`）到達後は `ExecutePhaseD` の再実行を抑止
+  - spec（execute_phase_d_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -561,11 +566,11 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
 - `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
-- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge 実行までは接続済み。次は merge 失敗時の再試行方針・deploy 結果 / rollback の Ledger 記録を詰める
+- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge 実行 + merge失敗時 retry / human_escalate までは接続済み。次は deploy 結果 / rollback の Ledger 記録を詰める
 
 次のアクション（優先順）:
 1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
-2. **Phase D の次段階**: merge 失敗時の retry / human_escalate 方針と、deploy 成否・rollback を Ledger Event / metadata に残す
+2. **Phase D の次段階**: deploy 成否・rollback を Ledger Event / metadata に残す
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率

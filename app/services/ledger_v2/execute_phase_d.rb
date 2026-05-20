@@ -7,6 +7,8 @@
 # - 判定結果と実行結果を Artifact metadata_json["phase_d"] と Event に記録する
 module LedgerV2
   class ExecutePhaseD
+    MAX_MERGE_RETRIES = 3
+
     Result = Struct.new(:created_event_count, keyword_init: true) do
       def initialize(**)
         super
@@ -26,7 +28,7 @@ module LedgerV2
 
     def call
       return Result.new unless eligible_artifact?
-      return Result.new if merged?
+      return Result.new if terminal?
 
       gate = PhaseDGate.call(artifact: artifact)
       return record_blocked(gate) unless gate.deploy_allowed
@@ -62,6 +64,9 @@ module LedgerV2
           message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} を Phase D で merge しました",
           phase_d_payload: current_phase_d.merge(
             "execution_status" => "merged",
+            "merge_retry_count" => current_retry_count,
+            "merge_terminal" => true,
+            "merge_terminal_reason" => "merged",
             "merged_at" => Time.current.iso8601,
             "merge_commit_sha" => merge_result["sha"],
             "merge_error" => nil
@@ -69,28 +74,14 @@ module LedgerV2
           event_payload: {
             "artifact_id" => artifact.id,
             "pr_number" => draft_pr.fetch("number"),
+            "merge_retry_count" => current_retry_count,
             "merge_commit_sha" => merge_result["sha"],
             "merge_message" => merge_result["message"]
           }
         )
       else
         reason = merge_result&.dig("message").presence || "GitHub PR merge failed"
-        record_result(
-          event_type: "phase_d_merge_failed",
-          severity: :warning,
-          message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} の Phase D merge に失敗しました: #{reason}",
-          phase_d_payload: current_phase_d.merge(
-            "execution_status" => "failed",
-            "merged_at" => nil,
-            "merge_commit_sha" => nil,
-            "merge_error" => reason
-          ),
-          event_payload: {
-            "artifact_id" => artifact.id,
-            "pr_number" => draft_pr.fetch("number"),
-            "merge_error" => reason
-          }
-        )
+        record_failed_result(current_phase_d, reason)
       end
     end
 
@@ -101,6 +92,8 @@ module LedgerV2
         message: "Artifact ##{artifact.id} の Phase D 実行は保留です（#{gate.deploy_block_reasons.join(', ')}）",
         phase_d_payload: phase_d_payload(gate).merge(
           "execution_status" => "blocked",
+          "merge_terminal" => false,
+          "merge_terminal_reason" => nil,
           "merged_at" => nil,
           "merge_commit_sha" => nil,
           "merge_error" => nil
@@ -127,6 +120,7 @@ module LedgerV2
       {
         "merge_allowed" => gate.merge_allowed,
         "deploy_allowed" => gate.deploy_allowed,
+        "merge_retry_count" => current_retry_count,
         "merge_block_reasons" => gate.merge_block_reasons,
         "deploy_block_reasons" => gate.deploy_block_reasons,
         "checked_at" => Time.current.iso8601
@@ -140,8 +134,65 @@ module LedgerV2
       comparable_current != comparable_next
     end
 
-    def merged?
-      artifact.metadata_json.fetch("phase_d", {}).fetch("execution_status", nil) == "merged"
+    def terminal?
+      %w[merged human_escalate].include?(artifact.metadata_json.fetch("phase_d", {}).fetch("execution_status", nil))
+    end
+
+    def current_retry_count
+      artifact.metadata_json.fetch("phase_d", {}).fetch("merge_retry_count", 0).to_i
+    end
+
+    def record_failed_result(current_phase_d, reason)
+      retry_count = current_retry_count + 1
+      retry_exhausted = retry_count >= MAX_MERGE_RETRIES
+
+      if retry_exhausted
+        record_result(
+          event_type: "phase_d_merge_human_escalate",
+          severity: :warning,
+          message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} は Phase D merge 失敗が上限に達したため人間エスカレーションします: #{reason}",
+          phase_d_payload: current_phase_d.merge(
+            "execution_status" => "human_escalate",
+            "merge_retry_count" => retry_count,
+            "merge_terminal" => true,
+            "merge_terminal_reason" => "merge_failed_retry_exhausted",
+            "merge_escalated_at" => Time.current.iso8601,
+            "merged_at" => nil,
+            "merge_commit_sha" => nil,
+            "merge_error" => reason
+          ),
+          event_payload: {
+            "artifact_id" => artifact.id,
+            "pr_number" => draft_pr.fetch("number"),
+            "merge_retry_count" => retry_count,
+            "merge_retry_limit" => MAX_MERGE_RETRIES,
+            "merge_error" => reason
+          }
+        )
+      else
+        record_result(
+          event_type: "phase_d_merge_retrying",
+          severity: :warning,
+          message: "Artifact ##{artifact.id} の draft PR ##{draft_pr.fetch('number')} の Phase D merge に失敗したため再試行します（#{retry_count}/#{MAX_MERGE_RETRIES}）: #{reason}",
+          phase_d_payload: current_phase_d.merge(
+            "execution_status" => "retrying",
+            "merge_retry_count" => retry_count,
+            "merge_terminal" => false,
+            "merge_terminal_reason" => nil,
+            "merge_escalated_at" => nil,
+            "merged_at" => nil,
+            "merge_commit_sha" => nil,
+            "merge_error" => reason
+          ),
+          event_payload: {
+            "artifact_id" => artifact.id,
+            "pr_number" => draft_pr.fetch("number"),
+            "merge_retry_count" => retry_count,
+            "merge_retry_limit" => MAX_MERGE_RETRIES,
+            "merge_error" => reason
+          }
+        )
+      end
     end
 
     def merged_metadata(extra)
