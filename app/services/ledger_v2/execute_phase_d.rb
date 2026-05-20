@@ -7,6 +7,8 @@
 # - 判定結果と実行結果を Artifact metadata_json["phase_d"] と Event に記録する
 module LedgerV2
   class ExecutePhaseD
+    # 初回実行を含む merge 試行総数の上限。
+    # 例: 3 の場合、3 回目の失敗で human_escalate へ終端化する。
     MAX_MERGE_RETRIES = 3
 
     Result = Struct.new(:created_event_count, keyword_init: true) do

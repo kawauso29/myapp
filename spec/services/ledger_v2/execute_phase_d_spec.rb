@@ -137,6 +137,9 @@ RSpec.describe LedgerV2::ExecutePhaseD, type: :service do
         described_class.call(run: run, artifact: artifact)
       }.not_to change(LedgerV2::Event, :count)
       expect(GithubPrService).to have_received(:merge_pr).exactly(3).times
+
+      described_class.call(run: run, artifact: artifact)
+      expect(GithubPrService).to have_received(:merge_pr).exactly(3).times
     end
 
     it "同じ merged 状態は重複記録しない" do
