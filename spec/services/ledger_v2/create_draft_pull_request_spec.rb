@@ -107,6 +107,32 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     expect(draft_pr["ci_terminal_reason"]).to be_nil
   end
 
+  it "再作成を複数回行うと previous_pr_numbers を累積する" do
+    artifact.update!(
+      metadata_json: {
+        "draft_pr" => {
+          "number" => 456,
+          "url" => "https://example.com/pr/456",
+          "pr_state" => "closed",
+          "ci_terminal" => true,
+          "ci_terminal_reason" => "pr_closed",
+          "create_attempt_count" => 2,
+          "previous_pr_numbers" => [123]
+        }
+      }
+    )
+    allow(GithubPrService).to receive(:create_pr).and_return({ "number" => 789, "html_url" => "https://example.com/pr/789" })
+
+    result = described_class.call(artifact: artifact)
+
+    expect(result.created?).to be true
+    draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
+    expect(draft_pr["number"]).to eq(789)
+    expect(draft_pr["create_attempt_count"]).to eq(3)
+    expect(draft_pr["retried_from_pr_number"]).to eq(456)
+    expect(draft_pr["previous_pr_numbers"]).to contain_exactly(123, 456)
+  end
+
   it "ci_fix_suggestion 以外は対象外にする" do
     artifact.update!(artifact_type: "weekly_review")
     allow(GithubPrService).to receive(:create_pr)
