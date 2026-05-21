@@ -567,6 +567,11 @@ PR で持ち込まれた場合は **却下する**。
   - `ci_repass_coverage_rate`（terminal 全体に対する CI 評価対象 reason の割合）を追加し、`ci_repass_rate` の分母妥当性を可視化
   - `ci_passed` / `ci_failed` / `ci_pending_timeout` 以外（例: `pr_closed`）が増えたときの運用判定をしやすくした
   - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 41**: `LedgerV2::CalculateHealthSnapshot` — retry 上限値キャリブレーション指標を追加（Phase C 次段階）
+  - `draft_pr_metrics` に `ci_retry_count_histogram`（terminal 到達時の retry 回数分布: 0 / 1 / 2 / 3+）を追加
+  - `ci_retry_count` の実測分布から pending retry 上限（現在 3）の妥当性を運用で判断しやすくした
+  - terminal 未到達（`ci_terminal=false`）の retry は histogram に含めないことを仕様化
+  - spec（calculate_health_snapshot_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手

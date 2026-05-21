@@ -237,6 +237,12 @@ module LedgerV2
       ci_failure_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' IN (?)", TERMINAL_FAILURE_REASONS).count
       terminal_ci_count = ci_success_count + ci_failure_count
       terminal_count = terminal_scope.count
+      retry_count_histogram = { "0" => 0, "1" => 0, "2" => 0, "3_or_more" => 0 }
+      terminal_scope.pluck(Arel.sql("metadata_json -> 'draft_pr' ->> 'ci_retry_count'")).each do |raw_retry_count|
+        retry_count = raw_retry_count.to_i
+        bucket = retry_count >= 3 ? "3_or_more" : retry_count.to_s
+        retry_count_histogram[bucket] += 1
+      end
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
@@ -247,7 +253,8 @@ module LedgerV2
         "ci_repass_coverage_rate" => terminal_count.zero? ? nil : (terminal_ci_count.to_f / terminal_count).round(4),
         "ci_terminal_count" => terminal_count,
         "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count,
-        "ci_terminal_reason_counts" => terminal_reason_counts
+        "ci_terminal_reason_counts" => terminal_reason_counts,
+        "ci_retry_count_histogram" => retry_count_histogram
       }
     end
     private_class_method :calculate_draft_pr_metrics

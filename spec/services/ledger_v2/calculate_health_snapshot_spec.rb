@@ -78,7 +78,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
           "ci_repass_coverage_rate" => nil,
           "ci_terminal_count" => 0,
           "ci_retrying_count" => 0,
-          "ci_terminal_reason_counts" => {}
+          "ci_terminal_reason_counts" => {},
+          "ci_retry_count_histogram" => { "0" => 0, "1" => 0, "2" => 0, "3_or_more" => 0 }
         )
       end
 
@@ -266,7 +267,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 101,
               "ci_status" => "failure",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_failed"
+              "ci_terminal_reason" => "ci_failed",
+              "ci_retry_count" => 1
             }
           }
         )
@@ -278,7 +280,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 102,
               "ci_status" => "success",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_passed"
+              "ci_terminal_reason" => "ci_passed",
+              "ci_retry_count" => 2
             }
           }
         )
@@ -290,7 +293,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 103,
               "ci_status" => "success",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "pr_closed"
+              "ci_terminal_reason" => "pr_closed",
+              "ci_retry_count" => 4
             }
           }
         )
@@ -310,6 +314,12 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
           "ci_passed" => 1,
           "pr_closed" => 1
         )
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retry_count_histogram")).to eq(
+          "0" => 0,
+          "1" => 1,
+          "2" => 1,
+          "3_or_more" => 1
+        )
       end
 
       it "terminal 未到達の pending は ci_repass_rate の分母に含めない" do
@@ -321,7 +331,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 201,
               "ci_status" => "pending",
               "ci_terminal" => false,
-              "ci_terminal_reason" => nil
+              "ci_terminal_reason" => nil,
+              "ci_retry_count" => 2
             }
           }
         )
@@ -333,7 +344,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 202,
               "ci_status" => "success",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_passed"
+              "ci_terminal_reason" => "ci_passed",
+              "ci_retry_count" => 0
             }
           }
         )
@@ -346,6 +358,12 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_reason_counts")).to eq(
           "ci_passed" => 1
+        )
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retry_count_histogram")).to eq(
+          "0" => 1,
+          "1" => 0,
+          "2" => 0,
+          "3_or_more" => 0
         )
       end
     end
