@@ -57,6 +57,7 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     expect(artifact.metadata_json.dig("draft_pr", "ci_retry_count")).to eq(0)
     expect(artifact.metadata_json.dig("draft_pr", "ci_terminal")).to be false
     expect(artifact.metadata_json.dig("draft_pr", "ci_terminal_reason")).to be_nil
+    expect(artifact.metadata_json.dig("draft_pr", "create_attempt_count")).to eq(1)
   end
 
   it "draft_pr_created Event を記録する" do
@@ -77,6 +78,33 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
 
     expect(result.skipped?).to be true
     expect(GithubPrService).not_to have_received(:create_pr)
+  end
+
+  it "closed(pr_closed) 済みの既存 draft PR がある場合は再作成する" do
+    artifact.update!(
+      metadata_json: {
+        "draft_pr" => {
+          "number" => 123,
+          "url" => "https://example.com/pr/123",
+          "pr_state" => "closed",
+          "ci_terminal" => true,
+          "ci_terminal_reason" => "pr_closed",
+          "create_attempt_count" => 1
+        }
+      }
+    )
+    allow(GithubPrService).to receive(:create_pr).and_return({ "number" => 456, "html_url" => "https://example.com/pr/456" })
+
+    result = described_class.call(artifact: artifact)
+
+    expect(result.created?).to be true
+    draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
+    expect(draft_pr["number"]).to eq(456)
+    expect(draft_pr["retried_from_pr_number"]).to eq(123)
+    expect(draft_pr["previous_pr_numbers"]).to eq([123])
+    expect(draft_pr["create_attempt_count"]).to eq(2)
+    expect(draft_pr["ci_terminal"]).to be false
+    expect(draft_pr["ci_terminal_reason"]).to be_nil
   end
 
   it "ci_fix_suggestion 以外は対象外にする" do
@@ -115,6 +143,7 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     described_class.call(artifact: artifact)
 
     expect(artifact.reload.metadata_json.dig("draft_pr", "create_status")).to eq("failed")
+    expect(artifact.metadata_json.dig("draft_pr", "create_attempt_count")).to eq(1)
     expect(artifact.metadata_json.dig("draft_pr", "creation_error")).to eq("GitHub PR creation failed")
   end
 end

@@ -572,6 +572,11 @@ PR で持ち込まれた場合は **却下する**。
   - `ci_retry_count` の実測分布から pending retry 上限（現在 3）の妥当性を運用で判断しやすくした
   - terminal 未到達（`ci_terminal=false`）の retry は histogram に含めないことを仕様化
   - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 42**: `LedgerV2::CreateDraftPullRequest` — Phase B 細部整備（closed PR 後の再作成ルール明文化）
+  - `draft_pr.pr_state=closed` かつ `ci_terminal_reason=pr_closed` の既存 draft PR は再作成可能にし、active PR との区別を明確化
+  - `draft_pr` metadata に `create_attempt_count` / `retried_from_pr_number` / `previous_pr_numbers` を追加し、再作成履歴を追跡可能にした
+  - 再作成成功時は CI 判定フィールド（`ci_status` / `ci_terminal` / `ci_terminal_reason` など）を初期値へリセットして次サイクルに引き継ぐ
+  - spec（create_draft_pull_request_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -589,7 +594,7 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` / `Flags.enabled?(:auto_deploy)` は対応する target_type の active StopCondition があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
-- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
+- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）/ `ci_repass_coverage_rate` / `ci_terminal_reason_counts` / `ci_retry_count_histogram` を HealthSnapshot で実測
 - **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge / deploy / rollback 記録 → HealthSnapshot 収束指標まで接続済み。次は Phase B の細部整備（承認済み Artifact → draft PR 状態遷移の明文化）を進める
 
 次のアクション（優先順）:
