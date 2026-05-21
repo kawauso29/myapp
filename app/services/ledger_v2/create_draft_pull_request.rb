@@ -12,6 +12,7 @@
 module LedgerV2
   class CreateDraftPullRequest
     Result = Struct.new(:created?, :skipped?, :pr_number, :pr_url, :reason, keyword_init: true)
+    RETRYABLE_TERMINAL_REASONS = %w[pr_closed].freeze
 
     def self.call(artifact:)
       new(artifact: artifact).call
@@ -25,7 +26,7 @@ module LedgerV2
       return skipped("auto_pr disabled") unless Flags.enabled?(:auto_pr)
       return skipped("unsupported artifact_type") unless @artifact.artifact_type == "ci_fix_suggestion"
       return skipped("artifact is not accepted") unless @artifact.review_status_accepted?
-      return skipped("draft PR already created") if existing_pr_number.present?
+      return skipped("draft PR already created") if active_pr_exists?
 
       result = GithubPrService.create_pr(
         title: pr_title,
@@ -49,6 +50,22 @@ module LedgerV2
 
     def existing_pr_number
       @artifact.metadata_json&.dig("draft_pr", "number")
+    end
+
+    def current_draft_pr
+      (@artifact.metadata_json || {}).fetch("draft_pr", {})
+    end
+
+    def active_pr_exists?
+      return false if existing_pr_number.blank?
+      return false if retryable_closed_pr?(current_draft_pr)
+
+      true
+    end
+
+    def retryable_closed_pr?(draft_pr_metadata)
+      draft_pr_metadata["pr_state"] == "closed" &&
+        RETRYABLE_TERMINAL_REASONS.include?(draft_pr_metadata["ci_terminal_reason"])
     end
 
     def pr_title
@@ -87,6 +104,13 @@ module LedgerV2
     end
 
     def record_success(result)
+      existing_draft_pr = current_draft_pr
+      create_attempt_count = existing_draft_pr["create_attempt_count"].to_i + 1
+      previous_pr_numbers = Array(existing_draft_pr["previous_pr_numbers"]).map(&:to_i)
+      recreatable_closed_pr = retryable_closed_pr?(existing_draft_pr) && existing_draft_pr["number"].present?
+      recreated_from_pr_number = recreatable_closed_pr ? existing_draft_pr["number"].to_i : nil
+      previous_pr_numbers |= [recreated_from_pr_number] if recreated_from_pr_number.present?
+
       metadata = merged_metadata(
         "draft_pr" => {
           "number" => result["number"],
@@ -94,6 +118,11 @@ module LedgerV2
           "created_at" => Time.current.iso8601,
           "source" => "ledger_v2_ci_fix_suggestion",
           "create_status" => "created",
+          "create_attempt_count" => create_attempt_count,
+          "retried_from_pr_number" => recreated_from_pr_number,
+          "previous_pr_numbers" => previous_pr_numbers,
+          "creation_error" => nil,
+          "creation_failed_at" => nil,
           "ci_status" => "pending",
           "ci_decision" => "continue",
           "ci_retry_count" => 0,
@@ -113,15 +142,32 @@ module LedgerV2
           "related_ticket_id" => @artifact.related_ticket_id
         )
       )
+      if recreated_from_pr_number.present?
+        create_event(
+          event_type: "draft_pr_recreated",
+          severity: :info,
+          message: "Artifact ##{@artifact.id} の closed draft PR ##{recreated_from_pr_number} から draft PR ##{result['number']} を再作成しました",
+          payload: {
+            "artifact_id" => @artifact.id,
+            "related_ticket_id" => @artifact.related_ticket_id,
+            "from_pr_number" => recreated_from_pr_number,
+            "to_pr_number" => result["number"],
+            "to_pr_url" => result["html_url"],
+            "create_attempt_count" => create_attempt_count
+          }
+        )
+      end
 
       Result.new(created?: true, skipped?: false, pr_number: result["number"], pr_url: result["html_url"])
     end
 
     def record_failure(reason: "GitHub PR creation failed")
-      existing_draft_pr = (@artifact.metadata_json || {}).fetch("draft_pr", {})
+      existing_draft_pr = current_draft_pr
+      create_attempt_count = existing_draft_pr["create_attempt_count"].to_i + 1
       metadata = merged_metadata(
         "draft_pr" => existing_draft_pr.merge(
           "create_status" => "failed",
+          "create_attempt_count" => create_attempt_count,
           "creation_error" => reason,
           "creation_failed_at" => Time.current.iso8601
         )

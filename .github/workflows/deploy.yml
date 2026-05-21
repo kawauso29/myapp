@@ -126,6 +126,10 @@ jobs:
             sed -i "/^${KEY}=/d" ~/myapp/.env
           done
 
+      - name: Mirror production env to workspace
+        # workspace 上の Rails task でも本番と同じ env を読むため、deploy ごとに意図的に置き換える。
+        run: ln -sf ~/myapp/.env "$GITHUB_WORKSPACE/.env"
+
       - name: Setup runner environment (OOM prevention)
         # CodeQL (Java) は Copilot coding agent が parallel_validation 実行時に起動する。
         # 1.9GB VPS では制限なしだと ~1.4GB を消費しランナーごと OOM キルされる（2026-04-26実績）。
@@ -290,7 +294,22 @@ jobs:
           echo "Health check failed after 5 attempts"
           exit 1
 
+      - name: Record Ledger deploy success
+        if: success()
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DEPLOY_REASON: ${{ github.event.inputs.reason || 'Manual deploy' }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          cd "$GITHUB_WORKSPACE"
+          export DEPLOY_STATUS="succeeded"
+          RAILS_ENV=production bin/rails ledger_v2:record_phase_d_deploy || echo "Ledger deploy success record skipped"
+
       - name: Rollback on failure
+        id: rollback
         if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
         run: |
           set -e
@@ -345,6 +364,39 @@ jobs:
           RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
           RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
           echo "Rollback to $PRE_SHA complete"
+
+      - name: Record Ledger deploy failure / rollback result
+        if: always() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DEPLOY_REASON: ${{ github.event.inputs.reason || 'Manual deploy' }}
+          ACTOR: ${{ github.actor }}
+          DEPLOY_RAILS_OUTCOME: ${{ steps.deploy_rails.outcome }}
+          HEALTH_CHECK_OUTCOME: ${{ steps.health_check.outcome }}
+          ROLLBACK_OUTCOME: ${{ steps.rollback.outcome }}
+        run: |
+          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+          export FAILED_STAGE="deploy_rails"
+          if [ "${HEALTH_CHECK_OUTCOME}" = "failure" ]; then
+            export FAILED_STAGE="health_check"
+          fi
+
+          export ROLLBACK_STATUS="not_attempted"
+          if [ "${ROLLBACK_OUTCOME}" = "success" ]; then
+            export ROLLBACK_STATUS="succeeded"
+          elif [ "${ROLLBACK_OUTCOME}" = "failure" ]; then
+            export ROLLBACK_STATUS="failed"
+          fi
+
+          export ROLLBACK_TARGET_SHA="$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || true)"
+          cd "$GITHUB_WORKSPACE"
+          export DEPLOY_STATUS="failed"
+          if [ "${ROLLBACK_STATUS}" = "not_attempted" ]; then
+            unset ROLLBACK_STATUS
+          fi
+          RAILS_ENV=production bin/rails ledger_v2:record_phase_d_deploy || echo "Ledger deploy failure record skipped"
 
       - name: Notify Slack (deploy success)
         if: success()

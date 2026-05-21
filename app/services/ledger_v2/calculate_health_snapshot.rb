@@ -40,6 +40,8 @@ module LedgerV2
       open_tickets         = count_open_tickets
       draft_pr_metrics     = calculate_draft_pr_metrics(window_start, measured_at)
 
+      phase_d_metrics = calculate_phase_d_metrics(window_start, measured_at)
+
       attrs = {
         period:                              period,
         measured_at:                         measured_at,
@@ -54,10 +56,11 @@ module LedgerV2
         pending_review_count:                pending_reviews,
         open_ticket_count:                   open_tickets,
         metadata_json: {
-          "window_start" => window_start.iso8601,
-          "window_end"   => measured_at.iso8601,
-          "dry_run"      => dry_run,
-          "draft_pr_metrics" => draft_pr_metrics
+          "window_start"     => window_start.iso8601,
+          "window_end"       => measured_at.iso8601,
+          "dry_run"          => dry_run,
+          "draft_pr_metrics" => draft_pr_metrics,
+          "phase_d_metrics"  => phase_d_metrics
         }
       }
 
@@ -229,9 +232,19 @@ module LedgerV2
       total_pr_artifacts = status_counts.values.sum
       rejected_count = status_counts["review_rejected"].to_i
       terminal_scope = pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "true")
+      terminal_reason_counts = terminal_scope.group("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason'").count.compact
       ci_success_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' = ?", TERMINAL_SUCCESS_REASON).count
       ci_failure_count = terminal_scope.where("metadata_json -> 'draft_pr' ->> 'ci_terminal_reason' IN (?)", TERMINAL_FAILURE_REASONS).count
       terminal_ci_count = ci_success_count + ci_failure_count
+      terminal_count = terminal_scope.count
+      retry_count_histogram = { "0" => 0, "1" => 0, "2" => 0, "3_or_more" => 0 }
+      # terminal 到達済み draft PR は運用上少量（週次観測対象）を想定しており、
+      # 単純集計を優先して pluck で retry_count を一括取得する。
+      terminal_scope.pluck(Arel.sql("metadata_json -> 'draft_pr' ->> 'ci_retry_count'")).each do |raw_retry_count|
+        retry_count = raw_retry_count.to_i
+        bucket = retry_count >= 3 ? "3_or_more" : retry_count.to_s
+        retry_count_histogram[bucket] += 1
+      end
 
       {
         "creation_success_rate" => total_attempts.zero? ? 0.0 : (success_count.to_f / total_attempts).round(4),
@@ -239,11 +252,40 @@ module LedgerV2
         "failed_count" => failure_count,
         "draft_pr_artifact_rejection_rate" => total_pr_artifacts.zero? ? 0.0 : (rejected_count.to_f / total_pr_artifacts).round(4),
         "ci_repass_rate" => terminal_ci_count.zero? ? nil : (ci_success_count.to_f / terminal_ci_count).round(4),
-        "ci_terminal_count" => terminal_scope.count,
-        "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count
+        "ci_repass_coverage_rate" => terminal_count.zero? ? nil : (terminal_ci_count.to_f / terminal_count).round(4),
+        "ci_terminal_count" => terminal_count,
+        "ci_retrying_count" => pr_artifacts.where("metadata_json -> 'draft_pr' ->> 'ci_terminal' = ?", "false").count,
+        "ci_terminal_reason_counts" => terminal_reason_counts,
+        "ci_retry_count_histogram" => retry_count_histogram
       }
     end
     private_class_method :calculate_draft_pr_metrics
+
+    # phase_d_metrics: Phase D deploy / rollback の収束状況を表す補助指標。
+    # deploy 成否・rollback 結果を Event ベースで集計する。
+    def self.calculate_phase_d_metrics(window_start, window_end)
+      deploy_succeeded_count = LedgerV2::Event.where(event_type: "phase_d_deploy_succeeded",
+                                                     occurred_at: window_start..window_end).count
+      deploy_failed_count    = LedgerV2::Event.where(event_type: "phase_d_deploy_failed",
+                                                     occurred_at: window_start..window_end).count
+      rollback_succeeded_count = LedgerV2::Event.where(event_type: "phase_d_rollback_succeeded",
+                                                       occurred_at: window_start..window_end).count
+      rollback_failed_count    = LedgerV2::Event.where(event_type: "phase_d_rollback_failed",
+                                                       occurred_at: window_start..window_end).count
+
+      total_deploys   = deploy_succeeded_count + deploy_failed_count
+      total_rollbacks = rollback_succeeded_count + rollback_failed_count
+
+      {
+        "deploy_succeeded_count"  => deploy_succeeded_count,
+        "deploy_failed_count"     => deploy_failed_count,
+        "deploy_success_rate"     => total_deploys.zero? ? nil : (deploy_succeeded_count.to_f / total_deploys).round(4),
+        "rollback_succeeded_count" => rollback_succeeded_count,
+        "rollback_failed_count"    => rollback_failed_count,
+        "rollback_success_rate"    => total_rollbacks.zero? ? nil : (rollback_succeeded_count.to_f / total_rollbacks).round(4)
+      }
+    end
+    private_class_method :calculate_phase_d_metrics
 
     # 集計ウィンドウの開始時刻を返す
     def self.period_window_start(period, measured_at)

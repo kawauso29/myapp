@@ -15,6 +15,8 @@ module LedgerV2
     MAX_PENDING_RETRIES = 3
 
     TRACKED_DRAFT_PR_FIELDS = %w[
+      pr_state
+      pr_draft
       ci_status
       ci_conclusion
       ci_decision
@@ -71,11 +73,18 @@ module LedgerV2
 
       ci_status = GithubPrService.fetch_ci_status(pr_number: pr_number)
       return sync_failure(artifact, pr_number) if ci_status.blank?
+      pr_state = ci_status.key?("state") ? ci_status["state"] : "open"
+      pr_draft = ci_status.key?("draft") ? ci_status["draft"] : true
 
       retry_count = next_retry_count(current_draft_pr, ci_status["status"])
-      decision_result = decision_for(status: ci_status["status"], retry_count: retry_count)
+      decision_result = decision_for(
+        status: ci_status["status"],
+        retry_count: retry_count,
+        pr_state: pr_state,
+        pr_draft: pr_draft
+      )
       decision = decision_result.fetch(:decision)
-      metadata = build_metadata(artifact, ci_status, decision_result, retry_count)
+      metadata = build_metadata(artifact, ci_status, decision_result, retry_count, pr_state, pr_draft)
       return { created_event_count: 0 } unless state_changed?(artifact, metadata)
 
       return { created_event_count: 0 } if dry_run
@@ -114,7 +123,7 @@ module LedgerV2
       { created_event_count: 1 }
     end
 
-    def build_metadata(artifact, ci_status, decision_result, retry_count)
+    def build_metadata(artifact, ci_status, decision_result, retry_count, pr_state, pr_draft)
       existing_draft_pr = artifact.metadata_json.fetch("draft_pr", {})
       terminal = decision_result.fetch(:terminal)
       draft_pr_metadata = existing_draft_pr.merge(
@@ -126,6 +135,8 @@ module LedgerV2
         "ci_terminal_at" => terminal_timestamp(existing_draft_pr, terminal),
         "ci_terminal_reason" => terminal ? decision_result.fetch(:terminal_reason) : nil,
         "ci_checked_at" => Time.current.iso8601,
+        "pr_state" => pr_state,
+        "pr_draft" => pr_draft,
         "failed_checks" => ci_status["failed_checks"],
         "head_sha" => ci_status["head_sha"],
         "check_runs" => ci_status["check_runs"]
@@ -141,7 +152,9 @@ module LedgerV2
       current_count
     end
 
-    def decision_for(status:, retry_count:)
+    def decision_for(status:, retry_count:, pr_state:, pr_draft:)
+      return terminal_decision("stop", "pr_closed") if pr_state != "open"
+      return terminal_decision("stop", "pr_not_draft") unless pr_draft == true
       return terminal_decision("human_escalate", "ci_failed") if status == "failure"
       return terminal_decision("stop", "auto_merge_disabled") unless Flags.enabled?(:auto_merge)
       return terminal_decision("continue", "ci_passed") if status == "success"
@@ -214,7 +227,7 @@ module LedgerV2
         when "human_escalate"
           "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} は CI 失敗のため人間エスカレーションが必要です"
         when "stop"
-          "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} は StopCondition または auto_merge 無効のため停止しました"
+          "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} は停止条件により停止しました（reason=#{terminal_reason}）"
         else
           "Artifact ##{artifact.id} の draft PR ##{ci_status['pr_number']} は CI 状態 #{ci_status['status']} で継続可能です"
         end

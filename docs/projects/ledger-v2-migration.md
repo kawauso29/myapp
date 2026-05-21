@@ -543,6 +543,45 @@ PR で持ち込まれた場合は **却下する**。
   - `GithubPrService.merge_pr` を追加し、`head_sha` guard 付きで GitHub merge API を呼ぶ
   - **このリポジトリでは main merge が CI→deploy に直結するため、`deploy_allowed=true` のときだけ merge 実行**。`auto_deploy=false` 中は `phase_d_execution_blocked` Event と `metadata_json["phase_d"]` に保留理由を記録する
   - spec（execute_phase_d_spec.rb / sync_draft_pr_status_spec.rb / github_pr_service_spec.rb）更新
+- [x] **Ticket 36**: `LedgerV2::ExecutePhaseD` — merge失敗時の retry / human_escalate 判定と記録を追加（Phase D 次段階）
+  - merge 失敗時に `phase_d.merge_retry_count` を増分し、上限未到達は `phase_d_merge_retrying` Event + `execution_status=retrying` を記録
+  - `MAX_MERGE_RETRIES=3` 到達時は `phase_d_merge_human_escalate` Event + `execution_status=human_escalate` + `merge_terminal_reason=merge_failed_retry_exhausted` を記録
+  - terminal（`merged` / `human_escalate`）到達後は `ExecutePhaseD` の再実行を抑止
+  - spec（execute_phase_d_spec.rb）更新
+- [x] **Ticket 37**: `LedgerV2::RecordPhaseDDeploy` — deploy 成否・rollback 結果を Ledger Event / metadata に記録（Phase D 次段階）
+  - `app/services/ledger_v2/record_phase_d_deploy.rb` を追加し、`phase_d.merge_commit_sha` から該当 Artifact を特定して `phase_d.deployment` metadata を更新
+  - deploy 成功時は `phase_d_deploy_succeeded`、deploy 失敗時は `phase_d_deploy_failed`、rollback 実行時は `phase_d_rollback_succeeded` / `phase_d_rollback_failed` を記録
+  - `.github/workflows/deploy.yml` から workspace 上の `bin/rails runner` で呼び出し、deploy/rollback 後に Ledger へ反映
+  - spec（record_phase_d_deploy_spec.rb）更新
+- [x] **Ticket 38**: `LedgerV2::CalculateHealthSnapshot` に Phase D 収束指標を追加（Phase D 次段階）
+  - `calculate_phase_d_metrics` を追加し `metadata_json["phase_d_metrics"]` に deploy_success_rate / rollback_success_rate を保存
+  - `phase_d_deploy_succeeded` / `phase_d_deploy_failed` / `phase_d_rollback_succeeded` / `phase_d_rollback_failed` Event を集計
+  - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 39**: `LedgerV2::SyncDraftPrStatus` — Phase B 細部整備（PR close ケースの状態遷移明文化）
+  - PR state / draft を metadata（`draft_pr.pr_state` / `draft_pr.pr_draft`）に保存
+  - `state != open` の場合は `ci_terminal=true` + `ci_terminal_reason=pr_closed` で `draft_pr_ci_stop` を記録
+  - closed PR は `ci_status=success` でも `ci_passed` とみなさず、Phase D merge に進めないことを仕様化
+  - spec（sync_draft_pr_status_spec.rb）更新
+- [x] **Ticket 40**: `LedgerV2::CalculateHealthSnapshot` — terminal reason の運用キャリブレーション指標を追加（Phase C 次段階）
+  - `draft_pr_metrics` に `ci_terminal_reason_counts`（terminal reason 別件数）を追加
+  - `ci_repass_coverage_rate`（terminal 全体に対する CI 評価対象 reason の割合）を追加し、`ci_repass_rate` の分母妥当性を可視化
+  - `ci_passed` / `ci_failed` / `ci_pending_timeout` 以外（例: `pr_closed`）が増えたときの運用判定をしやすくした
+  - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 41**: `LedgerV2::CalculateHealthSnapshot` — retry 上限値キャリブレーション指標を追加（Phase C 次段階）
+  - `draft_pr_metrics` に `ci_retry_count_histogram`（terminal 到達時の retry 回数分布: 0 / 1 / 2 / 3+）を追加
+  - `ci_retry_count` の実測分布から pending retry 上限（現在 3）の妥当性を運用で判断しやすくした
+  - terminal 未到達（`ci_terminal=false`）の retry は histogram に含めないことを仕様化
+  - spec（calculate_health_snapshot_spec.rb）更新
+- [x] **Ticket 42**: `LedgerV2::CreateDraftPullRequest` — Phase B 細部整備（closed PR 後の再作成ルール明文化）
+  - `draft_pr.pr_state=closed` かつ `ci_terminal_reason=pr_closed` の既存 draft PR は再作成可能にし、active PR との区別を明確化
+  - `draft_pr` metadata に `create_attempt_count` / `retried_from_pr_number` / `previous_pr_numbers` を追加し、再作成履歴を追跡可能にした
+  - 再作成成功時は CI 判定フィールド（`ci_status` / `ci_terminal` / `ci_terminal_reason` など）を初期値へリセットして次サイクルに引き継ぐ
+  - spec（create_draft_pull_request_spec.rb）更新
+- [x] **Ticket 43**: `LedgerV2::CreateDraftPullRequest` — Phase B 細部整備（再作成状態遷移の Event 明文化）
+  - closed(pr_closed terminal) からの再作成成功時に `draft_pr_recreated` Event を追加
+  - Event payload に `from_pr_number` / `to_pr_number` / `create_attempt_count` を記録し、再作成遷移を Event 監査できるようにした
+  - 初回作成では `draft_pr_recreated` を出さないことを仕様化
+  - spec（create_draft_pull_request_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
@@ -560,12 +599,12 @@ Kernel MVP は完了済み。ここから先の優先順位は **観測対象の
 - 逆戻り条件: `LedgerV2::StopCondition` に `blocking_feature?` 追加。`Flags.enabled?(:auto_merge)` / `Flags.enabled?(:auto_deploy)` は対応する target_type の active StopCondition があれば false を返す
 - 卒業基準 #1 `ticket_noise_rate <= 0.20`、#2 `artifact_acceptance_rate >= 0.70`、#3 `runner_failure_rate <= 0.05`、#7 `pending_review_count <= 10`
 - `kpi_improvement_after_ticket_rate`: `improvement_detected` / (`improvement_detected` + `improvement_not_detected`) Event 数で計算
-- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）を HealthSnapshot で実測
-- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge 実行までは接続済み。次は merge 失敗時の再試行方針・deploy 結果 / rollback の Ledger 記録を詰める
+- `draft_pr_metrics`: `creation_success_rate` / `draft_pr_artifact_rejection_rate` / `ci_repass_rate`（terminal定義ベース）/ `ci_repass_coverage_rate` / `ci_terminal_reason_counts` / `ci_retry_count_histogram` を HealthSnapshot で実測
+- **未完の本丸**: 承認済み Artifact → draft PR → CI 判断 → Phase D gate / merge / deploy / rollback 記録 → HealthSnapshot 収束指標まで接続済み。次は Phase B の細部整備（承認済み Artifact → draft PR 状態遷移の明文化）を進める
 
 次のアクション（優先順）:
 1. **Phase C の次段階（Ticket 33 完了）**: retry 条件・terminal 判定・CI 収束率の定義を metadata / Event / HealthSnapshot に反映済み。次は retry 上限値と terminal reason の運用キャリブレーションを進める
-2. **Phase D の次段階**: merge 失敗時の retry / human_escalate 方針と、deploy 成否・rollback を Ledger Event / metadata に残す
+2. **Phase D の次段階**: deploy / rollback 収束状況を HealthSnapshot に追加済み ✅
 3. **自動開発機構専用の昇格基準を追加検討**:
    - draft PR 作成成功率
    - CI 再試行の収束率

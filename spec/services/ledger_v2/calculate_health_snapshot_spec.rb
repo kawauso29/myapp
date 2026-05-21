@@ -75,8 +75,23 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
           "failed_count" => 0,
           "draft_pr_artifact_rejection_rate" => 0.0,
           "ci_repass_rate" => nil,
+          "ci_repass_coverage_rate" => nil,
           "ci_terminal_count" => 0,
-          "ci_retrying_count" => 0
+          "ci_retrying_count" => 0,
+          "ci_terminal_reason_counts" => {},
+          "ci_retry_count_histogram" => { "0" => 0, "1" => 0, "2" => 0, "3_or_more" => 0 }
+        )
+      end
+
+      it "metadata_json に phase_d_metrics が記録される" do
+        snapshot = described_class.call(period: :daily, measured_at: now, dry_run: true)
+        expect(snapshot.metadata_json["phase_d_metrics"]).to include(
+          "deploy_succeeded_count" => 0,
+          "deploy_failed_count" => 0,
+          "deploy_success_rate" => nil,
+          "rollback_succeeded_count" => 0,
+          "rollback_failed_count" => 0,
+          "rollback_success_rate" => nil
         )
       end
     end
@@ -252,7 +267,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 101,
               "ci_status" => "failure",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_failed"
+              "ci_terminal_reason" => "ci_failed",
+              "ci_retry_count" => 1
             }
           }
         )
@@ -264,7 +280,21 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 102,
               "ci_status" => "success",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_passed"
+              "ci_terminal_reason" => "ci_passed",
+              "ci_retry_count" => 2
+            }
+          }
+        )
+        create_artifact(
+          artifact_type: "ci_fix_suggestion",
+          review_status: :accepted,
+          metadata_json: {
+            "draft_pr" => {
+              "number" => 103,
+              "ci_status" => "success",
+              "ci_terminal" => true,
+              "ci_terminal_reason" => "pr_closed",
+              "ci_retry_count" => 4
             }
           }
         )
@@ -274,10 +304,22 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "creation_success_rate")).to eq(0.5)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "created_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "failed_count")).to eq(1)
-        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to eq(0.5)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "draft_pr_artifact_rejection_rate")).to be_within(0.001).of(1.0 / 3.0)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(0.5)
-        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(2)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_coverage_rate")).to be_within(0.001).of(2.0 / 3.0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(3)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_reason_counts")).to eq(
+          "ci_failed" => 1,
+          "ci_passed" => 1,
+          "pr_closed" => 1
+        )
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retry_count_histogram")).to eq(
+          "0" => 0,
+          "1" => 1,
+          "2" => 1,
+          "3_or_more" => 1
+        )
       end
 
       it "terminal 未到達の pending は ci_repass_rate の分母に含めない" do
@@ -289,7 +331,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 201,
               "ci_status" => "pending",
               "ci_terminal" => false,
-              "ci_terminal_reason" => nil
+              "ci_terminal_reason" => nil,
+              "ci_retry_count" => 2
             }
           }
         )
@@ -301,7 +344,8 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
               "number" => 202,
               "ci_status" => "success",
               "ci_terminal" => true,
-              "ci_terminal_reason" => "ci_passed"
+              "ci_terminal_reason" => "ci_passed",
+              "ci_retry_count" => 0
             }
           }
         )
@@ -309,8 +353,72 @@ RSpec.describe LedgerV2::CalculateHealthSnapshot, type: :service do
         snapshot = described_class.call(period: :daily, measured_at: now)
 
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_rate")).to eq(1.0)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_repass_coverage_rate")).to eq(1.0)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_count")).to eq(1)
         expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retrying_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_terminal_reason_counts")).to eq(
+          "ci_passed" => 1
+        )
+        expect(snapshot.metadata_json.dig("draft_pr_metrics", "ci_retry_count_histogram")).to eq(
+          "0" => 1,
+          "1" => 0,
+          "2" => 0,
+          "3_or_more" => 0
+        )
+      end
+    end
+
+    context "phase_d_metrics の集計" do
+      it "deploy / rollback Event が存在しない場合はすべてゼロ・rate は nil" do
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_succeeded_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_failed_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_success_rate")).to be_nil
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_succeeded_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_failed_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_success_rate")).to be_nil
+      end
+
+      it "deploy 成功 2件・失敗 1件の場合 deploy_success_rate が 0.6667 になる" do
+        run = create_run
+        2.times do
+          LedgerV2::Event.create!(run: run, event_type: "phase_d_deploy_succeeded",
+                                  severity: :info, occurred_at: now - 10.minutes, payload_json: {})
+        end
+        LedgerV2::Event.create!(run: run, event_type: "phase_d_deploy_failed",
+                                severity: :error, occurred_at: now - 5.minutes, payload_json: {})
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_succeeded_count")).to eq(2)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_failed_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_success_rate")).to be_within(0.001).of(2.0 / 3.0)
+      end
+
+      it "rollback 成功 1件・失敗 1件の場合 rollback_success_rate が 0.5 になる" do
+        run = create_run
+        LedgerV2::Event.create!(run: run, event_type: "phase_d_rollback_succeeded",
+                                severity: :warning, occurred_at: now - 10.minutes, payload_json: {})
+        LedgerV2::Event.create!(run: run, event_type: "phase_d_rollback_failed",
+                                severity: :error, occurred_at: now - 5.minutes, payload_json: {})
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_succeeded_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_failed_count")).to eq(1)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "rollback_success_rate")).to eq(0.5)
+      end
+
+      it "ウィンドウ外の Event は集計対象外" do
+        run = create_run
+        LedgerV2::Event.create!(run: run, event_type: "phase_d_deploy_succeeded",
+                                severity: :info, occurred_at: now - 3.days, payload_json: {})
+
+        snapshot = described_class.call(period: :daily, measured_at: now)
+
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_succeeded_count")).to eq(0)
+        expect(snapshot.metadata_json.dig("phase_d_metrics", "deploy_success_rate")).to be_nil
       end
     end
 
