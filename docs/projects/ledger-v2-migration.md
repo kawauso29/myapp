@@ -577,6 +577,11 @@ PR で持ち込まれた場合は **却下する**。
   - `draft_pr` metadata に `create_attempt_count` / `retried_from_pr_number` / `previous_pr_numbers` を追加し、再作成履歴を追跡可能にした
   - 再作成成功時は CI 判定フィールド（`ci_status` / `ci_terminal` / `ci_terminal_reason` など）を初期値へリセットして次サイクルに引き継ぐ
   - spec（create_draft_pull_request_spec.rb）更新
+- [x] **Ticket 43**: `LedgerV2::CreateDraftPullRequest` — Phase B 細部整備（再作成状態遷移の Event 明文化）
+  - closed(pr_closed terminal) からの再作成成功時に `draft_pr_recreated` Event を追加
+  - Event payload に `from_pr_number` / `to_pr_number` / `create_attempt_count` を記録し、再作成遷移を Event 監査できるようにした
+  - 初回作成では `draft_pr_recreated` を出さないことを仕様化
+  - spec（create_draft_pull_request_spec.rb）更新
 - HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手

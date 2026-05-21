@@ -107,9 +107,8 @@ module LedgerV2
       existing_draft_pr = current_draft_pr
       create_attempt_count = existing_draft_pr["create_attempt_count"].to_i + 1
       previous_pr_numbers = Array(existing_draft_pr["previous_pr_numbers"]).map(&:to_i)
-      if retryable_closed_pr?(existing_draft_pr) && existing_draft_pr["number"].present?
-        previous_pr_numbers |= [existing_draft_pr["number"].to_i]
-      end
+      recreated_from_pr_number = retryable_closed_pr?(existing_draft_pr) && existing_draft_pr["number"].present? ? existing_draft_pr["number"].to_i : nil
+      previous_pr_numbers |= [recreated_from_pr_number] if recreated_from_pr_number.present?
 
       metadata = merged_metadata(
         "draft_pr" => {
@@ -119,7 +118,7 @@ module LedgerV2
           "source" => "ledger_v2_ci_fix_suggestion",
           "create_status" => "created",
           "create_attempt_count" => create_attempt_count,
-          "retried_from_pr_number" => retryable_closed_pr?(existing_draft_pr) ? existing_draft_pr["number"].to_i : nil,
+          "retried_from_pr_number" => recreated_from_pr_number,
           "previous_pr_numbers" => previous_pr_numbers,
           "creation_error" => nil,
           "creation_failed_at" => nil,
@@ -142,6 +141,21 @@ module LedgerV2
           "related_ticket_id" => @artifact.related_ticket_id
         )
       )
+      if recreated_from_pr_number.present?
+        create_event(
+          event_type: "draft_pr_recreated",
+          severity: :info,
+          message: "Artifact ##{@artifact.id} の closed draft PR ##{recreated_from_pr_number} から draft PR ##{result['number']} を再作成しました",
+          payload: {
+            "artifact_id" => @artifact.id,
+            "related_ticket_id" => @artifact.related_ticket_id,
+            "from_pr_number" => recreated_from_pr_number,
+            "to_pr_number" => result["number"],
+            "to_pr_url" => result["html_url"],
+            "create_attempt_count" => create_attempt_count
+          }
+        )
+      end
 
       Result.new(created?: true, skipped?: false, pr_number: result["number"], pr_url: result["html_url"])
     end

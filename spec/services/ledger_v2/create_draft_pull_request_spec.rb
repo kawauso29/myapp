@@ -95,7 +95,12 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     )
     allow(GithubPrService).to receive(:create_pr).and_return({ "number" => 456, "html_url" => "https://example.com/pr/456" })
 
-    result = described_class.call(artifact: artifact)
+    expect {
+      @result = described_class.call(artifact: artifact)
+    }.to change {
+      LedgerV2::Event.where(event_type: "draft_pr_recreated").count
+    }.by(1)
+    result = @result
 
     expect(result.created?).to be true
     draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
@@ -105,6 +110,11 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     expect(draft_pr["create_attempt_count"]).to eq(2)
     expect(draft_pr["ci_terminal"]).to be false
     expect(draft_pr["ci_terminal_reason"]).to be_nil
+
+    recreated_event_payload = LedgerV2::Event.where(event_type: "draft_pr_recreated").last.payload_json
+    expect(recreated_event_payload["from_pr_number"]).to eq(123)
+    expect(recreated_event_payload["to_pr_number"]).to eq(456)
+    expect(recreated_event_payload["create_attempt_count"]).to eq(2)
   end
 
   it "再作成を複数回行うと previous_pr_numbers を累積する" do
@@ -131,6 +141,16 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     expect(draft_pr["create_attempt_count"]).to eq(3)
     expect(draft_pr["retried_from_pr_number"]).to eq(456)
     expect(draft_pr["previous_pr_numbers"]).to contain_exactly(123, 456)
+  end
+
+  it "初回作成時は draft_pr_recreated Event を作らない" do
+    allow(GithubPrService).to receive(:create_pr).and_return({ "number" => 123, "html_url" => "https://example.com/pr/123" })
+
+    expect {
+      described_class.call(artifact: artifact)
+    }.not_to change {
+      LedgerV2::Event.where(event_type: "draft_pr_recreated").count
+    }
   end
 
   it "ci_fix_suggestion 以外は対象外にする" do
