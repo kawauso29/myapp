@@ -238,6 +238,8 @@ module LedgerV2
       terminal_ci_count = ci_success_count + ci_failure_count
       terminal_count = terminal_scope.count
       retry_count_histogram = { "0" => 0, "1" => 0, "2" => 0, "3_or_more" => 0 }
+      # terminal 到達済み draft PR は運用上少量（週次観測対象）を想定しており、
+      # 単純集計を優先して pluck で retry_count を一括取得する。
       terminal_scope.pluck(Arel.sql("metadata_json -> 'draft_pr' ->> 'ci_retry_count'")).each do |raw_retry_count|
         retry_count = raw_retry_count.to_i
         bucket = retry_count >= 3 ? "3_or_more" : retry_count.to_s
