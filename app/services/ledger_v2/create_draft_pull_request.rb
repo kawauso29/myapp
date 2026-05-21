@@ -107,7 +107,8 @@ module LedgerV2
       existing_draft_pr = current_draft_pr
       create_attempt_count = existing_draft_pr["create_attempt_count"].to_i + 1
       previous_pr_numbers = Array(existing_draft_pr["previous_pr_numbers"]).map(&:to_i)
-      recreated_from_pr_number = retryable_closed_pr?(existing_draft_pr) && existing_draft_pr["number"].present? ? existing_draft_pr["number"].to_i : nil
+      recreatable_closed_pr = retryable_closed_pr?(existing_draft_pr) && existing_draft_pr["number"].present?
+      recreated_from_pr_number = recreatable_closed_pr ? existing_draft_pr["number"].to_i : nil
       previous_pr_numbers |= [recreated_from_pr_number] if recreated_from_pr_number.present?
 
       metadata = merged_metadata(

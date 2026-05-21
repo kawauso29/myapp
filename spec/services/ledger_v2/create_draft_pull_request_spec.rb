@@ -95,12 +95,12 @@ RSpec.describe LedgerV2::CreateDraftPullRequest, type: :service do
     )
     allow(GithubPrService).to receive(:create_pr).and_return({ "number" => 456, "html_url" => "https://example.com/pr/456" })
 
+    result = nil
     expect {
-      @result = described_class.call(artifact: artifact)
+      result = described_class.call(artifact: artifact)
     }.to change {
       LedgerV2::Event.where(event_type: "draft_pr_recreated").count
     }.by(1)
-    result = @result
 
     expect(result.created?).to be true
     draft_pr = artifact.reload.metadata_json.fetch("draft_pr")
