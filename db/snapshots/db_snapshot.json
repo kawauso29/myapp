@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-23T06:28:47+09:00",
+  "generated_at": "2026-05-24T06:21:21+09:00",
   "environment": "production",
   "counts": {
     "agent_judgments": 1475,
@@ -41,11 +41,11 @@
     "kpi_snapshots": 20,
     "lane_capacity_caps": 4,
     "ledger_v2_artifacts": 24,
-    "ledger_v2_events": 731,
+    "ledger_v2_events": 735,
     "ledger_v2_health_snapshots": 263,
     "ledger_v2_metric_snapshots": 288,
     "ledger_v2_reviews": 0,
-    "ledger_v2_runs": 764,
+    "ledger_v2_runs": 766,
     "ledger_v2_stop_conditions": 0,
     "ledger_v2_tickets": 7,
     "market_snapshots": 429,
