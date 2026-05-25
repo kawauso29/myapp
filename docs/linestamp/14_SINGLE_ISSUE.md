@@ -150,7 +150,7 @@ Rails は以下を担当:
 - `.github/ISSUE_TEMPLATE/linestamp-brand-planning.md`
 - `.github/ISSUE_TEMPLATE/linestamp-pack-planning.md`
 
-全ての workflow で `runs-on: [self-hosted, linestamp]`
+全ての workflow で `runs-on: [self-hosted, sakura-vps]`
 
 ### Rake タスク
 - `lib/tasks/linestamp.rake`

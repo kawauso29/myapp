@@ -931,7 +931,7 @@ on:
 
 jobs:
   create-research-issue:
-    runs-on: [self-hosted, linestamp]
+    runs-on: [self-hosted, sakura-vps]
     permissions:
       contents: read
       issues: write
@@ -1006,7 +1006,7 @@ on:
 
 jobs:
   create-brand-issues:
-    runs-on: [self-hosted, linestamp]
+    runs-on: [self-hosted, sakura-vps]
     permissions:
       contents: read
       issues: write
@@ -1084,7 +1084,7 @@ on:
 
 jobs:
   create-pack-issues:
-    runs-on: [self-hosted, linestamp]
+    runs-on: [self-hosted, sakura-vps]
     permissions:
       contents: read
       issues: write
@@ -1164,7 +1164,7 @@ on:
 
 jobs:
   sync:
-    runs-on: [self-hosted, linestamp]
+    runs-on: [self-hosted, sakura-vps]
     steps:
       - uses: actions/checkout@v4
       - name: Trigger Rails sync via local HTTP

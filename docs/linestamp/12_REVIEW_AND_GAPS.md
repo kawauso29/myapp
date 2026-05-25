@@ -385,7 +385,7 @@ brand.base_image.attach(io: File.open(base_path), filename: "base.png") if base_
 **推奨**: 専用ラベル付与:
 
 ```yaml
-runs-on: [self-hosted, linestamp]
+runs-on: [self-hosted, sakura-vps]
 ```
 
 セルフホストランナー設定時に `--labels linestamp` を追加。他用途のランナーと混ざらない。
