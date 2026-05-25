@@ -20,7 +20,7 @@ module Linestamp
         end
 
         stamp.processed_image.attach(
-          io: File.open(processed_file.path),
+          io: processed_file.tap(&:rewind),
           filename: "stamp_#{stamp.pack_id}_#{stamp.position}.png",
           content_type: "image/png"
         )
