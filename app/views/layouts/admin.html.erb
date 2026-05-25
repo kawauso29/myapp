@@ -216,6 +216,11 @@
 
     <span class="nav-divider"></span>
 
+    <%# ===== Linestamp ===== %>
+    <a href="<%= admin_linestamp_root_path %>" class="<%= 'active' if controller_path.start_with?('admin/linestamp') %>">Linestamp</a>
+
+    <span class="nav-divider"></span>
+
     <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
   </nav>
   <main>
