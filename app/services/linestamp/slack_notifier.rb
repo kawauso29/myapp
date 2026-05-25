@@ -1,6 +1,6 @@
 module Linestamp
   class SlackNotifier
-    CHANNEL = ENV.fetch("LINESTAMP_SLACK_CHANNEL", "#linestamp")
+    CHANNEL = "#linestamp"
 
     def self.notify(text:, blocks: nil)
       new.notify(text: text, blocks: blocks)
@@ -23,7 +23,7 @@ module Linestamp
     def client
       return @client if defined?(@client)
 
-      token = ENV["LINESTAMP_SLACK_BOT_TOKEN"] || ENV["SLACK_BOT_TOKEN"]
+      token = ENV["SLACK_BOT_TOKEN"]
       return @client = nil unless token.present?
 
       @client = Slack::Web::Client.new(token: token)

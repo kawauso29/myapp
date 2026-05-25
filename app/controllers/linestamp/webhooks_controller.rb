@@ -31,7 +31,7 @@ class Linestamp::WebhooksController < ApplicationController
   private
 
   def verify_webhook_signature
-    secret = ENV["LINESTAMP_WEBHOOK_SECRET"]
+    secret = ENV["SLACK_SIGNING_SECRET"]
     return if secret.blank? # Skip verification if secret not configured
 
     signature = request.headers["X-Line-Signature"]
