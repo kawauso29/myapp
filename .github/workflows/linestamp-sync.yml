@@ -1,0 +1,20 @@
+name: Linestamp Sync
+on:
+  push:
+    paths:
+      - 'brand_sources/**'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync brand sources
+        run: |
+          eval "$(rbenv init -)"
+          cd $GITHUB_WORKSPACE
+          RAILS_ENV=production bin/rails linestamp:sync

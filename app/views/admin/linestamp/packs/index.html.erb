@@ -1,0 +1,26 @@
+<h1 style="font-size:20px; margin-bottom:20px;">Packs</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Brand</th>
+      <th>Position</th>
+      <th>Status</th>
+      <th>Stamps</th>
+      <th>Updated</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @packs.each do |pack| %>
+      <tr>
+        <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
+        <td><%= pack.brand.name %></td>
+        <td><%= pack.position %></td>
+        <td><span class="badge info"><%= pack.status %></span></td>
+        <td><%= pack.stamps.where(status: "processed").count %>/<%= pack.stamps.count %></td>
+        <td><%= pack.updated_at.strftime("%Y-%m-%d") %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

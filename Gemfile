@@ -41,6 +41,21 @@ gem "kamal", require: false
 gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
+# State machine
+gem "aasm"
+
+# Image processing
+gem "mini_magick"
+
+# Slack API
+gem "slack-ruby-client"
+
+# Pagination
+gem "kaminari"
+
+# ZIP
+gem "rubyzip", require: "zip"
+
 # Scraping
 gem "mechanize"
 

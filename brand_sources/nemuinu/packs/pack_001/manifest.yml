@@ -1,0 +1,18 @@
+title: "ねむ犬 vol.1 日常編"
+stamps:
+  - emotion: happy
+    text: "やったー！"
+  - emotion: sleepy
+    text: "zzz..."
+  - emotion: surprised
+    text: "えっ！？"
+  - emotion: sad
+    text: "しょぼん"
+  - emotion: angry
+    text: "ぷんぷん"
+  - emotion: love
+    text: "すき♡"
+  - emotion: greeting
+    text: "おはよう"
+  - emotion: bye
+    text: "ばいばい"

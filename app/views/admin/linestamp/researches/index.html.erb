@@ -1,0 +1,20 @@
+<h1 style="font-size:20px; margin-bottom:20px;">Researches</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Status</th>
+      <th>Updated</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @researches.each do |research| %>
+      <tr>
+        <td><a href="<%= admin_linestamp_research_path(research) %>" style="color:#63b3ed;"><%= research.title %></a></td>
+        <td><span class="badge info"><%= research.status %></span></td>
+        <td><%= research.updated_at.strftime("%Y-%m-%d") %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

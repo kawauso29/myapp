@@ -1,0 +1,54 @@
+<h1 style="font-size:20px; margin-bottom:20px;"><%= @brand.name %></h1>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Brand Info</h2>
+    <dl class="profile-grid">
+      <dt>Slug</dt><dd><code><%= @brand.slug %></code></dd>
+      <dt>Status</dt><dd><span class="badge info"><%= @brand.status %></span></dd>
+      <dt>Description</dt><dd><%= @brand.description %></dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Base Image</h2>
+    <% if @brand.base_image.attached? %>
+      <p><%= image_tag url_for(@brand.base_image), style: "max-width:200px; border-radius:8px;" %></p>
+      <%= button_to "Remove Base Image", purge_base_admin_linestamp_brand_path(@brand), method: :delete, class: "btn btn-danger btn-sm" %>
+    <% else %>
+      <p style="color:#718096;">No base image uploaded.</p>
+    <% end %>
+
+    <%= form_with url: upload_base_admin_linestamp_brand_path(@brand), method: :post, multipart: true, style: "margin-top:12px;" do |f| %>
+      <%= f.file_field :base_image, accept: "image/*", style: "color:#a0aec0;" %>
+      <%= f.submit "Upload Base Image", class: "btn btn-primary btn-sm" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2>Brand Prompt</h2>
+  <% if @brand.brand_prompt.present? %>
+    <pre style="background:#232637; padding:12px; border-radius:6px; white-space:pre-wrap; font-size:12px; color:#e2e8f0; max-height:400px; overflow-y:auto;"><%= @brand.brand_prompt %></pre>
+    <button onclick="navigator.clipboard.writeText(document.querySelector('pre').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Prompt</button>
+  <% else %>
+    <p style="color:#718096;">Prompt not yet composed.</p>
+  <% end %>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2>Packs</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Stamps</th></tr></thead>
+    <tbody>
+      <% @brand.packs.order(:position).each do |pack| %>
+        <tr>
+          <td><%= pack.position %></td>
+          <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
+          <td><span class="badge info"><%= pack.status %></span></td>
+          <td><%= pack.stamps.count %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
