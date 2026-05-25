@@ -50,8 +50,8 @@ stamps:
   communication_purpose: 放置ではなく対応中だと伝えて安心させる
 - number: 3
   label: すぐ戻ります
-  primary_communication_theme: status_busy
-  communication_themes: [status_busy, quick_answer]
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report, quick_answer]
   situation: ドアの前で振り返り、半目のまま小さく片手を上げる。背景に細い雨線。
   intent: 一時離席を穏やかに共有する
   usage_scene: ちょっと席を外す時
