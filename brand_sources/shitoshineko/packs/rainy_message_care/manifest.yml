@@ -2,7 +2,7 @@ slug: rainy_message_care
 series_theme: 雨の日連絡ケア
 layer: core_work
 world_view: 雨の日に連絡が遅れそうな場面で、気まずさをやわらげる実用メッセージ集
-communication_themes: [apology, remote_work_report, appreciation_for_effort]
+communication_themes: [apology, remote_work_report, appreciation_for_effort, quick_answer, need_break, empathy]
 attributes:
   tone: [gentle, calm]
   setting: [rainy_day, daily_chat]
