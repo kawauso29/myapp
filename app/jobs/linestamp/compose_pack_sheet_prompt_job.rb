@@ -13,7 +13,7 @@ module Linestamp
       pack.mark_prompt_ready! if pack.may_mark_prompt_ready?
 
       Linestamp::SlackNotifier.notify(
-        text: ":memo: Pack sheet prompt composed: #{pack.brand.name} / #{pack.title}"
+        text: ":memo: Pack sheet prompt composed: #{pack.brand.character_name} / #{pack.series_theme}"
       )
     end
   end

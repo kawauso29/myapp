@@ -1,5 +1,5 @@
 class Admin::Linestamp::PacksController < Admin::BaseController
-  before_action :set_pack, only: %i[show upload_sheet approve export_for_line]
+  before_action :set_pack, only: %i[show upload_sheet approve export_for_line upload_main_image generate_main_image upload_tab_image generate_tab_image]
 
   def index
     @packs = ::Linestamp::Pack.includes(:brand).order(updated_at: :desc)
@@ -16,6 +16,40 @@ class Admin::Linestamp::PacksController < Admin::BaseController
     else
       redirect_to admin_linestamp_pack_path(@pack), alert: "No file selected."
     end
+  end
+
+  def upload_main_image
+    if params[:main_image].present?
+      @pack.main_image.attach(params[:main_image])
+      redirect_to admin_linestamp_pack_path(@pack), notice: "Main image uploaded."
+    else
+      redirect_to admin_linestamp_pack_path(@pack), alert: "No file selected."
+    end
+  end
+
+  def generate_main_image
+    source_stamp = @pack.stamps.find(params[:source_stamp_id])
+    ::Linestamp::PackRepresentativeImageGenerator.new.call(pack: @pack, kind: :main, source_stamp: source_stamp)
+    redirect_to admin_linestamp_pack_path(@pack), notice: "Main image generated from stamp ##{source_stamp.position}."
+  rescue StandardError => e
+    redirect_to admin_linestamp_pack_path(@pack), alert: "Generation failed: #{e.message}"
+  end
+
+  def upload_tab_image
+    if params[:tab_image].present?
+      @pack.tab_image.attach(params[:tab_image])
+      redirect_to admin_linestamp_pack_path(@pack), notice: "Tab image uploaded."
+    else
+      redirect_to admin_linestamp_pack_path(@pack), alert: "No file selected."
+    end
+  end
+
+  def generate_tab_image
+    source_stamp = @pack.stamps.find(params[:source_stamp_id])
+    ::Linestamp::PackRepresentativeImageGenerator.new.call(pack: @pack, kind: :tab, source_stamp: source_stamp)
+    redirect_to admin_linestamp_pack_path(@pack), notice: "Tab image generated from stamp ##{source_stamp.position}."
+  rescue StandardError => e
+    redirect_to admin_linestamp_pack_path(@pack), alert: "Generation failed: #{e.message}"
   end
 
   def approve

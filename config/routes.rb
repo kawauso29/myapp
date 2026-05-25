@@ -70,6 +70,10 @@ Rails.application.routes.draw do
           post :upload_sheet
           post :approve
           get :export_for_line
+          post :upload_main_image
+          post :generate_main_image
+          post :upload_tab_image
+          post :generate_tab_image
         end
       end
       resources :stamps, only: [ :show ] do

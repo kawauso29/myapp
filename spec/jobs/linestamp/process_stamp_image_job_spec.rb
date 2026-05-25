@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Linestamp::ProcessStampImageJob, type: :job do
-  let(:brand) { Linestamp::Brand.create!(slug: "test", name: "Test Brand") }
-  let(:pack) { brand.packs.create!(title: "Pack 1", position: 1, status: "in_progress") }
+  let(:brand) { Linestamp::Brand.create!(slug: "test", character_name: "Test Brand", series_name: "Test Series") }
+  let(:pack) { brand.packs.create!(series_theme: "Pack 1", position: 1, status: "in_progress") }
   let(:stamp) { pack.stamps.create!(position: 1, status: "raw_uploaded") }
 
   before do

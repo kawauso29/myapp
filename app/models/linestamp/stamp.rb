@@ -8,6 +8,11 @@ class Linestamp::Stamp < ApplicationRecord
   validates :position, presence: true, numericality: { greater_than: 0 }
   validates :position, uniqueness: { scope: :pack_id }
 
+  # Display label for UI (label is the primary text identifier)
+  def display_label
+    label.presence || "##{position}"
+  end
+
   aasm column: :status do
     state :planned, initial: true
     state :prompt_ready
