@@ -1,0 +1,61 @@
+<h1 style="font-size:20px; margin-bottom:20px;">🎨 LINE Stamp Dashboard</h1>
+
+<div class="stats-grid" style="margin-bottom:24px;">
+  <div class="stat blue">
+    <div class="value"><%= @brands_count %></div>
+    <div class="label">Brands</div>
+  </div>
+  <div class="stat green">
+    <div class="value"><%= @packs_count %></div>
+    <div class="label">Packs</div>
+  </div>
+  <div class="stat yellow">
+    <div class="value"><%= @stamps_processed %>/<%= @stamps_total %></div>
+    <div class="label">Stamps (processed/total)</div>
+  </div>
+  <div class="stat">
+    <div class="value"><%= @submissions_count %></div>
+    <div class="label">Submissions</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Recent Brands</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Status</th><th>Updated</th></tr></thead>
+      <tbody>
+        <% @recent_brands.each do |brand| %>
+          <tr>
+            <td><a href="<%= admin_linestamp_brand_path(brand) %>" style="color:#63b3ed;"><%= brand.name %></a></td>
+            <td><span class="badge info"><%= brand.status %></span></td>
+            <td><%= brand.updated_at.strftime("%Y-%m-%d %H:%M") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Recent Packs</h2>
+    <table>
+      <thead><tr><th>Pack</th><th>Brand</th><th>Status</th></tr></thead>
+      <tbody>
+        <% @recent_packs.each do |pack| %>
+          <tr>
+            <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
+            <td><%= pack.brand.name %></td>
+            <td><span class="badge info"><%= pack.status %></span></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="margin-top:16px;">
+  <a href="<%= admin_linestamp_brands_path %>" class="btn btn-primary">Brands</a>
+  <a href="<%= admin_linestamp_packs_path %>" class="btn btn-primary">Packs</a>
+  <a href="<%= admin_linestamp_researches_path %>" class="btn btn-primary">Researches</a>
+  <a href="<%= admin_linestamp_submissions_path %>" class="btn btn-primary">Submissions</a>
+</div>

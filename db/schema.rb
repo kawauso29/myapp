@@ -10,9 +10,37 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_05_062604) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_25_020454) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "agent_judgments", force: :cascade do |t|
     t.string "agent_type"
@@ -831,6 +859,78 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_05_062604) do
     t.index ["status"], name: "index_ledger_v2_tickets_on_status"
   end
 
+  create_table "linestamp_brands", force: :cascade do |t|
+    t.text "base_prompt"
+    t.text "brand_prompt"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.jsonb "metadata", default: {}
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "status", default: "planned", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_linestamp_brands_on_slug", unique: true
+    t.index ["status"], name: "index_linestamp_brands_on_status"
+  end
+
+  create_table "linestamp_packs", force: :cascade do |t|
+    t.datetime "approved_at"
+    t.bigint "approver_id"
+    t.bigint "brand_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.integer "position", default: 1, null: false
+    t.text "sheet_prompt"
+    t.string "status", default: "planned", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approver_id"], name: "index_linestamp_packs_on_approver_id"
+    t.index ["brand_id", "position"], name: "index_linestamp_packs_on_brand_id_and_position", unique: true
+    t.index ["brand_id"], name: "index_linestamp_packs_on_brand_id"
+    t.index ["status"], name: "index_linestamp_packs_on_status"
+  end
+
+  create_table "linestamp_researches", force: :cascade do |t|
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.string "source_url"
+    t.string "status", default: "draft", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_linestamp_researches_on_status"
+  end
+
+  create_table "linestamp_stamps", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "emotion"
+    t.jsonb "metadata", default: {}
+    t.bigint "pack_id", null: false
+    t.integer "position", null: false
+    t.text "prompt"
+    t.string "status", default: "planned", null: false
+    t.string "text_overlay"
+    t.datetime "updated_at", null: false
+    t.index ["pack_id", "position"], name: "index_linestamp_stamps_on_pack_id_and_position", unique: true
+    t.index ["pack_id"], name: "index_linestamp_stamps_on_pack_id"
+    t.index ["status"], name: "index_linestamp_stamps_on_status"
+  end
+
+  create_table "linestamp_submissions", force: :cascade do |t|
+    t.datetime "approved_at"
+    t.datetime "created_at", null: false
+    t.string "line_item_id"
+    t.jsonb "metadata", default: {}
+    t.bigint "pack_id", null: false
+    t.datetime "rejected_at"
+    t.text "rejection_reason"
+    t.string "status", default: "draft", null: false
+    t.datetime "submitted_at"
+    t.datetime "updated_at", null: false
+    t.index ["pack_id"], name: "index_linestamp_submissions_on_pack_id"
+    t.index ["status"], name: "index_linestamp_submissions_on_status"
+  end
+
   create_table "market_snapshots", force: :cascade do |t|
     t.datetime "captured_at", null: false
     t.datetime "created_at", null: false
@@ -1243,6 +1343,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_05_062604) do
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_judgments", "market_snapshots"
   add_foreign_key "ai_avatar_states", "ai_users"
   add_foreign_key "ai_close_people", "ai_users"
@@ -1277,6 +1379,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_05_062604) do
   add_foreign_key "cost_ledgers", "meeting_ledgers", column: "source_meeting_id"
   add_foreign_key "cost_ledgers", "ticket_ledgers", column: "source_ticket_id"
   add_foreign_key "ledger_v2_events", "ledger_v2_runs", column: "run_id"
+  add_foreign_key "linestamp_packs", "linestamp_brands", column: "brand_id"
+  add_foreign_key "linestamp_packs", "users", column: "approver_id"
+  add_foreign_key "linestamp_stamps", "linestamp_packs", column: "pack_id"
+  add_foreign_key "linestamp_submissions", "linestamp_packs", column: "pack_id"
   add_foreign_key "meeting_ledgers", "meeting_definitions"
   add_foreign_key "notifications", "ai_posts"
   add_foreign_key "notifications", "ai_users"

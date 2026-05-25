@@ -1,0 +1,29 @@
+<h1 style="font-size:20px; margin-bottom:20px;">Submissions</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Pack</th>
+      <th>Brand</th>
+      <th>Status</th>
+      <th>Submitted</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @submissions.each do |sub| %>
+      <tr>
+        <td><a href="<%= admin_linestamp_pack_path(sub.pack) %>" style="color:#63b3ed;"><%= sub.pack.title %></a></td>
+        <td><%= sub.pack.brand.name %></td>
+        <td><span class="badge <%= sub.approved? ? 'active' : sub.rejected? ? 'bear' : 'info' %>"><%= sub.status %></span></td>
+        <td><%= sub.submitted_at&.strftime("%Y-%m-%d") || "—" %></td>
+        <td>
+          <% if sub.approved? %>✅ Approved
+          <% elsif sub.rejected? %>❌ <%= sub.rejection_reason %>
+          <% else %>—
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

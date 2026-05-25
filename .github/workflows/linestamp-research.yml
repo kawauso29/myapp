@@ -1,0 +1,19 @@
+name: Linestamp Research
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'  # 毎週月曜 12:00 JST
+
+jobs:
+  research:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run research task
+        run: |
+          echo "Linestamp research workflow triggered"
+          echo "TODO: Implement research automation"

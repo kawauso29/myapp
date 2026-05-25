@@ -1,0 +1,19 @@
+name: Linestamp Brand Planning
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 毎日 09:00 JST
+
+jobs:
+  brand-planning:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run brand planning
+        run: |
+          echo "Linestamp brand planning workflow triggered"
+          echo "TODO: Implement brand planning automation"

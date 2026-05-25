@@ -56,6 +56,34 @@ Rails.application.routes.draw do
     end
 
     resources :users, only: [ :index ]
+
+    namespace :linestamp do
+      root to: "dashboard#index"
+      resources :brands, only: [ :index, :show ] do
+        member do
+          post :upload_base
+          delete :purge_base
+        end
+      end
+      resources :packs, only: [ :index, :show ] do
+        member do
+          post :upload_sheet
+          post :approve
+          get :export_for_line
+        end
+      end
+      resources :stamps, only: [ :show ] do
+        member do
+          post :upload_raw
+          post :upload_processed
+          post :process_image
+          post :reset
+        end
+      end
+      resources :researches, only: [ :index, :show ]
+      resources :submissions, only: [ :index ]
+    end
+
     namespace :ops do
       # Ledger sub-pages (defined before resources to prevent route conflicts)
       get  "ledgers/services",              to: "ledgers#services",          as: "ledger_services"
@@ -199,4 +227,7 @@ Rails.application.routes.draw do
   post "slack/events",   to: "slack_events#events"
   post "slack/commands", to: "slack_events#commands"
   get  "slack/test",     to: "slack_events#test"
+
+  # Linestamp Webhooks
+  post "linestamp/webhooks/line_review", to: "linestamp/webhooks#line_review_callback"
 end
