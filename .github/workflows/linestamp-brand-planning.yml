@@ -6,7 +6,7 @@ on:
 
 jobs:
   brand-planning:
-    runs-on: [self-hosted, linestamp]
+    runs-on: [self-hosted, sakura-vps]
     permissions:
       contents: read
       issues: write
