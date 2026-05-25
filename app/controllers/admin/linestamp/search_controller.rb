@@ -2,7 +2,7 @@
 
 module Admin
   module Linestamp
-    class SearchController < ApplicationController
+    class SearchController < Admin::BaseController
       def index
         @axes = ::Linestamp::AttributeAxis.active.ordered.includes(:attribute_values)
         @themes = ::Linestamp::CommunicationTheme.active.ordered

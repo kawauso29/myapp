@@ -2,7 +2,7 @@
 
 module Admin
   module Linestamp
-    class AttributeValuesController < ApplicationController
+    class AttributeValuesController < Admin::BaseController
       before_action :set_value, only: [ :edit, :update ]
 
       def index

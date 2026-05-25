@@ -1,6 +1,9 @@
 class Linestamp::Stamp < ApplicationRecord
   include AASM
 
+  # Skip guard for syncer operations where themes are set incrementally
+  attr_accessor :skip_primary_theme_guard
+
   belongs_to :pack, class_name: "Linestamp::Pack"
   belongs_to :primary_communication_theme, class_name: "Linestamp::CommunicationTheme", optional: true
   has_one_attached :raw_image
@@ -13,7 +16,8 @@ class Linestamp::Stamp < ApplicationRecord
 
   validates :position, presence: true, numericality: { greater_than: 0 }
   validates :position, uniqueness: { scope: :pack_id }
-  validate :exactly_one_primary_communication_theme, if: -> { stamp_communication_themes.any? }
+  validate :exactly_one_primary_communication_theme,
+           if: -> { !skip_primary_theme_guard && stamp_communication_themes.any? }
 
   scope :with_themes, ->(theme_ids) {
     joins(:stamp_communication_themes)

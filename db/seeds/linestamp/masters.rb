@@ -109,4 +109,4 @@ module Linestamp
   end
 end
 
-Linestamp::Seeds.call if $PROGRAM_NAME == __FILE__ || defined?(Rails) && Rails.env
+Linestamp::Seeds.call if $PROGRAM_NAME == __FILE__ || (defined?(Rails) && !Rails.env.test?)

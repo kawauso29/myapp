@@ -2,7 +2,7 @@
 
 module Admin
   module Linestamp
-    class AttributeAxesController < ApplicationController
+    class AttributeAxesController < Admin::BaseController
       before_action :set_axis, only: [ :edit, :update ]
 
       def index

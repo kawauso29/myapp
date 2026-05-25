@@ -2,7 +2,7 @@
 
 module Admin
   module Linestamp
-    class CommunicationThemesController < ApplicationController
+    class CommunicationThemesController < Admin::BaseController
       before_action :set_theme, only: [ :edit, :update ]
 
       def index

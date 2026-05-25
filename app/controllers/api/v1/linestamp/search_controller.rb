@@ -4,7 +4,8 @@ module Api
   module V1
     module Linestamp
       class SearchController < ApplicationController
-        skip_before_action :verify_authenticity_token, raise: false
+        # API endpoint: protect from forgery with null session (stateless JSON API)
+        protect_from_forgery with: :null_session
 
         def index
           result = ::Linestamp::Search::FacetedSearcher.new(search_params).call

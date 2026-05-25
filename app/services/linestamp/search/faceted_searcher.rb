@@ -54,8 +54,7 @@ module Linestamp
         return scope.none if theme_ids.empty?
 
         theme_join_model = theme_join_model_for_target
-        fk = :"#{@target}_id"
-        matching_ids = theme_join_model.where(communication_theme_id: theme_ids).select(fk)
+        matching_ids = theme_join_model.where(communication_theme_id: theme_ids).select(fk_column)
         scope.where(id: matching_ids)
       end
 
@@ -72,11 +71,16 @@ module Linestamp
 
           # Use subquery to handle multiple axis filters without join conflicts
           join_model = join_model_for_target
-          fk = :"#{@target}_id"
-          matching_ids = join_model.where(attribute_value_id: value_ids).select(fk)
+          matching_ids = join_model.where(attribute_value_id: value_ids).select(fk_column)
           scope = scope.where(id: matching_ids)
         end
         scope
+      end
+
+      FK_COLUMNS = { "brand" => :brand_id, "pack" => :pack_id, "stamp" => :stamp_id }.freeze
+
+      def fk_column
+        FK_COLUMNS.fetch(@target)
       end
 
       def join_model_for_target
@@ -105,7 +109,7 @@ module Linestamp
           end
         when "published_at_desc"
           if @target == "pack"
-            scope.order(Arel.sql("linestamp_packs.published_at DESC NULLS LAST"))
+            scope.order(published_at: :desc)
           else
             scope.order(created_at: :desc)
           end
@@ -129,31 +133,53 @@ module Linestamp
         facets
       end
 
+      ATTRIBUTE_JOIN_TABLES = {
+        "brand" => "linestamp_brand_attribute_values",
+        "pack" => "linestamp_pack_attribute_values",
+        "stamp" => "linestamp_stamp_attribute_values"
+      }.freeze
+
+      THEME_JOIN_TABLES = {
+        "brand" => "linestamp_brand_communication_themes",
+        "pack" => "linestamp_pack_communication_themes",
+        "stamp" => "linestamp_stamp_communication_themes"
+      }.freeze
+
+      FK_COLUMN_NAMES = { "brand" => "brand_id", "pack" => "pack_id", "stamp" => "stamp_id" }.freeze
+
       def compute_axis_facet(scope, axis)
-        join_table = "linestamp_#{@target}_attribute_values"
-        fk_column = "#{@target}_id"
+        jt = ATTRIBUTE_JOIN_TABLES.fetch(@target)
+        fk = FK_COLUMN_NAMES.fetch(@target)
 
         counts = Linestamp::AttributeValue
           .where(axis: axis, active: true)
-          .joins("INNER JOIN #{join_table} ON #{join_table}.attribute_value_id = linestamp_attribute_values.id")
-          .where("#{join_table}.#{fk_column}" => scope.select(:id))
+          .joins(
+            ActiveRecord::Base.sanitize_sql_array(
+              ["INNER JOIN #{jt} ON #{jt}.attribute_value_id = linestamp_attribute_values.id"]
+            )
+          )
+          .where("#{jt}.#{fk}" => scope.select(:id))
           .group(:id, :slug, :name)
-          .count("#{join_table}.id")
+          .count("#{jt}.id")
 
         counts.map { |(id, slug, name), count| { id: id, slug: slug, name: name, count: count } }
               .sort_by { |f| -f[:count] }
       end
 
       def compute_theme_facet(scope)
-        join_table = "linestamp_#{@target}_communication_themes"
-        fk_column = "#{@target}_id"
+        jt = THEME_JOIN_TABLES.fetch(@target)
+        fk = FK_COLUMN_NAMES.fetch(@target)
 
         counts = Linestamp::CommunicationTheme
           .where(active: true)
-          .joins("INNER JOIN #{join_table} ON #{join_table}.communication_theme_id = linestamp_communication_themes.id")
-          .where("#{join_table}.#{fk_column}" => scope.select(:id))
+          .joins(
+            ActiveRecord::Base.sanitize_sql_array(
+              ["INNER JOIN #{jt} ON #{jt}.communication_theme_id = linestamp_communication_themes.id"]
+            )
+          )
+          .where("#{jt}.#{fk}" => scope.select(:id))
           .group(:id, :slug, :name)
-          .count("#{join_table}.id")
+          .count("#{jt}.id")
 
         counts.map { |(id, slug, name), count| { id: id, slug: slug, name: name, count: count } }
               .sort_by { |f| -f[:count] }
