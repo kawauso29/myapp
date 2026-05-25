@@ -320,6 +320,25 @@ guard: ->(pack) {
 }
 ```
 
+### 8H. ★ Planning workflow の中身を実装(現状 TODO スタブ)
+
+Phase 1 で作られた以下の workflow は **`echo "TODO..."` の空殻** のため、手動実行しても Issue が起票されません。
+中身を実装してください。詳細は `docs/linestamp/16_PHASE2_GAPS_AND_FIXES.md` Sprint H 参照。
+
+書き換える workflow:
+- `.github/workflows/linestamp-research.yml` (週1 + workflow_dispatch)
+- `.github/workflows/linestamp-brand-planning.yml` (日次 + workflow_dispatch, count input)
+- `.github/workflows/linestamp-pack-planning.yml` (日次 + workflow_dispatch, count input)
+- `.github/workflows/linestamp-sync.yml` (brand_sources push 時、Rails webhook を叩く)
+
+必須要件(myapp の既存運用パターン、CLAUDE.md 準拠):
+- **`DEPLOY_TOKEN` (個人 PAT) を使う**(GITHUB_TOKEN だと Copilot Coding Agent が反応しない GitHub 仕様)
+- **Issue 作成 → `@copilot` メンションコメント → `copilot-swe-agent[bot]` をアサイン** の順
+- 既存の `ai_sns_plan.yml` 等と同じ作法
+
+新たに必要な Secret:
+- `LINESTAMP_SYNC_TOKEN` (rails secret で生成、Rails の webhook 認証に使う)
+
 ### 9. 緑色を統一
 
 `#00FF00` の出現箇所を全て `#3CB371` (medium sea green) に変更:
@@ -380,6 +399,14 @@ guard: ->(pack) {
 - [ ] `grep -r 'stamp\.text_overlay'` で能動的参照ゼロ(`label` に置換)
 - [ ] db/schema.rb から該当4カラムが消えている
 
+### Planning workflow (Sprint H)
+- [ ] `linestamp-research.yml` を workflow_dispatch で手動実行 → 実際に Issue が作られて Copilot がアサインされる
+- [ ] `linestamp-brand-planning.yml` を count=1 で実行 → ブランド企画 Issue が1件作られる
+- [ ] `linestamp-pack-planning.yml` を count=1 で実行 → パック企画 Issue が1件作られる
+- [ ] `linestamp-sync.yml` が brand_sources/ への push で発火する
+- [ ] すべての workflow が `DEPLOY_TOKEN` を使用している(GITHUB_TOKEN ではない)
+- [ ] Issue 作成後に `copilot-swe-agent[bot]` がアサインされている
+
 ### CI
 - [ ] RSpec all green
 - [ ] RuboCop pass
@@ -411,7 +438,8 @@ guard: ->(pack) {
 - 管理画面 view 3 ページ強化 + Pack 詳細に main/tab 操作追加
 - brand_sources/nemuinu 4ファイル書き直し
 - 全view/controller/service/spec での旧カラム参照を新カラムに置換
-- 約 3000〜5000 行
+- **企画 workflow 4本の中身実装(現状 TODO スタブ、DEPLOY_TOKEN + Copilot アサイン込み)**
+- 約 3500〜5500 行
 ```
 
 ---

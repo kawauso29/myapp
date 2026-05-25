@@ -892,22 +892,329 @@ validates :series_name,    presence: true
 
 ---
 
-## Sprint A〜G 全体まとめ
+### ★★★ Sprint H: 企画 workflow の中身を実装(現状 TODO スタブ)
+
+Phase 1 で `linestamp-research.yml` / `linestamp-brand-planning.yml` / `linestamp-pack-planning.yml` の3本が **echo "TODO..." の空殻** として作られている。
+
+```yaml
+# 現状(全3ワークフロー共通)
+- name: Run research task
+  run: |
+    echo "Linestamp research workflow triggered"
+    echo "TODO: Implement research automation"
+```
+
+→ workflow_dispatch で手動実行しても **何も起きない**。Copilot Coding Agent への Issue 起票がされない。
+
+#### H-1. 修正方針
+
+myapp の既存運用パターン(CLAUDE.md「Copilot coding agent を Issue から起動するには…」参照)に揃える:
+
+1. **`DEPLOY_TOKEN`(個人 PAT)で Issue 作成** ← `GITHUB_TOKEN` だと Copilot が反応しない
+2. **assignees に `copilot-swe-agent[bot]` を追加**(正しい bot ユーザー名)
+3. **`@copilot` メンションコメントを別途投稿**(本文に書いても起動しない)
+4. ブランチ命名は `copilot/linestamp-research-*` 等(`copilot/ai-sns-*` パターンに準拠)
+
+#### H-2. `linestamp-research.yml` の完成版
+
+```yaml
+name: Linestamp Research
+on:
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: "今週の調査フォーカス(空でも可)"
+        required: false
+        default: ""
+  schedule:
+    - cron: '0 0 * * 1'  # 月曜 0:00 UTC = 月曜 9:00 JST
+
+jobs:
+  create-research-issue:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute ISO week
+        id: week
+        run: |
+          WEEK=$(date -u +"%Y-W%V")
+          echo "iso_week=$WEEK" >> $GITHUB_OUTPUT
+
+      - name: Create research issue and assign Copilot
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          WEEK="${{ steps.week.outputs.iso_week }}"
+          FOCUS="${{ inputs.focus }}"
+          [ -z "$FOCUS" ] && FOCUS="今週注目のLINEスタンプトレンド・季節要素・感情ニーズ"
+
+          BODY=$(cat <<EOF
+          ## ミッション
+          LINEスタンプ企画のための週次調査を実施し、結果を \`brand_sources/research/${WEEK}/\` に出力してください。
+
+          ## 出力ファイル
+          - \`brand_sources/research/${WEEK}/findings.md\` (本文)
+          - \`brand_sources/research/${WEEK}/trends.yml\` (構造化キーワード)
+          - \`brand_sources/research/${WEEK}/brief.md\` (この issue 本文をコピー)
+
+          ## 調査フォーカス
+          ${FOCUS}
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## 調査 (Research)」セクション参照。
+
+          ## 完了条件
+          - [ ] findings.md に最低5つの利用シーン
+          - [ ] findings.md に最低3つの感情ニーズ
+          - [ ] trends.yml に keywords / seasons / emotions / age_groups 各配列
+          - [ ] PR が作成され draft でレビュー待ち
+          EOF
+          )
+
+          # 1. Issue 作成
+          ISSUE_URL=$(gh issue create \
+            --title "[linestamp/research] ${WEEK} 週次調査" \
+            --label "linestamp,research,auto" \
+            --body "$BODY")
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+          echo "Created: $ISSUE_URL"
+
+          # 2. Copilot bot をアサイン(コメントは assignee 追加の前に投稿)
+          gh issue comment $ISSUE_NUMBER --body "@copilot 上記の調査をお願いします。docs/linestamp/08_PLANNING_GUIDE.md を必読。"
+          gh issue edit $ISSUE_NUMBER --add-assignee "copilot-swe-agent[bot]"
+```
+
+#### H-3. `linestamp-brand-planning.yml` の完成版
+
+(同様の構造で、`count` 入力 + ループで複数 Issue 作成)
+
+```yaml
+name: Linestamp Brand Planning
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "ブランド企画数(default=3)"
+        required: false
+        default: "3"
+  schedule:
+    - cron: '0 22 * * *'  # 22:00 UTC = 翌7:00 JST
+
+jobs:
+  create-brand-issues:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find latest research
+        id: research
+        run: |
+          LATEST=$(ls -1 brand_sources/research/ 2>/dev/null | sort | tail -1 || echo "none")
+          echo "slug=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Create brand planning issues
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          COUNT="${{ inputs.count }}"
+          [ -z "$COUNT" ] && COUNT="3"
+          RESEARCH="${{ steps.research.outputs.slug }}"
+          DATE=$(date -u +"%Y-%m-%d")
+
+          for i in $(seq 1 $COUNT); do
+            BODY=$(cat <<EOF
+          ## ミッション
+          新規LINEスタンプブランドの企画書一式を \`brand_sources/{新slug}/\` に作成してください。
+
+          ## 参考にする調査
+          \`brand_sources/research/${RESEARCH}/findings.md\` を必ず読むこと。
+
+          ## 出力
+          - \`brand_sources/{slug}/01_brand_theme.md\`
+          - \`brand_sources/{slug}/02_base.md\`
+          - \`brand_sources/{slug}/meta.yml\`
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## Brand 企画」を参照。
+          既存ブランド \`brand_sources/nemuinu/\` をお手本にする。
+
+          ## 完了条件
+          - [ ] 二段定義: 「○○ではない、○○な△△」
+          - [ ] 優先順位3つを明示
+          - [ ] Core/Work/Dream の表現レイヤー定義
+          - [ ] meta.yml に character_parts / font_spec / tone_axes が入っている
+          - [ ] PR がレビュー待ち
+          EOF
+          )
+
+            ISSUE_URL=$(gh issue create \
+              --title "[linestamp/brand] ${DATE} #${i}" \
+              --label "linestamp,brand-planning,auto" \
+              --body "$BODY")
+            ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+            echo "Created: $ISSUE_URL"
+
+            gh issue comment $ISSUE_NUMBER --body "@copilot 新ブランド企画をお願いします。"
+            gh issue edit $ISSUE_NUMBER --add-assignee "copilot-swe-agent[bot]"
+
+            sleep 3
+          done
+```
+
+#### H-4. `linestamp-pack-planning.yml` の完成版
+
+```yaml
+name: Linestamp Pack Planning
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Pack企画数(default=10)"
+        required: false
+        default: "10"
+  schedule:
+    - cron: '30 22 * * *'  # 22:30 UTC = 翌7:30 JST
+
+jobs:
+  create-pack-issues:
+    runs-on: [self-hosted, linestamp]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List active brands
+        id: brands
+        run: |
+          BRANDS=$(ls -1d brand_sources/*/ 2>/dev/null | xargs -n1 basename | grep -v '^_' | grep -v '^research$' | tr '\n' ',' | sed 's/,$//')
+          [ -z "$BRANDS" ] && BRANDS="nemuinu"
+          echo "list=$BRANDS" >> $GITHUB_OUTPUT
+
+      - name: Create pack planning issues
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          COUNT="${{ inputs.count }}"
+          [ -z "$COUNT" ] && COUNT="10"
+          IFS=',' read -ra BRANDS <<< "${{ steps.brands.outputs.list }}"
+          DATE=$(date -u +"%Y-%m-%d")
+          NUM_BRANDS=${#BRANDS[@]}
+
+          for i in $(seq 1 $COUNT); do
+            BRAND=${BRANDS[$(((i-1) % NUM_BRANDS))]}
+
+            BODY=$(cat <<EOF
+          ## ミッション
+          既存ブランド \`${BRAND}\` に新しいシリーズ(Pack)を企画してください。
+          出力先: \`brand_sources/${BRAND}/packs/{新pack_slug}/\`
+
+          ## ベースブランド
+          \`brand_sources/${BRAND}/01_brand_theme.md\` と \`02_base.md\` を必読。
+          ブランドのキャラ・世界観・トーンを尊重すること。
+
+          ## 出力ファイル
+          - \`brand_sources/${BRAND}/packs/{slug}/03_stamp_pack.md\`
+          - \`brand_sources/${BRAND}/packs/{slug}/manifest.yml\` (新仕様: situation/intent/usage_scene/pose_spec/props/search_keywords/communication_purpose)
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## Pack 企画」を参照。
+          既存ねむ犬 \`brand_sources/nemuinu/packs/pack_001/manifest.yml\` を雛形に。
+
+          ## 完了条件
+          - [ ] 8枚すべてに label/situation/intent/usage_scene/pose_spec/props/search_keywords/communication_purpose
+          - [ ] パック内で利用シーンに統一感
+          - [ ] 既存 pack と重複しないテーマ
+          - [ ] PR がレビュー待ち
+          EOF
+          )
+
+            ISSUE_URL=$(gh issue create \
+              --title "[linestamp/pack] ${DATE} ${BRAND} #${i}" \
+              --label "linestamp,pack-planning,auto" \
+              --body "$BODY")
+            ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+            echo "Created: $ISSUE_URL"
+
+            gh issue comment $ISSUE_NUMBER --body "@copilot 新シリーズ企画をお願いします。"
+            gh issue edit $ISSUE_NUMBER --add-assignee "copilot-swe-agent[bot]"
+
+            sleep 2
+          done
+```
+
+#### H-5. `linestamp-sync.yml`(brand_sources/ 更新時に Rails sync を叩く)
+
+Phase 1 で確認漏れ。`linestamp-sync.yml` も同じく TODO スタブの可能性。確認 + 実装する。
+
+```yaml
+name: Linestamp Sync to Rails
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'brand_sources/**'
+
+jobs:
+  sync:
+    runs-on: [self-hosted, linestamp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger Rails sync via local HTTP
+        env:
+          SYNC_TOKEN: ${{ secrets.LINESTAMP_SYNC_TOKEN }}
+        run: |
+          curl -sf -X POST http://localhost:3000/webhooks/linestamp/sync \
+            -H "Authorization: Bearer $SYNC_TOKEN" \
+            -H "Content-Type: application/json" || echo "Rails sync failed (Rails not running?)"
+      - name: Notify Slack
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -sf -X POST $SLACK_WEBHOOK_URL \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\"🔄 brand_sources synced to Rails (${{ github.sha }})\"}"
+          fi
+```
+
+#### H-6. 前提となる Secrets
+
+myapp リポの GitHub Secrets に以下が登録されていること(`DEPLOY_TOKEN` は既存運用で使用中のはず):
+
+| Secret | 用途 | 既存 |
+|---|---|---|
+| `DEPLOY_TOKEN` | Issue 作成・Copilot アサイン用 PAT(fine-grained、Issues/Pull requests/Contents の RW) | ✅ あるはず |
+| `LINESTAMP_SYNC_TOKEN` | webhook 認証 | ❌ 新設(rails secret で生成) |
+| `SLACK_WEBHOOK_URL` | sync 完了通知 | ✅ あるはず(WEBHOOK_URL_JOBS 等) |
+
+---
+
+## Sprint A〜H 全体まとめ
 
 ```
-Sprint A: スキーマ拡張(7マイグレ)
+Sprint A: スキーマ拡張(10マイグレ)
 Sprint B: PromptComposer 全面書き直し
-Sprint C: 管理画面の参照画像同梱
+Sprint C: 管理画面の参照画像同梱(DesignerKit)
 Sprint D: brand_sources/nemuinu/ seed 修復
 Sprint E: 緑色 #3CB371 統一+その他
-Sprint F: main_image(240×240) / tab_image(96×74) 実生成 ★追加
-Sprint G: 旧カラム完全削除 ★追加
+Sprint F: main_image(240×240) / tab_image(96×74) 実生成
+Sprint G: 旧カラム完全削除
+Sprint H: 企画 workflow の中身を実装(現状 TODO スタブ)★追加
 ```
 
 合計マイグレーション: 10本
-合計新規ファイル: 約 60
-変更ファイル: 約 30
-推定行数: 3000〜5000行
+合計新規ファイル: 約 65
+変更ファイル: 約 35(workflow 4本含む)
+推定行数: 3500〜5500行
 
 ---
 
