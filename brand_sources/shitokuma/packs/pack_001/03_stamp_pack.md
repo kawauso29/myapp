@@ -6,7 +6,7 @@
 在宅ワークの「遅れ・調整・お礼」を8枚で一連の流れとして使えるようにする。
 
 ## 表現レイヤー
-Core Layer + Work Layer（在宅ワーク連絡特化）
+core_work（Core Layer + Work Layer の統合レイヤー）
 
 ## 採用しない要素（派生パックへ）
 - 夢演出（雲ベッド、しずく星、霧強め）は Dream Layer 派生で採用
