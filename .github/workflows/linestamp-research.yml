@@ -1,19 +1,110 @@
 name: Linestamp Research
+
 on:
   workflow_dispatch:
+    inputs:
+      focus:
+        description: "今週の調査フォーカス(空でも可)"
+        required: false
+        default: ""
   schedule:
-    - cron: '0 3 * * 1'  # 毎週月曜 12:00 JST
+    - cron: '0 0 * * 1' # 月曜 0:00 UTC = 月曜 9:00 JST
 
 jobs:
-  research:
-    runs-on: [self-hosted, sakura-vps]
+  create-research-issue:
+    runs-on: [self-hosted, linestamp]
     permissions:
       contents: read
       issues: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run research task
+      - name: Compute ISO week
+        id: week
         run: |
-          echo "Linestamp research workflow triggered"
-          echo "TODO: Implement research automation"
+          WEEK=$(TZ=Asia/Tokyo date +"%Y-W%V")
+          printf 'iso_week=%s\n' "$WEEK" >> "$GITHUB_OUTPUT"
+
+      - name: Create research issue and assign Copilot
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          FOCUS_INPUT: ${{ inputs.focus }}
+          ISO_WEEK: ${{ steps.week.outputs.iso_week }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "DEPLOY_TOKEN is required"
+            exit 1
+          fi
+
+          WEEK="$ISO_WEEK"
+          FOCUS="$FOCUS_INPUT"
+          if [ -z "$FOCUS" ]; then
+            FOCUS="今週注目のLINEスタンプトレンド・季節要素・感情ニーズ"
+          fi
+
+          BODY=$(cat <<EOF
+          ## ミッション
+          LINEスタンプ企画のための週次調査を実施し、結果を \`brand_sources/research/${WEEK}/\` に出力してください。
+
+          ## 出力ファイル
+          - \`brand_sources/research/${WEEK}/findings.md\` (本文)
+          - \`brand_sources/research/${WEEK}/trends.yml\` (構造化キーワード)
+          - \`brand_sources/research/${WEEK}/brief.md\` (この issue 本文をコピー)
+
+          ## 調査フォーカス
+          ${FOCUS}
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## 調査 (Research)」セクション参照。
+
+          ## 完了条件
+          - [ ] findings.md に最低5つの利用シーン
+          - [ ] findings.md に最低3つの感情ニーズ
+          - [ ] trends.yml に keywords / seasons / emotions / age_groups 各配列
+          - [ ] PR が作成され draft でレビュー待ち
+          EOF
+          )
+
+          export ISSUE_TITLE="[linestamp/research] ${WEEK} 週次調査"
+          export ISSUE_BODY="$BODY"
+          export ISSUE_LABELS="linestamp,research,auto"
+
+          python3 - <<'PY' > /tmp/linestamp-research-issue.json
+          import json
+          import os
+
+          print(json.dumps({
+              "title": os.environ["ISSUE_TITLE"],
+              "body": os.environ["ISSUE_BODY"],
+              "labels": os.environ["ISSUE_LABELS"].split(","),
+          }))
+          PY
+
+          ISSUE_RESPONSE=$(gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST --input /tmp/linestamp-research-issue.json)
+          ISSUE_NUMBER=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])' <<<"$ISSUE_RESPONSE")
+          ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
+          echo "Created: $ISSUE_URL"
+
+          COMMENT_BODY="@copilot このIssueに従って週次調査を行い、\`copilot/linestamp-research-${WEEK}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --method POST -f body="$COMMENT_BODY" >/dev/null
+
+          export AGENT_INSTRUCTIONS="このIssueに従って週次調査を行い、\`copilot/linestamp-research-${WEEK}\` ブランチでPRを作成してください。"
+          export TARGET_REPO="$GITHUB_REPOSITORY"
+
+          python3 - <<'PY' > /tmp/linestamp-research-assignee.json
+          import json
+          import os
+
+          print(json.dumps({
+              "assignees": ["copilot-swe-agent[bot]"],
+              "agent_assignment": {
+                  "target_repo": os.environ["TARGET_REPO"],
+                  "base_branch": "main",
+                  "custom_instructions": os.environ["AGENT_INSTRUCTIONS"],
+              },
+          }))
+          PY
+
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" --method POST --input /tmp/linestamp-research-assignee.json >/dev/null
