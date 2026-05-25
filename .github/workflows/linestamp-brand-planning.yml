@@ -96,13 +96,23 @@ jobs:
           }))
           PY
 
-            ISSUE_RESPONSE=$(gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST --input /tmp/linestamp-brand-issue.json)
+            ISSUE_RESPONSE=$(curl -sf -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" \
+              -H "Authorization: token ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/linestamp-brand-issue.json)
             ISSUE_NUMBER=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])' <<<"$ISSUE_RESPONSE")
             ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
             echo "Created: $ISSUE_URL"
 
             COMMENT_BODY="@copilot このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --method POST -f body="$COMMENT_BODY" >/dev/null
+            export COMMENT_BODY
+            COMMENT_PAYLOAD=$(python3 -c 'import json, os; print(json.dumps({"body": os.environ["COMMENT_BODY"]}))')
+            curl -sf -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+              -H "Authorization: token ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "$COMMENT_PAYLOAD" >/dev/null
 
             export AGENT_INSTRUCTIONS="このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。"
             export TARGET_REPO="$GITHUB_REPOSITORY"
@@ -121,6 +131,10 @@ jobs:
           }))
           PY
 
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" --method POST --input /tmp/linestamp-brand-assignee.json >/dev/null
+            curl -sf -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" \
+              -H "Authorization: token ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/linestamp-brand-assignee.json >/dev/null
             sleep 3
           done
