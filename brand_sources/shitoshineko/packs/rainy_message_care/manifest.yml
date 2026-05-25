@@ -18,7 +18,8 @@ target_emotions:
 - ねぎらい
 - 安心
 - やわらぎ
-excluded_elements: ハイテンションな大笑い・ジャンプ演出・キラキラ目は使わない
+excluded_elements:
+- ハイテンションな大笑い・ジャンプ演出・キラキラ目は使わない
 stamps:
 - number: 1
   label: 雨で遅れます
