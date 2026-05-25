@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Linestamp::Submission, type: :model do
-  let(:brand) { Linestamp::Brand.create!(slug: "test-brand", name: "Test Brand") }
-  let(:pack) { brand.packs.create!(title: "Pack 1", position: 1) }
+  let(:brand) { Linestamp::Brand.create!(slug: "test-brand", character_name: "Test Brand", series_name: "Test Series") }
+  let(:pack) { brand.packs.create!(series_theme: "Pack 1", position: 1) }
 
   describe "associations" do
     it { is_expected.to belong_to(:pack) }

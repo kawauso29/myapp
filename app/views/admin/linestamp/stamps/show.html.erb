@@ -1,14 +1,20 @@
-<h1 style="font-size:20px; margin-bottom:20px;">Stamp #<%= @stamp.position %> — <%= @stamp.pack.title %></h1>
+<h1 style="font-size:20px; margin-bottom:20px;">Stamp #<%= @stamp.position %> — <%= @stamp.pack.series_theme %></h1>
 
 <div class="grid-2">
   <div class="card">
     <h2>Stamp Info</h2>
     <dl class="profile-grid">
-      <dt>Pack</dt><dd><a href="<%= admin_linestamp_pack_path(@stamp.pack) %>" style="color:#63b3ed;"><%= @stamp.pack.title %></a></dd>
+      <dt>Pack</dt><dd><a href="<%= admin_linestamp_pack_path(@stamp.pack) %>" style="color:#63b3ed;"><%= @stamp.pack.series_theme %></a></dd>
       <dt>Position</dt><dd>#<%= @stamp.position %></dd>
       <dt>Status</dt><dd><span class="badge <%= @stamp.status == 'processed' ? 'active' : 'info' %>"><%= @stamp.status %></span></dd>
-      <dt>Emotion</dt><dd><%= @stamp.emotion || "—" %></dd>
-      <dt>Text</dt><dd><%= @stamp.text_overlay || "—" %></dd>
+      <dt>Label</dt><dd><%= @stamp.label || "—" %></dd>
+      <dt>Intent</dt><dd><%= @stamp.intent || "—" %></dd>
+      <dt>Situation</dt><dd><%= @stamp.situation || "—" %></dd>
+      <dt>Usage Scene</dt><dd><%= @stamp.usage_scene || "—" %></dd>
+      <dt>Communication Purpose</dt><dd><%= @stamp.communication_purpose || "—" %></dd>
+      <dt>Pose Spec</dt><dd><%= @stamp.pose_spec || "—" %></dd>
+      <dt>Props</dt><dd><%= @stamp.props || "—" %></dd>
+      <dt>Search Keywords</dt><dd><%= (@stamp.search_keywords || []).join(", ").presence || "—" %></dd>
     </dl>
   </div>
 
@@ -18,7 +24,7 @@
       <div>
         <p style="font-size:11px; color:#718096;">Raw</p>
         <% if @stamp.raw_image.attached? %>
-          <%= image_tag url_for(@stamp.raw_image), style: "max-width:150px; border-radius:4px; background:#00ff00;" %>
+          <%= image_tag url_for(@stamp.raw_image), style: "max-width:150px; border-radius:4px; background:#3CB371;" %>
         <% else %>
           <div style="width:150px; height:100px; background:#232637; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#4a5568;">No raw</div>
         <% end %>
@@ -29,6 +35,26 @@
           <%= image_tag url_for(@stamp.processed_image), style: "max-width:150px; border-radius:4px; background:repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 20px 20px;" %>
         <% else %>
           <div style="width:150px; height:100px; background:#232637; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#4a5568;">No processed</div>
+        <% end %>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px; font-size:14px;">Reference Images</h3>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+      <div>
+        <p style="font-size:10px; color:#718096;">Brand Base</p>
+        <% if @stamp.pack.brand.base_image.attached? %>
+          <%= image_tag url_for(@stamp.pack.brand.base_image), style: "max-width:120px; border-radius:4px;" %>
+        <% else %>
+          <p style="font-size:10px; color:#4a5568;">Not uploaded</p>
+        <% end %>
+      </div>
+      <div>
+        <p style="font-size:10px; color:#718096;">Pack Sheet</p>
+        <% if @stamp.pack.sheet_image.attached? %>
+          <%= image_tag url_for(@stamp.pack.sheet_image), style: "max-width:120px; border-radius:4px;" %>
+        <% else %>
+          <p style="font-size:10px; color:#4a5568;">Not uploaded</p>
         <% end %>
       </div>
     </div>

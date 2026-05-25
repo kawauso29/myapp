@@ -13,7 +13,7 @@
   <tbody>
     <% @brands.each do |brand| %>
       <tr>
-        <td><a href="<%= admin_linestamp_brand_path(brand) %>" style="color:#63b3ed;"><%= brand.name %></a></td>
+        <td><a href="<%= admin_linestamp_brand_path(brand) %>" style="color:#63b3ed;"><%= brand.character_name %></a></td>
         <td><code><%= brand.slug %></code></td>
         <td><span class="badge info"><%= brand.status %></span></td>
         <td><%= brand.packs.count %></td>

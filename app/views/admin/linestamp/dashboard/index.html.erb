@@ -27,7 +27,7 @@
       <tbody>
         <% @recent_brands.each do |brand| %>
           <tr>
-            <td><a href="<%= admin_linestamp_brand_path(brand) %>" style="color:#63b3ed;"><%= brand.name %></a></td>
+            <td><a href="<%= admin_linestamp_brand_path(brand) %>" style="color:#63b3ed;"><%= brand.character_name %></a></td>
             <td><span class="badge info"><%= brand.status %></span></td>
             <td><%= brand.updated_at.strftime("%Y-%m-%d %H:%M") %></td>
           </tr>
@@ -43,8 +43,8 @@
       <tbody>
         <% @recent_packs.each do |pack| %>
           <tr>
-            <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
-            <td><%= pack.brand.name %></td>
+            <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.series_theme %></a></td>
+            <td><%= pack.brand.character_name %></td>
             <td><span class="badge info"><%= pack.status %></span></td>
           </tr>
         <% end %>

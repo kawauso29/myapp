@@ -13,7 +13,7 @@ module Linestamp
       brand.mark_prompt_ready! if brand.may_mark_prompt_ready?
 
       Linestamp::SlackNotifier.notify(
-        text: ":pencil: Brand prompt composed: #{brand.name}"
+        text: ":pencil: Brand prompt composed: #{brand.character_name}"
       )
     end
   end

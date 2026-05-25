@@ -10,12 +10,13 @@ module Linestamp
       stamp.start_processing!
 
       processor = Linestamp::ChromaKeyProcessor.new
+      spec = stamp.pack.effective_image_spec
 
       stamp.raw_image.open do |raw_file|
         processed_file = if processor.already_transparent?(raw_file.path)
-                           processor.resize_for_line(raw_file.path)
+                           processor.resize_for_line(raw_file.path, spec: spec)
         else
-                           processor.process(raw_file.path)
+                           processor.process(raw_file.path, spec: spec)
         end
 
         stamp.processed_image.attach(
@@ -34,7 +35,7 @@ module Linestamp
       if pack.all_stamps_processed? && pack.may_mark_stamps_complete?
         pack.mark_stamps_complete!
         Linestamp::SlackNotifier.notify(
-          text: ":white_check_mark: All stamps processed for: #{pack.brand.name} / #{pack.title}"
+          text: ":white_check_mark: All stamps processed for: #{pack.brand.character_name} / #{pack.series_theme}"
         )
       end
     rescue StandardError => e

@@ -6,10 +6,10 @@ RSpec.describe Linestamp::Seeders::Nemuinu do
       brand = described_class.new.seed!
 
       expect(brand.slug).to eq("nemuinu")
-      expect(brand.name).to eq("ねむ犬")
+      expect(brand.character_name).to eq("ねむ犬")
       expect(brand.packs.count).to eq(1)
       expect(brand.packs.first.stamps.count).to eq(8)
-      expect(brand.packs.first.title).to eq("ねむ犬 vol.1 日常編")
+      expect(brand.packs.first.series_theme).to eq("ねむ犬 vol.1 日常編")
     end
 
     it "is idempotent" do

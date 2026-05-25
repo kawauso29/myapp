@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_25_020454) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_25_030010) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -860,17 +860,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_25_020454) do
   end
 
   create_table "linestamp_brands", force: :cascade do |t|
+    t.string "background_color_for_gen", default: "#3CB371"
     t.text "base_prompt"
     t.text "brand_prompt"
+    t.string "character_name"
+    t.jsonb "character_parts", default: {}
+    t.text "concept"
     t.datetime "created_at", null: false
     t.text "description"
+    t.jsonb "font_spec", default: {}
     t.jsonb "metadata", default: {}
-    t.string "name", null: false
+    t.string "primary_color", default: "#FFFFFF"
+    t.text "purpose_background"
+    t.string "series_name"
     t.string "slug", null: false
     t.string "status", default: "planned", null: false
+    t.text "target_audience"
+    t.jsonb "target_axes", default: {}
+    t.jsonb "tone_axes", default: {}
+    t.text "two_part_definition"
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_linestamp_brands_on_slug", unique: true
     t.index ["status"], name: "index_linestamp_brands_on_status"
+  end
+
+  create_table "linestamp_image_specs", force: :cascade do |t|
+    t.boolean "active", default: true
+    t.string "background", default: "transparent"
+    t.datetime "created_at", null: false
+    t.jsonb "font_specs", default: []
+    t.integer "height", null: false
+    t.integer "margin_px", default: 10
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.integer "width", null: false
+    t.index ["slug"], name: "index_linestamp_image_specs_on_slug", unique: true
   end
 
   create_table "linestamp_packs", force: :cascade do |t|
@@ -878,39 +903,70 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_25_020454) do
     t.bigint "approver_id"
     t.bigint "brand_id", null: false
     t.datetime "created_at", null: false
+    t.text "excluded_elements"
+    t.bigint "image_spec_id"
+    t.string "layer"
+    t.bigint "main_source_stamp_id"
     t.jsonb "metadata", default: {}
     t.integer "position", default: 1, null: false
+    t.string "series_theme"
     t.text "sheet_prompt"
+    t.string "slug"
     t.string "status", default: "planned", null: false
-    t.string "title", null: false
+    t.bigint "tab_source_stamp_id"
+    t.jsonb "target_emotions", default: []
     t.datetime "updated_at", null: false
+    t.jsonb "usage_scenes", default: []
+    t.text "world_view"
     t.index ["approver_id"], name: "index_linestamp_packs_on_approver_id"
     t.index ["brand_id", "position"], name: "index_linestamp_packs_on_brand_id_and_position", unique: true
+    t.index ["brand_id", "slug"], name: "index_linestamp_packs_on_brand_id_and_slug", unique: true
     t.index ["brand_id"], name: "index_linestamp_packs_on_brand_id"
+    t.index ["image_spec_id"], name: "index_linestamp_packs_on_image_spec_id"
+    t.index ["main_source_stamp_id"], name: "index_linestamp_packs_on_main_source_stamp_id"
     t.index ["status"], name: "index_linestamp_packs_on_status"
+    t.index ["tab_source_stamp_id"], name: "index_linestamp_packs_on_tab_source_stamp_id"
   end
 
   create_table "linestamp_researches", force: :cascade do |t|
     t.text "body"
+    t.text "brand_ideas"
+    t.text "communication_substitute_needs"
     t.datetime "created_at", null: false
+    t.jsonb "emotions", default: []
+    t.text "findings"
+    t.jsonb "keywords", default: []
+    t.text "line_market_insights"
     t.jsonb "metadata", default: {}
+    t.jsonb "seasons", default: []
+    t.string "slug"
     t.string "source_url"
     t.string "status", default: "draft", null: false
+    t.jsonb "target_axes", default: {}
     t.string "title", null: false
+    t.jsonb "tone_axes", default: {}
     t.datetime "updated_at", null: false
+    t.jsonb "usage_scenes", default: []
+    t.index ["slug"], name: "index_linestamp_researches_on_slug", unique: true
     t.index ["status"], name: "index_linestamp_researches_on_status"
   end
 
   create_table "linestamp_stamps", force: :cascade do |t|
+    t.text "communication_purpose"
     t.datetime "created_at", null: false
-    t.string "emotion"
+    t.text "intent"
+    t.string "label"
     t.jsonb "metadata", default: {}
     t.bigint "pack_id", null: false
+    t.text "pose_spec"
     t.integer "position", null: false
     t.text "prompt"
+    t.text "props"
+    t.jsonb "search_keywords", default: []
+    t.text "situation"
     t.string "status", default: "planned", null: false
-    t.string "text_overlay"
     t.datetime "updated_at", null: false
+    t.text "usage_scene"
     t.index ["pack_id", "position"], name: "index_linestamp_stamps_on_pack_id_and_position", unique: true
     t.index ["pack_id"], name: "index_linestamp_stamps_on_pack_id"
     t.index ["status"], name: "index_linestamp_stamps_on_status"
@@ -1380,6 +1436,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_25_020454) do
   add_foreign_key "cost_ledgers", "ticket_ledgers", column: "source_ticket_id"
   add_foreign_key "ledger_v2_events", "ledger_v2_runs", column: "run_id"
   add_foreign_key "linestamp_packs", "linestamp_brands", column: "brand_id"
+  add_foreign_key "linestamp_packs", "linestamp_image_specs", column: "image_spec_id"
+  add_foreign_key "linestamp_packs", "linestamp_stamps", column: "main_source_stamp_id"
+  add_foreign_key "linestamp_packs", "linestamp_stamps", column: "tab_source_stamp_id"
   add_foreign_key "linestamp_packs", "users", column: "approver_id"
   add_foreign_key "linestamp_stamps", "linestamp_packs", column: "pack_id"
   add_foreign_key "linestamp_submissions", "linestamp_packs", column: "pack_id"

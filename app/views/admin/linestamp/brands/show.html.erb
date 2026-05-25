@@ -1,4 +1,4 @@
-<h1 style="font-size:20px; margin-bottom:20px;"><%= @brand.name %></h1>
+<h1 style="font-size:20px; margin-bottom:20px;"><%= @brand.character_name %></h1>
 
 <div class="grid-2">
   <div class="card">
@@ -6,7 +6,12 @@
     <dl class="profile-grid">
       <dt>Slug</dt><dd><code><%= @brand.slug %></code></dd>
       <dt>Status</dt><dd><span class="badge info"><%= @brand.status %></span></dd>
-      <dt>Description</dt><dd><%= @brand.description %></dd>
+      <dt>Series Name</dt><dd><%= @brand.series_name %></dd>
+      <dt>Two-Part Definition</dt><dd><%= @brand.two_part_definition %></dd>
+      <dt>Concept</dt><dd><%= @brand.concept %></dd>
+      <dt>Target Audience</dt><dd><%= @brand.target_audience %></dd>
+      <dt>Primary Color</dt><dd><span style="display:inline-block; width:20px; height:20px; background:<%= @brand.primary_color %>; border:1px solid #555; vertical-align:middle;"></span> <%= @brand.primary_color %></dd>
+      <dt>Background Color</dt><dd><span style="display:inline-block; width:20px; height:20px; background:<%= @brand.background_color_for_gen %>; border:1px solid #555; vertical-align:middle;"></span> <%= @brand.background_color_for_gen %></dd>
     </dl>
   </div>
 
@@ -26,6 +31,47 @@
   </div>
 </div>
 
+<% if @brand.character_parts.present? %>
+<div class="card" style="margin-top:16px;">
+  <h2>Character Parts</h2>
+  <dl class="profile-grid">
+    <% (@brand.character_parts || {}).each do |part, desc| %>
+      <dt><%= part.titleize %></dt><dd><%= desc %></dd>
+    <% end %>
+  </dl>
+</div>
+<% end %>
+
+<% if @brand.tone_axes.present? %>
+<div class="card" style="margin-top:16px;">
+  <h2>Tone Axes</h2>
+  <dl class="profile-grid">
+    <% (@brand.tone_axes || {}).each do |axis, value| %>
+      <dt><%= axis.titleize %></dt>
+      <dd>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:100px; height:8px; background:#2d3748; border-radius:4px; overflow:hidden;">
+            <div style="width:<%= (value.to_f * 100).round %>%; height:100%; background:#63b3ed;"></div>
+          </div>
+          <span><%= (value.to_f * 100).round %>%</span>
+        </div>
+      </dd>
+    <% end %>
+  </dl>
+</div>
+<% end %>
+
+<% if @brand.font_spec.present? %>
+<div class="card" style="margin-top:16px;">
+  <h2>Font Spec</h2>
+  <dl class="profile-grid">
+    <% (@brand.font_spec || {}).each do |key, val| %>
+      <dt><%= key.titleize %></dt><dd><%= val.is_a?(Array) ? val.join(", ") : val %></dd>
+    <% end %>
+  </dl>
+</div>
+<% end %>
+
 <div class="card" style="margin-top:16px;">
   <h2>Brand Prompt</h2>
   <% if @brand.brand_prompt.present? %>
@@ -39,12 +85,13 @@
 <div class="card" style="margin-top:16px;">
   <h2>Packs</h2>
   <table>
-    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Stamps</th></tr></thead>
+    <thead><tr><th>#</th><th>Theme</th><th>Layer</th><th>Status</th><th>Stamps</th></tr></thead>
     <tbody>
       <% @brand.packs.order(:position).each do |pack| %>
         <tr>
           <td><%= pack.position %></td>
-          <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
+          <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.series_theme %></a></td>
+          <td><%= pack.layer || "—" %></td>
           <td><span class="badge info"><%= pack.status %></span></td>
           <td><%= pack.stamps.count %></td>
         </tr>

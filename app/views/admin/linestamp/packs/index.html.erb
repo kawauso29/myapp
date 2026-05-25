@@ -3,7 +3,7 @@
 <table>
   <thead>
     <tr>
-      <th>Title</th>
+      <th>Theme</th>
       <th>Brand</th>
       <th>Position</th>
       <th>Status</th>
@@ -14,8 +14,8 @@
   <tbody>
     <% @packs.each do |pack| %>
       <tr>
-        <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.title %></a></td>
-        <td><%= pack.brand.name %></td>
+        <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.series_theme %></a></td>
+        <td><%= pack.brand.character_name %></td>
         <td><%= pack.position %></td>
         <td><span class="badge info"><%= pack.status %></span></td>
         <td><%= pack.stamps.where(status: "processed").count %>/<%= pack.stamps.count %></td>

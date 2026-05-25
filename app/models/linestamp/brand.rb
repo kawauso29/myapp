@@ -5,7 +5,8 @@ class Linestamp::Brand < ApplicationRecord
   has_one_attached :base_image
 
   validates :slug, presence: true, uniqueness: true
-  validates :name, presence: true
+  validates :character_name, presence: true
+  validates :series_name, presence: true
 
   aasm column: :status do
     state :planned, initial: true
@@ -19,6 +20,11 @@ class Linestamp::Brand < ApplicationRecord
     event :mark_base_ready do
       transitions from: :prompt_ready, to: :base_ready, guard: :has_base_image?
     end
+  end
+
+  # Display name for UI (character name is the primary identifier)
+  def display_name
+    character_name
   end
 
   private

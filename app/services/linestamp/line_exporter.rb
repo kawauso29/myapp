@@ -1,13 +1,5 @@
 module Linestamp
   class LineExporter
-    # LINE Creator Studio requirements:
-    # - main: 240x240 PNG (tab image)
-    # - stamps: 370x320 max, transparent PNG
-    # - ZIP file with specific structure
-
-    MAIN_IMAGE_SIZE = "240x240"
-    TAB_IMAGE_SIZE = "96x74"
-
     def initialize(pack)
       @pack = pack
     end
@@ -32,17 +24,19 @@ module Linestamp
           end
         end
 
-        # Add tab image if sheet_image exists
-        if @pack.sheet_image.attached?
+        # main.png (240x240 representative image)
+        if @pack.main_image.attached?
+          zos.put_next_entry("main.png")
+          @pack.main_image.open do |file|
+            zos.write(file.read)
+          end
+        end
+
+        # tab.png (96x74 tab image)
+        if @pack.tab_image.attached?
           zos.put_next_entry("tab.png")
-          @pack.sheet_image.open do |file|
-            tab_image = MiniMagick::Image.open(file.path)
-            tab_image.resize TAB_IMAGE_SIZE
-            tab_image.format "png"
-            temp = Tempfile.new(["tab_", ".png"])
-            tab_image.write(temp.path)
-            zos.write(File.read(temp.path))
-            temp.close!
+          @pack.tab_image.open do |file|
+            zos.write(file.read)
           end
         end
       end

@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe Linestamp::DailyOrchestratorJob, type: :job do
-  let(:brand) { Linestamp::Brand.create!(slug: "test", name: "Test", status: "planned") }
+  let(:brand) { Linestamp::Brand.create!(slug: "test", character_name: "Test", series_name: "Test Series", status: "planned") }
 
   before do
     allow(Linestamp::SlackNotifier).to receive(:notify)

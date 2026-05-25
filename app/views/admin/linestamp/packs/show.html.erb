@@ -1,13 +1,19 @@
-<h1 style="font-size:20px; margin-bottom:20px;"><%= @pack.brand.name %> / <%= @pack.title %></h1>
+<h1 style="font-size:20px; margin-bottom:20px;"><%= @pack.brand.character_name %> / <%= @pack.series_theme %></h1>
 
 <div class="grid-2">
   <div class="card">
     <h2>Pack Info</h2>
     <dl class="profile-grid">
-      <dt>Brand</dt><dd><a href="<%= admin_linestamp_brand_path(@pack.brand) %>" style="color:#63b3ed;"><%= @pack.brand.name %></a></dd>
+      <dt>Brand</dt><dd><a href="<%= admin_linestamp_brand_path(@pack.brand) %>" style="color:#63b3ed;"><%= @pack.brand.character_name %></a></dd>
       <dt>Position</dt><dd>#<%= @pack.position %></dd>
+      <dt>Slug</dt><dd><code><%= @pack.slug %></code></dd>
+      <dt>Layer</dt><dd><%= @pack.layer || "—" %></dd>
       <dt>Status</dt><dd><span class="badge info"><%= @pack.status %></span></dd>
       <dt>Approved</dt><dd><%= @pack.approved_at&.strftime("%Y-%m-%d %H:%M") || "—" %></dd>
+      <dt>World View</dt><dd><%= @pack.world_view || "—" %></dd>
+      <dt>Usage Scenes</dt><dd><%= (@pack.usage_scenes || []).join(", ").presence || "—" %></dd>
+      <dt>Target Emotions</dt><dd><%= (@pack.target_emotions || []).join(", ").presence || "—" %></dd>
+      <dt>Excluded Elements</dt><dd><%= @pack.excluded_elements || "—" %></dd>
     </dl>
 
     <div style="margin-top:12px;">
@@ -21,7 +27,14 @@
   </div>
 
   <div class="card">
-    <h2>Sheet Image</h2>
+    <h2>Reference: Brand Base Image</h2>
+    <% if @pack.brand.base_image.attached? %>
+      <p><%= image_tag url_for(@pack.brand.base_image), style: "max-width:200px; border-radius:8px;" %></p>
+    <% else %>
+      <p style="color:#718096;">Brand base image not uploaded yet.</p>
+    <% end %>
+
+    <h2 style="margin-top:16px;">Sheet Image</h2>
     <% if @pack.sheet_image.attached? %>
       <p><%= image_tag url_for(@pack.sheet_image), style: "max-width:300px; border-radius:8px;" %></p>
     <% else %>
@@ -30,6 +43,46 @@
     <%= form_with url: upload_sheet_admin_linestamp_pack_path(@pack), method: :post, multipart: true, style: "margin-top:12px;" do |f| %>
       <%= f.file_field :sheet_image, accept: "image/*", style: "color:#a0aec0;" %>
       <%= f.submit "Upload Sheet Image", class: "btn btn-primary btn-sm" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-top:16px;">
+  <div class="card">
+    <h2>Main Image (240×240)</h2>
+    <% if @pack.main_image.attached? %>
+      <%= image_tag url_for(@pack.main_image), style: "max-width:240px; border:1px solid #ccc; border-radius:4px;" %>
+    <% else %>
+      <p style="color:#718096;">Not set</p>
+    <% end %>
+    <%= form_with url: upload_main_image_admin_linestamp_pack_path(@pack), method: :post, multipart: true, style: "margin-top:8px;" do |f| %>
+      <%= f.file_field :main_image, accept: "image/png", style: "color:#a0aec0; font-size:12px;" %>
+      <%= f.submit "Upload Main", class: "btn btn-primary btn-sm" %>
+    <% end %>
+    <% if @pack.stamps.where(status: "processed").any? %>
+      <%= form_with url: generate_main_image_admin_linestamp_pack_path(@pack), method: :post, style: "margin-top:8px;" do |f| %>
+        <%= f.select :source_stamp_id, @pack.stamps.where(status: "processed").map { |s| ["##{s.position} #{s.display_label}", s.id] }, {}, style: "font-size:12px;" %>
+        <%= f.submit "Generate from Stamp", class: "btn btn-secondary btn-sm" %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div class="card">
+    <h2>Tab Image (96×74)</h2>
+    <% if @pack.tab_image.attached? %>
+      <%= image_tag url_for(@pack.tab_image), style: "max-width:96px; border:1px solid #ccc; border-radius:4px;" %>
+    <% else %>
+      <p style="color:#718096;">Not set</p>
+    <% end %>
+    <%= form_with url: upload_tab_image_admin_linestamp_pack_path(@pack), method: :post, multipart: true, style: "margin-top:8px;" do |f| %>
+      <%= f.file_field :tab_image, accept: "image/png", style: "color:#a0aec0; font-size:12px;" %>
+      <%= f.submit "Upload Tab", class: "btn btn-primary btn-sm" %>
+    <% end %>
+    <% if @pack.stamps.where(status: "processed").any? %>
+      <%= form_with url: generate_tab_image_admin_linestamp_pack_path(@pack), method: :post, style: "margin-top:8px;" do |f| %>
+        <%= f.select :source_stamp_id, @pack.stamps.where(status: "processed").map { |s| ["##{s.position} #{s.display_label}", s.id] }, {}, style: "font-size:12px;" %>
+        <%= f.submit "Generate from Stamp", class: "btn btn-secondary btn-sm" %>
+      <% end %>
     <% end %>
   </div>
 </div>
@@ -47,13 +100,13 @@
 <div class="card" style="margin-top:16px;">
   <h2>Stamps (<%= @stamps.where(status: "processed").count %>/<%= @stamps.count %> processed)</h2>
   <table>
-    <thead><tr><th>#</th><th>Emotion</th><th>Text</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>#</th><th>Label</th><th>Intent</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>
       <% @stamps.each do |stamp| %>
         <tr>
           <td><%= stamp.position %></td>
-          <td><%= stamp.emotion || "—" %></td>
-          <td><%= stamp.text_overlay || "—" %></td>
+          <td><%= stamp.label || "—" %></td>
+          <td><%= stamp.intent || "—" %></td>
           <td><span class="badge <%= stamp.status == 'processed' ? 'active' : 'info' %>"><%= stamp.status %></span></td>
           <td><a href="<%= admin_linestamp_stamp_path(stamp) %>" class="btn btn-primary btn-sm">Detail</a></td>
         </tr>

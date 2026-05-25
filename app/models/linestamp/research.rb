@@ -2,6 +2,7 @@ class Linestamp::Research < ApplicationRecord
   include AASM
 
   validates :title, presence: true
+  validates :slug, uniqueness: true, allow_blank: true
 
   aasm column: :status do
     state :draft, initial: true

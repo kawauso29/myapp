@@ -3,13 +3,22 @@ class Linestamp::Pack < ApplicationRecord
 
   belongs_to :brand, class_name: "Linestamp::Brand"
   belongs_to :approver, class_name: "User", optional: true
+  belongs_to :image_spec, class_name: "Linestamp::ImageSpec", optional: true
+  belongs_to :main_source_stamp, class_name: "Linestamp::Stamp", optional: true
+  belongs_to :tab_source_stamp, class_name: "Linestamp::Stamp", optional: true
   has_many :stamps, class_name: "Linestamp::Stamp", dependent: :destroy
   has_many :submissions, class_name: "Linestamp::Submission", dependent: :destroy
   has_one_attached :sheet_image
+  has_one_attached :main_image
+  has_one_attached :tab_image
 
-  validates :title, presence: true
+  validates :series_theme, presence: true
   validates :position, presence: true, numericality: { greater_than: 0 }
   validates :position, uniqueness: { scope: :brand_id }
+  validates :slug, uniqueness: { scope: :brand_id }, allow_blank: true
+
+  LAYERS = %w[core_work dream weekend seasonal event].freeze
+  validates :layer, inclusion: { in: LAYERS }, allow_blank: true
 
   aasm column: :status do
     state :planned, initial: true
@@ -40,8 +49,17 @@ class Linestamp::Pack < ApplicationRecord
     end
   end
 
+  # Display name for UI
+  def display_name
+    series_theme
+  end
+
   def all_stamps_processed?
     stamps.any? && !stamps.where.not(status: "processed").exists?
+  end
+
+  def effective_image_spec
+    image_spec || Linestamp::ImageSpec.default
   end
 
   private
