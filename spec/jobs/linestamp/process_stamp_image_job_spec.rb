@@ -14,9 +14,7 @@ RSpec.describe Linestamp::ProcessStampImageJob, type: :job do
     temp.close!
   end
 
-  def imagemagick_available?
-    system("command -v mogrify > /dev/null 2>&1") || system("command -v magick > /dev/null 2>&1")
-  end
+
 
   it "processes stamp image and transitions state" do
     described_class.perform_now(stamp.id)

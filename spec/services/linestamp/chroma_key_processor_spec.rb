@@ -52,8 +52,4 @@ RSpec.describe Linestamp::ChromaKeyProcessor do
         .to raise_error(Linestamp::ChromaKeyProcessor::MissingImageMagickError)
     end
   end
-
-  def imagemagick_available?
-    system("command -v mogrify > /dev/null 2>&1") || system("command -v magick > /dev/null 2>&1")
-  end
 end

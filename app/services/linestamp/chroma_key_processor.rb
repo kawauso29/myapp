@@ -75,20 +75,36 @@ module Linestamp
     end
 
     def self.ensure_image_magick_cli!
-      return if command_available?(MOGRIFY_COMMAND)
+      return if @image_magick_cli_ready
 
-      if command_available?(MAGICK_COMMAND)
-        MiniMagick.configure do |config|
-          config.cli_prefix = [MAGICK_COMMAND]
+      @image_magick_cli_mutex ||= Mutex.new
+      @image_magick_cli_mutex.synchronize do
+        return if @image_magick_cli_ready
+
+        if command_available?(MOGRIFY_COMMAND)
+          @image_magick_cli_ready = true
+          return
         end
-        return
-      end
 
-      raise MissingImageMagickError, "ImageMagick command is not available. Install ImageMagick or expose '#{MOGRIFY_COMMAND}'/'#{MAGICK_COMMAND}' in PATH."
+        if command_available?(MAGICK_COMMAND)
+          MiniMagick.configure do |config|
+            config.cli_prefix = [MAGICK_COMMAND]
+          end
+          @image_magick_cli_ready = true
+          return
+        end
+
+        raise MissingImageMagickError, "ImageMagick command is not available. Install ImageMagick or expose '#{MOGRIFY_COMMAND}'/'#{MAGICK_COMMAND}' in PATH."
+      end
     end
 
     def self.command_available?(command)
-      system("command -v #{command} >/dev/null 2>&1")
+      ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |path|
+        next false if path.empty?
+
+        command_path = File.join(path, command)
+        File.file?(command_path) && File.executable?(command_path)
+      end
     end
     private_class_method :command_available?
   end
