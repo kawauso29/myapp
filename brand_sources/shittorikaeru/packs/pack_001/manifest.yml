@@ -1,0 +1,134 @@
+slug: pack_001
+series_theme: 梅雨どき連絡フォロー
+layer: core_work
+world_view: 梅雨入り前後のしっとりした空気の中で、返信遅れや進行確認をやわらかく伝える業務連絡シーン
+communication_themes: [apology, status_update, appreciation]
+attributes:
+  tone: [gentle, calm]
+  setting: [remote_work, rainy_day]
+purchase_unit_size: 8
+usage_scenes:
+- 返信遅延のフォロー
+- 進捗確認の返信
+- 会議前後の連絡
+- ねぎらい
+- 体調ぼやき
+target_emotions:
+- 気まずさ
+- 安心
+- ねぎらい
+- だるさ共感
+excluded_elements: 強いハイテンション表情、派手な季節イベント演出、絶叫系テキスト
+stamps:
+- number: 1
+  label: お待たせです
+  primary_communication_theme: apology
+  communication_themes: [apology, status_update]
+  situation: 透明傘を肩に乗せて小さく会釈。半目で申し訳なさそうに水滴が一粒ついている。
+  intent: 返信遅れの謝意をやわらかく伝える
+  usage_scene: 返信が遅れた直後
+  pose_spec: 透明傘を片手に持って浅くお辞儀
+  props: 透明傘, 水滴
+  search_keywords:
+  - お待たせ
+  - 返信遅れ
+  - ごめん
+  communication_purpose: 遅れた事実を認めつつ会話を再開しやすくする
+- number: 2
+  label: 確認します
+  primary_communication_theme: status_update
+  communication_themes: [status_update]
+  situation: ノートPCをのぞき込みながら半目でうなずく。通知ベルの小アイコンが横に浮く。
+  intent: 対応着手を即時に示す
+  usage_scene: タスク依頼を受けた直後
+  pose_spec: ノートPC前で前のめりにうなずく
+  props: ノートPC, 通知ベル
+  search_keywords:
+  - 確認中
+  - 対応
+  - 了解
+  communication_purpose: 放置ではないことを短く明示して安心させる
+- number: 3
+  label: 5分だけ待って
+  primary_communication_theme: status_update
+  communication_themes: [status_update, apology]
+  situation: 指を5に開いて半目のまま小さく手を挙げる。足元に雨粒のしずくが並ぶ。
+  intent: 短時間の待機依頼
+  usage_scene: 会議直前や作業切替時
+  pose_spec: 片手を前に出して5本指を見せる
+  props: 雨粒
+  search_keywords:
+  - 5分
+  - 待って
+  - すぐ
+  communication_purpose: 待ち時間を具体化して相手の不安を下げる
+- number: 4
+  label: 先に進めてOK
+  primary_communication_theme: status_update
+  communication_themes: [status_update]
+  situation: 半目で親指を横に向け、相手を先行させる合図。背後に薄いくもりマーク。
+  intent: 相手の先行を許可する
+  usage_scene: 同時作業の分担連絡
+  pose_spec: 体を斜めにして片手サムズアップ
+  props: くもりマーク
+  search_keywords:
+  - 先に
+  - 進めて
+  - OK
+  communication_purpose: 待たせず進行させる判断を明確に伝える
+- number: 5
+  label: ありがとう助かる
+  primary_communication_theme: appreciation
+  communication_themes: [appreciation]
+  situation: 両手を胸の前で合わせて半目でほほえむ。ほっぺのしずく模様が少し光る。
+  intent: 協力への感謝を伝える
+  usage_scene: フォローしてもらった後
+  pose_spec: 両手を胸前で合わせる
+  props: 小さなきらめき
+  search_keywords:
+  - ありがとう
+  - 助かる
+  - 感謝
+  communication_purpose: 相手の行動をねぎらい関係をなめらかにする
+- number: 6
+  label: 今向かってます
+  primary_communication_theme: status_update
+  communication_themes: [status_update]
+  situation: 小走りしつつ半目を保ち、片手に折りたたみ傘。雨粒を後ろに引き連れる。
+  intent: 到着見込みを共有する
+  usage_scene: 会議や待ち合わせに遅れそうな時
+  pose_spec: 前傾姿勢で小走り
+  props: 折りたたみ傘, 雨粒
+  search_keywords:
+  - 向かってる
+  - 到着
+  - いま
+  communication_purpose: 現在位置と行動を共有して待機ストレスを減らす
+- number: 7
+  label: 今日は低気圧
+  primary_communication_theme: status_update
+  communication_themes: [status_update, empathy]
+  situation: マグカップを抱えて半目でしょんぼり。頭上に小さな雨雲アイコン。
+  intent: コンディション低下を軽く共有する
+  usage_scene: 体調ぼやきを添える朝連絡
+  pose_spec: 体を丸めてマグを両手で抱える
+  props: マグカップ, 雨雲アイコン
+  search_keywords:
+  - 低気圧
+  - だるい
+  - 天気
+  communication_purpose: 不調を重くしすぎず共有し、配慮を得やすくする
+- number: 8
+  label: またあとでね
+  primary_communication_theme: status_update
+  communication_themes: [status_update, appreciation]
+  situation: 半目で小さく手を振り、足元にしずくの余韻。穏やかな締めの表情。
+  intent: 一度会話を区切って再連絡を予告する
+  usage_scene: やり取りを一旦終了する時
+  pose_spec: 片手を肩の高さで小さく振る
+  props: しずくの余韻線
+  search_keywords:
+  - またあとで
+  - いったん
+  - 締め
+  communication_purpose: 会話終了を角立てずに伝え、次の連絡につなげる
