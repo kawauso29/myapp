@@ -5,6 +5,11 @@ module Linestamp
       fonts = brand.font_spec || {}
       tone_text = (brand.tone_axes || {}).map { |k, v| "#{k}: #{(v.to_f * 100).round}%" }.join(", ")
 
+      parts_text = %w[eyes mouth ears body limbs tail collar].filter_map { |key|
+        val = parts[key]
+        "- #{I18n.t("linestamp.parts.#{key}", default: key.titleize)}: #{val}" if val.present?
+      }.join("\n")
+
       <<~PROMPT.strip
         あなたはLINEスタンプキャラクターのキャラ仕様シートを描くデザイナーです。
 
@@ -12,13 +17,7 @@ module Linestamp
         #{brand.two_part_definition}
 
         ## キャラパーツ仕様(必須遵守)
-        - 目: #{parts['eyes']}
-        - 口: #{parts['mouth']}
-        - 耳: #{parts['ears']}
-        - 体型: #{parts['body']}
-        - 手足: #{parts['limbs']}
-        - しっぽ: #{parts['tail']}
-        - 首輪: #{parts['collar']}
+        #{parts_text}
 
         ## フォント仕様
         - 基本: #{fonts['primary']}
