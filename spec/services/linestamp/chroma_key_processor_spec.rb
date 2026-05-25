@@ -3,11 +3,11 @@ require "rails_helper"
 RSpec.describe Linestamp::ChromaKeyProcessor do
   let(:processor) { described_class.new }
 
-  before do
-    skip "ImageMagick not installed" unless imagemagick_available?
-  end
-
   describe "#process" do
+    before do
+      skip "ImageMagick not installed" unless imagemagick_available?
+    end
+
     it "processes a green background image" do
       temp_input = Tempfile.new(["test_green_", ".png"])
       system("convert -size 100x100 xc:'#00FF00' #{temp_input.path}")
@@ -25,6 +25,10 @@ RSpec.describe Linestamp::ChromaKeyProcessor do
   end
 
   describe "#resize_for_line" do
+    before do
+      skip "ImageMagick not installed" unless imagemagick_available?
+    end
+
     it "resizes image to fit LINE spec" do
       temp_input = Tempfile.new(["test_large_", ".png"])
       system("convert -size 800x800 xc:white #{temp_input.path}")
