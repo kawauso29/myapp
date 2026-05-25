@@ -82,13 +82,32 @@ jobs:
           }))
           PY
 
-          ISSUE_RESPONSE=$(gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST --input /tmp/linestamp-research-issue.json)
+          ISSUE_RESPONSE=$(curl -fsSL -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/linestamp-research-issue.json)
           ISSUE_NUMBER=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])' <<<"$ISSUE_RESPONSE")
           ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
           echo "Created: $ISSUE_URL"
 
           COMMENT_BODY="@copilot このIssueに従って週次調査を行い、\`copilot/linestamp-research-${WEEK}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
-          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --method POST -f body="$COMMENT_BODY" >/dev/null
+          export COMMENT_BODY
+
+          python3 - <<'PY' > /tmp/linestamp-research-comment.json
+          import json
+          import os
+
+          print(json.dumps({
+              "body": os.environ["COMMENT_BODY"],
+          }))
+          PY
+
+          curl -fsSL -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/linestamp-research-comment.json >/dev/null
 
           export AGENT_INSTRUCTIONS="このIssueに従って週次調査を行い、\`copilot/linestamp-research-${WEEK}\` ブランチでPRを作成してください。"
           export TARGET_REPO="$GITHUB_REPOSITORY"
@@ -107,4 +126,8 @@ jobs:
           }))
           PY
 
-          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" --method POST --input /tmp/linestamp-research-assignee.json >/dev/null
+          curl -fsSL -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/linestamp-research-assignee.json >/dev/null
