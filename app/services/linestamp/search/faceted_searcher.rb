@@ -53,7 +53,10 @@ module Linestamp
         theme_ids = Linestamp::CommunicationTheme.where(slug: @theme_slugs).pluck(:id)
         return scope.none if theme_ids.empty?
 
-        scope.with_themes(theme_ids)
+        theme_join_model = theme_join_model_for_target
+        fk = :"#{@target}_id"
+        matching_ids = theme_join_model.where(communication_theme_id: theme_ids).select(fk)
+        scope.where(id: matching_ids)
       end
 
       def apply_attribute_filters(scope)
@@ -67,9 +70,29 @@ module Linestamp
             .pluck(:id)
           next if value_ids.empty?
 
-          scope = scope.with_attributes(value_ids)
+          # Use subquery to handle multiple axis filters without join conflicts
+          join_model = join_model_for_target
+          fk = :"#{@target}_id"
+          matching_ids = join_model.where(attribute_value_id: value_ids).select(fk)
+          scope = scope.where(id: matching_ids)
         end
         scope
+      end
+
+      def join_model_for_target
+        case @target
+        when "brand" then Linestamp::BrandAttributeValue
+        when "pack"  then Linestamp::PackAttributeValue
+        when "stamp" then Linestamp::StampAttributeValue
+        end
+      end
+
+      def theme_join_model_for_target
+        case @target
+        when "brand" then Linestamp::BrandCommunicationTheme
+        when "pack"  then Linestamp::PackCommunicationTheme
+        when "stamp" then Linestamp::StampCommunicationTheme
+        end
       end
 
       def apply_sort(scope)
