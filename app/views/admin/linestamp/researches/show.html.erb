@@ -4,7 +4,7 @@
   <h2>Research Details</h2>
   <dl class="profile-grid">
     <dt>Status</dt><dd><span class="badge info"><%= @research.status %></span></dd>
-    <dt>Source</dt><dd><%= @research.source_url.present? ? link_to(@research.source_url, @research.source_url, target: "_blank", style: "color:#63b3ed;") : "—" %></dd>
+    <dt>Source</dt><dd><% if @research.source_url.present? %><%= link_to @research.source_url, URI.parse(@research.source_url).to_s, target: "_blank", rel: "noopener noreferrer", style: "color:#63b3ed;" %><% else %>—<% end %></dd>
     <dt>Created</dt><dd><%= @research.created_at.strftime("%Y-%m-%d %H:%M") %></dd>
   </dl>
 </div>

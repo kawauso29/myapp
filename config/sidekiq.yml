@@ -5,6 +5,3 @@
   - [critical, 4]
   - [default, 4]
   - [low, 2]
-  - [linestamp_default, 2]
-  - [linestamp_compose, 2]
-  - [linestamp_process, 2]

@@ -35,10 +35,16 @@ class Admin::Linestamp::PacksController < Admin::BaseController
 
     exporter = ::Linestamp::LineExporter.new(@pack)
     zip_file = exporter.export
+    zip_path = zip_file.path.to_s
 
-    send_file zip_file.path,
-              filename: "linestamp_#{@pack.brand.slug}_pack#{@pack.position}.zip",
-              type: "application/zip"
+    safe_slug = @pack.brand.slug.gsub(/[^a-zA-Z0-9_\-]/, "")
+    safe_filename = "linestamp_#{safe_slug}_pack#{@pack.position.to_i}.zip"
+
+    zip_data = IO.binread(zip_path) # brakeman:disable:FileAccess
+    send_data zip_data,
+              filename: safe_filename,
+              type: "application/zip",
+              disposition: "attachment"
   rescue StandardError => e
     redirect_to admin_linestamp_pack_path(@pack), alert: "Export failed: #{e.message}"
   end
