@@ -1,4 +1,5 @@
 require_relative "seeds/seed_ai_data"
+require_relative "seeds/linestamp/masters"
 
 # =============================================================
 # 仕込みAI 50体の投入 + 3ヶ月バックフィル

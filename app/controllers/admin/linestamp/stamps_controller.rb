@@ -1,7 +1,19 @@
 class Admin::Linestamp::StampsController < Admin::BaseController
-  before_action :set_stamp, only: %i[show upload_raw upload_processed process_image reset]
+  before_action :set_stamp, only: %i[show update upload_raw upload_processed process_image reset]
 
-  def show; end
+  def show
+    @themes = ::Linestamp::CommunicationTheme.active.ordered
+    @attribute_values = ::Linestamp::AttributeValue.active.ordered.includes(:axis)
+  end
+
+  def update
+    update_primary_theme
+    sync_secondary_themes
+    sync_attribute_values
+    redirect_to admin_linestamp_stamp_path(@stamp), notice: "スタンプを更新しました"
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to admin_linestamp_stamp_path(@stamp), alert: e.message
+  end
 
   def upload_raw
     if params[:raw_image].present?
@@ -46,5 +58,34 @@ class Admin::Linestamp::StampsController < Admin::BaseController
 
   def set_stamp
     @stamp = ::Linestamp::Stamp.find(params[:id])
+  end
+
+  def update_primary_theme
+    primary_theme_id = params.dig(:linestamp_stamp, :primary_communication_theme_id).presence&.to_i
+    return unless primary_theme_id
+
+    # Set primary on the join record
+    @stamp.stamp_communication_themes.update_all(primary: false)
+    join = @stamp.stamp_communication_themes.find_or_create_by!(communication_theme_id: primary_theme_id)
+    join.update!(primary: true)
+  end
+
+  def sync_secondary_themes
+    secondary_ids = Array(params.dig(:linestamp_stamp, :communication_theme_ids)).compact_blank.map(&:to_i)
+    primary_theme_id = params.dig(:linestamp_stamp, :primary_communication_theme_id).presence&.to_i
+    all_theme_ids = (secondary_ids + [primary_theme_id]).compact.uniq
+
+    @stamp.stamp_communication_themes.where.not(communication_theme_id: all_theme_ids).destroy_all
+    all_theme_ids.each do |tid|
+      @stamp.stamp_communication_themes.find_or_create_by!(communication_theme_id: tid)
+    end
+  end
+
+  def sync_attribute_values
+    value_ids = Array(params.dig(:linestamp_stamp, :attribute_value_ids)).compact_blank.map(&:to_i)
+    @stamp.stamp_attribute_values.where.not(attribute_value_id: value_ids).destroy_all
+    value_ids.each do |vid|
+      @stamp.stamp_attribute_values.find_or_create_by!(attribute_value_id: vid)
+    end
   end
 end

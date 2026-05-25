@@ -2,6 +2,11 @@ slug: pack_001
 series_theme: 在宅ワーク基本
 layer: core_work
 world_view: 朝から夕方までの在宅勤務中のさまざまなシーン
+communication_themes: [remote_work_report, appreciation_for_effort]
+attributes:
+  tone: [gentle]
+  setting: [remote_work]
+purchase_unit_size: 8
 usage_scenes:
 - 朝の起動
 - PC作業中
@@ -17,6 +22,8 @@ excluded_elements: 雲・星・寝帽子は Dream Layer 派生で使用予定
 stamps:
 - number: 1
   label: いま仕事中だよ
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report]
   situation: PC前で作業。半目・無表情
   intent: 返信遅延の申し訳なさ通知
   usage_scene: 返信できない時
@@ -30,6 +37,8 @@ stamps:
   communication_purpose: 話せないが無視じゃないと伝える
 - number: 2
   label: あとで返すね
+  primary_communication_theme: apology
+  communication_themes: [apology, remote_work_report]
   situation: スマホを片手で見ながら。半目・気まずい。汗マーク一滴
   intent: 返信遅延の申し訳なさ
   usage_scene: スマホ受信中
@@ -42,6 +51,8 @@ stamps:
   communication_purpose: 遅延を予告して安心させる
 - number: 3
   label: ちょっと休憩
+  primary_communication_theme: need_break
+  communication_themes: [need_break]
   situation: マグカップを抱えてぼんやり。半目・力抜け
   intent: 休憩通知
   usage_scene: 小休止
@@ -54,6 +65,8 @@ stamps:
   communication_purpose: 少し席を外す事の予告
 - number: 4
   label: 会議中です
+  primary_communication_theme: status_busy
+  communication_themes: [status_busy, remote_work_report]
   situation: ヘッドホン装着、ノートPC前。半目・真剣風
   intent: ステータス通知
   usage_scene: 会議中
@@ -66,6 +79,8 @@ stamps:
   communication_purpose: 反応できない理由を伝える
 - number: 5
   label: 会議おわった
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort]
   situation: 万歳ポーズで解放感。半目・ゆるみ
   intent: 解放感の共有
   usage_scene: 会議後
@@ -78,6 +93,8 @@ stamps:
   communication_purpose: ポジティブな状況転換を共有
 - number: 6
   label: 集中きれた
+  primary_communication_theme: need_break
+  communication_themes: [need_break, remote_work_report]
   situation: 寝そべってぐったり。半目・力抜け
   intent: 疲労感の共有
   usage_scene: 午後の疲れ
@@ -90,6 +107,8 @@ stamps:
   communication_purpose: 正直な状況をゆるく伝える
 - number: 7
   label: がんばってる風
+  primary_communication_theme: quick_answer
+  communication_themes: [quick_answer, remote_work_report]
   situation: サムズアップでやる気フリ。半目・汗マーク
   intent: 体裁取り繕い
   usage_scene: 上司への返信
@@ -102,6 +121,8 @@ stamps:
   communication_purpose: 社交辞令の代替
 - number: 8
   label: 今日もえらい
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort]
   situation: 両手を合わせて自分を褒める。半目・微笑。キラキラ装飾
   intent: ねぎらい
   usage_scene: 一日の終わり

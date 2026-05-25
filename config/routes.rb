@@ -59,13 +59,13 @@ Rails.application.routes.draw do
 
     namespace :linestamp do
       root to: "dashboard#index"
-      resources :brands, only: [ :index, :show ] do
+      resources :brands, only: [ :index, :show, :update ] do
         member do
           post :upload_base
           delete :purge_base
         end
       end
-      resources :packs, only: [ :index, :show ] do
+      resources :packs, only: [ :index, :show, :update ] do
         member do
           post :upload_sheet
           post :approve
@@ -76,7 +76,7 @@ Rails.application.routes.draw do
           post :generate_tab_image
         end
       end
-      resources :stamps, only: [ :show ] do
+      resources :stamps, only: [ :show, :update ] do
         member do
           post :upload_raw
           post :upload_processed
@@ -86,6 +86,10 @@ Rails.application.routes.draw do
       end
       resources :researches, only: [ :index, :show ]
       resources :submissions, only: [ :index ]
+      resources :communication_themes, only: [ :index, :new, :create, :edit, :update ]
+      resources :attribute_axes, only: [ :index, :new, :create, :edit, :update ]
+      resources :attribute_values, only: [ :index, :new, :create, :edit, :update ]
+      get :search, to: "search#index"
     end
 
     namespace :ops do
@@ -224,6 +228,11 @@ Rails.application.routes.draw do
 
       # Webhooks
       post "webhooks/stripe", to: "webhooks#stripe"
+
+      # Linestamp search
+      namespace :linestamp do
+        get :search, to: "search#index"
+      end
     end
   end
 
