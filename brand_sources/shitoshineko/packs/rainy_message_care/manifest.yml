@@ -1,0 +1,134 @@
+slug: rainy_message_care
+series_theme: 雨の日連絡ケア
+layer: core_work
+world_view: 雨の日に連絡が遅れそうな場面で、気まずさをやわらげる実用メッセージ集
+communication_themes: [apology, remote_work_report, appreciation_for_effort]
+attributes:
+  tone: [gentle, calm]
+  setting: [rainy_day, daily_chat]
+purchase_unit_size: 8
+usage_scenes:
+- 返信遅延の予告
+- 外出先からの連絡
+- 進捗共有
+- 休憩連絡
+- 一日の締め
+target_emotions:
+- 気まずさ
+- ねぎらい
+- 安心
+- やわらぎ
+excluded_elements: ハイテンションな大笑い・ジャンプ演出・キラキラ目は使わない
+stamps:
+- number: 1
+  label: 雨で遅れます
+  primary_communication_theme: apology
+  communication_themes: [apology, remote_work_report]
+  situation: 傘を片手に小走りで移動。重めの半目で口元は小さなへの字、足元に小雨のしずく。
+  intent: 遅刻や返信遅延の予告を角が立たない形で伝える
+  usage_scene: 待ち合わせや連絡返信が遅れそうな時
+  pose_spec: 傘を持って前かがみの小走り
+  props: 透明傘, 雨粒
+  search_keywords:
+  - 雨
+  - 遅れる
+  - 連絡
+  communication_purpose: 相手を待たせる不安を早めに和らげる
+- number: 2
+  label: まず確認します
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report]
+  situation: ノートPCをのぞき込みながら半目で静かにうなずく。横に小さなしずくタグ。
+  intent: すぐ返答できないが確認中であることを示す
+  usage_scene: 依頼や質問を受けた直後
+  pose_spec: 座ってPC画面を指差し
+  props: ノートPC, メモ
+  search_keywords:
+  - 確認
+  - 了解
+  - 作業中
+  communication_purpose: 放置ではなく対応中だと伝えて安心させる
+- number: 3
+  label: すぐ戻ります
+  primary_communication_theme: status_busy
+  communication_themes: [status_busy, quick_answer]
+  situation: ドアの前で振り返り、半目のまま小さく片手を上げる。背景に細い雨線。
+  intent: 一時離席を穏やかに共有する
+  usage_scene: ちょっと席を外す時
+  pose_spec: 片手上げで振り返る立ち姿
+  props: ドア, 雨線
+  search_keywords:
+  - 離席
+  - 戻る
+  - すぐ
+  communication_purpose: 短時間で戻る見込みを明示して不安を減らす
+- number: 4
+  label: ひと息つきます
+  primary_communication_theme: need_break
+  communication_themes: [need_break]
+  situation: マグカップを両手で包み、半目でふうっと息を吐く。足元に小さな水たまり。
+  intent: 休憩宣言を柔らかく伝える
+  usage_scene: 作業の合間に小休止する時
+  pose_spec: 椅子に座ってマグを抱える
+  props: マグカップ, 水たまり
+  search_keywords:
+  - 休憩
+  - ひと息
+  - コーヒー
+  communication_purpose: 無理せずペース調整する合図を共有する
+- number: 5
+  label: 今向かってます
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report, quick_answer]
+  situation: レインコート姿でスマホを持ち、半目で前進。後ろにしずく型の移動線。
+  intent: 現在地と移動中であることを簡潔に報告する
+  usage_scene: 合流場所へ移動中の連絡
+  pose_spec: 片手スマホでもう片手を前に出して歩く
+  props: スマホ, レインコート
+  search_keywords:
+  - 向かう
+  - 移動中
+  - 到着
+  communication_purpose: 待つ側の見通しを作ってストレスを減らす
+- number: 6
+  label: 助かりました
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort]
+  situation: 半目でやわらかくお辞儀し、胸元のしずくタグが少し揺れる。背景に小雨の丸点。
+  intent: サポートへの感謝を丁寧に示す
+  usage_scene: 対応してもらった直後
+  pose_spec: 両手を前でそろえた軽いお辞儀
+  props: しずく装飾
+  search_keywords:
+  - ありがとう
+  - 助かった
+  - 感謝
+  communication_purpose: 相手の労力を認めて関係を円滑に保つ
+- number: 7
+  label: 無理しないでね
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort, empathy]
+  situation: 小さな雨雲クッションを差し出し、半目で気づかう表情。口元は短い横線。
+  intent: 相手の疲れをねぎらい無理を止める
+  usage_scene: 相手が忙しそう・疲れていそうな時
+  pose_spec: 両手でクッションを差し出す
+  props: 雨雲クッション
+  search_keywords:
+  - ねぎらい
+  - 無理しない
+  - 休んで
+  communication_purpose: プレッシャーを下げて安心してもらう
+- number: 8
+  label: 今日もおつかれ
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort]
+  situation: 半目で小さく手を振り、背後にやわらかい夕方の雨雲。表情は控えめな微笑み。
+  intent: 一日の終わりを穏やかに締める
+  usage_scene: 業務終了時や夜の挨拶
+  pose_spec: 片手を軽く振る立ち姿
+  props: 夕方の雨雲, 小雨
+  search_keywords:
+  - おつかれ
+  - 退勤
+  - しめ
+  communication_purpose: 会話をやさしく終えて安心感を残す
