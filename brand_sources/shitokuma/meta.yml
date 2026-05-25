@@ -1,0 +1,38 @@
+series_name: 雨の日をやわらげる しとくま
+character_name: しとくま
+research_slug: 2026-W22
+two_part_definition: しとくまは「かわいいだけのくま」ではない。気まずい空気とだるさを受け止めて会話を丸くする、雨つゆ色の在宅ワークくまである。
+target_axes:
+  age:
+    - 20s
+    - 30s
+    - 40s
+  gender: any
+  occupation: 在宅勤務・ハイブリッド勤務
+  lifestyle: 日常連絡と仕事連絡をLINEで行う
+tone_axes:
+  gentle: 0.92
+  cute: 0.58
+  funny: 0.28
+  innovative: 0.22
+  neat: 0.62
+  warm: 0.86
+  edgy: 0.05
+character_parts:
+  eyes: 半目〜伏し目（必須・丸目禁止）
+  mouth: 小さく横幅短めの口
+  ears: 小さめの丸耳
+  body: 雨つゆ色の2頭身くま、丸いフォルム
+  limbs: 短い手足
+  scarf: 薄青スカーフ＋しずく型タグ
+  motif: 傘・雨粒・薄い霧
+font_spec:
+  primary: 太丸ゴシック
+  color: '#3F4C63'
+  outline: 太い白フチ
+  reference_chars:
+    - ごめんね
+    - 助かります
+    - おつかれさま
+primary_color: '#A9C9E8'
+background_color_for_gen: '#3CB371'
