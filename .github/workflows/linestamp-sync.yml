@@ -1,20 +1,49 @@
 name: Linestamp Sync
+
 on:
   push:
+    branches: [main]
     paths:
       - 'brand_sources/**'
   workflow_dispatch:
 
 jobs:
   sync:
-    runs-on: [self-hosted, sakura-vps]
+    runs-on: [self-hosted, linestamp]
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
       - name: Sync brand sources
+        env:
+          SYNC_TOKEN: ${{ secrets.LINESTAMP_SYNC_TOKEN }}
         run: |
-          eval "$(rbenv init -)"
-          cd $GITHUB_WORKSPACE
-          RAILS_ENV=production bin/rails linestamp:sync
+          set -euo pipefail
+
+          if [ -z "${SYNC_TOKEN:-}" ]; then
+            echo "LINESTAMP_SYNC_TOKEN is not set; skipping Rails sync"
+            exit 0
+          fi
+
+          curl -sf -X POST http://localhost:3000/webhooks/linestamp/sync \
+            -H "Authorization: Bearer $SYNC_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}' || echo "Rails sync failed"
+
+      - name: Notify Slack
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS || secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "Slack webhook is not set; skipping notification"
+            exit 0
+          fi
+
+          PAYLOAD=$(python3 -c "import json, os; print(json.dumps({'text': f'🔄 brand_sources synced to Rails ({os.environ.get(\"GITHUB_SHA\", \"\")})'}))")
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"

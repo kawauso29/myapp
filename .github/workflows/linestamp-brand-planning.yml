@@ -1,19 +1,126 @@
 name: Linestamp Brand Planning
+
 on:
   workflow_dispatch:
+    inputs:
+      count:
+        description: "ブランド企画数(default=3)"
+        required: false
+        default: "3"
   schedule:
-    - cron: '0 0 * * *'  # 毎日 09:00 JST
+    - cron: '0 22 * * *' # 22:00 UTC = 翌7:00 JST
 
 jobs:
-  brand-planning:
-    runs-on: [self-hosted, sakura-vps]
+  create-brand-issues:
+    runs-on: [self-hosted, linestamp]
     permissions:
       contents: read
       issues: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run brand planning
+      - name: Find latest research
+        id: research
         run: |
-          echo "Linestamp brand planning workflow triggered"
-          echo "TODO: Implement brand planning automation"
+          LATEST=$(find brand_sources/research -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -n 1)
+          if [ -z "$LATEST" ]; then
+            LATEST="none"
+          fi
+          printf 'slug=%s\n' "$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Create brand planning issues
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          COUNT_INPUT: ${{ inputs.count }}
+          RESEARCH_SLUG: ${{ steps.research.outputs.slug }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "DEPLOY_TOKEN is required"
+            exit 1
+          fi
+
+          COUNT="$COUNT_INPUT"
+          if [ -z "$COUNT" ]; then
+            COUNT="3"
+          fi
+          case "$COUNT" in
+            ''|*[!0-9]*)
+              echo "count must be a positive integer"
+              exit 1
+              ;;
+          esac
+
+          RESEARCH="$RESEARCH_SLUG"
+          DATE=$(TZ=Asia/Tokyo date +"%Y-%m-%d")
+
+          for i in $(seq 1 "$COUNT"); do
+            BODY=$(cat <<EOF
+          ## ミッション
+          新規LINEスタンプブランドの企画書一式を \`brand_sources/{新slug}/\` に作成してください。
+
+          ## 参考にする調査
+          \`brand_sources/research/${RESEARCH}/findings.md\` を必ず読むこと。
+
+          ## 出力
+          - \`brand_sources/{slug}/01_brand_theme.md\`
+          - \`brand_sources/{slug}/02_base.md\`
+          - \`brand_sources/{slug}/meta.yml\`
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## Brand 企画」を参照。
+          既存ブランド \`brand_sources/nemuinu/\` をお手本にする。
+
+          ## 完了条件
+          - [ ] 二段定義: 「○○ではない、○○な△△」
+          - [ ] 優先順位3つを明示
+          - [ ] Core/Work/Dream の表現レイヤー定義
+          - [ ] meta.yml に character_parts / font_spec / tone_axes が入っている
+          - [ ] PR がレビュー待ち
+          EOF
+            )
+
+            export ISSUE_TITLE="[linestamp/brand] ${DATE} #${i}"
+            export ISSUE_BODY="$BODY"
+            export ISSUE_LABELS="linestamp,brand-planning,auto"
+
+            python3 - <<'PY' > /tmp/linestamp-brand-issue.json
+          import json
+          import os
+
+          print(json.dumps({
+              "title": os.environ["ISSUE_TITLE"],
+              "body": os.environ["ISSUE_BODY"],
+              "labels": os.environ["ISSUE_LABELS"].split(","),
+          }))
+          PY
+
+            ISSUE_RESPONSE=$(gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST --input /tmp/linestamp-brand-issue.json)
+            ISSUE_NUMBER=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])' <<<"$ISSUE_RESPONSE")
+            ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
+            echo "Created: $ISSUE_URL"
+
+            COMMENT_BODY="@copilot このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --method POST -f body="$COMMENT_BODY" >/dev/null
+
+            export AGENT_INSTRUCTIONS="このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。"
+            export TARGET_REPO="$GITHUB_REPOSITORY"
+
+            python3 - <<'PY' > /tmp/linestamp-brand-assignee.json
+          import json
+          import os
+
+          print(json.dumps({
+              "assignees": ["copilot-swe-agent[bot]"],
+              "agent_assignment": {
+                  "target_repo": os.environ["TARGET_REPO"],
+                  "base_branch": "main",
+                  "custom_instructions": os.environ["AGENT_INSTRUCTIONS"],
+              },
+          }))
+          PY
+
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" --method POST --input /tmp/linestamp-brand-assignee.json >/dev/null
+            sleep 3
+          done

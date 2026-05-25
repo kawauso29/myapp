@@ -1,19 +1,142 @@
 name: Linestamp Pack Planning
+
 on:
   workflow_dispatch:
+    inputs:
+      count:
+        description: "Pack企画数(default=10)"
+        required: false
+        default: "10"
   schedule:
-    - cron: '0 1 * * *'  # 毎日 10:00 JST
+    - cron: '30 22 * * *' # 22:30 UTC = 翌7:30 JST
 
 jobs:
-  pack-planning:
-    runs-on: [self-hosted, sakura-vps]
+  create-pack-issues:
+    runs-on: [self-hosted, linestamp]
     permissions:
       contents: read
       issues: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run pack planning
+      - name: List active brands
+        id: brands
         run: |
-          echo "Linestamp pack planning workflow triggered"
-          echo "TODO: Implement pack planning automation"
+          set -euo pipefail
+
+          brands=()
+          while IFS= read -r -d '' dir; do
+            name=$(basename "$dir")
+            case "$name" in
+              _*|research)
+                continue
+                ;;
+            esac
+            brands+=("$name")
+          done < <(find brand_sources -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+
+          if [ ${#brands[@]} -eq 0 ]; then
+            brands=("nemuinu")
+          fi
+
+          printf 'list=%s\n' "$(IFS=,; echo "${brands[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Create pack planning issues
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          COUNT_INPUT: ${{ inputs.count }}
+          BRAND_LIST: ${{ steps.brands.outputs.list }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "DEPLOY_TOKEN is required"
+            exit 1
+          fi
+
+          COUNT="$COUNT_INPUT"
+          if [ -z "$COUNT" ]; then
+            COUNT="10"
+          fi
+          case "$COUNT" in
+            ''|*[!0-9]*)
+              echo "count must be a positive integer"
+              exit 1
+              ;;
+          esac
+
+          IFS=',' read -r -a BRANDS <<< "$BRAND_LIST"
+          DATE=$(TZ=Asia/Tokyo date +"%Y-%m-%d")
+          NUM_BRANDS=${#BRANDS[@]}
+
+          for i in $(seq 1 "$COUNT"); do
+            BRAND=${BRANDS[$(((i - 1) % NUM_BRANDS))]}
+
+            BODY=$(cat <<EOF
+          ## ミッション
+          既存ブランド \`${BRAND}\` に新しいシリーズ(Pack)を企画してください。
+          出力先: \`brand_sources/${BRAND}/packs/{新pack_slug}/\`
+
+          ## ベースブランド
+          \`brand_sources/${BRAND}/01_brand_theme.md\` と \`brand_sources/${BRAND}/02_base.md\` を必読。
+          ブランドのキャラ・世界観・トーンを尊重すること。
+
+          ## 出力ファイル
+          - \`brand_sources/${BRAND}/packs/{slug}/03_stamp_pack.md\`
+          - \`brand_sources/${BRAND}/packs/{slug}/manifest.yml\` (situation / intent / usage_scene / pose_spec / props / search_keywords / communication_purpose 必須)
+
+          ## 仕様
+          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## Pack 企画」を参照。
+          既存ねむ犬 \`brand_sources/nemuinu/packs/pack_001/manifest.yml\` を雛形に。
+
+          ## 完了条件
+          - [ ] 8枚すべてに label / situation / intent / usage_scene / pose_spec / props / search_keywords / communication_purpose
+          - [ ] パック内で利用シーンに統一感
+          - [ ] 既存 pack と重複しないテーマ
+          - [ ] PR がレビュー待ち
+          EOF
+            )
+
+            export ISSUE_TITLE="[linestamp/pack] ${DATE} ${BRAND} #${i}"
+            export ISSUE_BODY="$BODY"
+            export ISSUE_LABELS="linestamp,pack-planning,auto"
+
+            python3 - <<'PY' > /tmp/linestamp-pack-issue.json
+          import json
+          import os
+
+          print(json.dumps({
+              "title": os.environ["ISSUE_TITLE"],
+              "body": os.environ["ISSUE_BODY"],
+              "labels": os.environ["ISSUE_LABELS"].split(","),
+          }))
+          PY
+
+            ISSUE_RESPONSE=$(gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST --input /tmp/linestamp-pack-issue.json)
+            ISSUE_NUMBER=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])' <<<"$ISSUE_RESPONSE")
+            ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
+            echo "Created: $ISSUE_URL"
+
+            COMMENT_BODY="@copilot このIssueに従って新シリーズを企画し、\`copilot/linestamp-pack-${DATE//-/}-${i}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --method POST -f body="$COMMENT_BODY" >/dev/null
+
+            export AGENT_INSTRUCTIONS="このIssueに従って ${BRAND} の新シリーズを企画し、\`copilot/linestamp-pack-${DATE//-/}-${i}\` ブランチでPRを作成してください。"
+            export TARGET_REPO="$GITHUB_REPOSITORY"
+
+            python3 - <<'PY' > /tmp/linestamp-pack-assignee.json
+          import json
+          import os
+
+          print(json.dumps({
+              "assignees": ["copilot-swe-agent[bot]"],
+              "agent_assignment": {
+                  "target_repo": os.environ["TARGET_REPO"],
+                  "base_branch": "main",
+                  "custom_instructions": os.environ["AGENT_INSTRUCTIONS"],
+              },
+          }))
+          PY
+
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" --method POST --input /tmp/linestamp-pack-assignee.json >/dev/null
+            sleep 2
+          done
