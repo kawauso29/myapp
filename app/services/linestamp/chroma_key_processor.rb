@@ -4,6 +4,7 @@ module Linestamp
     DEFAULT_FUZZ = "20%"
     MOGRIFY_COMMAND = "mogrify"
     MAGICK_COMMAND = "magick"
+    CLI_MUTEX = Mutex.new
 
     class MissingImageMagickError < StandardError; end
 
@@ -77,8 +78,7 @@ module Linestamp
     def self.ensure_image_magick_cli!
       return if @image_magick_cli_ready
 
-      @image_magick_cli_mutex ||= Mutex.new
-      @image_magick_cli_mutex.synchronize do
+      CLI_MUTEX.synchronize do
         return if @image_magick_cli_ready
 
         if command_available?(MOGRIFY_COMMAND)
