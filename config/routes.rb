@@ -233,5 +233,6 @@ Rails.application.routes.draw do
   get  "slack/test",     to: "slack_events#test"
 
   # Linestamp Webhooks
+  post "webhooks/linestamp/sync", to: "linestamp/webhooks#sync"
   post "linestamp/webhooks/line_review", to: "linestamp/webhooks#line_review_callback"
 end
