@@ -4,7 +4,7 @@ RSpec.describe Linestamp::ChromaKeyProcessor do
   let(:processor) { described_class.new }
 
   before do
-    skip "ImageMagick not installed" unless system("which mogrify > /dev/null 2>&1")
+    skip "ImageMagick not installed" unless imagemagick_available?
   end
 
   describe "#process" do
@@ -37,5 +37,19 @@ RSpec.describe Linestamp::ChromaKeyProcessor do
       result.close!
       temp_input.close!
     end
+  end
+
+  describe ".ensure_image_magick_cli!" do
+    it "raises custom error when both mogrify and magick are unavailable" do
+      allow(described_class).to receive(:command_available?).with("mogrify").and_return(false)
+      allow(described_class).to receive(:command_available?).with("magick").and_return(false)
+
+      expect { described_class.ensure_image_magick_cli! }
+        .to raise_error(Linestamp::ChromaKeyProcessor::MissingImageMagickError)
+    end
+  end
+
+  def imagemagick_available?
+    system("command -v mogrify > /dev/null 2>&1") || system("command -v magick > /dev/null 2>&1")
   end
 end
