@@ -1,0 +1,39 @@
+series_name: 梅雨まえのしっとりカエル
+character_name: しとカエル
+research_slug: 2026-W22
+two_part_definition: しとカエルは「元気で騒がしい応援キャラ」ではない。気まずい空気とだるさをしっとり和らげる、梅雨まえの連絡係カエルである。
+target_axes:
+  age:
+  - 20s
+  - 30s
+  - 40s
+  gender: any
+  occupation: リモートワーク中心
+  lifestyle: チャットでこまめに連絡する
+tone_axes:
+  gentle: 0.9
+  cute: 0.72
+  funny: 0.34
+  innovative: 0.25
+  neat: 0.58
+  warm: 0.84
+  edgy: 0.05
+character_parts:
+  eyes: とろんとした半目（必須・見開き禁止）
+  mouth: 小さな控えめの口
+  head: 丸みのある逆三角
+  body: 黄緑の2頭身
+  arms: 短く柔らかい線
+  legs: 低重心で安定
+  marks: ほっぺの水色しずく模様
+  accessory: 小さな透明傘または通知ベル
+font_spec:
+  primary: 太丸ゴシック
+  color: '#2F4858'
+  outline: 太い白フチ
+  reference_chars:
+  - お待たせ
+  - ごめんね
+  - 助かる
+primary_color: '#9DDC7A'
+background_color_for_gen: '#3CB371'
