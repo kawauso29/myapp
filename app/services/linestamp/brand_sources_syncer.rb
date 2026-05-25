@@ -11,7 +11,7 @@ module Linestamp
     end
 
     def sync_brand(meta_path)
-      meta = YAML.safe_load_file(meta_path, permitted_classes: [Symbol])
+      meta = YAML.safe_load_file(meta_path)
       slug = File.basename(File.dirname(meta_path))
 
       brand = Linestamp::Brand.find_or_initialize_by(slug: slug)
@@ -36,7 +36,7 @@ module Linestamp
         manifest_path = File.join(pack_dir, "manifest.yml")
         next unless File.exist?(manifest_path)
 
-        manifest = YAML.safe_load_file(manifest_path, permitted_classes: [Symbol])
+        manifest = YAML.safe_load_file(manifest_path)
         position = idx + 1
 
         pack = brand.packs.find_or_initialize_by(position: position)

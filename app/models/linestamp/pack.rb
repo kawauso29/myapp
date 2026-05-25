@@ -41,7 +41,7 @@ class Linestamp::Pack < ApplicationRecord
   end
 
   def all_stamps_processed?
-    stamps.any? && stamps.all? { |s| s.status == "processed" }
+    stamps.any? && !stamps.where.not(status: "processed").exists?
   end
 
   private

@@ -1,5 +1,6 @@
 class Linestamp::WebhooksController < ApplicationController
   skip_before_action :verify_authenticity_token
+  before_action :verify_webhook_signature
 
   def line_review_callback
     # Webhook from LINE for submission review status updates
@@ -25,5 +26,24 @@ class Linestamp::WebhooksController < ApplicationController
     render json: { ok: true }
   rescue JSON::ParserError
     render json: { error: "Invalid JSON" }, status: :bad_request
+  end
+
+  private
+
+  def verify_webhook_signature
+    secret = ENV["LINESTAMP_WEBHOOK_SECRET"]
+    return if secret.blank? # Skip verification if secret not configured
+
+    signature = request.headers["X-Line-Signature"]
+    body = request.body.read
+    request.body.rewind
+
+    expected = Base64.strict_encode64(
+      OpenSSL::HMAC.digest("SHA256", secret, body)
+    )
+
+    unless ActiveSupport::SecurityUtils.secure_compare(signature.to_s, expected)
+      render json: { error: "Invalid signature" }, status: :unauthorized
+    end
   end
 end
