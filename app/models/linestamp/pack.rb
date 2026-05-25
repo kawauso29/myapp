@@ -1,3 +1,4 @@
+# Pack = ユーザー視点でのシリーズ(LINE申請単位: 8枚)
 class Linestamp::Pack < ApplicationRecord
   include AASM
 
@@ -12,6 +13,11 @@ class Linestamp::Pack < ApplicationRecord
   has_one_attached :main_image
   has_one_attached :tab_image
 
+  has_many :pack_communication_themes, class_name: "Linestamp::PackCommunicationTheme", dependent: :destroy
+  has_many :communication_themes, through: :pack_communication_themes
+  has_many :pack_attribute_values, class_name: "Linestamp::PackAttributeValue", dependent: :destroy
+  has_many :attribute_values, through: :pack_attribute_values
+
   validates :series_theme, presence: true
   validates :position, presence: true, numericality: { greater_than: 0 }
   validates :position, uniqueness: { scope: :brand_id }
@@ -19,6 +25,26 @@ class Linestamp::Pack < ApplicationRecord
 
   LAYERS = %w[core_work dream weekend seasonal event].freeze
   validates :layer, inclusion: { in: LAYERS }, allow_blank: true
+
+  ALLOWED_PURCHASE_UNIT_SIZES = [8, 24, 40].freeze
+  validates :purchase_unit_size, inclusion: { in: ALLOWED_PURCHASE_UNIT_SIZES }
+  validates :sales_count, numericality: { greater_than_or_equal_to: 0, only_integer: true }
+
+  scope :published, -> { where.not(published_at: nil) }
+  scope :unpublished, -> { where(published_at: nil) }
+  scope :best_sellers, ->(limit = 10) { published.order(sales_count: :desc).limit(limit) }
+  scope :with_themes, ->(theme_ids) {
+    joins(:pack_communication_themes)
+      .where(linestamp_pack_communication_themes: { communication_theme_id: theme_ids }).distinct
+  }
+  scope :with_attributes, ->(value_ids) {
+    joins(:pack_attribute_values)
+      .where(linestamp_pack_attribute_values: { attribute_value_id: value_ids }).distinct
+  }
+  scope :with_axis_value, ->(axis_slug, value_slug) {
+    joins(pack_attribute_values: { attribute_value: :axis })
+      .where(linestamp_attribute_axes: { slug: axis_slug }, linestamp_attribute_values: { slug: value_slug }).distinct
+  }
 
   aasm column: :status do
     state :planned, initial: true

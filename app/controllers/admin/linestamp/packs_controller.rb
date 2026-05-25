@@ -1,5 +1,5 @@
 class Admin::Linestamp::PacksController < Admin::BaseController
-  before_action :set_pack, only: %i[show upload_sheet approve export_for_line upload_main_image generate_main_image upload_tab_image generate_tab_image]
+  before_action :set_pack, only: %i[show update upload_sheet approve export_for_line upload_main_image generate_main_image upload_tab_image generate_tab_image]
 
   def index
     @packs = ::Linestamp::Pack.includes(:brand).order(updated_at: :desc)
@@ -7,6 +7,21 @@ class Admin::Linestamp::PacksController < Admin::BaseController
 
   def show
     @stamps = @pack.stamps.order(:position)
+    @themes = ::Linestamp::CommunicationTheme.active.ordered
+    @attribute_values = ::Linestamp::AttributeValue.active.ordered.includes(:axis)
+  end
+
+  def update
+    if @pack.update(pack_params)
+      sync_themes
+      sync_attribute_values
+      redirect_to admin_linestamp_pack_path(@pack), notice: "シリーズを更新しました"
+    else
+      @stamps = @pack.stamps.order(:position)
+      @themes = ::Linestamp::CommunicationTheme.active.ordered
+      @attribute_values = ::Linestamp::AttributeValue.active.ordered.includes(:axis)
+      render :show, status: :unprocessable_entity
+    end
   end
 
   def upload_sheet
@@ -87,5 +102,25 @@ class Admin::Linestamp::PacksController < Admin::BaseController
 
   def set_pack
     @pack = ::Linestamp::Pack.find(params[:id])
+  end
+
+  def pack_params
+    params.require(:linestamp_pack).permit(:purchase_unit_size, :published_at, :sales_count)
+  end
+
+  def sync_themes
+    theme_ids = Array(params.dig(:linestamp_pack, :communication_theme_ids)).compact_blank.map(&:to_i)
+    @pack.pack_communication_themes.where.not(communication_theme_id: theme_ids).destroy_all
+    theme_ids.each do |tid|
+      @pack.pack_communication_themes.find_or_create_by!(communication_theme_id: tid)
+    end
+  end
+
+  def sync_attribute_values
+    value_ids = Array(params.dig(:linestamp_pack, :attribute_value_ids)).compact_blank.map(&:to_i)
+    @pack.pack_attribute_values.where.not(attribute_value_id: value_ids).destroy_all
+    value_ids.each do |vid|
+      @pack.pack_attribute_values.find_or_create_by!(attribute_value_id: vid)
+    end
   end
 end

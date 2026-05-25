@@ -1,6 +1,16 @@
 series_name: 在宅ワークのゆる犬
 character_name: ねむ犬
+persona_name: 在宅ワーカー田中さん
 two_part_definition: ねむ犬は「かわいい犬」ではない。眠そうだけどちゃんと仕事している、在宅ワーク中の犬である。
+communication_themes:
+  - remote_work_report
+  - appreciation_for_effort
+  - apology
+attributes:
+  tone: [gentle]
+  motif: [animal]
+  demographic: [age_20s, age_30s, business_user]
+  setting: [remote_work]
 target_axes:
   age:
   - 20s
