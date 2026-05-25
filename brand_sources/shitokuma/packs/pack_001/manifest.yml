@@ -1,0 +1,137 @@
+slug: pack_001
+series_theme: 雨の日の予定調整
+layer: core_work
+world_view: 雨で進行が乱れた日の在宅ワーク連絡をやわらかく整える
+communication_themes: [schedule_adjustment, apology_softening]
+attributes:
+  tone: [gentle, calm]
+  setting: [remote_work, rainy_day]
+purchase_unit_size: 8
+usage_scenes:
+- 始業直後の遅延連絡
+- 会議時刻の再調整
+- 先行タスク依頼
+- 資料先出し
+- オンライン切替提案
+- 復帰連絡
+- フォローへのお礼
+- 翌日リカバリー宣言
+target_emotions:
+- 気まずさ
+- 安心
+- ねぎらい
+- 保留の共有
+excluded_elements: 夢演出や高テンション表情は Dream/Seasonal 派生で使用予定
+stamps:
+- number: 1
+  label: 少し遅れます
+  primary_communication_theme: apology
+  communication_themes: [apology, schedule_adjustment]
+  situation: 傘を閉じて会釈しながらスマホ連絡。半目で申し訳なさをやわらかく見せる
+  intent: 開始遅延の事前共有
+  usage_scene: 始業直後の連絡
+  pose_spec: 片手に傘、もう片手でスマホ入力、軽いお辞儀
+  props: 傘,スマホ,小雨のしずく
+  search_keywords:
+  - 遅れます
+  - すみません
+  - 連絡
+  communication_purpose: 相手を待たせる前に状況共有して不安を減らす
+- number: 2
+  label: 開始ずらせる？
+  primary_communication_theme: schedule_adjustment
+  communication_themes: [schedule_adjustment]
+  situation: ノートPC前で手帳を開き、半目で控えめに確認する。背景に小さな雨粒
+  intent: 会議開始時刻の再調整相談
+  usage_scene: 会議前の時刻相談
+  pose_spec: 椅子座り、片手で手帳を指し示す
+  props: ノートPC,手帳,雨粒
+  search_keywords:
+  - リスケ
+  - 調整
+  - 会議
+  communication_purpose: 一方的でない調整依頼として送る
+- number: 3
+  label: 先に進めてて
+  primary_communication_theme: quick_answer
+  communication_themes: [quick_answer, schedule_adjustment]
+  situation: しとくまが小さく手を振り、半目で先行をお願いする。足元にしずく跡
+  intent: 待機不要の明示
+  usage_scene: タスク先行依頼
+  pose_spec: 立ち姿で片手を前に出す
+  props: しずく跡
+  search_keywords:
+  - 先に
+  - お願い
+  - 進めて
+  communication_purpose: 相手の停滞を防ぎ作業を前に進める
+- number: 4
+  label: 資料だけ先送る
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report, quick_answer]
+  situation: 封筒アイコン付きのタブレットを差し出し、半目で先出し共有する
+  intent: 本体遅延時の代替提供
+  usage_scene: 先に資料共有したい時
+  pose_spec: 両手でタブレットを前に出す
+  props: タブレット,封筒アイコン,小雨
+  search_keywords:
+  - 資料送付
+  - 先送りします
+  - 共有
+  communication_purpose: 進行に必要な情報だけ先に届ける
+- number: 5
+  label: オンライン切替で
+  primary_communication_theme: schedule_adjustment
+  communication_themes: [schedule_adjustment, remote_work_report]
+  situation: ヘッドセットを持ち上げて提案ポーズ。半目のまま落ち着いて代替手段を示す
+  intent: 対面予定からオンラインへの変更提案
+  usage_scene: 移動困難時の代替提案
+  pose_spec: 片手でヘッドセット、片手でOKサイン
+  props: ヘッドセット,ノートPC,雨雲アイコン
+  search_keywords:
+  - オンライン
+  - 切替
+  - 提案
+  communication_purpose: 中止ではなく実施方法変更として合意を取りやすくする
+- number: 6
+  label: いま戻りました
+  primary_communication_theme: remote_work_report
+  communication_themes: [remote_work_report]
+  situation: 玄関マットで水滴を払って着席する直前、半目で復帰を知らせる
+  intent: 復帰タイミングの共有
+  usage_scene: 離席後の再開連絡
+  pose_spec: 片足を引いて着席前の姿勢
+  props: マグカップ,タオル,しずく
+  search_keywords:
+  - 戻りました
+  - 復帰
+  - 再開
+  communication_purpose: 待っていた相手に再開可能な状態を伝える
+- number: 7
+  label: 助かりました
+  primary_communication_theme: appreciation_for_effort
+  communication_themes: [appreciation_for_effort]
+  situation: 小さく頭を下げてお礼。半目のまま口元だけ少しゆるめる
+  intent: フォローへの感謝
+  usage_scene: 調整対応後のお礼
+  pose_spec: 両手を前で重ねた会釈
+  props: 小さな雨上がりの虹
+  search_keywords:
+  - ありがとう
+  - 助かる
+  - 感謝
+  communication_purpose: 手間をかけた相手への配慮を明確に示す
+- number: 8
+  label: 明日巻き取るね
+  primary_communication_theme: follow_up
+  communication_themes: [follow_up, apology_softening]
+  situation: ToDoメモを抱えて半目でうなずく。雨粒は止み、前向きな余韻を残す
+  intent: 翌日のリカバリー宣言
+  usage_scene: 当日遅延の締め連絡
+  pose_spec: メモを胸元に持ち、軽く前傾
+  props: ToDoメモ,ペン,止んだ雨のしずく
+  search_keywords:
+  - 明日対応
+  - 巻き取る
+  - フォロー
+  communication_purpose: 先延ばしで終わらせず責任を持って回収する姿勢を示す
