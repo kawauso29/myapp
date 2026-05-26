@@ -2,11 +2,6 @@ class Linestamp::WebhooksController < ApplicationController
   skip_before_action :verify_authenticity_token
   before_action :verify_webhook_signature, only: :line_review_callback
 
-  def sync
-    Linestamp::SyncBrandSourcesJob.perform_later
-    render json: { status: "accepted" }, status: :accepted
-  end
-
   def line_review_callback
     # Webhook from LINE for submission review status updates
     payload = JSON.parse(request.body.read)
