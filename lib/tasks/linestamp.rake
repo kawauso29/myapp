@@ -32,13 +32,17 @@ namespace :linestamp do
       begin
         importer = nil
         ActiveRecord::Base.transaction do
+          # Security: only eval files from the expected pending directory
+          unless path.start_with?(pending_dir.to_s)
+            raise SecurityError, "Refusing to eval file outside pending dir: #{path}"
+          end
           importer = eval(File.read(path), TOPLEVEL_BINDING, path) # rubocop:disable Security/Eval
         end
         summary = importer.is_a?(Linestamp::Importer) ? importer.summary.inspect : "OK"
         app.mark_applied!(summary: summary)
         FileUtils.mv(path, applied_dir.join(filename))
         puts "  APPLIED: #{filename} => #{summary}"
-      rescue => e # rubocop:disable Style/RescueStandardError
+      rescue ArgumentError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, SecurityError => e
         app.mark_failed!(error: "#{e.class}: #{e.message}\n#{e.backtrace&.first(10)&.join("\n")}")
         puts "  FAILED: #{filename} => #{e.message}"
         raise
