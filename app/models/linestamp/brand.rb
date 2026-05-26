@@ -45,6 +45,11 @@ class Linestamp::Brand < ApplicationRecord
     character_name
   end
 
+  # Returns attribute values for a specific axis (e.g. "tone", "motif")
+  def attribute_values_by_axis(axis_slug)
+    attribute_values.joins(:axis).where(linestamp_attribute_axes: { slug: axis_slug })
+  end
+
   private
 
   def has_brand_prompt?
