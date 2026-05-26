@@ -108,6 +108,7 @@ jobs:
           set_env SLACK_WEBHOOK_URL_JOBS '${{ secrets.SLACK_WEBHOOK_URL_JOBS }}'
           set_env SLACK_WEBHOOK_URL_LEDGER '${{ secrets.SLACK_WEBHOOK_URL_LEDGER }}'
 
+          set_env RAILS_MASTER_KEY '${{ secrets.RAILS_MASTER_KEY }}'
           set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
           set_env SOLID_QUEUE_IN_PUMA '1'
 

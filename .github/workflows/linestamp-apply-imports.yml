@@ -14,6 +14,7 @@ jobs:
       contents: write
     env:
       RAILS_ENV: production
+      RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
