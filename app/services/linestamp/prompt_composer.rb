@@ -1,133 +1,172 @@
+# frozen_string_literal: true
+
 module Linestamp
+  # Phase 3 PromptComposer: DB-first のマスタ（CT / 属性軸）を参照してプロンプトを生成する。
+  # Brand / Pack / Stamp の3階層それぞれに対応したプロンプトを返す。
   class PromptComposer
+    # --- Brand プロンプト (base_image 生成用) ---
     def compose_brand_prompt(brand)
       parts = brand.character_parts || {}
       fonts = brand.font_spec || {}
-      tone_text = (brand.tone_axes || {}).map { |k, v| "#{k}: #{(v.to_f * 100).round}%" }.join(", ")
+      tone_names    = brand.attribute_values_by_axis("tone").pluck(:name).join(" × ")
+      motif_names   = brand.attribute_values_by_axis("motif").pluck(:name).join(" × ")
+      demo_names    = brand.attribute_values_by_axis("demographic").pluck(:name).join(", ")
+      setting_names = brand.attribute_values_by_axis("setting").pluck(:name).join(", ")
+      cts           = brand.communication_themes.pluck(:name).join(" / ")
 
       parts_text = %w[eyes mouth ears body limbs tail collar].filter_map { |key|
         val = parts[key]
-        "- #{I18n.t("linestamp.parts.#{key}", default: key.titleize)}: #{val}" if val.present?
-      }.join("\n")
+        "- #{parts_label(key)}: #{val}" if val.present?
+      }.join("\n    ")
 
       <<~PROMPT.strip
-        あなたはLINEスタンプキャラクターのキャラ仕様シートを描くデザイナーです。
+        あなたは LINE スタンプキャラクター仕様シートのデザイナーです。
+        1枚の「キャラ仕様シート画像」を作ってください。これは今後の全パック・全スタンプの参照基準になります。
 
-        ## キャラクター定義
+        【キャラクター定義(必須遵守の核)】
         #{brand.two_part_definition}
 
-        ## キャラパーツ仕様(必須遵守)
-        #{parts_text}
+        【ペルソナとシーン】
+        送り手の想定: #{brand.persona_name}
+        主な利用シーン: #{setting_names.presence || "汎用"}
+        ターゲット世代: #{demo_names.presence || "指定なし"}
+        キャラの雰囲気(味付け): #{[tone_names, motif_names].reject(&:blank?).join(" × ").presence || "指定なし"}
+        扱うコミュニケーション: #{cts.presence || "未設定"}
 
-        ## フォント仕様
-        - 基本: #{fonts['primary']}
-        - 色: #{fonts['color']}
+        【キャラパーツ仕様(全構図で完全統一)】
+        #{parts_text}
+        - 体色: #{brand.primary_color}
+
+        【フォント仕様(全パックで共通使用)】
+        - 書体: #{fonts['primary']}
+        - 文字色: #{fonts['color']}
         - フチ: #{fonts['outline']}
 
-        ## トーン
-        #{tone_text}
+        【出力形式】
+        1枚の画像内に以下を配置:
+        ■ 上段:キャラ構図 12カット(3行 × 4列、すべて同じキャラの統一描写)
+          1行目: 正面・無表情 / 正面・うっすら笑顔 / 正面・困り顔 / 正面・真顔
+          2行目: 横向き立ち / 寝そべり / 座り(マグ抱え) / 椅子に座る
+          3行目: 両手合わせ / サムズアップ / 軽く手を振る / 頬杖
+        ■ 下段:フォント基準 3パターンを横一列
+          「おつかれ」「りょうかい」「OK」
+          ↑ #{fonts['primary']} / #{fonts['color']} / #{fonts['outline']}
 
-        ## 出力形式(極めて重要)
-        1枚のキャラ仕様シートを生成してください。以下の構成:
-        - **キャラ構図 12カット**(3行 × 4列 のグリッド配置)
-          * 正面・無表情、正面・眠そう、正面・微笑、正面・困り顔
-          * 正面・疲れ、正面・気まずさ、正面・ねぎらい、正面・真剣
-          * 寝そべり、座り(マグ抱え)、両手合わせ、サムズアップ
-        - **フォント基準 3パターン**を画像下部に配置
-          * 「おつかれ」「りょうかい」「OK」
-          * 全パックで共通使用する文字スタイル
-        - **背景**: 単色グリーン(#{brand.background_color_for_gen})
-        - すべてのコマで線・色・体型・首輪・目を完全に統一
+        【背景】
+        全領域を単色グリーン #{brand.background_color_for_gen}(後工程で透過するため必須)
 
-        この画像は今後の全パック・全スタンプの参照基準として使われます。
+        【厳守事項】
+        - 全12構図で線の太さ・色・体型・目の形・首輪を一切変えない
+        - 白背景禁止(白い体が透過処理で消える事故が過去にあり)
+        - 文字は丁寧に正しい漢字で。崩れたら再生成
+        - キャラの解釈を加えない(髪を描く・服を着せる・装飾を増やす等)
+        - スタンプ風のフラットな塗り、影や立体感は最小限
       PROMPT
     end
 
-    def compose_pack_sheet_prompt(pack)
-      brand = pack.brand
-      spec = pack.effective_image_spec
+    # --- Pack プロンプト (sheet_image 生成用) ---
+    def compose_pack_prompt(pack)
+      brand  = pack.brand
+      cts    = pack.communication_themes.pluck(:name).join(", ")
+      scenes = (pack.usage_scenes || []).join(" / ")
+      emos   = (pack.target_emotions || []).join(" / ")
       stamps_text = pack.stamps.order(:position).map { |s|
-        "##{s.position} 「#{s.display_label}」 - #{s.situation} (意図: #{s.intent}, 小道具: #{s.props})"
+        ct_name = s.primary_communication_theme&.name || "未設定"
+        "  ##{s.position} 「#{s.display_label}」 — #{s.situation}(主テーマ: #{ct_name})"
       }.join("\n")
 
       <<~PROMPT.strip
-        あなたはLINEスタンプシリーズのデザイナーです。
+        あなたは LINE スタンプシリーズ(8枚一覧)のデザイナーです。
+        1枚の「シリーズ一覧画像」を作ってください。これがこのパック内のスタンプ品質の参照基準になります。
 
-        ## 必ず参照する画像
-        1. brand.base_image — キャラ仕様シート(12構図 + 3フォント基準)
-           → Designer に「参照画像」として添付すること
-        2. このシリーズの世界観 → #{pack.world_view}
+        【必ず参照する画像】
+        Designer に添付する画像:
+        - brand.base_image(キャラ仕様シート/12構図+3フォント基準)
+        → このパック内のキャラ造形・線・色・首輪・フォントは、すべてこの基準と完全一致させること
 
-        ## シリーズテーマ
-        #{pack.series_theme} (Layer: #{pack.layer})
+        【シリーズコンセプト】
+        シリーズ名: #{pack.series_theme}
+        世界観: #{pack.world_view}
+        Layer: #{pack.layer}
 
-        ## 想定利用シーン
-        #{(pack.usage_scenes || []).join(', ')}
+        【ペルソナと使われ方】
+        送り手: #{brand.persona_name}
+        送りたい感情: #{emos.presence || "未設定"}
+        扱うコミュニケーション: #{cts.presence || "未設定"}
+        想定利用シーン: #{scenes.presence || "未設定"}
 
-        ## ターゲット感情
-        #{(pack.target_emotions || []).join(', ')}
+        【採用しない要素(派生パックへの含み)】
+        #{pack.excluded_elements.presence || "なし"}
 
-        ## 採用しない要素(派生パックへの含み)
-        #{pack.excluded_elements}
-
-        ## 出力形式
-        8枚スタンプの一覧シート(2行 × 4列):
+        【8枚のスタンプ(2行 × 4列で1枚画像に配置)】
         #{stamps_text}
 
-        ## キャラ仕様(brand.base_image と完全一致)
-        線・色・体型・目・首輪を一切変えないこと。
-        顔のサイズ・線の太さ・パステル色味も基準シート通り。
-
-        ## 文字スタイル(brand.base_image のフォント基準と完全一致)
-        太丸・濃ブラウン・太い白フチ(基準シート下部の「おつかれ/りょうかい/OK」と同じ)
-
-        ## 背景
-        単色グリーン #{brand.background_color_for_gen}
-
-        ## サイズ
-        各コマは正方形、最終的に LINE 規格 #{spec&.width || 370}×#{spec&.height || 320} で書き出される前提
+        【厳守事項】
+        - キャラ仕様は brand.base_image と完全一致(線・色・体型・目・首輪)
+        - 文字は brand.base_image のフォント基準と完全一致(書体・色・フチ)
+        - 各コマは正方形、余白を統一
+        - 背景は単色グリーン #{brand.background_color_for_gen}
+        - 漢字は丁寧に。崩れたら再生成、ひらがな逃げ禁止
+        - 8コマ全てで「キャラの揺れ」を絶対禁止(顔・線・首輪が変わらない)
+        - 1枚画像内で完結させる(個別書き出しは別工程)
       PROMPT
     end
 
+    # 後方互換: 旧名メソッド
+    alias_method :compose_pack_sheet_prompt, :compose_pack_prompt
+
+    # --- Stamp プロンプト (raw_image 生成用) ---
     def compose_stamp_prompt(stamp)
-      pack = stamp.pack
+      pack  = stamp.pack
       brand = pack.brand
-      spec = pack.effective_image_spec
+      ct    = stamp.primary_communication_theme
+      spec  = pack.effective_image_spec
 
       <<~PROMPT.strip
-        あなたは個別LINEスタンプのデザイナーです。
+        あなたは個別 LINE スタンプのデザイナーです。
+        1枚の正方形スタンプを作ってください。
 
-        ## 必ず参照する画像(両方添付すること)
-        1. brand.base_image — キャラ仕様シート(揺れ防止のため)
-        2. pack.sheet_image — 該当パックの8枚一覧シート(パック内一貫性のため)
+        【必ず参照する画像(両方とも Designer に添付)】
+        1. brand.base_image — キャラ仕様シート(揺れ防止)
+        2. pack.sheet_image — このシリーズの8枚一覧(パック内一貫性)
 
-        Designer ではこの2枚を参照画像として添付してください。
+        両方の画像に完全一致するキャラ・色・線・フォントで描いてください。
 
-        ## スタンプ ##{stamp.position}
-        - ラベル: 「#{stamp.display_label}」
-        - 想定シーン: #{stamp.usage_scene}
+        【スタンプ ##{stamp.position}】
+        - 文言: 「#{stamp.display_label}」
+        - 主テーマ: #{ct&.name || "未設定"}#{ct&.description ? "(#{ct.description})" : ""}
         - シチュエーション: #{stamp.situation}
-        - 送信意図: #{stamp.intent}
-        - コミュニケーション代替価値: #{stamp.communication_purpose}
         - ポーズ: #{stamp.pose_spec}
         - 小道具: #{stamp.props}
-        - 検索キーワード: #{(stamp.search_keywords || []).join(', ')}
+        - 送り手の意図: #{stamp.intent}
+        - 利用シーン: #{stamp.usage_scene}
+        - コミュニケーション代替価値: #{stamp.communication_purpose}
 
-        ## キャラ仕様(brand.base_image と完全一致)
-        線・色・体型・目・首輪を一切変えないこと。
-        新しい解釈を加えない。
+        【キャラ仕様】
+        brand.base_image と完全一致。線・色・体型・目・首輪・しっぽを一切変えない。
+        新しい解釈・装飾・服装を加えない。
 
-        ## 文字仕様
-        - 文言: 「#{stamp.display_label}」を中央上部に配置
-        - スタイル: brand.base_image のフォント基準と完全一致
-        - 漢字は正しく丁寧に。崩れたら再生成。ひらがなに逃げない
+        【文字仕様】
+        - 文言「#{stamp.display_label}」を中央上部に配置
+        - 書体・色・フチは brand.base_image のフォント基準と完全一致
+        - 漢字は丁寧に正しく描く。崩れたら再生成、ひらがなに逃げない
 
-        ## 画像規格
-        - サイズ: #{spec&.width || 370}×#{spec&.height || 320}
-        - 背景: 単色グリーン(#{brand.background_color_for_gen})
-        - 1画像1スタンプ
-        - キャラがスタンプ領域の80%以上
+        【画像規格】
+        - 仕上がりサイズ目安: #{spec&.width || 370}×#{spec&.height || 320}(後工程でトリム)
+        - 背景: 単色グリーン #{brand.background_color_for_gen}(全領域)
+        - キャラはスタンプ領域の 80% 以上を占める
+        - 1画像に1スタンプのみ
       PROMPT
+    end
+
+    private
+
+    def parts_label(key)
+      labels = {
+        "eyes" => "目", "mouth" => "口", "ears" => "耳",
+        "body" => "体", "limbs" => "手足", "tail" => "しっぽ", "collar" => "首回り"
+      }
+      labels[key] || key.titleize
     end
   end
 end

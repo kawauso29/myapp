@@ -13,6 +13,9 @@ class Admin::Linestamp::DashboardController < Admin::BaseController
     @best_sellers = ::Linestamp::Pack.best_sellers(10).includes(:brand)
     @attribute_sales = attribute_sales_summary
     @theme_sales = theme_sales_summary
+    @pending_seeds_count = ::Linestamp::SeedApplication.pending.count
+    @failed_seeds_count = ::Linestamp::SeedApplication.failed.count
+    @failed_seeds = ::Linestamp::SeedApplication.failed.order(updated_at: :desc).limit(5)
   end
 
   private

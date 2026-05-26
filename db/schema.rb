@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -920,6 +920,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.datetime "created_at", null: false
     t.text "description"
     t.jsonb "font_spec", default: {}
+    t.string "imported_from"
     t.jsonb "metadata", default: {}
     t.string "persona_name", comment: "ペルソナの通称(社内コミュニケーション用)例: 在宅ワーカー田中さん"
     t.string "primary_color", default: "#FFFFFF"
@@ -927,6 +928,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.string "series_name"
     t.string "slug", null: false
     t.string "status", default: "planned", null: false
+    t.datetime "synced_at"
     t.text "target_audience"
     t.jsonb "target_axes", default: {}
     t.jsonb "tone_axes", default: {}
@@ -995,6 +997,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.datetime "created_at", null: false
     t.text "excluded_elements"
     t.bigint "image_spec_id"
+    t.string "imported_from"
     t.string "layer"
     t.bigint "main_source_stamp_id"
     t.jsonb "metadata", default: {}
@@ -1006,6 +1009,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.text "sheet_prompt"
     t.string "slug"
     t.string "status", default: "planned", null: false
+    t.datetime "synced_at"
     t.bigint "tab_source_stamp_id"
     t.jsonb "target_emotions", default: []
     t.datetime "updated_at", null: false
@@ -1050,6 +1054,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.datetime "created_at", null: false
     t.jsonb "emotions", default: []
     t.text "findings"
+    t.string "imported_from"
     t.jsonb "keywords", default: []
     t.text "line_market_insights"
     t.jsonb "metadata", default: {}
@@ -1057,6 +1062,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.string "slug"
     t.string "source_url"
     t.string "status", default: "draft", null: false
+    t.datetime "synced_at"
     t.jsonb "target_axes", default: {}
     t.string "title", null: false
     t.jsonb "tone_axes", default: {}
@@ -1064,6 +1070,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.jsonb "usage_scenes", default: []
     t.index ["slug"], name: "index_linestamp_researches_on_slug", unique: true
     t.index ["status"], name: "index_linestamp_researches_on_status"
+  end
+
+  create_table "linestamp_seed_applications", force: :cascade do |t|
+    t.datetime "applied_at"
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.string "file_path"
+    t.string "file_sha256"
+    t.text "result_summary"
+    t.string "seed_id", null: false
+    t.string "state", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["seed_id"], name: "index_linestamp_seed_applications_on_seed_id", unique: true
+    t.index ["state"], name: "index_linestamp_seed_applications_on_state"
   end
 
   create_table "linestamp_stamp_attribute_values", force: :cascade do |t|
@@ -1092,6 +1112,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
   create_table "linestamp_stamps", force: :cascade do |t|
     t.text "communication_purpose"
     t.datetime "created_at", null: false
+    t.string "imported_from"
     t.text "intent"
     t.string "label"
     t.jsonb "metadata", default: {}
@@ -1104,6 +1125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010009) do
     t.jsonb "search_keywords", default: []
     t.text "situation"
     t.string "status", default: "planned", null: false
+    t.datetime "synced_at"
     t.datetime "updated_at", null: false
     t.text "usage_scene"
     t.index ["pack_id", "position"], name: "index_linestamp_stamps_on_pack_id_and_position", unique: true

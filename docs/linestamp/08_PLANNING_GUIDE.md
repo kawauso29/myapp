@@ -1,402 +1,178 @@
-# 08. PLANNING_GUIDE (Copilot Coding Agent 用 "skill" 本体)
+# Linestamp Planning Guide — Ruby Seed DSL ベース
 
-> このファイルは Copilot Coding Agent が brand_sources/ 配下のファイルを生成する際の **振る舞い規定**。
-> Rails の中の「Cowork skill ファイル」に相当する。GitHub Issue から呼ばれた Copilot がこれを読んで動く。
+> **正本**: このドキュメントが Linestamp 企画フローの唯一の仕様書。
+> **旧 md/yml フォーマットは廃止済み** — `brand_sources/` ディレクトリは削除された。
 
----
-
-## ミッション全体像
-
-このリポジトリは LINEスタンプの **創作パイプライン** を運営している。
-4階層の創作プロセスがあり、各階層の md ファイルを Copilot Coding Agent が生成する:
-
-| 階層 | 出力先 | 1回あたり | 頻度 |
-|---|---|---|---|
-| Research | `brand_sources/research/{YYYY-WNN}/` | 1セット | 週1 |
-| Brand | `brand_sources/{brand_slug}/` | 1ブランド | 日3 |
-| Pack | `brand_sources/{brand_slug}/packs/{pack_slug}/` | 1パック | 日10 |
-| (Stamp の画像生成は Rails が自動) | | | |
-
-Copilot は Issue 内の指示を読み、適切な階層のファイルを生成して **PR を出す**。
-レビュー(原田さん)→ マージ後、Rails が DB に sync する。
-
----
-
-## 共通厳守事項
-
-### 1. ファイル配置を厳守
-- 指示された絶対パスにのみ書く
-- 既存ファイルの上書きはしない(slug を変える)
-- `brand_sources/_templates/` は読み取り専用テンプレート
-
-### 2. お手本を必ず参照
-- Brand 企画前: `brand_sources/nemuinu/01_brand_theme.md` 必読
-- Pack 企画前: `brand_sources/nemuinu/packs/pack_001/03_stamp_pack.md` 必読
-- 文体・粒度・章立てを踏襲
-
-### 3. 過去事故を踏まえる
-`docs/linestamp/PAST_INCIDENTS.md` を必ず確認。
-
-### 4. ファイル仕様準拠
-`docs/linestamp/BRAND_FORMAT_SPEC.md` の仕様に従う。
-
-### 5. PR 形式
-- Draft PR で出す
-- description にコンセプト要約(3行以内)
-- 1 PR = 1 ブランド or 1 Pack(複数を1PRに混ぜない)
-
----
-
-## 調査 (Research)
-
-### ミッション
-LINEスタンプ企画の源泉となる調査を週次で実施する。市場・季節・感情・世代ニーズを抽出。
-
-### 出力ファイル
+## 全体像
 
 ```
-brand_sources/research/{YYYY-WNN}/
-├── findings.md    ← 本文(調査結果)
-├── trends.yml     ← 構造化キーワード
-└── brief.md       ← 調査依頼(Issue 本文をコピー)
+DB = Single Source of Truth (SoT)
+    ↑ ↑ ↑
+    │ │ └── 管理画面で直接編集 (Admin UI)
+    │ └──── Ruby seed ファイル (Copilot が書く)
+    └────── linestamp:apply_imports (merge 時に自動実行)
 ```
 
-### findings.md の構成
+1. **Copilot** が Ruby seed ファイルを `db/seeds/linestamp/imports/pending/` に配置
+2. PR を main に merge すると GitHub Actions が `bin/rails linestamp:apply_imports` を自動実行
+3. seed が DB に反映され、ファイルは `applied/` に自動移動
+4. 管理画面 (Admin UI) からの直接編集も可能で、上書きされない
 
-```markdown
-# 週次調査 {YYYY-WNN}
+## ファイル名規約
 
-## 1. LINEスタンプ市場の動向
-- (公開情報・トレンド調査)
-
-## 2. 季節・イベント要因
-- 今月の祝日・季節要素
-- 来月以降の祝日・季節要素
-
-## 3. 利用シーン(最低5つ)
-- シーン1: (説明)
-- シーン2: ...
-
-## 4. 感情ニーズ(最低3つ)
-- (例: 「申し訳なさを和らげる」「会議の合間に送れる」)
-
-## 5. ターゲット世代別の好み
-- 20代: ...
-- 30代: ...
-
-## 6. 企画ヒント
-- (この調査から派生しうるブランド方向性 2〜3案)
+```
+{YYYY-MM-DD-HHMMSS}_{kind}_{slug}.rb
 ```
 
-### trends.yml の構造
+- 時刻は **UTC**
+- `kind`: `brand` / `pack` / `research`
+- `slug`: 英数字+アンダースコア（ブランド名 or パック名 or リサーチテーマ）
 
-```yaml
-keywords:
-  - 在宅ワーク
-  - 雨の日
-  - 朝活
-seasons:
-  - 梅雨
-  - 初夏
-emotions:
-  - 気まずさ
-  - ねぎらい
-  - ぼんやり
-age_groups:
-  - 20s
-  - 30s
-  - 40s
-notes: |
-  (補足、自由記述)
+例: `2026-05-26-120000_brand_nemuinu.rb`
+
+## 共通ルール
+
+1. **テンプレ必須参照**: `db/seeds/linestamp/imports/_templates/` 内の対応テンプレートを必ず雛形にする
+2. **マスタ slug 検証**: 使用前に `bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'` で確認。未知 slug はエラーで全 transaction rollback
+3. **1 PR = 1 ファイル**: ファイル単位で冪等実行される
+4. **seed_id の一意性**: ファイル名（拡張子除く）が seed_id。重複実行は skip される
+5. **構文チェック**: `ruby -c` でエラーがないことを PR 前に確認
+
+## マスタデータ一覧
+
+### AttributeAxis (4軸)
+
+| slug | name | kind |
+|------|------|------|
+| tone | トーン | tone |
+| motif | モチーフ | motif |
+| demographic | デモグラフィ | demographic |
+| setting | シーン | setting |
+
+### AttributeValue (34値)
+
+#### tone (8)
+gentle(ゆるい) / neat(きっちり) / surreal(シュール) / cute(かわいい) / cool(かっこいい) / stylish(おしゃれ) / funny(おもしろい) / elegant(上品)
+
+#### motif (8)
+animal(動物) / food(食べ物) / plant(植物) / human(人物) / monster(モンスター) / abstract(抽象) / vehicle(乗り物) / tool(道具)
+
+#### demographic (10)
+age_10s(10代) / age_20s(20代) / age_30s(30代) / age_40s(40代) / age_50plus(50代以上) / for_male(男性向け) / for_female(女性向け) / unisex(性別不問) / business_user(ビジネス層) / student(学生)
+
+#### setting (8)
+home(家庭) / remote_work(在宅) / office(オフィス) / with_friends(友達同士) / with_lover(恋人) / with_family(家族) / boss_subordinate(上司部下) / with_customer(お客様)
+
+### CommunicationTheme (18)
+
+remote_work_report(在宅ワーク報告) / gratitude(感謝) / apology(謝罪) / agreement(相槌) / encouragement(励まし) / greeting_morning(おはよう) / greeting_night(おやすみ) / confirm_meetup(待ち合わせ確認) / on_the_way(今行く) / meal_invitation(食事の誘い) / friendly_tease(相手をいじる) / appreciation_for_effort(ねぎらい) / need_focus(集中したい) / need_break(休憩したい) / quick_answer(簡易回答) / urgent_contact(緊急連絡) / status_busy(忙しいアピール) / celebration(お祝い)
+
+## Research 企画
+
+リサーチは市場調査の結果を DB に保存するもの。
+
+```ruby
+Linestamp::Importer.run(seed_id: "2026-05-26-120000_research_remote_work_trends") do
+  upsert_research!(
+    slug: "remote_work_trends_2026w22",
+    title: "在宅ワーク層のスタンプニーズ調査 2026-W22",
+    body: "調査概要...",
+    findings: "主な発見: ...",
+    brand_ideas: "ブランドアイデア: ...",
+    line_market_insights: "市場洞察: ...",
+    communication_substitute_needs: "代替ニーズ: ...",
+    source_url: "https://...",
+    keywords: %w[在宅 リモート テレワーク],
+    emotions: %w[安心 共感 ねぎらい],
+    seasons: %w[all_year],
+    communication_themes: %w[remote_work_report appreciation_for_effort],
+    attributes: {
+      demographic: %w[age_20s age_30s business_user],
+      setting: %w[remote_work home]
+    }
+  )
+end
 ```
-
-### 制約
-- 引用元 URL は本文中に書く(Copilot が見たページ)
-- 推測には「(推測)」と明記
-- 「絶対」「必ず」のような断定は避ける
-
----
 
 ## Brand 企画
 
-### ミッション
-新規 LINE スタンプブランド(=キャラ+世界観)を1つ企画する。
+ブランドは「キャラクター + 世界観」の単位。
 
-### 入力
-- 最新の `brand_sources/research/{latest}/findings.md` と `trends.yml`
-- お手本 `brand_sources/nemuinu/`
+```ruby
+Linestamp::Importer.run(seed_id: "2026-05-26-120000_brand_nemuinu") do
+  brand = upsert_brand!(
+    slug: "nemuinu",
+    character_name: "ねむ犬",
+    series_name: "ねむ犬スタンプ",
+    persona_name: "ねむ犬",
+    concept: "いつも眠そうだけど仕事はきっちりこなす柴犬",
+    target_audience: "20-30代 在宅ワーカー",
+    description: "ゆるい表情で日常のコミュニケーションを柔らかくする",
+    primary_color: "#F5DEB3",
+    background_color_for_gen: "#3CB371"
+  )
 
-### 出力ファイル
-
+  attach_communication_themes!(brand, %w[
+    remote_work_report gratitude appreciation_for_effort
+    greeting_morning greeting_night
+  ])
+  attach_attribute_values!(brand, {
+    tone: %w[gentle cute],
+    motif: %w[animal],
+    demographic: %w[age_20s age_30s business_user],
+    setting: %w[remote_work home office]
+  })
+end
 ```
-brand_sources/{slug}/
-├── 01_brand_theme.md
-├── 02_base.md
-└── meta.yml
-```
-
-### slug のルール
-- 英小文字 + 数字 + アンダースコア(`^[a-z][a-z0-9_]*$`)
-- 既存と重複しない
-- キャラ名から自然に派生(例: ねむ犬 → nemuinu)
-
-### meta.yml
-
-```yaml
-series_name: "在宅ワークのゆる犬"     # 世界観・シリーズ大名称
-character_name: "ねむ犬"              # キャラ単体の名前
-research_slug: "2026-W21"              # 元となった調査(任意)
-target_age: ["20s", "30s"]
-core_emotion: "ねむそうな気まずさ"
-```
-
-### 01_brand_theme.md の構成(ねむ犬を踏襲)
-
-```markdown
-# 01_brand_theme.md
-
-## ブランドテーマ
-
-### シリーズ名
-{series_name}
-
-### キャラクター名
-{character_name}
-
----
-
-## ブランドの最重要定義
-
-{キャラ名} は「○○」ではない。
-
-**{キャラ名}は、▼▼な△△である。**  ← 二段定義(必須)
-
----
-
-## 優先順位(最重要)
-
-### 1. {属性1}(最優先)
-- 具体的特徴1
-- 具体的特徴2
-
-### 2. {属性2}
-- ...
-
-### 3. {属性3}
-- ...
-
-※ 優先順位は3つまで
-
----
-
-## NGになりやすいズレ
-
-### NG1: ...
-- 細かい説明
-
-### NG2: ...
-
----
-
-## OKな方向
-
-- 具体例
-- 具体例
-
----
-
-## 表現レイヤー
-
-### Core Layer(必須)
-- 必ず守る描画ルール
-
-### Work Layer
-- 基本パックで使う要素
-
-### Dream Layer
-- 将来の派生パックで使える要素
-
----
-
-## 一言
-
-「{キャラの本質を一文で}」
-```
-
-### 02_base.md の構成
-
-```markdown
-# 02_base.md
-
-## 強化ポイント
-
-今回の修正目的:
-👉 ...
-👉 ...
-
----
-
-## 最重要ルール(キャラ)
-
-{キャラの絶対遵守}
-
----
-
-## 最重要ルール(文字)
-
-日本語の文字は **正しい漢字で丁寧に描くこと**。
-- 漢字を崩さない
-- ひらがなに逃げない
-
----
-
-## 顔ルール
-- 目: ...
-- 口: ...
-
----
-
-## NG例 / OK例
-...
-
----
-
-## 強制プロンプト
-
-\`\`\`text
-{画像生成AIに渡す直接プロンプト本文}
-\`\`\`
-```
-
-### Brand 企画の手順
-
-1. 最新 research を読む
-2. trends から **1つの感情キーワード**を選ぶ(例: 「気まずさ」)
-3. それを表現するキャラ案を3つブレインストーミング(コメントとして PR description に残す)
-4. ベストを1つ選んで slug 確定
-5. 二段定義を書く(これが核)
-6. ねむ犬の章立てに従って 01_brand_theme.md / 02_base.md / meta.yml を埋める
-
-### よくある失敗
-- 二段定義が「××な△△」のみ(○○ではない、が抜ける) → 必ず2文に
-- キャラ仕様が抽象的 → 線の太さ・色・表情まで明示
-- NG/OK 例が抽象的 → 具体的に
-
----
 
 ## Pack 企画
 
-### ミッション
-既存ブランドに新シリーズ(パック)を1つ企画する。1パック = 8枚スタンプ。
+Pack は LINE 申請単位(8/24/40枚)のシリーズ。
 
-### 入力
-- 対象ブランドの `01_brand_theme.md` / `02_base.md` (必読)
-- 既存 packs/* (重複回避)
+```ruby
+Linestamp::Importer.run(seed_id: "2026-05-26-120000_pack_nemuinu_remote_daily") do
+  brand = Linestamp::Brand.find_by!(slug: "nemuinu")
 
-### 出力ファイル
-
-```
-brand_sources/{brand_slug}/packs/{pack_slug}/
-├── 03_stamp_pack.md
-└── manifest.yml
-```
-
-### pack_slug のルール
-- ブランド内でユニーク
-- 内容を表す(例: `pack_001`, `dreamy_sleep`, `weekend_relax`)
-- 既存 pack と重複しない
-
-### manifest.yml(機械可読、重要)
-
-```yaml
-series_theme: "在宅ワーク基本"
-layer: "core_work"   # core_work / dream / weekend / seasonal etc.
-stamps:
-  - number: 1
-    label: "いま仕事中だよ"
-    situation: "PC前で作業。ノートPCを覗き込んでいる。半目・無表情。"
-  - number: 2
-    label: "あとで返すね"
-    situation: "スマホを片手で見ながら。半目・気まずい。汗マーク一滴。"
-  # ... 全8件
-```
-
-#### label のルール
-- LINEスタンプの定番文字数(5〜10文字)
-- 漢字は読みやすいものを優先
-- 既存パックと重複しない
-
-#### situation のルール
-- 1〜2文で具体的に
-- ポーズ・表情・小道具・装飾を明示
-- 「半目」「白フチ」等のキャラ仕様は brand_theme から踏襲
-
-### 03_stamp_pack.md の構成
-
-```markdown
-# 03_stamp_pack.md
-
-## このパックのコンセプト
-{series_theme} 。... (3行で説明)
-
-## 表現レイヤー
-{Core / Work / Dream } のうち今回採用
-
-## 採用しない要素(派生パックへ)
-- 今回は採用しないが、Dream Layer 派生パックで使う候補
-- ...
-
-## 個別書き出しルール
-- 1画像1スタンプ
-- 文字は中央上部に配置
-- パックシート画像を必ず参照(揺れ防止)
+  create_pack!(
+    brand: brand,
+    slug: "remote_daily",
+    series_theme: "在宅ワークの日常",
+    position: 1,
+    layer: "core_work",
+    purchase_unit_size: 8,
+    world_view: "リモートワーク中の何気ない瞬間",
+    communication_themes: %w[remote_work_report gratitude appreciation_for_effort],
+    attributes: {
+      tone: %w[gentle],
+      setting: %w[remote_work home]
+    },
+    stamps: [
+      {
+        label: "おはよう〜",
+        primary_communication_theme: "greeting_morning",
+        communication_themes: %w[remote_work_report],
+        attributes: { tone: %w[gentle], setting: %w[remote_work] }
+      },
+      {
+        label: "お疲れさま！",
+        primary_communication_theme: "appreciation_for_effort",
+        communication_themes: %w[gratitude],
+        attributes: { tone: %w[gentle], setting: %w[remote_work] }
+      }
+      # ... 8枚すべて記述
+    ]
+  )
+end
 ```
 
-### Pack 企画の手順
+## 自己点検チェックリスト
 
-1. ブランドの brand_theme と base を必読
-2. 既存 packs の series_theme をチェック(重複回避)
-3. このパックの **コンセプト1文** を決める
-4. 8枚の利用シーンを思いつく順に書き出し、整理
-5. label と situation を仕上げる
-6. manifest.yml と 03_stamp_pack.md を書く
+PR 作成前に必ず確認:
 
-### よくある失敗
-- 8枚のテーマがバラバラ(統一感なし)
-- label が長すぎ / 既存と重複
-- situation が抽象的(「楽しそう」だけ等)
-- 既存パックと series_theme が被る
-
----
-
-## 自己点検チェックリスト(全企画共通)
-
-PR を出す前に Copilot 自身が確認:
-
-- [ ] 指示されたパスにのみファイルを作成した
-- [ ] お手本(nemuinu)を読んだ
-- [ ] PAST_INCIDENTS.md の事故を踏まえた
-- [ ] BRAND_FORMAT_SPEC.md の仕様に従った
-- [ ] 既存と重複していない(slug, label, series_theme)
-- [ ] 文体が既存ブランドと揃っている
-- [ ] PR description に企画概要を書いた
-
-不安があれば draft 状態を維持し、Issue に質問コメントを残す。
-
----
-
-## 期待されない振る舞い
-
-- 画像生成は **しない**(Rails 側の責務)
-- 既存ファイルの大幅書き換えは **しない**(別 Issue で扱う)
-- 著作権を侵害する固有名詞は使わない(ディズニー、サンリオ等の既存IP)
-- 性的・暴力的・差別的な表現は禁止
-- ファイルの新規作成は brand_sources/ 以下のみ(他ディレクトリは触らない)
-
----
-
-## 質問があるときの動き方
-
-- PR description で `@原田さん 質問:` 形式で書く
-- ブロッカーがあれば Issue にコメントを残して draft 状態のままに
-- 自己解決できる範囲は **過去ブランド を参照** して埋める
+- [ ] `ruby -c path/to/file.rb` で構文エラーなし
+- [ ] 使用した slug がすべてマスタに存在する
+- [ ] `seed_id` がファイル名（拡張子なし）と一致
+- [ ] 各 stamp に `primary_communication_theme` が1つ設定済み
+- [ ] `purchase_unit_size` が 8/24/40 のいずれか
+- [ ] description / concept など日本語フィールドが充実している
+- [ ] 1 PR に seed ファイルは 1 つだけ

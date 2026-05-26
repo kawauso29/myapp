@@ -1,0 +1,54 @@
+name: Linestamp Apply Imports
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'db/seeds/linestamp/imports/pending/**'
+      - 'db/migrate/**'
+  workflow_dispatch:
+
+jobs:
+  apply:
+    runs-on: [self-hosted, sakura-vps]
+    permissions:
+      contents: write
+    env:
+      RAILS_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Ruby environment
+        run: |
+          eval "$(~/.rbenv/bin/rbenv init -)"
+          bundle install --quiet
+
+      - name: Run migrations
+        run: |
+          eval "$(~/.rbenv/bin/rbenv init -)"
+          bin/rails db:migrate
+
+      - name: Apply pending imports
+        run: |
+          eval "$(~/.rbenv/bin/rbenv init -)"
+          bin/rails linestamp:apply_imports
+
+      - name: Commit applied moves
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add db/seeds/linestamp/imports/
+          git diff --cached --quiet || (git commit -m "chore(linestamp): mark imports as applied [skip ci]" && git push)
+
+      - name: Slack notify
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_JOBS }}
+        run: |
+          [ -z "$SLACK_WEBHOOK_URL" ] && exit 0
+          STATUS="${{ job.status }}"
+          SHA="${{ github.sha }}"
+          MSG=$(python3 -c "import json; print(json.dumps({'text': f'📦 linestamp imports: {\"$STATUS\"} ({\"$SHA\"[:7]})'}))")
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" -H "Content-Type: application/json" -d "$MSG" || true

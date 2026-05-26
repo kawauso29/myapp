@@ -58,4 +58,76 @@
   <a href="<%= admin_linestamp_packs_path %>" class="btn btn-primary">Packs</a>
   <a href="<%= admin_linestamp_researches_path %>" class="btn btn-primary">Researches</a>
   <a href="<%= admin_linestamp_submissions_path %>" class="btn btn-primary">Submissions</a>
+  <a href="<%= admin_linestamp_search_path %>" class="btn btn-primary">Search</a>
 </div>
+
+<div class="grid-2" style="margin-top:24px;">
+  <div class="card">
+    <h2>📊 Sales Analytics</h2>
+    <h3>Published Packs: <%= @published_packs_count %></h3>
+    <% if @best_sellers.any? %>
+      <h4>Top 10 Best Sellers</h4>
+      <table>
+        <thead><tr><th>Pack</th><th>Brand</th><th>Sales</th></tr></thead>
+        <tbody>
+          <% @best_sellers.each do |pack| %>
+            <tr>
+              <td><a href="<%= admin_linestamp_pack_path(pack) %>" style="color:#63b3ed;"><%= pack.series_theme %></a></td>
+              <td><%= pack.brand.character_name %></td>
+              <td><%= pack.sales_count %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+
+  <div class="card">
+    <h2>🌱 Seed Imports</h2>
+    <p>Pending: <strong><%= @pending_seeds_count %></strong></p>
+    <p>Failed: <strong style="color:#fc8181;"><%= @failed_seeds_count %></strong></p>
+    <% if @failed_seeds.any? %>
+      <h4>Recent Failures</h4>
+      <table>
+        <thead><tr><th>Seed ID</th><th>Error</th><th>Time</th></tr></thead>
+        <tbody>
+          <% @failed_seeds.each do |sa| %>
+            <tr>
+              <td><%= sa.seed_id %></td>
+              <td><%= truncate(sa.error_message.to_s, length: 80) %></td>
+              <td><%= sa.updated_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</div>
+
+<% if @theme_sales.any? %>
+<div class="card" style="margin-top:16px;">
+  <h2>CT別売上</h2>
+  <table>
+    <thead><tr><th>Theme</th><th>Total Sales</th></tr></thead>
+    <tbody>
+      <% @theme_sales.each do |name, total| %>
+        <tr><td><%= name %></td><td><%= total %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+<% end %>
+
+<% if @attribute_sales.any? %>
+<div class="card" style="margin-top:16px;">
+  <h2>属性別売上</h2>
+  <table>
+    <thead><tr><th>Axis / Value</th><th>Total Sales</th></tr></thead>
+    <tbody>
+      <% @attribute_sales.each do |(axis, value), total| %>
+        <tr><td><%= axis %> / <%= value %></td><td><%= total %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+<% end %>

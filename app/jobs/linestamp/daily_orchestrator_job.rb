@@ -3,10 +3,7 @@ module Linestamp
     queue_as :linestamp_default
 
     def perform
-      # Step 1: Sync brand sources from filesystem
-      SyncBrandSourcesJob.perform_later
-
-      # Step 2: Compose prompts for brands in planned state
+      # Step 1: Compose prompts for brands in planned state
       Linestamp::Brand.where(status: "planned").find_each do |brand|
         ComposeBrandPromptJob.perform_later(brand.id)
       end
