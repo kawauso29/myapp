@@ -6,6 +6,7 @@ require_relative "seeds/linestamp/masters"
 # =============================================================
 
 puts "=== Seeding AI SNS data ==="
+Linestamp::Seeds.call
 Ledgers::MasterDataSeeder.call
 Ledgers::ServicePlanSeeder.call
 
