@@ -33,11 +33,13 @@ jobs:
       - name: Run migrations
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
+          set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
           bin/rails db:migrate
 
       - name: Apply pending imports
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
+          set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
           bin/rails linestamp:apply_imports
 
       - name: Commit applied moves
