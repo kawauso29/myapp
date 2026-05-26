@@ -20,6 +20,11 @@ jobs:
           token: ${{ secrets.DEPLOY_TOKEN }}
           fetch-depth: 0
 
+      - name: Mirror production env to workspace
+        run: |
+          [ -f ~/myapp/.env ] || (echo "::error::~/myapp/.env not found" && exit 1)
+          ln -sf ~/myapp/.env "$GITHUB_WORKSPACE/.env"
+
       - name: Setup Ruby environment
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
