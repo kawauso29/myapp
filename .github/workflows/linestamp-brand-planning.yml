@@ -19,20 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Find latest research
-        id: research
-        run: |
-          LATEST=$(find brand_sources/research -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -n 1)
-          if [ -z "$LATEST" ]; then
-            LATEST="none"
-          fi
-          printf 'slug=%s\n' "$LATEST" >> "$GITHUB_OUTPUT"
-
       - name: Create brand planning issues
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           COUNT_INPUT: ${{ inputs.count }}
-          RESEARCH_SLUG: ${{ steps.research.outputs.slug }}
         run: |
           set -euo pipefail
 
@@ -52,31 +42,31 @@ jobs:
               ;;
           esac
 
-          RESEARCH="$RESEARCH_SLUG"
           DATE=$(TZ=Asia/Tokyo date +"%Y-%m-%d")
 
           for i in $(seq 1 "$COUNT"); do
+            TIMESTAMP=$(TZ=UTC date +"%Y-%m-%d-%H%M%S")
+
             BODY=$(cat <<EOF
           ## ミッション
-          新規LINEスタンプブランドの企画書一式を \`brand_sources/{新slug}/\` に作成してください。
+          新規LINEスタンプブランドの企画を1つの Ruby seed ファイルとして作成してください。
 
-          ## 参考にする調査
-          \`brand_sources/research/${RESEARCH}/findings.md\` を必ず読むこと。
-
-          ## 出力
-          - \`brand_sources/{slug}/01_brand_theme.md\`
-          - \`brand_sources/{slug}/02_base.md\`
-          - \`brand_sources/{slug}/meta.yml\`
+          ## 出力ファイル
+          \`db/seeds/linestamp/imports/pending/${TIMESTAMP}_brand_{slug}.rb\`
+          ※ {slug} は企画したブランドの slug に置き換える
 
           ## 仕様
-          \`docs/linestamp/08_PLANNING_GUIDE.md\` の「## Brand 企画」を参照。
-          既存ブランド \`brand_sources/nemuinu/\` をお手本にする。
+          - \`db/seeds/linestamp/imports/_templates/brand_template.rb\` を雛形にする
+          - \`Linestamp::Importer.run(seed_id: "${TIMESTAMP}_brand_{slug}")\` ブロック内で \`upsert_brand!\` を呼ぶ
+          - マスタ slug は事前に確認(\`bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'\` 等)
+          - 未知 slug はエラーになる
+          - \`docs/linestamp/08_PLANNING_GUIDE.md\` を必読
 
           ## 完了条件
-          - [ ] 二段定義: 「○○ではない、○○な△△」
-          - [ ] 優先順位3つを明示
-          - [ ] Core/Work/Dream の表現レイヤー定義
-          - [ ] meta.yml に character_parts / font_spec / tone_axes が入っている
+          - [ ] ruby -c で構文エラーなし
+          - [ ] 未知マスタ slug を使っていない
+          - [ ] character_name / series_name / concept / target_audience / persona_name が入っている
+          - [ ] communication_themes と attributes が適切に設定済み
           - [ ] PR がレビュー待ち
           EOF
             )
@@ -105,7 +95,7 @@ jobs:
             ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
             echo "Created: $ISSUE_URL"
 
-            COMMENT_BODY="@copilot このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
+            COMMENT_BODY="@copilot このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
             export COMMENT_BODY
             COMMENT_PAYLOAD=$(python3 -c 'import json, os; print(json.dumps({"body": os.environ["COMMENT_BODY"]}))')
             curl -sf -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
@@ -114,7 +104,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d "$COMMENT_PAYLOAD" >/dev/null
 
-            export AGENT_INSTRUCTIONS="このIssueに従って新ブランドを企画し、\`copilot/linestamp-brand-${DATE//-/}-${i}\` ブランチでPRを作成してください。"
+            export AGENT_INSTRUCTIONS="このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。"
             export TARGET_REPO="$GITHUB_REPOSITORY"
 
             python3 - <<'PY' > /tmp/linestamp-brand-assignee.json
