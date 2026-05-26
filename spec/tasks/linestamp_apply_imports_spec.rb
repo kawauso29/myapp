@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require "rails_helper"
+require "rake"
 
 RSpec.describe "linestamp:apply_imports rake task" do
   before do
     load Rails.root.join("db/seeds/linestamp/masters.rb")
-    Rails.application.load_tasks if Rake::Task.tasks.empty?
+    Linestamp::Seeds.call
+    Rails.application.load_tasks unless Rake::Task.task_defined?("linestamp:apply_imports")
   end
 
   let(:pending_dir) { Rails.root.join("db/seeds/linestamp/imports/pending") }

@@ -6,6 +6,7 @@ RSpec.describe Linestamp::Importer do
   before do
     # Ensure masters are seeded
     load Rails.root.join("db/seeds/linestamp/masters.rb")
+    Linestamp::Seeds.call
   end
 
   describe ".run" do
@@ -98,9 +99,10 @@ RSpec.describe Linestamp::Importer do
     end
 
     it "creates a pack with stamps and sets primary_communication_theme" do
+      test_brand = brand
       described_class.run(seed_id: "test_pack_001") do
         create_pack!(
-          brand: brand,
+          brand: Linestamp::Brand.find_by!(slug: "pack_test_brand"),
           slug: "test_pack",
           series_theme: "Test Theme",
           position: 1,
@@ -123,7 +125,7 @@ RSpec.describe Linestamp::Importer do
         )
       end
 
-      pack = Linestamp::Pack.find_by(slug: "test_pack", brand: brand)
+      pack = Linestamp::Pack.find_by(slug: "test_pack", brand: test_brand)
       expect(pack).to be_present
       expect(pack.stamps.count).to eq(2)
       expect(pack.communication_themes.pluck(:slug)).to include("gratitude")
@@ -135,10 +137,11 @@ RSpec.describe Linestamp::Importer do
     end
 
     it "is idempotent for packs and stamps" do
+      brand # ensure created
       2.times do
         described_class.run(seed_id: "test_pack_idem") do
           create_pack!(
-            brand: brand,
+            brand: Linestamp::Brand.find_by!(slug: "pack_test_brand"),
             slug: "idem_pack",
             series_theme: "Idem",
             position: 2,
