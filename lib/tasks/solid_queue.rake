@@ -55,6 +55,7 @@ namespace :solid_queue do
     LedgerV2::SyncDraftPrStatusJob
     LedgerV2::CalculateHealthSnapshotJob
     LedgerV2::EvaluateImprovementJob
+    Linestamp::DailyOrchestratorJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob

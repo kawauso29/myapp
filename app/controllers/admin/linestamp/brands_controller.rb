@@ -1,5 +1,5 @@
 class Admin::Linestamp::BrandsController < Admin::BaseController
-  before_action :set_brand, only: %i[show update upload_base purge_base]
+  before_action :set_brand, only: %i[show update upload_base purge_base compose_prompt]
 
   def index
     @brands = ::Linestamp::Brand.order(updated_at: :desc)
@@ -35,6 +35,15 @@ class Admin::Linestamp::BrandsController < Admin::BaseController
   def purge_base
     @brand.base_image.purge
     redirect_to admin_linestamp_brand_path(@brand), notice: "Base image removed."
+  end
+
+  def compose_prompt
+    if @brand.planned?
+      Linestamp::ComposeBrandPromptJob.perform_later(@brand.id)
+      redirect_to admin_linestamp_brand_path(@brand), notice: "プロンプト生成をキューに追加しました。"
+    else
+      redirect_to admin_linestamp_brand_path(@brand), alert: "この状態ではプロンプト生成できません。"
+    end
   end
 
   private

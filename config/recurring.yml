@@ -320,6 +320,12 @@ production:
     queue: default
     schedule: "*/30 * * * *"
 
+  # 毎日9:00 JST (UTC 0:00): Linestamp DailyOrchestrator（planned状態のbrand/pack/stampのプロンプト自動生成）
+  linestamp_daily_orchestrator:
+    class: Linestamp::DailyOrchestratorJob
+    queue: linestamp_default
+    schedule: "0 0 * * *"
+
   # 2時間ごと: LedgerV2 EvaluateImprovement（Ticket 解決後の指標改善を追跡する）
   # daily=30分・weekly=4h の中間。resolved Ticket が溜まりすぎる前に定期的に評価する。
   ledger_v2_evaluate_improvement:

@@ -63,6 +63,7 @@ Rails.application.routes.draw do
         member do
           post :upload_base
           delete :purge_base
+          post :compose_prompt
         end
       end
       resources :packs, only: [ :index, :show, :update ] do

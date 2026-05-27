@@ -79,6 +79,9 @@
     <button onclick="navigator.clipboard.writeText(document.querySelector('pre').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Prompt</button>
   <% else %>
     <p style="color:#718096;">Prompt not yet composed.</p>
+    <% if @brand.planned? %>
+      <%= button_to "🎨 プロンプトを生成", compose_prompt_admin_linestamp_brand_path(@brand), method: :post, class: "btn btn-primary btn-sm", style: "margin-top:8px;" %>
+    <% end %>
   <% end %>
 </div>
 
