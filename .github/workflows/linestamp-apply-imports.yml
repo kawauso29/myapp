@@ -24,6 +24,8 @@ jobs:
         run: |
           [ -f ~/myapp/.env ] || (echo "::error::~/myapp/.env not found" && exit 1)
           ln -sf ~/myapp/.env "$GITHUB_WORKSPACE/.env"
+          [ -f ~/myapp/config/master.key ] || (echo "::error::~/myapp/config/master.key not found" && exit 1)
+          ln -sf ~/myapp/config/master.key "$GITHUB_WORKSPACE/config/master.key"
 
       - name: Setup Ruby environment
         run: |
