@@ -17,6 +17,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Disable git GPG signing
+        run: git config --global commit.gpgsign false
+
       - name: Checkout code
         uses: actions/checkout@v4
 
