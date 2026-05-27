@@ -53,6 +53,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config commit.gpgsign false
           git add db/seeds/linestamp/imports/
           git diff --cached --quiet || (git commit -m "chore(linestamp): mark imports as applied [skip ci]" && git push)
 
