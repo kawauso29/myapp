@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_27_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,19 +40,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
-  end
-
-  create_table "agent_judgments", force: :cascade do |t|
-    t.string "agent_type"
-    t.float "confidence"
-    t.datetime "created_at", null: false
-    t.string "judgment"
-    t.bigint "market_snapshot_id", null: false
-    t.text "reasoning"
-    t.datetime "updated_at", null: false
-    t.boolean "veto"
-    t.string "veto_reason"
-    t.index ["market_snapshot_id"], name: "index_agent_judgments_on_market_snapshot_id"
   end
 
   create_table "ai_avatar_states", force: :cascade do |t|
@@ -1150,20 +1137,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
     t.index ["status"], name: "index_linestamp_submissions_on_status"
   end
 
-  create_table "market_snapshots", force: :cascade do |t|
-    t.datetime "captured_at", null: false
-    t.datetime "created_at", null: false
-    t.float "dxy"
-    t.float "nas100_price"
-    t.float "nas100_volume"
-    t.jsonb "raw_data"
-    t.string "state", null: false
-    t.float "state_confidence"
-    t.datetime "updated_at", null: false
-    t.float "vix"
-    t.index ["captured_at"], name: "index_market_snapshots_on_captured_at"
-  end
-
   create_table "meeting_definitions", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.jsonb "allowed_cycles", default: [], null: false
@@ -1482,30 +1455,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
     t.index ["template_id"], name: "idx_ticket_ledgers_template_id", unique: true, where: "(template_id IS NOT NULL)"
   end
 
-  create_table "trade_decisions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "decision"
-    t.string "direction"
-    t.float "final_score"
-    t.bigint "market_snapshot_id", null: false
-    t.text "skip_reason"
-    t.datetime "updated_at", null: false
-    t.index ["market_snapshot_id"], name: "index_trade_decisions_on_market_snapshot_id"
-  end
-
-  create_table "trade_results", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "duration_minutes"
-    t.float "entry_price"
-    t.float "exit_price"
-    t.string "outcome"
-    t.float "pips"
-    t.float "profit_loss"
-    t.bigint "trade_decision_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["trade_decision_id"], name: "index_trade_results_on_trade_decision_id"
-  end
-
   create_table "user_ai_likes", force: :cascade do |t|
     t.bigint "ai_post_id", null: false
     t.datetime "created_at", null: false
@@ -1564,7 +1513,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "agent_judgments", "market_snapshots"
   add_foreign_key "ai_avatar_states", "ai_users"
   add_foreign_key "ai_close_people", "ai_users"
   add_foreign_key "ai_community_memberships", "ai_communities"
@@ -1635,8 +1583,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_26_010012) do
   add_foreign_key "post_reports", "users"
   add_foreign_key "service_heartbeats", "meeting_definitions"
   add_foreign_key "ticket_ledgers", "meeting_ledgers", column: "source_meeting_id"
-  add_foreign_key "trade_decisions", "market_snapshots"
-  add_foreign_key "trade_results", "trade_decisions"
   add_foreign_key "user_ai_likes", "ai_posts"
   add_foreign_key "user_ai_likes", "users"
   add_foreign_key "user_community_follows", "ai_communities"

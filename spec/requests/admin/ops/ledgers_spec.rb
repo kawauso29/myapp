@@ -40,7 +40,7 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
     create(
       :ticket_ledger,
       source_meeting: monthly_meeting,
-      service_id: "trade_ops",
+      service_id: "support_ops",
       status: :approved,
       assignee: "monthly_ops_runner",
       due_date: Date.current + 30.days,

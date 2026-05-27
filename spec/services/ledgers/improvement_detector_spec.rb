@@ -69,11 +69,11 @@ RSpec.describe Ledgers::ImprovementDetector do
              held_at: 1.day.ago,
              status: :closed)
       ServiceLedger.create!(service_id: "ai_sns", scope_level: :service, business_owner: "owner", status: :active)
-      ServiceLedger.create!(service_id: "trade_ops", scope_level: :service, business_owner: "owner", status: :active)
+            ServiceLedger.create!(service_id: "support_ops", scope_level: :service, business_owner: "owner", status: :active)
       create(:meeting_ledger,
              meeting_definition: weekly_definition,
              meeting_key: "weekly_dept",
-             service_id: "trade_ops",
+              service_id: "support_ops",
              held_at: 1.day.ago,
              status: :closed)
 

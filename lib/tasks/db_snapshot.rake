@@ -11,9 +11,6 @@ namespace :db do
     [ "ai_profiles",      "AiProfile",      20 ],
     [ "ai_daily_states",  "AiDailyState",   20 ],
     [ "ai_posts",         "AiPost",         20 ],
-    [ "market_snapshots", "MarketSnapshot",  5 ],
-    [ "trade_decisions",  "TradeDecision",  10 ],
-    [ "trade_results",    "TradeResult",    10 ],
     [ "analysis_reports", "AnalysisReport",  5 ]
   ].freeze
 
