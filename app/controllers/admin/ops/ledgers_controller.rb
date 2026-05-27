@@ -7,7 +7,7 @@ class Admin::Ops::LedgersController < Admin::Ops::BaseController
     { cadence: :annual,    meeting_key: "annual_plan",      job_class: "AnnualPlanLedgerRunJob",      interval: 7.days     }
   ].freeze
 
-  LEDGER_SERVICES = %w[ai_sns trading picro].freeze
+  LEDGER_SERVICES = %w[ai_sns picro].freeze
 
   # 自律成長ループ: Cadence 以外の手動実行可能ジョブ
   AUTONOMOUS_JOBS = [

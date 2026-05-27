@@ -6,7 +6,6 @@ namespace :solid_queue do
     SlackForwardToClaudeJob
     RelationshipDecayJob
     MonitorFailedJobsJob
-    MarketAnalysisJob
     WeatherFetchJob
     DailyScheduleGenerateJob
     DynamicParamsUpdateJob
@@ -18,8 +17,6 @@ namespace :solid_queue do
     TicketOverdueCheckJob
     ImprovementDetectorJob
     PicroCheckJob
-    DefeatAnalysisJob
-    MonthlyReportJob
     DailyStateGenerateJob
     PostMotivationCalculateJob
     HourlyStateUpdateJob
@@ -59,7 +56,6 @@ namespace :solid_queue do
   STALE_RECURRING_JOB_CLASSES = %w[
     AiActionCheckJob
     MonitorFailedJobsJob
-    MarketAnalysisJob
   ].freeze
   WRAPPER_CLEANUP_BATCH_SIZE = 500
 

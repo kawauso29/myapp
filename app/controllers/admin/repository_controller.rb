@@ -5,9 +5,7 @@ class Admin::RepositoryController < Admin::BaseController
     @stats = {
       failed_jobs: safe_count { SolidQueue::FailedExecution.count },
       finished_jobs: safe_count { SolidQueue::Job.where.not(finished_at: nil).count },
-      picro_today: safe_count { PicroMessage.where("received_at >= ?", Time.current.beginning_of_day).count },
-      trade_decisions_today: safe_count { TradeDecision.where("created_at >= ?", Time.current.beginning_of_day).count },
-      snapshots: safe_count { MarketSnapshot.count }
+      picro_today: safe_count { PicroMessage.where("received_at >= ?", Time.current.beginning_of_day).count }
     }
 
     @recent_failed_jobs = SolidQueue::FailedExecution
@@ -16,7 +14,7 @@ class Admin::RepositoryController < Admin::BaseController
       .limit(10)
   rescue => e
     Rails.logger.warn("Admin::RepositoryController#index failed: #{e.message}")
-    @stats = { failed_jobs: 0, finished_jobs: 0, picro_today: 0, trade_decisions_today: 0, snapshots: 0 }
+    @stats = { failed_jobs: 0, finished_jobs: 0, picro_today: 0 }
     @recent_failed_jobs = []
   ensure
     @github_actions_migration = Admin::ProjectProgressService.github_actions_migration

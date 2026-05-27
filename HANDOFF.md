@@ -8,7 +8,6 @@
 |---------|------|----------------|
 | **Ledger（運営 OS）** | ⚠️ 実装完了・運用テスト中（不具合あり） | コア基盤 |
 | **AI-SNS** | 稼働中 | Ledger に乗っている |
-| **Trading / Market** | 実装済み（一部） | まだ Ledger に乗っていない（将来接続予定） |
 | **Picro** | 稼働中 | 別系統（Ledger 非依存） |
 
 詳細は [`docs/architecture.md`](docs/architecture.md) を参照。

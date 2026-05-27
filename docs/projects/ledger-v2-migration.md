@@ -189,7 +189,7 @@
 
 ## v2 卒業基準（Layer C 接続を許可する 7 つの数値ライン）
 
-> **目的**: 「いつ v2 を卒業して Monthly/Quarterly Runner や HR / OrgChange / Trading 連携など Layer C を接続してよいか」を、人間の感覚ではなく **客観的なしきい値** で判定する。
+> **目的**: 「いつ v2 を卒業して Monthly/Quarterly Runner や HR / OrgChange 連携など Layer C を接続してよいか」を、人間の感覚ではなく **客観的なしきい値** で判定する。
 > 全 7 基準が満たされた時点で、Layer C 接続の人間レビューを開始してよい。
 >
 > **正本コード**: `app/services/ledger_v2/graduation_check.rb` の `CRITERIA` 定数。
@@ -271,7 +271,7 @@ Phase G-3 完了後にのみ、以下の順序で別 PR として検討する。
 4. Quarterly / Annual（manual only、artifact draft 作成まで）
 5. Auto PR（draft only、CI 失敗分類と修正案提示に限定）
 
-HR / OrgChange / Portfolio / Trading 連携は、v2 Kernel と Monthly dry_run が安定するまで接続しない。
+HR / OrgChange / Portfolio 連携は、v2 Kernel と Monthly dry_run が安定するまで接続しない。
 
 ### Phase G-5: AutoMerge 解除判断（別議題）
 
@@ -369,7 +369,7 @@ PR で持ち込まれた場合は **却下する**。
 
 - MonthlyOpsRunner / QuarterlyReviewRunner / AnnualPlanRunner
 - HRLedger / OrgChangeLedger / PortfolioLedger
-- Trading 連携 / 自動戦略変更 / 自動組織変更
+- 自動戦略変更 / 自動組織変更
 - **自動マージ**
 - 本番設定の自動変更
 - AI 人格・記憶・関係性の自動変更
@@ -582,7 +582,7 @@ PR で持ち込まれた場合は **却下する**。
   - Event payload に `from_pr_number` / `to_pr_number` / `create_attempt_count` を記録し、再作成遷移を Event 監査できるようにした
   - 初回作成では `draft_pr_recreated` を出さないことを仕様化
   - spec（create_draft_pull_request_spec.rb）更新
-- HR / OrgChange / Portfolio / Trading・自動戦略変更は**恒久禁止**（追加しない）
+- HR / OrgChange / Portfolio・自動戦略変更は**恒久禁止**（追加しない）
 
 ## 次の一手
 

@@ -192,7 +192,7 @@ RSpec.describe "Admin::Ops::Ledgers", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("ai_sns")
-      expect(response.body).to include("trading")
+      expect(response.body).to include("picro")
     end
 
     it "service_detail で ai_sns サービス詳細が表示される" do

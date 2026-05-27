@@ -25,7 +25,7 @@ RSpec.describe StopLedger, type: :model do
   describe ".active_for" do
     it "filters by scope_level and service_id" do
       matching = create(:stop_ledger, scope_level: :service, service_id: "ai_sns", status: :active)
-      create(:stop_ledger, scope_level: :service, service_id: "trading", status: :active)
+      create(:stop_ledger, scope_level: :service, service_id: "picro", status: :active)
       create(:stop_ledger, scope_level: :service, service_id: "ai_sns",
              status: :lifted, started_at: 2.hours.ago, lifted_at: 1.hour.ago,
              lifted_by: "operator", lift_reason: "recovered")

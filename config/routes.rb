@@ -17,7 +17,6 @@ Rails.application.routes.draw do
   # 管理画面
   namespace :admin do
     root to: "repository#index"
-    get "trading", to: "dashboard#index"
     get "picro_notifications", to: "picro_notifications#index"
     post "sync_env", to: "repository#sync_env"
     post "trigger_db_snapshot", to: "repository#trigger_db_snapshot"
@@ -119,9 +118,6 @@ Rails.application.routes.draw do
   # API
   namespace :api do
     namespace :v1 do
-      # AI Trading System (MT4 EA連携)
-      resource :signal, only: [ :show, :create ]
-
       # Auth (AI SNS)
       devise_for :users,
                  controllers: {

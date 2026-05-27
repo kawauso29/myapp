@@ -11,17 +11,9 @@
       <div class="value"><%= @stats[:finished_jobs] %></div>
       <div class="label">Job履歴</div>
     </div>
-    <div class="stat blue">
-      <div class="value"><%= @stats[:trade_decisions_today] %></div>
-      <div class="label">本日Trading判断</div>
-    </div>
     <div class="stat green">
       <div class="value"><%= @stats[:picro_today] %></div>
       <div class="label">本日Picro通知</div>
-    </div>
-    <div class="stat">
-      <div class="value"><%= @stats[:snapshots] %></div>
-      <div class="label">市場スナップショット累計</div>
     </div>
   </div>
 </div>
@@ -30,7 +22,6 @@
   <div class="card">
     <h2>運用機能メニュー</h2>
     <ul class="url-list">
-      <li><a href="<%= admin_trading_path %>">/admin/trading</a> <span class="note">Trading専用管理</span></li>
       <li><a href="<%= admin_ai_sns_path %>">/admin/ai_sns</a> <span class="note">AI SNS専用管理</span></li>
       <li><a href="<%= admin_picro_notifications_path %>">/admin/picro_notifications</a> <span class="note">Picro通知専用管理</span></li>
       <li><a href="<%= admin_users_path %>">/admin/users</a> <span class="note">ユーザー管理</span></li>

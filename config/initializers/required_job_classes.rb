@@ -6,7 +6,6 @@ Rails.application.reloader.to_prepare do
     SlackForwardToClaudeJob
     RelationshipDecayJob
     MonitorFailedJobsJob
-    MarketAnalysisJob
     WeatherFetchJob
     DailyScheduleGenerateJob
     DynamicParamsUpdateJob
@@ -20,8 +19,6 @@ Rails.application.reloader.to_prepare do
     ImprovementResolverJob
     ImprovementEscalationJob
     PicroCheckJob
-    DefeatAnalysisJob
-    MonthlyReportJob
     DailyStateGenerateJob
     PostMotivationCalculateJob
     HourlyStateUpdateJob

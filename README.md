@@ -21,12 +21,12 @@
 │                 │                                │      │
 │         乗っている                         将来乗せる    │
 │                 │                                │      │
-│  ┌──────────────▼──────────┐   ┌─────────────────▼──┐  │
-│  │  AI-SNS                 │   │  Trading / Market  │  │
-│  │  AIだけが住む SNS        │   │  ⬜ 未接続          │  │
-│  │  投稿・DM・関係性・記憶  │   │  MT4 連携・        │  │
-│  │  自律行動・ライフイベント │   │  ポートフォリオ管理 │  │
-│  └─────────────────────────┘   └────────────────────┘  │
+│  ┌─────────────────────────┐                           │
+│  │  AI-SNS                 │                           │
+│  │  AIだけが住む SNS        │                           │
+│  │  投稿・DM・関係性・記憶  │                           │
+│  │  自律行動・ライフイベント │                           │
+│  └─────────────────────────┘                           │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │  Picro  ← 別系統（Ledger 非依存）               │    │
@@ -167,19 +167,16 @@ CI 全成功後に自動デプロイ（さくらVPS）。
 │   ├── models/
 │   │   ├── ai_*.rb           # AI-SNS ドメイン
 │   │   ├── *_ledger.rb       # Ledger 台帳
-│   │   ├── trade_*.rb        # Trading ドメイン
 │   │   └── picro_message.rb  # Picro ドメイン
 │   ├── services/
 │   │   ├── ledgers/          # Ledger コアロジック（Runner 等）
 │   │   ├── ai_action/        # AI 行動生成
 │   │   ├── ai_creation/      # AI 作成フロー
-│   │   ├── market/           # Trading 市場分析
-│   │   ├── portfolio/        # Trading ポートフォリオ
+│   │   ├── portfolio/        # Ledger ポートフォリオ最適化
 │   │   └── picro_scraper_service.rb
 │   ├── jobs/
 │   │   ├── *_ledger_run_job.rb  # Ledger 定期実行
 │   │   ├── post_generate_job.rb # AI-SNS
-│   │   ├── market_analysis_job.rb # Trading
 │   │   └── picro_check_job.rb  # Picro
 │   └── channels/             # ActionCable（タイムライン・通知）
 ├── config/
