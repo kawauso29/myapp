@@ -34,12 +34,17 @@ jobs:
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
           set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
+          # This workflow only needs Rails task boot; generate ephemeral JWT secret
+          # to avoid secret_key_base fallback when DEVISE_JWT_SECRET_KEY is absent.
+          export DEVISE_JWT_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
           bin/rails db:migrate
 
       - name: Apply pending imports
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
           set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
+          # Same as migration step: only needed for initializer boot in this job.
+          export DEVISE_JWT_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
           bin/rails linestamp:apply_imports
 
       - name: Commit applied moves
