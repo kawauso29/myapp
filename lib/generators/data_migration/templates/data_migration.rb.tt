@@ -15,10 +15,10 @@ class <%= migration_class_name %> < ActiveRecord::Migration[<%= ActiveRecord::Mi
   # == 冪等チェックのパターン例 ==
   #
   # ■ レコード状態を更新する場合（mark_xxx.rb パターン）
-  #   ticket = TicketLedger.find_by(idempotency_key: "your_key")
-  #   return unless ticket
-  #   return if ticket.status_completed?   # 冪等ガード
-  #   ticket.update_columns(status: TicketLedger.statuses[:completed], resolved_at: Time.current)
+  #   user = User.find_by(email: "example@example.com")
+  #   return unless user
+  #   return if user.preferred_language == "ja"   # 冪等ガード
+  #   user.update_columns(preferred_language: "ja", updated_at: Time.current)
   #
   # ■ レコードを作成する場合（seed_xxx.rb パターン）
   #   Model.find_or_create_by!(unique_key: "value") do |r|

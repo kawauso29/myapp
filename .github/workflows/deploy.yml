@@ -17,43 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build_frontend:
-    concurrency:
-      group: build-frontend-${{ github.sha }}
-      cancel-in-progress: true
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    runs-on: [self-hosted, sakura-vps]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        env:
-          NODE_OPTIONS: --max-old-space-size=512
-        run: cd frontend && npm ci
-
-      - name: Build Expo web
-        env:
-          NODE_OPTIONS: --max-old-space-size=512
-        run: cd frontend && npx expo export --platform web
-
-      - name: Create tarball
-        run: tar czf frontend.tar.gz -C frontend/dist .
-
-      - name: Upload tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-tar
-          path: frontend.tar.gz
-
   deploy:
     runs-on: [self-hosted, sakura-vps]
-    needs: build_frontend
     timeout-minutes: 30
     permissions:
       contents: read
@@ -61,11 +26,6 @@ jobs:
       COMMIT_MSG: ${{ github.event.inputs.reason || 'Auto-deploy from CI' }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-tar
 
       - name: Notify Slack (deploy start)
         env:
@@ -90,17 +50,6 @@ jobs:
               echo "${KEY}=${VAL}" >> $FILE
             fi
           }
-          set_env AI_PROVIDER '${{ secrets.AI_PROVIDER }}'
-          set_env OPENAI_API_KEY '${{ secrets.OPENAI_API_KEY }}'
-          set_env GEMINI_API_KEY '${{ secrets.GEMINI_API_KEY }}'
-          set_env AI_SNS_POST_MODEL '${{ secrets.AI_SNS_POST_MODEL }}'
-          set_env AI_SNS_CREATION_MODEL '${{ secrets.AI_SNS_CREATION_MODEL }}'
-          set_env TECHNICAL_MODEL '${{ secrets.TECHNICAL_MODEL }}'
-          set_env MOMENTUM_MODEL '${{ secrets.MOMENTUM_MODEL }}'
-          set_env EVENT_RISK_MODEL '${{ secrets.EVENT_RISK_MODEL }}'
-          set_env MACRO_MODEL '${{ secrets.MACRO_MODEL }}'
-          set_env SENTIMENT_MODEL '${{ secrets.SENTIMENT_MODEL }}'
-
           set_env SLACK_SIGNING_SECRET '${{ secrets.SLACK_SIGNING_SECRET }}'
           set_env SLACK_BOT_TOKEN '${{ secrets.SLACK_BOT_TOKEN }}'
           set_env SLACK_WEBHOOK_URL '${{ secrets.SLACK_WEBHOOK_URL }}'
@@ -109,17 +58,6 @@ jobs:
           set_env SLACK_WEBHOOK_URL_LEDGER '${{ secrets.SLACK_WEBHOOK_URL_LEDGER }}'
 
           set_env DEPLOY_TOKEN '${{ secrets.DEPLOY_TOKEN }}'
-          set_env SOLID_QUEUE_IN_PUMA '1'
-
-          # Ledger enforce モード（Phase 44e）: 段階的に ON にする ENV フラグ。
-          # GitHub Secrets に "1" をセットすると本番で有効化される。
-          # 未設定 / 空文字の場合は OFF（デフォルト）。
-          # 有効化前に警告ログ（warn_lane_capacity / warn_pr_guardrail）で
-          # 十分なデータ収集が完了していることを確認すること。
-          set_env ENFORCE_TEMPLATE '${{ secrets.ENFORCE_TEMPLATE }}'
-          set_env ENFORCE_AUDIT_REASON '${{ secrets.ENFORCE_AUDIT_REASON }}'
-          set_env ENFORCE_LANE_CAPACITY '${{ secrets.ENFORCE_LANE_CAPACITY }}'
-          set_env ENFORCE_PR_GUARDRAIL '${{ secrets.ENFORCE_PR_GUARDRAIL }}'
 
           # Remove unused env vars
           for KEY in SLACK_ERROR_CHANNEL_ID SLACK_CLAUDE_CHANNEL_ID SLACK_CLAUDE_MEMBER_ID GITHUB_DEPLOY_TOKEN; do
@@ -195,24 +133,8 @@ jobs:
           git reset --hard origin/main
           bundle install
           RAILS_ENV=production bin/rails db:migrate
-          RAILS_ENV=production bin/rails ledgers:seed_master_data
           RAILS_ENV=production bin/rails runner "ActiveRecord::Tasks::DatabaseTasks.prepare_all"
           RAILS_ENV=production bin/rails assets:precompile
-          rm -rf ~/myapp/public/app
-          mkdir -p ~/myapp/public/app
-          FRONTEND_TARBALL_PATH="${GITHUB_WORKSPACE}/frontend.tar.gz"
-          if [ ! -f "$FRONTEND_TARBALL_PATH" ]; then
-            FRONTEND_TARBALL_PATH="frontend.tar.gz"
-          fi
-          if [ ! -f "$FRONTEND_TARBALL_PATH" ]; then
-            echo "Error: frontend.tar.gz not found in $GITHUB_WORKSPACE or current directory"
-            exit 1
-          fi
-          cp "$FRONTEND_TARBALL_PATH" /tmp/frontend.tar.gz
-          tar xzf /tmp/frontend.tar.gz -C ~/myapp/public/app/
-          rm /tmp/frontend.tar.gz
-          echo "Frontend files:"
-          ls ~/myapp/public/app/ | head -10
           sudo cp ~/myapp/config/nginx/myapp.conf /etc/nginx/sites-available/myapp && sudo nginx -t && sudo systemctl reload nginx || echo "Nginx update skipped (check sudoers)"
           rm -rf tmp/cache && mkdir -p tmp/cache
           # Kill standalone SolidQueue processes (bin/jobs or SolidQueue::Cli).
@@ -294,20 +216,6 @@ jobs:
           echo "Health check failed after 5 attempts"
           exit 1
 
-      - name: Record Ledger deploy success
-        if: success()
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          DEPLOY_REASON: ${{ github.event.inputs.reason || 'Manual deploy' }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          cd "$GITHUB_WORKSPACE"
-          export DEPLOY_STATUS="succeeded"
-          RAILS_ENV=production bin/rails ledger_v2:record_phase_d_deploy || echo "Ledger deploy success record skipped"
-
       - name: Rollback on failure
         id: rollback
         if: failure() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
@@ -324,7 +232,6 @@ jobs:
           git reset --hard "$PRE_SHA"
           bundle install
           RAILS_ENV=production bin/rails db:migrate
-          RAILS_ENV=production bin/rails ledgers:seed_master_data || true
           rm -rf tmp/cache && mkdir -p tmp/cache
           STANDALONE_SQ_PIDS=$(ps -eo pid=,comm=,args= | awk '$2 != "bash" && $2 != "sh" && ($0 ~ /(^|[[:space:]])(bundle[[:space:]]+exec[[:space:]]+)?([^[:space:]]*\/)?bin\/jobs([[:space:]]|$)/ || $0 ~ /solid_queue/) { print $1 }')
           if [ -n "$STANDALONE_SQ_PIDS" ]; then
@@ -364,39 +271,6 @@ jobs:
           RAILS_ENV=production bin/rails solid_queue:cleanup_stale_recurring_unknown_class_jobs
           RAILS_ENV=production bin/rails solid_queue:discard_unknown_class_failed_executions
           echo "Rollback to $PRE_SHA complete"
-
-      - name: Record Ledger deploy failure / rollback result
-        if: always() && (steps.deploy_rails.outcome == 'failure' || steps.health_check.outcome == 'failure')
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          DEPLOY_REASON: ${{ github.event.inputs.reason || 'Manual deploy' }}
-          ACTOR: ${{ github.actor }}
-          DEPLOY_RAILS_OUTCOME: ${{ steps.deploy_rails.outcome }}
-          HEALTH_CHECK_OUTCOME: ${{ steps.health_check.outcome }}
-          ROLLBACK_OUTCOME: ${{ steps.rollback.outcome }}
-        run: |
-          export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
-          export FAILED_STAGE="deploy_rails"
-          if [ "${HEALTH_CHECK_OUTCOME}" = "failure" ]; then
-            export FAILED_STAGE="health_check"
-          fi
-
-          export ROLLBACK_STATUS="not_attempted"
-          if [ "${ROLLBACK_OUTCOME}" = "success" ]; then
-            export ROLLBACK_STATUS="succeeded"
-          elif [ "${ROLLBACK_OUTCOME}" = "failure" ]; then
-            export ROLLBACK_STATUS="failed"
-          fi
-
-          export ROLLBACK_TARGET_SHA="$(cat /tmp/pre_deploy_sha_${{ github.run_id }} 2>/dev/null || true)"
-          cd "$GITHUB_WORKSPACE"
-          export DEPLOY_STATUS="failed"
-          if [ "${ROLLBACK_STATUS}" = "not_attempted" ]; then
-            unset ROLLBACK_STATUS
-          fi
-          RAILS_ENV=production bin/rails ledger_v2:record_phase_d_deploy || echo "Ledger deploy failure record skipped"
 
       - name: Notify Slack (deploy success)
         if: success()

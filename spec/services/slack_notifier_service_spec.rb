@@ -10,30 +10,29 @@ RSpec.describe SlackNotifierService do
       allow(Rails.logger).to receive(:error)
     end
 
-    it "service_id用 webhook がある場合はそれを優先する" do
-      create(:service_ledger, service_id: "ai_sns", metadata: { "slack_webhook_url" => "https://example.com/service-hook" })
-
-      described_class.notify(text: "hello", channel: :jobs, service_id: "ai_sns")
-
-      expect(described_class).to have_received(:new).with("https://example.com/service-hook")
-    end
-
-    it "service_id用 webhook がない場合は channel webhook にフォールバックする" do
+    it "jobs channel の webhook を使う" do
       stub_const("#{described_class}::WEBHOOK_URLS", { error: "https://example.com/error-hook", jobs: "https://example.com/jobs-hook" })
-      create(:service_ledger, service_id: "ai_sns", metadata: {})
 
-      described_class.notify(text: "hello", channel: :jobs, service_id: "ai_sns")
+      described_class.notify(text: "hello", channel: :jobs)
 
       expect(described_class).to have_received(:new).with("https://example.com/jobs-hook")
     end
 
-    it "service_id用 webhook が http の場合は無視してフォールバックする" do
+    it "error channel は error webhook を使う" do
       stub_const("#{described_class}::WEBHOOK_URLS", { error: "https://example.com/error-hook", jobs: "https://example.com/jobs-hook" })
-      create(:service_ledger, service_id: "ai_sns", metadata: { "slack_webhook_url" => "http://example.com/service-hook" })
 
-      described_class.notify(text: "hello", channel: :jobs, service_id: "ai_sns")
+      described_class.notify(text: "hello", channel: :error)
 
-      expect(described_class).to have_received(:new).with("https://example.com/jobs-hook")
+      expect(described_class).to have_received(:new).with("https://example.com/error-hook")
+    end
+
+    it "jobs webhook が無いときは warn を出して送信しない" do
+      stub_const("#{described_class}::WEBHOOK_URLS", { error: "https://example.com/error-hook", jobs: nil })
+
+      described_class.notify(text: "hello", channel: :jobs)
+
+      expect(described_class).not_to have_received(:new)
+      expect(Rails.logger).to have_received(:warn)
     end
   end
 end

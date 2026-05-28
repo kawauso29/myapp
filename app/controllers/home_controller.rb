@@ -1,5 +1,5 @@
 class HomeController < ApplicationController
   def index
-    redirect_to "/app/", status: 302
+    redirect_to admin_root_path, status: 302
   end
 end
