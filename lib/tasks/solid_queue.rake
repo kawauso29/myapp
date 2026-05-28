@@ -5,7 +5,6 @@ namespace :solid_queue do
     Linestamp::ComposeBrandPromptJob
     Linestamp::ComposePackSheetPromptJob
     Linestamp::ComposeStampPromptsJob
-    Linestamp::DailyOrchestratorJob
     Linestamp::ProcessStampImageJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = [].freeze
