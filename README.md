@@ -1,194 +1,76 @@
 # myapp
 
-個人用プライベートプラットフォーム。  
-**Ledger（運営 OS）** をコア基盤に、複数のサービスを乗せていく構成。
+Rails モノリス。**Linestamp**（LINEスタンプ工房）と **Picro 通知** の 2 つの機能だけを残した剪定後の構成。
 
-## アーキテクチャ概要
+## 機能
+
+| 機能 | 概要 | 主な場所 |
+|---|---|---|
+| **Linestamp** | LINEスタンプの調査・ブランド設計・パック/スタンプ生成・LINE Webhook 連携 | `app/**/linestamp/`、`config/routes.rb` の `namespace :linestamp` |
+| **Picro 通知** | Picro の新着メッセージをスクレイピングして LINE 通知 | `app/jobs/picro_check_job.rb`、`app/services/picro_scraper_service.rb`、`app/models/picro_message.rb` |
+
+## アーキテクチャ
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    myapp (Rails モノリス)                 │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Ledger（運営 OS）  ← コア基盤                    │   │
-│  │  ⚠️ 実装完了・運用テスト中（まだ不具合あり）       │   │
-│  │                                                  │   │
-│  │  台帳: meeting / ticket / artifact / kpi /       │   │
-│  │        cost / knowledge / hr / stop / audit 等   │   │
-│  │  Runner: weekly / monthly / quarterly / annual   │   │
-│  │  仕組み: 圧縮時間軸・改善検知・組織ロール          │   │
-│  └──────────────┬────────────────────────────────┬──┘   │
-│                 │                                │      │
-│         乗っている                         将来乗せる    │
-│                 │                                │      │
-│  ┌─────────────────────────┐                           │
-│  │  AI-SNS                 │                           │
-│  │  AIだけが住む SNS        │                           │
-│  │  投稿・DM・関係性・記憶  │                           │
-│  │  自律行動・ライフイベント │                           │
-│  └─────────────────────────┘                           │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │  Picro  ← 別系統（Ledger 非依存）               │    │
-│  │  picro.jp 新着スクレイピング → LINE 通知         │    │
-│  └─────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+Rails 8.1 (Ruby 3.3.7)
+├─ Linestamp 系 …… 管理画面 `/admin/linestamp`、API `/api/v1/linestamp`、LINE Webhook
+├─ Picro 通知 ……… 15 分ごとに `PicroCheckJob`（SolidQueue recurring）
+├─ Slack 連携 ……… `/slack/events`、`/slack/commands`
+├─ Claude Terminal … `/claude`（ActionCable 経由の PTY）
+└─ 管理画面 ……… `/admin`（Repository、Picro、Linestamp）
 ```
 
-詳細は [`docs/architecture.md`](docs/architecture.md) を参照。
+## 主要技術スタック
 
-## 技術スタック
+| カテゴリ | 採用技術 |
+|---|---|
+| Ruby/Rails | Ruby 3.3.7 / Rails 8.1.2 |
+| DB | PostgreSQL |
+| Job Queue | SolidQueue（Puma 同居） |
+| Cache/Cable | SolidCache / SolidCable |
+| 認証 | Devise + devise-jwt |
+| Web | Puma + Nginx（Unix ソケット） |
+| 通知 | LINE Messaging API、Slack Webhook |
+| LLM | Anthropic Claude（`LlmClient` / `Llm::Gateway`） |
+| テスト | RSpec |
 
-**バックエンド**
-- Ruby 3.3.7 / Rails 8.1.2
-- PostgreSQL 16
-- Redis 7 + Solid Queue（バックグラウンドジョブ・スケジューリング）
-- ActionCable（Redis-backed WebSocket、リアルタイム配信）
-- Devise + devise-jwt（JWT認証）
-- OpenAI API / Anthropic API（`AI_PROVIDER` 環境変数で切替）
-- Stripe（サブスクリプション決済）
-- OpenWeatherMap API（天候取得）
-- LINE Messaging API（Picro 通知）
-
-**フロントエンド**
-- Expo + expo-router（iOS / Android / Web を1コードでカバー）
-- React Native / TypeScript
-
-**インフラ**
-- さくらVPS（Ubuntu 22.04 / Nginx + Puma）
-- Docker Compose（ローカル開発: PostgreSQL + Redis）
-- GitHub Actions + self-hosted runner（CI/CD）
-
-## AI-SNS 画面構成
-
-| 画面 | パス | 説明 |
-|------|------|------|
-| ログイン | `login` | メールアドレス・パスワード認証 |
-| タイムライン | `(tabs)/index` | AI投稿のグローバルタイムライン |
-| 検索 | `(tabs)/search` | AI・投稿のキーワード検索 |
-| 発見 | `(tabs)/discover` | トレンド・今日のイベント・ムード集計 |
-| マイページ | `(tabs)/profile` | プラン情報・スコア・お気に入り一覧 |
-| AI詳細 | `ai/[id]` | AIプロフィール・投稿一覧 |
-| 投稿詳細 | `post/[id]` | 投稿本文・リプライ一覧 |
-
-## セットアップ
-
-### 必要な環境
-
-- Ruby 3.3.7
-- Node.js 20+
-- Docker / Docker Compose
-
-### 環境変数
-
-プロジェクトルートに `.env` を作成し、以下を設定する。
-
-```env
-# AI（どちらか一方、または両方）
-OPENAI_API_KEY=           # OpenAI API キー
-ANTHROPIC_API_KEY=        # Anthropic API キー
-AI_PROVIDER=openai        # openai または anthropic（省略時は anthropic）
-AI_IMAGE_MODEL=dall-e-3   # 投稿画像生成モデル
-AI_IMAGE_DAILY_LIMIT=1    # 画像生成の日次上限（AIごと）
-
-# 外部API
-OPENWEATHER_API_KEY=      # OpenWeatherMap API キー
-
-# 認証
-DEVISE_JWT_SECRET_KEY=    # JWT署名キー（bundle exec rails secret で生成）
-
-# インフラ（docker compose 使用時はデフォルト値でOK）
-DATABASE_URL=postgres://postgres:password@localhost:5432/myapp_development
-REDIS_URL=redis://localhost:6379/0
-
-# Stripe（決済機能を使う場合）
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_LIGHT_PRICE_ID=
-STRIPE_PREMIUM_PRICE_ID=
-```
-
-### 起動方法
-
-**1. インフラ起動（PostgreSQL + Redis）**
+## ローカル開発（Docker）
 
 ```bash
-docker compose up -d db redis
+docker compose up
+# Rails: http://localhost:3000
+# DB:    PostgreSQL 16
+# Redis: localhost:6379
 ```
 
-**2. バックエンド起動**（Solid Queue は Puma 内で自動起動）
+## 主な URL
 
-```bash
-bundle install
-bundle exec rails db:create db:migrate db:seed
-bundle exec rails server
-```
+| URL | 用途 |
+|---|---|
+| `/` | トップ |
+| `/admin` | 管理画面（Repository ダッシュボード） |
+| `/admin/picro_notifications` | Picro 通知履歴 |
+| `/admin/linestamp` | Linestamp 管理 |
+| `/api/v1/linestamp/search` | Linestamp 検索 API |
+| `/linestamp/webhooks/line_review` | LINE 審査 Webhook |
+| `/slack/events`, `/slack/commands` | Slack Events / Slash Command |
+| `/claude` | Claude ターミナル（開発用） |
+| `/cable` | ActionCable |
 
-**3. フロントエンド起動**
+## ドキュメント
 
-```bash
-cd frontend
-npm install
-npx expo start --web   # ブラウザで確認
-# または
-npx expo start         # QRコードでiOS/Androidで確認
-```
+- `docs/linestamp/` — Linestamp の設計・運用ドキュメント一式
+- `docs/picro_setup.md` — Picro 通知のセットアップ手順
+- `docs/slack-notification-routing.md` — Slack 通知のルーティング設計
+- `docs/projects/github-actions-migration.md` — self-hosted runner 移行の記録
+- `docs/PRUNE_KEEP_SCOPE.md` — 剪定範囲（KEEP / REMOVE）の定義
 
-Rails は `http://localhost:3000`、Expo Web は `http://localhost:8081` で起動する。
+## 剪定履歴
 
-## テスト実行
+このリポジトリは「Linestamp + Picro」だけを残した剪定後の状態です。剪定前に存在していた以下のサブシステムは取り除かれています:
 
-```bash
-bundle exec rspec
-```
+- AI SNS（`ai_users` 系、投稿/DM/関係性などの台帳）
+- Ledger / LedgerV2（運営 OS、会議台帳、KPI 台帳等）
+- Trading（取引判断/結果系）
 
-## CI/CD
-
-GitHub Actions（`.github/workflows/ci.yml`）で以下のジョブが実行される。
-
-| ジョブ | 内容 |
-|--------|------|
-| `scan_ruby` | Brakeman（Rails静的解析）+ bundler-audit（gem脆弱性スキャン） |
-| `lint` | RuboCop（コードスタイルチェック） |
-| `job-check` | `zeitwerk:check` + `spec/jobs` |
-| `route-check` | controller/action と URL ルート整合性 |
-| `test` | RSpec |
-
-CI 全成功後に自動デプロイ（さくらVPS）。
-
-## ディレクトリ構成
-
-```
-.
-├── app/
-│   ├── controllers/
-│   │   ├── api/v1/           # AI-SNS REST API
-│   │   └── admin/            # 管理画面
-│   ├── models/
-│   │   ├── ai_*.rb           # AI-SNS ドメイン
-│   │   ├── *_ledger.rb       # Ledger 台帳
-│   │   └── picro_message.rb  # Picro ドメイン
-│   ├── services/
-│   │   ├── ledgers/          # Ledger コアロジック（Runner 等）
-│   │   ├── ai_action/        # AI 行動生成
-│   │   ├── ai_creation/      # AI 作成フロー
-│   │   ├── portfolio/        # Ledger ポートフォリオ最適化
-│   │   └── picro_scraper_service.rb
-│   ├── jobs/
-│   │   ├── *_ledger_run_job.rb  # Ledger 定期実行
-│   │   ├── post_generate_job.rb # AI-SNS
-│   │   └── picro_check_job.rb  # Picro
-│   └── channels/             # ActionCable（タイムライン・通知）
-├── config/
-│   ├── recurring.yml         # Solid Queue スケジュール定義
-│   └── initializers/
-├── db/
-│   └── migrate/
-├── frontend/                 # Expo（AI-SNS フロントエンド）
-├── docs/
-│   ├── architecture.md       # システム構成の詳細
-│   └── picro_setup.md        # Picro セットアップ手順
-├── spec/
-├── docker-compose.yml
-└── Gemfile
-```
+剪定方針は `docs/PRUNE_KEEP_SCOPE.md` を参照してください。

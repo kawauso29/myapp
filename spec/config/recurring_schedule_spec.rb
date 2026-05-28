@@ -2,27 +2,21 @@ require "spec_helper"
 require "yaml"
 
 RSpec.describe "recurring schedule config" do
-  it "runs hourly_state_update every 30 minutes in production" do
-    config = YAML.safe_load_file(
+  let(:config) do
+    YAML.safe_load_file(
       File.expand_path("../../config/recurring.yml", __dir__),
       symbolize_names: true
     )
-
-    expect(config.dig(:production, :hourly_state_update, :class)).to eq("HourlyStateUpdateJob")
-    expect(config.dig(:production, :hourly_state_update, :schedule)).to eq("*/30 * * * *")
   end
 
-  # v1 Ledger Runner schedules are frozen (commented out in recurring.yml) during Ledger V2 migration.
-  # These tests are skipped until V2 runners are re-enabled.
-  it "v1 ops ledger recurring schedules are frozen during V2 migration" do
-    config = YAML.safe_load_file(
-      File.expand_path("../../config/recurring.yml", __dir__),
-      symbolize_names: true
-    )
+  it "runs picro_check every 15 minutes in production" do
+    expect(config.dig(:production, :picro_check, :class)).to eq("PicroCheckJob")
+    expect(config.dig(:production, :picro_check, :schedule)).to eq("*/15 * * * *")
+  end
 
-    expect(config.dig(:production, :weekly_dept_ledger_run)).to be_nil
-    expect(config.dig(:production, :monthly_ops_ledger_run)).to be_nil
-    expect(config.dig(:production, :ticket_overdue_check)).to be_nil
-    expect(config.dig(:production, :ui_check_ledger_run)).to be_nil
+  it "clears SolidQueue finished jobs every hour" do
+    entry = config.dig(:production, :clear_solid_queue_finished_jobs)
+    expect(entry[:command]).to include("clear_finished_in_batches")
+    expect(entry[:schedule]).to eq("every hour at minute 12")
   end
 end

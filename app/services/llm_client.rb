@@ -1,13 +1,14 @@
-# AI SNS 用 LLM クライアント（サービス層から直接呼べるクラス版）
+# LLM クライアント（Linestamp プロンプト合成などサービス層から直接呼ぶ用）
 #
 # 用途別モデル:
-#   LlmClient.call(prompt, purpose: :post)     → 軽量モデル（投稿生成、頻繁）
-#   LlmClient.call(prompt, purpose: :creation) → 高性能モデル（AI作成、低頻度）
+#   LlmClient.call(prompt, purpose: :post)     → 軽量モデル（頻繁な呼び出し）
+#   LlmClient.call(prompt, purpose: :creation) → 高性能モデル（低頻度）
 #
 # .env:
 #   AI_PROVIDER=gemini|openai|claude
 #   GEMINI_API_KEY=xxx
 #   LLM_DAILY_CALL_LIMIT=500   … 日次呼び出しハードリミット（超過時は軽量モデルにフォールバック）
+#   LLM_CREATION_MODEL / LLM_POST_MODEL … プロバイダ別の利用モデル（任意）
 class LlmClient
   MAX_RETRIES = 2
 
@@ -59,11 +60,11 @@ class LlmClient
 
     case provider
     when "gemini"
-      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gemini-2.5-flash") : ENV.fetch("AI_SNS_POST_MODEL", "gemini-2.5-flash-lite")
+      @purpose == :creation ? ENV.fetch("LLM_CREATION_MODEL", "gemini-2.5-flash") : ENV.fetch("LLM_POST_MODEL", "gemini-2.5-flash-lite")
     when "openai"
-      @purpose == :creation ? ENV.fetch("AI_SNS_CREATION_MODEL", "gpt-5.4-mini") : ENV.fetch("AI_SNS_POST_MODEL", "gpt-5.4-nano")
+      @purpose == :creation ? ENV.fetch("LLM_CREATION_MODEL", "gpt-5.4-mini") : ENV.fetch("LLM_POST_MODEL", "gpt-5.4-nano")
     else
-      ENV.fetch("AI_SNS_POST_MODEL", "claude-haiku-4-5-20251001")
+      ENV.fetch("LLM_POST_MODEL", "claude-haiku-4-5-20251001")
     end
   end
 

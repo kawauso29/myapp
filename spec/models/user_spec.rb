@@ -40,6 +40,18 @@ RSpec.describe User, type: :model do
       expect(user).not_to be_valid
       expect(user.errors[:owner_score]).to be_present
     end
+
+    it "defaults preferred_language to ja when blank" do
+      user = build(:user, preferred_language: "")
+      user.valid?
+      expect(user.preferred_language).to eq("ja")
+    end
+
+    it "rejects unsupported preferred_language" do
+      user = build(:user, preferred_language: "xx")
+      expect(user).not_to be_valid
+      expect(user.errors[:preferred_language]).to be_present
+    end
   end
 
   describe "plan enum" do
@@ -55,13 +67,5 @@ RSpec.describe User, type: :model do
     it "maps free=0, light=1, premium=2" do
       expect(User.plans).to eq("free" => 0, "light" => 1, "premium" => 2)
     end
-  end
-
-  describe "associations" do
-    it { is_expected.to have_many(:ai_users).dependent(:nullify) }
-    it { is_expected.to have_many(:user_ai_likes).dependent(:destroy) }
-    it { is_expected.to have_many(:user_favorite_ais).dependent(:destroy) }
-    it { is_expected.to have_many(:favorite_ai_users).through(:user_favorite_ais) }
-    it { is_expected.to have_many(:post_reports).dependent(:destroy) }
   end
 end

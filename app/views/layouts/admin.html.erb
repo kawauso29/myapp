@@ -18,18 +18,7 @@
     nav a.active { color: #63b3ed; font-weight: 600; background: #1a2744; }
 
     /* ナビグループ */
-    .nav-group { display: flex; align-items: center; gap: 2px; padding: 4px 6px;
-                 border-radius: 6px; margin-right: 4px; }
-    .nav-group.ledger-group { background: #191c2a; border: 1px solid #2d3748; }
-    .nav-group.ledger-group.active-group { border-color: #3182ce; background: #1a2744; }
-    .nav-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-                       color: #4a5568; font-weight: 700; padding: 0 6px 0 2px;
-                       border-right: 1px solid #2d3748; margin-right: 4px; }
-    .nav-group.active-group .nav-group-label { color: #63b3ed; border-right-color: #3182ce; }
     .nav-divider { width: 1px; height: 20px; background: #2d3748; margin: 0 8px; flex-shrink: 0; }
-    .nav-stop-badge { display: inline-block; background: #c53030; color: #fff;
-                      font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px;
-                      margin-left: 2px; vertical-align: middle; }
 
     /* メインコンテンツ */
     main { padding: 24px; max-width: 1400px; margin: 0 auto; }
@@ -95,7 +84,7 @@
     .pnl.positive { color: #68d391; }
     .pnl.negative { color: #fc8181; }
 
-    /* AI SNS badges */
+    /* 共通バッジ */
     .badge.active   { background: #1c4532; color: #68d391; }
     .badge.inactive { background: #4a1942; color: #fc8181; }
     .badge.seed     { background: #1a365d; color: #63b3ed; }
@@ -168,59 +157,15 @@
   <nav>
     <span class="logo">Admin</span>
 
-    <%# ===== LEDGER グループ ===== %>
-    <% ledger_active = controller_path.start_with?('admin/ops/ledgers') %>
-    <% active_stop_count = StopLedger.status_active.count rescue 0 %>
-    <% failed_jobs_count = SolidQueue::FailedExecution.count rescue 0 %>
-    <div class="nav-group ledger-group <%= 'active-group' if ledger_active %>">
-      <span class="nav-group-label">Ledger</span>
-      <a href="<%= admin_ops_ledgers_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'index' %>">会社</a>
-      <a href="<%= admin_ops_ledger_services_path %>" class="<%= 'active' if ledger_active && %w[services service_detail].include?(controller.action_name) %>">SVC</a>
-      <a href="<%= admin_ops_ledger_schedule_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'schedule' %>">予定</a>
-      <a href="<%= admin_ops_ledger_departments_path %>" class="<%= 'active' if ledger_active && %w[departments department_detail].include?(controller.action_name) %>">各部</a>
-      <a href="<%= admin_ops_ledger_approvals_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'approvals' %>">承認</a>
-      <a href="<%= admin_ops_ledger_errors_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'errors' %>">
-        エラー<% if failed_jobs_count > 0 || active_stop_count > 0 %><span class="nav-stop-badge"><%= failed_jobs_count + active_stop_count %></span><% end %>
-      </a>
-      <a href="<%= admin_ops_ledger_operations_path %>" class="<%= 'active' if ledger_active && controller.action_name == 'operations' %>">操作</a>
-    </div>
-    <% unless ledger_active %>
-    <div class="nav-group" style="border:1px solid #2d3748; border-radius:6px; padding:4px 6px; margin-right:4px;">
-      <span class="nav-group-label" style="font-size:9px; color:#4a5568;">OPS</span>
-      <a href="<%= admin_ops_artifacts_path %>" class="<%= 'active' if controller_path == 'admin/ops/artifacts' %>">Artifacts</a>
-      <a href="<%= admin_ops_audit_decisions_path %>" class="<%= 'active' if controller_path == 'admin/ops/audit_decisions' %>">Audits</a>
-      <a href="<%= admin_ops_stops_path %>" class="<%= 'active' if controller_path == 'admin/ops/stops' %>">
-        Stops<% if active_stop_count > 0 %><span class="nav-stop-badge"><%= active_stop_count %></span><% end %>
-      </a>
-      <a href="<%= admin_ops_knowledge_index_path %>" class="<%= 'active' if controller_path == 'admin/ops/knowledge' %>">Knowledge</a>
-    </div>
-    <% end %>
+    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
 
     <span class="nav-divider"></span>
 
-    <%# ===== AI SNS ===== %>
-    <a href="<%= admin_ai_sns_path %>" class="<%= 'active' if controller_path.start_with?('admin/ai_sns') %>">AI SNS</a>
-
-    <span class="nav-divider"></span>
-
-    <%# ===== Ledger V2 ===== %>
-    <a href="<%= admin_ledger_v2_root_path %>" class="<%= 'active' if controller_path.start_with?('admin/ledger_v2') %>">
-      LedgerV2
-    </a>
-
-    <span class="nav-divider"></span>
-
-    <%# ===== 独立系統 ===== %>
     <a href="<%= admin_picro_notifications_path %>" class="<%= 'active' if controller_path == 'admin/picro_notifications' %>">Picro</a>
 
     <span class="nav-divider"></span>
 
-    <%# ===== Linestamp ===== %>
     <a href="<%= admin_linestamp_root_path %>" class="<%= 'active' if controller_path.start_with?('admin/linestamp') %>">Linestamp</a>
-
-    <span class="nav-divider"></span>
-
-    <a href="<%= admin_root_path %>" class="<%= 'active' if controller_path == 'admin/repository' %>">Repository</a>
   </nav>
   <main>
     <% if flash[:notice] %>
@@ -239,45 +184,8 @@
         <h3>管理画面</h3>
         <ul class="url-list">
           <li><a href="/admin">/admin</a> <span class="note">Repository Dashboard</span></li>
-          <li><a href="/admin/ai_sns">/admin/ai_sns</a> <span class="note">AI SNS Overview</span></li>
           <li><a href="/admin/picro_notifications">/admin/picro_notifications</a> <span class="note">Picro通知管理</span></li>
-          <li><a href="/admin/ai_sns/ai_users">/admin/ai_sns/ai_users</a> <span class="note">AI一覧</span></li>
-          <li><a href="/admin/ai_sns/posts">/admin/ai_sns/posts</a> <span class="note">投稿一覧</span></li>
-          <li><a href="/admin/ai_sns/moderation">/admin/ai_sns/moderation</a> <span class="note">モデレーション</span></li>
-          <li><a href="/admin/ops/ledgers">/admin/ops/ledgers</a> <span class="note">台帳ビュー（Read Only）</span></li>
-          <li><a href="/admin/users">/admin/users</a> <span class="note">ユーザー管理</span></li>
-        </ul>
-      </div>
-
-      <div class="url-section">
-        <h3>API — 認証不要</h3>
-        <ul class="url-list">
-          <li><span class="method get">GET</span><a href="/api/v1/posts">/api/v1/posts</a> <span class="note">タイムライン</span></li>
-          <li><span class="method get">GET</span><a href="/api/v1/posts/1">/api/v1/posts/:id</a> <span class="note">投稿詳細+リプライ</span></li>
-          <li><span class="method get">GET</span><a href="/api/v1/ai_users">/api/v1/ai_users</a> <span class="note">AI一覧</span></li>
-          <li><span class="method get">GET</span><a href="/api/v1/ai_users/1">/api/v1/ai_users/:id</a> <span class="note">AI詳細</span></li>
-          <li><span class="method get">GET</span><a href="/api/v1/ai_users/1/posts">/api/v1/ai_users/:id/posts</a></li>
-          <li><span class="method get">GET</span><a href="/api/v1/discover/trending">/api/v1/discover/trending</a> <span class="note">トレンド</span></li>
-          <li><span class="method get">GET</span><a href="/api/v1/search/ai_users?q=test">/api/v1/search/ai_users?q=</a></li>
-          <li><span class="method get">GET</span><a href="/api/v1/search/posts?q=test">/api/v1/search/posts?q=</a></li>
-        </ul>
-      </div>
-
-      <div class="url-section">
-        <h3>API — 認証必要</h3>
-        <ul class="url-list">
-          <li><span class="method post">POST</span><a href="#">/api/v1/auth/sign_up</a></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/auth/sign_in</a></li>
-          <li><span class="method delete">DEL</span><a href="#">/api/v1/auth/sign_out</a></li>
-          <li><span class="method get">GET</span><a href="#">/api/v1/me</a> <span class="note">自分の情報</span></li>
-          <li><span class="method get">GET</span><a href="#">/api/v1/me/favorites</a></li>
-          <li><span class="method get">GET</span><a href="#">/api/v1/me/ai_users</a> <span class="note">マイAI</span></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users</a> <span class="note">AIプレビュー</span></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users/confirm</a></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/ai_users/:id/favorite</a> <span class="note">お気に入りtoggle</span></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/posts/:id/likes</a></li>
-          <li><span class="method delete">DEL</span><a href="#">/api/v1/posts/:id/likes</a></li>
-          <li><span class="method post">POST</span><a href="#">/api/v1/push_token</a></li>
+          <li><a href="/admin/linestamp">/admin/linestamp</a> <span class="note">Linestamp管理</span></li>
         </ul>
       </div>
 
@@ -285,7 +193,6 @@
         <h3>接続情報</h3>
         <ul class="url-list">
           <li><a href="http://133.167.124.112">http://133.167.124.112</a> <span class="note">本番サーバー</span></li>
-          <li><a href="http://133.167.124.112/api/v1">http://133.167.124.112/api/v1</a> <span class="note">API Base</span></li>
           <li><span class="note" style="font-family:monospace; color:#a0aec0;">ws://133.167.124.112/cable</span> <span class="note">WebSocket</span></li>
           <li><span class="note" style="font-family:monospace; color:#a0aec0;">localhost:3000</span> <span class="note">開発環境</span></li>
         </ul>

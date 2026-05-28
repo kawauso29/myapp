@@ -47,11 +47,6 @@ jobs:
       - name: Install gems
         run: bundle install --jobs 2 --retry 3
 
-      - name: Install frontend dependencies
-        env:
-          NODE_OPTIONS: --max-old-space-size=512
-        run: cd frontend && npm ci
-
       - name: Prepare test database
         env:
           RAILS_ENV: test
@@ -60,7 +55,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           bin/rails db:create
-          bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:schema:load
           bin/rails db:test:prepare
 
       - name: Load production snapshot into test DB

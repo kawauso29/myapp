@@ -6,7 +6,7 @@ gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "jbuilder"
 
-# Authentication (AI SNS)
+# Authentication
 gem "devise"
 gem "devise-jwt"
 
@@ -18,9 +18,6 @@ gem "redis", "~> 5.0"
 # AI
 gem "anthropic"
 gem "ruby-openai"
-
-# Payment
-gem "stripe"
 
 # HTTP
 gem "httparty"
