@@ -1,8 +1,5 @@
-Rails.application.routes.draw do
+﻿Rails.application.routes.draw do
   root "home#index"
-
-  # Claude Terminal (authenticated single-user dev interface)
-  get  "/claude", to: "claude#index"
   mount ActionCable.server => "/cable"
 
   # Health check
@@ -16,10 +13,8 @@ Rails.application.routes.draw do
 
   # 管理画面
   namespace :admin do
-    root to: "repository#index"
+    root to: "linestamp/dashboard#index"
     get "picro_notifications", to: "picro_notifications#index"
-    post "sync_env", to: "repository#sync_env"
-    post "trigger_db_snapshot", to: "repository#trigger_db_snapshot"
 
     namespace :linestamp do
       root to: "dashboard#index"

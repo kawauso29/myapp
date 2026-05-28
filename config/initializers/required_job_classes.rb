@@ -5,7 +5,6 @@ Rails.application.reloader.to_prepare do
     Linestamp::ComposeBrandPromptJob
     Linestamp::ComposePackSheetPromptJob
     Linestamp::ComposeStampPromptsJob
-    Linestamp::DailyOrchestratorJob
     Linestamp::ProcessStampImageJob
   ].each do |job_class_name|
     job_class_name.constantize

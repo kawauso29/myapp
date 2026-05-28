@@ -76,6 +76,13 @@ class Linestamp::Stamp < ApplicationRecord
     end
   end
 
+  # レコード作成時に個別スタンプのプロンプトを自動合成する。
+  after_commit on: :create do
+    if planned? && prompt.blank?
+      Linestamp::ComposeStampPromptsJob.perform_later(id)
+    end
+  end
+
   private
 
   def exactly_one_primary_communication_theme

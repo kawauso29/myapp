@@ -75,6 +75,15 @@ class Linestamp::Pack < ApplicationRecord
     end
   end
 
+  # レコード作成時にシートプロンプトを自動合成する。
+  # apply_imports 経由なら同トランザクション内で stamps も作られた後にコミットされ、
+  # PromptComposer#compose_pack_prompt が 8 stamps を含むテキストを生成できる。
+  after_commit on: :create do
+    if planned? && sheet_prompt.blank?
+      Linestamp::ComposePackSheetPromptJob.perform_later(id)
+    end
+  end
+
   # Display name for UI
   def display_name
     series_theme

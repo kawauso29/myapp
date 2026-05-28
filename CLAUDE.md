@@ -143,6 +143,27 @@ docker compose up
 - Puma 8.x は `config/puma/{environment}.rb` があると `config/puma.rb` を読まない → `config/puma/production.rb` に SolidQueue 設定を必ず置く
 - 単一 VPS では `workers N` + `preload_app!` を避け、シングルプロセスモードで動かす（fork すると SolidQueue async でクラス解決に失敗する）
 
+## Linestamp 運用メモ
+
+### 企画ファイルは Brand + 初回 Pack(8 stamps) を 1 ファイルに同梱する
+
+- 1 ブランド = 1 ファイル = `Linestamp::Importer.run` ブロック内で `upsert_brand!` → `attach_*` → `create_pack!(stamps: [...8件...])` を続けて記述する
+- 雛形: `db/seeds/linestamp/imports/_templates/brand_template.rb`
+- Pack を別ファイルに切り出すと、apply_imports のトランザクション境界が分かれてプロンプト自動合成のタイミングが揃わなくなるので必ず同梱する
+- 追加で Pack を増やしたい場合のみ `pack_template.rb` を使って別ファイル投入を許可（緊急時の追加投入専用）
+
+### プロンプトはレコード作成時に自動合成される
+
+- `Linestamp::Brand` / `Pack` / `Stamp` の `after_commit on: :create` フックが `Compose*PromptJob` を `perform_later` する
+- `apply_imports` rake タスクは `ActiveRecord::Base.transaction` で eval を囲んでいるため、CT/属性 attach 完了後の単一コミットで Brand → Pack → Stamps の after_commit が順に発火する
+- 企画ファイル側で `brand_prompt` / `sheet_prompt` / `prompt` を直接埋めない（埋めると after_commit のガード `prompt.blank?` で何も起きなくなる）
+- cron 経路（DailyOrchestratorJob / `config/schedule.yml`）は廃止済み。SolidQueue は `config/recurring.yml` のみ読む
+
+### マスタ slug 整合性
+
+- 各 stamp の `primary_communication_theme` は **Brand に紐づけた `attach_communication_themes!` の slug のいずれかと一致** させる
+- 未知 slug は `ArgumentError: Unknown CommunicationTheme slug` で apply_imports が失敗するので、事前に `bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'` で確認する
+
 ## データ migration ガイド
 
 Rails 標準の `bin/rails db:migrate` を使う。デプロイフローに組み込み済み。

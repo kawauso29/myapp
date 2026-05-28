@@ -49,7 +49,8 @@ jobs:
 
             BODY=$(cat <<EOF
           ## ミッション
-          新規LINEスタンプブランドの企画を1つの Ruby seed ファイルとして作成してください。
+          新規LINEスタンプブランドの企画を **1つの Ruby seed ファイル** として作成してください。
+          このファイルには **Brand + 初回 Pack(stamps 8枚) を必ず同梱** します。Pack を別ファイルに分けないでください。
 
           ## 出力ファイル
           \`db/seeds/linestamp/imports/pending/${TIMESTAMP}_brand_{slug}.rb\`
@@ -57,16 +58,26 @@ jobs:
 
           ## 仕様
           - \`db/seeds/linestamp/imports/_templates/brand_template.rb\` を雛形にする
-          - \`Linestamp::Importer.run(seed_id: "${TIMESTAMP}_brand_{slug}")\` ブロック内で \`upsert_brand!\` を呼ぶ
+          - \`Linestamp::Importer.run(seed_id: "${TIMESTAMP}_brand_{slug}")\` ブロック内で:
+            1. \`upsert_brand!\` でブランド本体を作る
+            2. \`attach_communication_themes!\` と \`attach_attribute_values!\` でブランドにマスタを紐づける
+            3. **同じブロック内で続けて** \`create_pack!(brand: brand, slug: "pack_001", ...)\` を呼び、初回 Pack を作る
+            4. \`create_pack!\` の \`stamps:\` に **ちょうど 8 件** を列挙する(LINE 申請最小単位)
+            5. 各 stamp に \`label\` / \`primary_communication_theme\`(brand に紐づけた slug を使う)を必ず設定
           - マスタ slug は事前に確認(\`bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'\` 等)
           - 未知 slug はエラーになる
+          - プロンプト(\`brand_prompt\` / \`sheet_prompt\` / stamp の \`prompt\`)は **書かない**。レコード作成時の after_commit で自動合成される
           - \`docs/linestamp/08_PLANNING_GUIDE.md\` を必読
 
           ## 完了条件
           - [ ] ruby -c で構文エラーなし
           - [ ] 未知マスタ slug を使っていない
           - [ ] character_name / series_name / concept / target_audience / persona_name が入っている
-          - [ ] communication_themes と attributes が適切に設定済み
+          - [ ] Brand に communication_themes と attributes が適切に設定済み
+          - [ ] **初回 Pack が \`purchase_unit_size: 8\` で含まれている**
+          - [ ] **Pack の stamps が ちょうど 8 枚 ある**
+          - [ ] **各 stamp の \`primary_communication_theme\` が Brand に紐づけた slug のいずれかに一致している**
+          - [ ] プロンプト系カラムを直接埋めていない(after_commit で生成)
           - [ ] PR がレビュー待ち
           EOF
             )

@@ -40,6 +40,15 @@ class Linestamp::Brand < ApplicationRecord
     end
   end
 
+  # レコード作成時にプロンプトを自動合成する。
+  # apply_imports は ActiveRecord::Base.transaction で eval を囲んでいるため、
+  # CT / 属性 attach が同じトランザクション内で完了した状態で発火する。
+  after_commit on: :create do
+    if planned? && brand_prompt.blank?
+      Linestamp::ComposeBrandPromptJob.perform_later(id)
+    end
+  end
+
   # Display name for UI (character name is the primary identifier)
   def display_name
     character_name

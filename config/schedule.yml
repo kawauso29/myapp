@@ -1,5 +1,0 @@
-# Linestamp: 毎朝8時にオーケストレーション
-linestamp_daily_orchestrator:
-  cron: "0 8 * * *"
-  class: "Linestamp::DailyOrchestratorJob"
-  queue: linestamp_default
