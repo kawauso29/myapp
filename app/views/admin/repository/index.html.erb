@@ -1,0 +1,49 @@
+<h1 style="font-size:22px; margin-bottom:20px;">myapp 管理ダッシュボード</h1>
+
+<div class="card" style="margin-bottom:20px;">
+  <h2 style="font-size:16px; margin-bottom:12px;">リポジトリ全体の機能管理</h2>
+  <p style="color:#a0aec0; font-size:13px; margin-bottom:16px;">
+    現在このリポジトリで稼働している機能 (Linestamp / Picro 通知) と、進行中プロジェクトを一覧します。
+  </p>
+
+  <div class="grid-2">
+    <div>
+      <h3 style="font-size:14px; margin-bottom:8px;">🎨 Linestamp(LINEスタンプ工房)</h3>
+      <dl class="profile-grid" style="font-size:13px;">
+        <dt>Brands</dt><dd><%= @linestamp_stats[:brands] %></dd>
+        <dt>Packs</dt><dd><%= @linestamp_stats[:packs] %></dd>
+        <dt>Stamps</dt><dd><%= @linestamp_stats[:stamps] %></dd>
+        <dt>Processed</dt><dd><%= @linestamp_stats[:processed_stamps] %></dd>
+      </dl>
+      <p style="margin-top:8px;">
+        <%= link_to "Linestamp ダッシュボードへ →", admin_linestamp_root_path, style: "color:#63b3ed; font-size:12px;" %>
+      </p>
+    </div>
+
+    <div>
+      <h3 style="font-size:14px; margin-bottom:8px;">🔔 Picro 通知</h3>
+      <dl class="profile-grid" style="font-size:13px;">
+        <dt>受信メッセージ</dt><dd><%= @picro_count %></dd>
+      </dl>
+      <p style="margin-top:8px;">
+        <%= link_to "Picro 通知履歴へ →", admin_picro_notifications_path, style: "color:#63b3ed; font-size:12px;" %>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:16px; margin-bottom:12px;">進行中プロジェクト</h2>
+  <ul style="font-size:13px; line-height:1.8; color:#cbd5e0;">
+    <li>
+      <strong>self-hosted runner移行プロジェクト</strong>
+      — GitHub Actions の runner をさくら VPS の self-hosted runner に集約する作業。詳細は
+      <code>docs/projects/github-actions-migration.md</code> を参照。
+    </li>
+    <li>
+      <strong>Linestamp Phase 3</strong>
+      — プロンプト品質回復 + Designer Kit + brand 固有 12 構図カスタマイズ。詳細は
+      <code>docs/linestamp/16_PHASE2_GAPS_AND_FIXES.md</code> を参照。
+    </li>
+  </ul>
+</div>
