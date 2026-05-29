@@ -13,6 +13,12 @@ class Linestamp::Brand < ApplicationRecord
   validates :character_name, presence: true
   validates :series_name, presence: true
 
+  CHROMA_GREEN = "#3CB371"
+
+  before_validation :enforce_chroma_green
+  validates :background_color_for_gen,
+            format: { with: /\A#3CB371\z/i, message: "は #3CB371(透過用シーグリーン)固定です" }
+
   scope :with_themes, ->(theme_ids) {
     joins(:brand_communication_themes)
       .where(linestamp_brand_communication_themes: { communication_theme_id: theme_ids }).distinct
@@ -67,5 +73,9 @@ class Linestamp::Brand < ApplicationRecord
 
   def has_base_image?
     base_image.attached?
+  end
+
+  def enforce_chroma_green
+    self.background_color_for_gen = CHROMA_GREEN if background_color_for_gen.blank?
   end
 end

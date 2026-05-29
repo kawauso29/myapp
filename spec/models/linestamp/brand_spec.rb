@@ -11,6 +11,22 @@ RSpec.describe Linestamp::Brand, type: :model do
       brand = described_class.new(slug: "test", character_name: "Test2", series_name: "Test2 Series")
       expect(brand).not_to be_valid
     end
+
+    it "fills background_color_for_gen with chroma green when blank" do
+      brand = described_class.create!(slug: "green-default", character_name: "Test", series_name: "Test Series")
+      expect(brand.background_color_for_gen).to eq("#3CB371")
+    end
+
+    it "rejects non-chroma-green background_color_for_gen" do
+      brand = described_class.new(
+        slug: "soft-green",
+        character_name: "Test",
+        series_name: "Test Series",
+        background_color_for_gen: "#E8F5EC"
+      )
+      expect(brand).not_to be_valid
+      expect(brand.errors[:background_color_for_gen]).to include("は #3CB371(透過用シーグリーン)固定です")
+    end
   end
 
   describe "associations" do

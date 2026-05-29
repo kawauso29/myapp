@@ -1,36 +1,41 @@
 # frozen_string_literal: true
 
 module Linestamp
-  # Phase 3 PromptComposer: DB-first のマスタ（CT / 属性軸）を参照してプロンプトを生成する。
-  # Brand / Pack / Stamp の3階層それぞれに対応したプロンプトを返す。
+  # DB-first のマスタ(CT / 属性軸)を参照して Brand / Pack / Stamp の3階層プロンプトを生成する。
   class PromptComposer
+    DEFAULT_COMPOSITIONS = [
+      "正面・無表情", "正面・うっすら笑顔", "正面・困り顔", "正面・真顔",
+      "横向き立ち", "寝そべり", "座り(マグ抱え)", "椅子に座る",
+      "両手合わせ", "サムズアップ", "軽く手を振る", "頬杖"
+    ].freeze
+
     # --- Brand プロンプト (base_image 生成用) ---
     def compose_brand_prompt(brand)
       parts = brand.character_parts || {}
       fonts = brand.font_spec || {}
-      tone_names    = brand.attribute_values_by_axis("tone").pluck(:name).join(" × ")
-      motif_names   = brand.attribute_values_by_axis("motif").pluck(:name).join(" × ")
       demo_names    = brand.attribute_values_by_axis("demographic").pluck(:name).join(", ")
       setting_names = brand.attribute_values_by_axis("setting").pluck(:name).join(", ")
       cts           = brand.communication_themes.pluck(:name).join(" / ")
 
       parts_text = %w[eyes mouth ears body limbs tail collar].filter_map { |key|
-        val = parts[key]
+        val = parts[key] || parts[key.to_sym]
         "- #{parts_label(key)}: #{val}" if val.present?
-      }.join("\n    ")
+      }.join("\n        ")
 
-      <<~PROMPT.strip
+      raw = <<~PROMPT
         あなたは LINE スタンプキャラクター仕様シートのデザイナーです。
         1枚の「キャラ仕様シート画像」を作ってください。これは今後の全パック・全スタンプの参照基準になります。
 
         【キャラクター定義(必須遵守の核)】
         #{brand.two_part_definition}
 
+        【キャラの優先順位(必須遵守・スコア降順)】
+        #{format_tone_axes(brand)}
+
         【ペルソナとシーン】
         送り手の想定: #{brand.persona_name}
         主な利用シーン: #{setting_names.presence || "汎用"}
         ターゲット世代: #{demo_names.presence || "指定なし"}
-        キャラの雰囲気(味付け): #{[tone_names, motif_names].reject(&:blank?).join(" × ").presence || "指定なし"}
         扱うコミュニケーション: #{cts.presence || "未設定"}
 
         【キャラパーツ仕様(全構図で完全統一)】
@@ -45,37 +50,36 @@ module Linestamp
         【出力形式】
         1枚の画像内に以下を配置:
         ■ 上段:キャラ構図 12カット(3行 × 4列、すべて同じキャラの統一描写)
-          1行目: 正面・無表情 / 正面・うっすら笑顔 / 正面・困り顔 / 正面・真顔
-          2行目: 横向き立ち / 寝そべり / 座り(マグ抱え) / 椅子に座る
-          3行目: 両手合わせ / サムズアップ / 軽く手を振る / 頬杖
+        #{format_compositions(brand)}
         ■ 下段:フォント基準 3パターンを横一列
           「おつかれ」「りょうかい」「OK」
-          ↑ #{fonts['primary']} / #{fonts['color']} / #{fonts['outline']}
 
         【背景】
         全領域を単色グリーン #{brand.background_color_for_gen}(後工程で透過するため必須)
 
         【厳守事項】
+        - これは個別スタンプ集ではない。シリーズ一覧でもない。1体のキャラを12構図で描く仕様シートである
         - 全12構図で線の太さ・色・体型・目の形・首輪を一切変えない
         - 白背景禁止(白い体が透過処理で消える事故が過去にあり)
         - 文字は丁寧に正しい漢字で。崩れたら再生成
         - キャラの解釈を加えない(髪を描く・服を着せる・装飾を増やす等)
         - スタンプ風のフラットな塗り、影や立体感は最小限
       PROMPT
+      tidy(raw)
     end
 
     # --- Pack プロンプト (sheet_image 生成用) ---
     def compose_pack_prompt(pack)
       brand  = pack.brand
       cts    = pack.communication_themes.pluck(:name).join(", ")
-      scenes = (pack.usage_scenes || []).join(" / ")
+      scenes = (pack.usage_scenes || []).map { |s| setting_label(s) }.join(" / ")
       emos   = (pack.target_emotions || []).join(" / ")
       stamps_text = pack.stamps.order(:position).map { |s|
         ct_name = s.primary_communication_theme&.name || "未設定"
         "  ##{s.position} 「#{s.display_label}」 — #{s.situation}(主テーマ: #{ct_name})"
       }.join("\n")
 
-      <<~PROMPT.strip
+      raw = <<~PROMPT
         あなたは LINE スタンプシリーズ(8枚一覧)のデザイナーです。
         1枚の「シリーズ一覧画像」を作ってください。これがこのパック内のスタンプ品質の参照基準になります。
 
@@ -86,7 +90,7 @@ module Linestamp
 
         【シリーズコンセプト】
         シリーズ名: #{pack.series_theme}
-        世界観: #{pack.world_view}
+        世界観: #{pack.world_view.presence || "未設定"}
         Layer: #{pack.layer}
 
         【ペルソナと使われ方】
@@ -110,6 +114,7 @@ module Linestamp
         - 8コマ全てで「キャラの揺れ」を絶対禁止(顔・線・首輪が変わらない)
         - 1枚画像内で完結させる(個別書き出しは別工程)
       PROMPT
+      tidy(raw)
     end
 
     # 後方互換: 旧名メソッド
@@ -121,8 +126,9 @@ module Linestamp
       brand = pack.brand
       ct    = stamp.primary_communication_theme
       spec  = pack.effective_image_spec
+      kw    = stamp.search_keywords || []
 
-      <<~PROMPT.strip
+      raw = <<~PROMPT
         あなたは個別 LINE スタンプのデザイナーです。
         1枚の正方形スタンプを作ってください。
 
@@ -134,13 +140,15 @@ module Linestamp
 
         【スタンプ ##{stamp.position}】
         - 文言: 「#{stamp.display_label}」
-        - 主テーマ: #{ct&.name || "未設定"}#{ct&.description ? "(#{ct.description})" : ""}
+        - 主テーマ: #{ct&.name || "未設定"}
+        #{ct&.description.present? ? "  (#{ct.description})" : ""}
         - シチュエーション: #{stamp.situation}
         - ポーズ: #{stamp.pose_spec}
         - 小道具: #{stamp.props}
         - 送り手の意図: #{stamp.intent}
         - 利用シーン: #{stamp.usage_scene}
         - コミュニケーション代替価値: #{stamp.communication_purpose}
+        #{kw.present? ? "- 検索キーワード: #{kw.join(' / ')}" : ""}
 
         【キャラ仕様】
         brand.base_image と完全一致。線・色・体型・目・首輪・しっぽを一切変えない。
@@ -157,16 +165,54 @@ module Linestamp
         - キャラはスタンプ領域の 80% 以上を占める
         - 1画像に1スタンプのみ
       PROMPT
+      tidy(raw)
     end
 
     private
 
+    def tidy(text)
+      text.gsub(/[ \t]+\n/, "\n").gsub(/\n{3,}/, "\n\n").strip
+    end
+
+    def format_tone_axes(brand)
+      axes = brand.tone_axes
+      if axes.present?
+        axes.sort_by { |_key, value| -value.to_f }.each_with_index.map { |(key, value), index|
+          "#{index + 1}. #{tone_label(key)} #{(value.to_f * 100).round}%"
+        }.join("\n        ")
+      else
+        names = brand.attribute_values_by_axis("tone").pluck(:name)
+        names.any? ? names.join(" × ") : "指定なし"
+      end
+    end
+
+    def format_compositions(brand)
+      raw = brand.respond_to?(:base_compositions) ? brand.base_compositions : nil
+      list =
+        if raw.present?
+          raw.map { |composition|
+            composition.is_a?(Hash) ? (composition["label"] || composition[:label]) : composition
+          }.compact
+        else
+          DEFAULT_COMPOSITIONS
+        end
+      list = DEFAULT_COMPOSITIONS if list.empty?
+      list.each_slice(4).map { |row| "  #{row.join(' / ')}" }.join("\n")
+    end
+
+    def tone_label(slug)
+      Linestamp::AttributeValue.for_axis("tone").find_by(slug: slug.to_s)&.name || slug.to_s
+    end
+
+    def setting_label(slug)
+      Linestamp::AttributeValue.for_axis("setting").find_by(slug: slug.to_s)&.name || slug.to_s
+    end
+
     def parts_label(key)
-      labels = {
+      {
         "eyes" => "目", "mouth" => "口", "ears" => "耳",
         "body" => "体", "limbs" => "手足", "tail" => "しっぽ", "collar" => "首回り"
-      }
-      labels[key] || key.titleize
+      }[key.to_s] || key.to_s
     end
   end
 end

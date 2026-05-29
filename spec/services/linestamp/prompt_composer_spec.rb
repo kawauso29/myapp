@@ -16,6 +16,20 @@ RSpec.describe Linestamp::PromptComposer do
       persona_name: "オフィスワーカー佐藤さん(30代女性)",
       two_part_definition: "ねこちゃんは「甘えん坊な猫」ではない。ねこちゃんは、無関心だけど時々気を遣う、オフィスにいる猫である。",
       tone_axes: { gentle: 0.95, cute: 0.7 },
+      base_compositions: [
+        "正面・深呼吸",
+        "横向きでメモを見る",
+        "椅子で小さく会釈",
+        "マグを抱えて沈黙",
+        "ノートPCを見上げる",
+        "両手でOKを作る",
+        "片手を軽く上げる",
+        "しっぽだけ揺れる",
+        "頬杖で考える",
+        "背伸びする",
+        "小さく拍手する",
+        "机の下からのぞく"
+      ],
       character_parts: { eyes: "ジト目", mouth: "横一文字", ears: "三角の小さい耳", body: "白い2頭身", limbs: "短い手足", tail: "細い尾", collar: "ピンクの首輪" },
       font_spec: { "primary" => "丸ゴシック太め", "color" => "#3D2817", "outline" => "white_thick_4px" },
       background_color_for_gen: "#3CB371",
@@ -48,7 +62,7 @@ RSpec.describe Linestamp::PromptComposer do
       position: 1,
       layer: "core_work",
       world_view: "オフィスの自席で同僚・上司との会話に添える、カジュアルなリアクション集",
-      usage_scenes: ["朝の挨拶", "会議の合間", "コーヒー休憩", "終業前のひと息"],
+      usage_scenes: ["remote_work", "朝の挨拶", "会議の合間", "コーヒー休憩", "終業前のひと息"],
       target_emotions: ["相槌", "軽いねぎらい", "気遣い", "集中したい合図"],
       excluded_elements: "週末・恋人との会話(Dream Layer 派生パックで使用予定)"
     )
@@ -81,6 +95,7 @@ RSpec.describe Linestamp::PromptComposer do
       pose_spec: "座り、片手だけ顔の横に上げる",
       props: "ノートPC",
       communication_purpose: "タイプする時間がない時の「読んだよ」",
+      search_keywords: %w[了解 返事 業務チャット],
       primary_communication_theme: ct,
       skip_primary_theme_guard: true
     )
@@ -105,6 +120,16 @@ RSpec.describe Linestamp::PromptComposer do
 
     it "includes attribute values from master (tone)" do
       expect(prompt).to include("かわいい")
+    end
+
+    it "includes tone axes ordered by score" do
+      expect(prompt).to include("1. ゆるい 95%")
+      expect(prompt.index("1. ゆるい 95%")).to be < prompt.index("2. かわいい 70%")
+    end
+
+    it "includes brand-specific base compositions" do
+      expect(prompt).to include("正面・深呼吸")
+      expect(prompt).to include("机の下からのぞく")
     end
 
     it "includes setting attribute" do
@@ -146,6 +171,11 @@ RSpec.describe Linestamp::PromptComposer do
       expect(prompt).to include("朝の挨拶")
     end
 
+    it "translates setting slugs in usage scenes" do
+      expect(prompt).to include("在宅")
+      expect(prompt).not_to include("remote_work")
+    end
+
     it "includes target emotions" do
       expect(prompt).to include("軽いねぎらい")
     end
@@ -180,6 +210,14 @@ RSpec.describe Linestamp::PromptComposer do
 
     it "includes primary CT name and description" do
       expect(prompt).to include("相槌")
+    end
+
+    it "formats primary CT name and description on separate lines" do
+      expect(prompt).to include("- 主テーマ: 相槌\n  (了解・OK・うん)")
+    end
+
+    it "includes search keywords" do
+      expect(prompt).to include("- 検索キーワード: 了解 / 返事 / 業務チャット")
     end
 
     it "includes situation" do

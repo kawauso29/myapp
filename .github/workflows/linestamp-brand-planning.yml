@@ -64,8 +64,11 @@ jobs:
             3. **同じブロック内で続けて** \`create_pack!(brand: brand, slug: "pack_001", ...)\` を呼び、初回 Pack を作る
             4. \`create_pack!\` の \`stamps:\` に **ちょうど 8 件** を列挙する(LINE 申請最小単位)
             5. 各 stamp に \`label\` / \`primary_communication_theme\`(brand に紐づけた slug を使う)を必ず設定
+            6. Brand には \`two_part_definition\` / \`character_parts\`(eyes, mouth, ears, body, limbs, tail, collar の7パーツ) / \`font_spec\`(書体・色・フチ) / \`tone_axes\`(スコア付き jsonb) / \`target_axes\` を必ず設定
+            7. 各 stamp には LINE アプリ内検索用の \`search_keywords\`(日本語 2〜4 個)を必ず設定
           - マスタ slug は事前に確認(\`bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'\` 等)
           - 未知 slug はエラーになる
+          - \`background_color_for_gen\` は **書かない**。モデルが透過用シーグリーン \`#3CB371\` に固定する
           - プロンプト(\`brand_prompt\` / \`sheet_prompt\` / stamp の \`prompt\`)は **書かない**。レコード作成時の after_commit で自動合成される
           - \`docs/linestamp/08_PLANNING_GUIDE.md\` を必読
 
@@ -73,10 +76,17 @@ jobs:
           - [ ] ruby -c で構文エラーなし
           - [ ] 未知マスタ slug を使っていない
           - [ ] character_name / series_name / concept / target_audience / persona_name が入っている
+          - [ ] two_part_definition が 1 文で入っている
+          - [ ] character_parts に eyes / mouth / ears / body / limbs / tail / collar の7パーツが入っている
+          - [ ] font_spec に primary / color / outline が入っている
+          - [ ] tone_axes がスコア付き jsonb で入っている
+          - [ ] target_axes が入っている
+          - [ ] background_color_for_gen を直接書いていない
           - [ ] Brand に communication_themes と attributes が適切に設定済み
           - [ ] **初回 Pack が \`purchase_unit_size: 8\` で含まれている**
           - [ ] **Pack の stamps が ちょうど 8 枚 ある**
           - [ ] **各 stamp の \`primary_communication_theme\` が Brand に紐づけた slug のいずれかに一致している**
+          - [ ] **各 stamp に \`search_keywords\` が 2〜4 個入っている**
           - [ ] プロンプト系カラムを直接埋めていない(after_commit で生成)
           - [ ] PR がレビュー待ち
           EOF

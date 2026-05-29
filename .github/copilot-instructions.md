@@ -51,6 +51,13 @@
 
 健全性チェック: `bin/rails db:migrate:lint`
 
+## Linestamp 運用メモ
+
+- Brand 企画ファイルは **二段定義 / キャラパーツ(eyes, mouth, ears, body, limbs, tail, collar の7パーツ) / フォント / tone_axes / target_axes** を必ず埋める
+- `background_color_for_gen` は触らない（モデル validate で `#3CB371` 固定）。世界観カラーは `primary_color` に入れる
+- 各 stamp に `search_keywords` を入れると LINE アプリ内検索の導線になる
+- Stamp 詳細の「📥 Designer Kit DL」で prompt + 参照画像 + README を 1 zip で取得できる
+
 ## PR 作成
 
 1. 変更内容を Linestamp / Picro / 共通基盤のどれに該当するか明示する（範囲外のシステムを復活させない）

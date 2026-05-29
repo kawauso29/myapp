@@ -1,5 +1,5 @@
 class Admin::Linestamp::StampsController < Admin::BaseController
-  before_action :set_stamp, only: %i[show update upload_raw upload_processed process_image reset]
+  before_action :set_stamp, only: %i[show update upload_raw upload_processed process_image reset designer_kit]
 
   def show
     @themes = ::Linestamp::CommunicationTheme.active.ordered
@@ -52,6 +52,12 @@ class Admin::Linestamp::StampsController < Admin::BaseController
     else
       redirect_to admin_linestamp_stamp_path(@stamp), alert: "Cannot reset stamp in current state."
     end
+  end
+
+  def designer_kit
+    kit = ::Linestamp::DesignerKit::Stamp.new(@stamp)
+    zip = kit.export
+    send_file zip.path, filename: kit.filename, type: "application/zip", disposition: "attachment"
   end
 
   private

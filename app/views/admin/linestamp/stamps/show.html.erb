@@ -66,6 +66,10 @@
   <% if @stamp.prompt.present? %>
     <pre id="stamp-prompt" style="background:#232637; padding:12px; border-radius:6px; white-space:pre-wrap; font-size:12px; color:#e2e8f0; max-height:300px; overflow-y:auto;"><%= @stamp.prompt %></pre>
     <button onclick="navigator.clipboard.writeText(document.getElementById('stamp-prompt').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Prompt</button>
+    <%= link_to "📥 Designer Kit (prompt + 参照画像) をDL",
+          designer_kit_admin_linestamp_stamp_path(@stamp),
+          class: "btn btn-primary btn-sm",
+          style: "margin-top:8px;" %>
   <% else %>
     <p style="color:#718096;">Prompt not yet composed.</p>
   <% end %>

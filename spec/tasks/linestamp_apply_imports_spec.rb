@@ -8,6 +8,7 @@ RSpec.describe "linestamp:apply_imports rake task" do
     load Rails.root.join("db/seeds/linestamp/masters.rb")
     Linestamp::Seeds.call
     Rails.application.load_tasks unless Rake::Task.task_defined?("linestamp:apply_imports")
+    mark_existing_pending_imports_as_applied
   end
 
   let(:pending_dir) { Rails.root.join("db/seeds/linestamp/imports/pending") }
@@ -17,6 +18,15 @@ RSpec.describe "linestamp:apply_imports rake task" do
     # Clean up any test files
     Dir.glob(pending_dir.join("test_*.rb")).each { |f| File.delete(f) }
     Dir.glob(applied_dir.join("test_*.rb")).each { |f| File.delete(f) }
+  end
+
+  def mark_existing_pending_imports_as_applied
+    Dir.glob(pending_dir.join("*.rb")).reject { |path| File.basename(path).start_with?("test_") }.each do |path|
+      Linestamp::SeedApplication.find_or_create_by!(seed_id: File.basename(path, ".rb")) do |seed|
+        seed.state = "applied"
+        seed.applied_at = Time.current
+      end
+    end
   end
 
   it "applies pending seed files and moves to applied/" do

@@ -41,6 +41,7 @@
           post :upload_processed
           post :process_image
           post :reset
+          get  :designer_kit
         end
       end
       resources :researches, only: [ :index, :show ]
