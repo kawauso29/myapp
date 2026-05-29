@@ -13,7 +13,7 @@
 
   # 管理画面
   namespace :admin do
-    root to: "linestamp/dashboard#index"
+    root to: "repository#index"
     get "picro_notifications", to: "picro_notifications#index"
 
     namespace :linestamp do
