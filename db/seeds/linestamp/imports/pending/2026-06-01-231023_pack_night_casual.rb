@@ -126,7 +126,7 @@ Linestamp::Importer.run(seed_id: "2026-06-01-231023_pack_night_casual") do
         search_keywords: %w[おめでとう 祝い 嬉しい]
       },
       {
-        label: "えーまじ",
+        label: "えーマジ",
         primary_communication_theme: "friendly_tease",
         communication_themes: %w[friendly_tease],
         attributes: { tone: %w[funny cute], setting: %w[with_friends with_lover] },
