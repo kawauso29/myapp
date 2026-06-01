@@ -177,7 +177,7 @@ end
 
 ### Brand で触ってはいけない / 書かないもの
 
-- **`background_color_for_gen` は書かない**。モデルが透過用シーグリーン `#3CB371` に固定する（ChromaKeyProcessor の緑透過パイプライン保護）。世界観の色は `primary_color` に入れる。
+- **`background_color_for_gen` は書かない**。モデルが透過用シーグリーン `#3CB371` に固定する（cowork の line-stamp-packaging スキルが緑透過するため緑背景固定）。世界観の色は `primary_color` に入れる。
 - **プロンプト系カラム（`brand_prompt` / `sheet_prompt` / stamp の `prompt`）は書かない**。レコード作成時の `after_commit` で自動合成される。埋めると合成ガード（`prompt.blank?`）で何も起きなくなる。
 - 差別化は**禁止語や特定部位のハードコードで出さない**。`research_slug` 起点 + `identity_axes` の構造化スロットで出す。使わない軸は空文字で残す（プロンプトには出ない）。
 

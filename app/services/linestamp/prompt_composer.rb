@@ -23,6 +23,7 @@ module Linestamp
       setting_names = brand.attribute_values_by_axis("setting").pluck(:name).join(", ")
       cts           = brand.communication_themes.pluck(:name).join(" / ")
       identity_block = identity_lines(brand)
+      research_block = research_background(brand)
 
       parts_text = PART_AXES.filter_map { |key|
         val = parts[key] || parts[key.to_sym]
@@ -45,6 +46,7 @@ module Linestamp
         ターゲット世代: #{demo_names.presence || "指定なし"}
         扱うコミュニケーション: #{cts.presence || "未設定"}
 
+        #{research_block.present? ? "#{research_block}\n" : ""}
         #{identity_block.present? ? "【ブランド識別軸(他と間違えられない核)】\n        #{identity_block}\n" : ""}
         【キャラパーツ仕様(全構図で完全統一)】
         #{parts_text}
@@ -130,7 +132,7 @@ module Linestamp
     # 後方互換: 旧名メソッド
     alias_method :compose_pack_sheet_prompt, :compose_pack_prompt
 
-    # --- Stamp プロンプト (raw_image 生成用) ---
+    # --- Stamp プロンプト (個別スタンプ画像 生成用) ---
     def compose_stamp_prompt(stamp)
       pack  = stamp.pack
       brand = pack.brand
@@ -184,6 +186,20 @@ module Linestamp
 
     def tidy(text)
       text.gsub(/[ \t]+\n/, "\n").gsub(/\n{3,}/, "\n\n").strip
+    end
+
+    # Research 由来のブランド案メモ(複数候補を含むテキスト)を、企画背景の参考情報として差し込む。
+    # research は optional belongs_to なので未紐付け / 空なら何も足さない(従来挙動を完全維持)。
+    def research_background(brand)
+      ideas = brand.research&.brand_ideas
+      return "" if ideas.blank?
+
+      <<~TEXT.strip
+        【企画の背景(Research由来・参考情報)】
+        このブランドが派生した市場調査のブランド案メモ(複数候補を含む。下記は狙いを理解するための背景であり、画像に文字や複数キャラを描き込む指示ではない):
+        #{ideas.to_s.strip}
+        ※この調査から1案に絞り込んでこのキャラは設計されている。「ただかわいい動物」の量産にせず、上の狙いと下の識別軸を反映した1体だけを描くこと。
+      TEXT
     end
 
     def format_tone_axes(brand)

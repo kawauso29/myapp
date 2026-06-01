@@ -22,15 +22,7 @@
     <h2>Images</h2>
     <div style="display:flex; gap:16px; flex-wrap:wrap;">
       <div>
-        <p style="font-size:11px; color:#718096;">Raw</p>
-        <% if @stamp.raw_image.attached? %>
-          <%= image_tag url_for(@stamp.raw_image), style: "max-width:150px; border-radius:4px; background:#3CB371;" %>
-        <% else %>
-          <div style="width:150px; height:100px; background:#232637; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#4a5568;">No raw</div>
-        <% end %>
-      </div>
-      <div>
-        <p style="font-size:11px; color:#718096;">Processed</p>
+        <p style="font-size:11px; color:#718096;">Processed(完成画像)</p>
         <% if @stamp.processed_image.attached? %>
           <%= image_tag url_for(@stamp.processed_image), style: "max-width:150px; border-radius:4px; background:repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 20px 20px;" %>
         <% else %>
@@ -78,18 +70,9 @@
 <div class="card" style="margin-top:16px;">
   <h2>Actions</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <%= form_with url: upload_raw_admin_linestamp_stamp_path(@stamp), method: :post, multipart: true, style: "display:flex; gap:4px; align-items:center;" do |f| %>
-      <%= f.file_field :raw_image, accept: "image/*", style: "color:#a0aec0; font-size:12px;" %>
-      <%= f.submit "Upload Raw", class: "btn btn-primary btn-sm" %>
-    <% end %>
-
     <%= form_with url: upload_processed_admin_linestamp_stamp_path(@stamp), method: :post, multipart: true, style: "display:flex; gap:4px; align-items:center;" do |f| %>
       <%= f.file_field :processed_image, accept: "image/png", style: "color:#a0aec0; font-size:12px;" %>
       <%= f.submit "Upload Processed", class: "btn btn-success btn-sm" %>
-    <% end %>
-
-    <% if @stamp.raw_uploaded? %>
-      <%= button_to "🔄 Process (Chroma Key)", process_image_admin_linestamp_stamp_path(@stamp), method: :post, class: "btn btn-primary btn-sm" %>
     <% end %>
 
     <% if @stamp.may_reset? %>

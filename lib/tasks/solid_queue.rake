@@ -5,7 +5,6 @@ namespace :solid_queue do
     Linestamp::ComposeBrandPromptJob
     Linestamp::ComposePackSheetPromptJob
     Linestamp::ComposeStampPromptsJob
-    Linestamp::ProcessStampImageJob
   ].freeze
   STALE_RECURRING_JOB_CLASSES = [].freeze
   WRAPPER_CLEANUP_BATCH_SIZE = 500

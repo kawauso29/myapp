@@ -47,9 +47,9 @@ Linestamp::Importer.run(seed_id: "REPLACE_WITH_UNIQUE_ID") do
     },
     identity_axes: {
       # 他ブランドと絶対に混同されない核。使わない軸は空文字で残す(プロンプトには出ない)。
-      signature: "", # 例: "右目の下に小さなほくろ" / "いつも湯呑みを持っている"
-      voice: "",     # 例: "断定しない・語尾がやわらかい" / "古風な武士口調"
-      behavior: ""   # 例: "驚くと耳がぴんと立つ" / "考えるとき宙を見る"
+      signature: "首元の小さな丸いタグ(全構図で必ず描く)",
+      voice: "断定しない・語尾がやわらかい",
+      behavior: "考えるときマグカップを抱える"
     },
     base_compositions: [
       "正面・無表情",

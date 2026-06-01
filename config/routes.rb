@@ -37,9 +37,7 @@
       end
       resources :stamps, only: [ :show, :update ] do
         member do
-          post :upload_raw
           post :upload_processed
-          post :process_image
           post :reset
           get  :designer_kit
         end
