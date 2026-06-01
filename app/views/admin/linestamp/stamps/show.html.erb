@@ -80,3 +80,22 @@
     <% end %>
   </div>
 </div>
+
+<%# ALL_COLUMNS_DUMP %>
+<div class="card" style="margin-top:16px;">
+  <h2>全カラム (All Columns)</h2>
+  <dl class="profile-grid">
+    <% @stamp.attributes.each do |__col, __val| %>
+      <dt><%= __col %></dt>
+      <dd>
+        <% if __val.nil? || (__val.respond_to?(:empty?) && __val.empty?) %>
+          —
+        <% elsif __val.is_a?(Hash) || __val.is_a?(Array) %>
+          <pre style="white-space:pre-wrap; font-size:11px; margin:0; background:#232637; padding:8px; border-radius:4px; color:#e2e8f0;"><%= JSON.pretty_generate(__val) %></pre>
+        <% else %>
+          <%= __val.to_s %>
+        <% end %>
+      </dd>
+    <% end %>
+  </dl>
+</div>
