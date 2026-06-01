@@ -2,10 +2,10 @@ class Rack::Attack
   if Rails.env.test?
     Rack::Attack.enabled = false
   else
-    # Redisキャッシュを使用（なければメモリ）
-    Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/1"))
+    # メモリキャッシュでレート制限(Redis 依存を撤去 / シングルプロセス Puma 前提)
+    Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
 
-    # 認証エンドポイントのレート制限（IP単位: 5req/20sec）
+    # 認証エンドポイントのレート制限(IP単位: 5req/20sec)
     throttle("auth/sign_in", limit: 5, period: 20.seconds) do |req|
       req.ip if req.path == "/api/v1/auth/sign_in" && req.post?
     end
@@ -14,7 +14,7 @@ class Rack::Attack
       req.ip if req.path == "/api/v1/auth/sign_up" && req.post?
     end
 
-    # APIエンドポイント全体（IP単位: 300req/5min）
+    # APIエンドポイント全体(IP単位: 300req/5min)
     throttle("api/general", limit: 300, period: 5.minutes) do |req|
       req.ip if req.path.start_with?("/api/")
     end

@@ -23,6 +23,9 @@ jobs:
         id: brands
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
+          set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
+          export SECRET_KEY_BASE="${SECRET_KEY_BASE:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
+          export DEVISE_JWT_SECRET_KEY="${DEVISE_JWT_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
           BRANDS=$(RAILS_ENV=production bin/rails runner "puts Linestamp::Brand.pluck(:slug).join(',')" 2>/dev/null || echo "")
           if [ -z "$BRANDS" ]; then
             BRANDS="none"

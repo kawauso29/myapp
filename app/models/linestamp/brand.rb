@@ -1,6 +1,8 @@
 class Linestamp::Brand < ApplicationRecord
   include AASM
 
+  belongs_to :research, class_name: "Linestamp::Research", optional: true
+
   has_many :packs, class_name: "Linestamp::Pack", dependent: :destroy
   has_one_attached :base_image
 
@@ -12,6 +14,12 @@ class Linestamp::Brand < ApplicationRecord
   validates :slug, presence: true, uniqueness: true
   validates :character_name, presence: true
   validates :series_name, presence: true
+
+  CHROMA_GREEN = "#3CB371"
+
+  before_validation :enforce_chroma_green
+  validates :background_color_for_gen,
+            format: { with: /\A#3CB371\z/i, message: "は #3CB371(透過用シーグリーン)固定です" }
 
   scope :with_themes, ->(theme_ids) {
     joins(:brand_communication_themes)
@@ -40,6 +48,15 @@ class Linestamp::Brand < ApplicationRecord
     end
   end
 
+  # レコード作成時にプロンプトを自動合成する。
+  # apply_imports は ActiveRecord::Base.transaction で eval を囲んでいるため、
+  # CT / 属性 attach が同じトランザクション内で完了した状態で発火する。
+  after_commit on: :create do
+    if planned? && brand_prompt.blank?
+      Linestamp::ComposeBrandPromptJob.perform_later(id)
+    end
+  end
+
   # Display name for UI (character name is the primary identifier)
   def display_name
     character_name
@@ -58,5 +75,9 @@ class Linestamp::Brand < ApplicationRecord
 
   def has_base_image?
     base_image.attached?
+  end
+
+  def enforce_chroma_green
+    self.background_color_for_gen = CHROMA_GREEN if background_color_for_gen.blank?
   end
 end

@@ -10,7 +10,7 @@ class Admin::BaseController < ApplicationController
     password = ENV["ADMIN_PASSWORD"]
     return unless password.present?
 
-    authenticate_or_request_with_http_basic("AI Trading Admin") do |_, pw|
+    authenticate_or_request_with_http_basic("AI Admin") do |_, pw|
       ActiveSupport::SecurityUtils.secure_compare(pw, password)
     end
   end

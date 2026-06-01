@@ -1,60 +1,10 @@
 Rails.application.reloader.to_prepare do
   %w[
-    AiActionCheckJob
-    PostGenerateJob
-    DmCheckJob
     SlackForwardToClaudeJob
-    RelationshipDecayJob
-    MonitorFailedJobsJob
-    MarketAnalysisJob
-    WeatherFetchJob
-    DailyScheduleGenerateJob
-    DynamicParamsUpdateJob
-    MilestoneCheckJob
-    WeeklyKpiSnapshotJob
-    WeeklyDeptLedgerRunJob
-    MonthlyOpsLedgerRunJob
-    DailyLedgerRunJob
-    TicketOverdueCheckJob
-    ImprovementDetectorJob
-    ImprovementResolverJob
-    ImprovementEscalationJob
     PicroCheckJob
-    DefeatAnalysisJob
-    MonthlyReportJob
-    DailyStateGenerateJob
-    PostMotivationCalculateJob
-    HourlyStateUpdateJob
-    DailyMemorySummarizeJob
-    ExpiredMemoryCleanupJob
-    LifeEventCheckJob
-    LifeStoryGenerateJob
-    QuarterlyReviewLedgerRunJob
-    AnnualPlanLedgerRunJob
-    HrEvaluationRunJob
-    PortfolioRebalanceRunJob
-    ExperimentAutoDeciderJob
-    SlaSweepJob
-    KpiAutoCollectJob
-    KpiGradeEvaluateJob
-    StopConditionMonitorJob
-    EffectivenessRecalcJob
-    PlannerJob
-    TicketIssueSyncJob
-    BirthdayCheckJob
-    AvatarUpdateJob
-    CommunityDetectJob
-    OwnerScoreUpdateJob
-    RelationshipMemoryUpdateJob
-    RoutingHealthCheckJob
-    HeartbeatSchedulerJob
-    UiCheckLedgerRunJob
-    LedgerV2::DailyRunnerJob
-    LedgerV2::WeeklyRunnerJob
-    LedgerV2::MonthlyRunnerJob
-    LedgerV2::SyncDraftPrStatusJob
-    LedgerV2::CalculateHealthSnapshotJob
-    LedgerV2::EvaluateImprovementJob
+    Linestamp::ComposeBrandPromptJob
+    Linestamp::ComposePackSheetPromptJob
+    Linestamp::ComposeStampPromptsJob
   ].each do |job_class_name|
     job_class_name.constantize
   rescue NameError => e

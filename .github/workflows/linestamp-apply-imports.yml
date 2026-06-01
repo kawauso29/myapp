@@ -34,9 +34,10 @@ jobs:
         run: |
           eval "$(~/.rbenv/bin/rbenv init -)"
           set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
-          # This workflow only needs Rails task boot; generate ephemeral JWT secret
-          # to avoid secret_key_base fallback when DEVISE_JWT_SECRET_KEY is absent.
-          export DEVISE_JWT_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
+          # This workflow only needs Rails task boot; generate ephemeral secrets
+          # to satisfy production secret_key_base and Devise JWT requirements.
+          export SECRET_KEY_BASE="${SECRET_KEY_BASE:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
+          export DEVISE_JWT_SECRET_KEY="${DEVISE_JWT_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
           bin/rails db:migrate
 
       - name: Apply pending imports
@@ -44,13 +45,15 @@ jobs:
           eval "$(~/.rbenv/bin/rbenv init -)"
           set -a; [ -f ~/myapp/.env ] && source ~/myapp/.env; set +a
           # Same as migration step: only needed for initializer boot in this job.
-          export DEVISE_JWT_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(64))')"
+          export SECRET_KEY_BASE="${SECRET_KEY_BASE:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
+          export DEVISE_JWT_SECRET_KEY="${DEVISE_JWT_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(64))')}"
           bin/rails linestamp:apply_imports
 
       - name: Commit applied moves
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config commit.gpgsign false
           git add db/seeds/linestamp/imports/
           git diff --cached --quiet || (git commit -m "chore(linestamp): mark imports as applied [skip ci]" && git push)
 

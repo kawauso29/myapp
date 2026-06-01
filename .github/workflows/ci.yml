@@ -150,7 +150,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           bin/rails db:create
-          bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:schema:load
           bin/rails db:test:prepare
           bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
@@ -178,7 +178,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           bin/rails db:create
-          bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:schema:load
           bin/rails db:test:prepare
           bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
@@ -205,7 +205,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           bin/rails db:create
-          bin/rails db:migrate || bin/rails db:schema:load
+          bin/rails db:schema:load
           bin/rails db:test:prepare
           bundle exec rspec
 

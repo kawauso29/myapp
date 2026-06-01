@@ -1,66 +1,12 @@
 namespace :solid_queue do
   REQUIRED_JOB_CLASSES = %w[
-    AiActionCheckJob
-    PostGenerateJob
-    DmCheckJob
     SlackForwardToClaudeJob
-    RelationshipDecayJob
-    MonitorFailedJobsJob
-    MarketAnalysisJob
-    WeatherFetchJob
-    DailyScheduleGenerateJob
-    DynamicParamsUpdateJob
-    MilestoneCheckJob
-    WeeklyKpiSnapshotJob
-    WeeklyDeptLedgerRunJob
-    MonthlyOpsLedgerRunJob
-    DailyLedgerRunJob
-    TicketOverdueCheckJob
-    ImprovementDetectorJob
     PicroCheckJob
-    DefeatAnalysisJob
-    MonthlyReportJob
-    DailyStateGenerateJob
-    PostMotivationCalculateJob
-    HourlyStateUpdateJob
-    DailyMemorySummarizeJob
-    ExpiredMemoryCleanupJob
-    LifeEventCheckJob
-    LifeStoryGenerateJob
-    QuarterlyReviewLedgerRunJob
-    AnnualPlanLedgerRunJob
-    HrEvaluationRunJob
-    PortfolioRebalanceRunJob
-    ImprovementResolverJob
-    ImprovementEscalationJob
-    ExperimentAutoDeciderJob
-    SlaSweepJob
-    KpiAutoCollectJob
-    KpiGradeEvaluateJob
-    StopConditionMonitorJob
-    EffectivenessRecalcJob
-    PlannerJob
-    TicketIssueSyncJob
-    BirthdayCheckJob
-    AvatarUpdateJob
-    CommunityDetectJob
-    OwnerScoreUpdateJob
-    RelationshipMemoryUpdateJob
-    RoutingHealthCheckJob
-    HeartbeatSchedulerJob
-    UiCheckLedgerRunJob
-    LedgerV2::DailyRunnerJob
-    LedgerV2::WeeklyRunnerJob
-    LedgerV2::MonthlyRunnerJob
-    LedgerV2::SyncDraftPrStatusJob
-    LedgerV2::CalculateHealthSnapshotJob
-    LedgerV2::EvaluateImprovementJob
+    Linestamp::ComposeBrandPromptJob
+    Linestamp::ComposePackSheetPromptJob
+    Linestamp::ComposeStampPromptsJob
   ].freeze
-  STALE_RECURRING_JOB_CLASSES = %w[
-    AiActionCheckJob
-    MonitorFailedJobsJob
-    MarketAnalysisJob
-  ].freeze
+  STALE_RECURRING_JOB_CLASSES = [].freeze
   WRAPPER_CLEANUP_BATCH_SIZE = 500
 
   desc "Delete stale unfinished MonitorFailedJobsJob records from all queues"

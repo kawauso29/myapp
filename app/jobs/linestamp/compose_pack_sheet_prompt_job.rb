@@ -5,6 +5,7 @@ module Linestamp
     def perform(pack_id)
       pack = Linestamp::Pack.find(pack_id)
       return unless pack.planned?
+      return if pack.stamps.empty?
 
       composer = Linestamp::PromptComposer.new
       prompt = composer.compose_pack_sheet_prompt(pack)

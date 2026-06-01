@@ -11,10 +11,44 @@ RSpec.describe Linestamp::Brand, type: :model do
       brand = described_class.new(slug: "test", character_name: "Test2", series_name: "Test2 Series")
       expect(brand).not_to be_valid
     end
+
+    it "fills background_color_for_gen with chroma green when blank" do
+      brand = described_class.create!(slug: "green-default", character_name: "Test", series_name: "Test Series")
+      expect(brand.background_color_for_gen).to eq("#3CB371")
+    end
+
+    it "rejects non-chroma-green background_color_for_gen" do
+      brand = described_class.new(
+        slug: "soft-green",
+        character_name: "Test",
+        series_name: "Test Series",
+        background_color_for_gen: "#E8F5EC"
+      )
+      expect(brand).not_to be_valid
+      expect(brand.errors[:background_color_for_gen]).to include("は #3CB371(透過用シーグリーン)固定です")
+    end
   end
 
   describe "associations" do
     it { is_expected.to have_many(:packs) }
+    it { is_expected.to belong_to(:research).class_name("Linestamp::Research").optional }
+
+    it "is valid without a research (research is optional)" do
+      brand = described_class.new(slug: "no-research", character_name: "Test", series_name: "Test Series")
+      expect(brand).to be_valid
+      expect(brand.research).to be_nil
+    end
+
+    it "can be linked to a research" do
+      research = Linestamp::Research.create!(title: "Origin Research", slug: "origin")
+      brand = described_class.create!(
+        slug: "linked",
+        character_name: "Linked",
+        series_name: "Linked Series",
+        research: research
+      )
+      expect(brand.reload.research).to eq(research)
+    end
   end
 
   describe "AASM states" do

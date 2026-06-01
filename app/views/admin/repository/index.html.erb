@@ -1,114 +1,49 @@
-<% content_for :title, "Repository Admin" %>
+<h1 style="font-size:22px; margin-bottom:20px;">myapp 管理ダッシュボード</h1>
+
+<div class="card" style="margin-bottom:20px;">
+  <h2 style="font-size:16px; margin-bottom:12px;">リポジトリ全体の機能管理</h2>
+  <p style="color:#a0aec0; font-size:13px; margin-bottom:16px;">
+    現在このリポジトリで稼働している機能 (Linestamp / Picro 通知) と、進行中プロジェクトを一覧します。
+  </p>
+
+  <div class="grid-2">
+    <div>
+      <h3 style="font-size:14px; margin-bottom:8px;">🎨 Linestamp(LINEスタンプ工房)</h3>
+      <dl class="profile-grid" style="font-size:13px;">
+        <dt>Brands</dt><dd><%= @linestamp_stats[:brands] %></dd>
+        <dt>Packs</dt><dd><%= @linestamp_stats[:packs] %></dd>
+        <dt>Stamps</dt><dd><%= @linestamp_stats[:stamps] %></dd>
+        <dt>Processed</dt><dd><%= @linestamp_stats[:processed_stamps] %></dd>
+      </dl>
+      <p style="margin-top:8px;">
+        <%= link_to "Linestamp ダッシュボードへ →", admin_linestamp_root_path, style: "color:#63b3ed; font-size:12px;" %>
+      </p>
+    </div>
+
+    <div>
+      <h3 style="font-size:14px; margin-bottom:8px;">🔔 Picro 通知</h3>
+      <dl class="profile-grid" style="font-size:13px;">
+        <dt>受信メッセージ</dt><dd><%= @picro_count %></dd>
+      </dl>
+      <p style="margin-top:8px;">
+        <%= link_to "Picro 通知履歴へ →", admin_picro_notifications_path, style: "color:#63b3ed; font-size:12px;" %>
+      </p>
+    </div>
+  </div>
+</div>
 
 <div class="card">
-  <h2>リポジトリ全体の機能管理</h2>
-  <div class="stats-grid">
-    <div class="stat red">
-      <div class="value"><%= @stats[:failed_jobs] %></div>
-      <div class="label">Failed Jobs</div>
-    </div>
-    <div class="stat blue">
-      <div class="value"><%= @stats[:finished_jobs] %></div>
-      <div class="label">Job履歴</div>
-    </div>
-    <div class="stat blue">
-      <div class="value"><%= @stats[:trade_decisions_today] %></div>
-      <div class="label">本日Trading判断</div>
-    </div>
-    <div class="stat green">
-      <div class="value"><%= @stats[:picro_today] %></div>
-      <div class="label">本日Picro通知</div>
-    </div>
-    <div class="stat">
-      <div class="value"><%= @stats[:snapshots] %></div>
-      <div class="label">市場スナップショット累計</div>
-    </div>
-  </div>
-</div>
-
-<div class="grid-2">
-  <div class="card">
-    <h2>運用機能メニュー</h2>
-    <ul class="url-list">
-      <li><a href="<%= admin_trading_path %>">/admin/trading</a> <span class="note">Trading専用管理</span></li>
-      <li><a href="<%= admin_ai_sns_path %>">/admin/ai_sns</a> <span class="note">AI SNS専用管理</span></li>
-      <li><a href="<%= admin_picro_notifications_path %>">/admin/picro_notifications</a> <span class="note">Picro通知専用管理</span></li>
-      <li><a href="<%= admin_users_path %>">/admin/users</a> <span class="note">ユーザー管理</span></li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>CI / Deploy / Snapshot / Error</h2>
-    <ul class="url-list">
-      <li><a href="https://github.com/kawauso29/myapp/actions/workflows/ci.yml" target="_blank" rel="noopener">CI履歴</a> <span class="note">scan/lint/test/system-test</span></li>
-      <li><a href="https://github.com/kawauso29/myapp/actions/workflows/deploy.yml" target="_blank" rel="noopener">Deploy履歴</a> <span class="note">workflow_run / workflow_dispatch</span></li>
-      <li><a href="https://github.com/kawauso29/myapp/actions/workflows/db_snapshot.yml" target="_blank" rel="noopener">DBスナップショット履歴</a></li>
-      <li><a href="https://github.com/kawauso29/myapp/actions/workflows/auto_fix.yml" target="_blank" rel="noopener">CI失敗自動修正履歴</a> <span class="note">エラー関連</span></li>
-    </ul>
-    <div style="display:flex; gap:8px; margin-top:12px;">
-      <%= form_with url: admin_sync_env_path, method: :post, local: true do |f| %>
-        <%= f.submit "環境変数を同期", class: "btn btn-success btn-sm" %>
-      <% end %>
-      <%= form_with url: admin_trigger_db_snapshot_path, method: :post, local: true do |f| %>
-        <%= f.submit "DBスナップショット取得", class: "btn btn-sm", style: "background:#4a5568; color:#e2e8f0;" %>
-      <% end %>
-    </div>
-  </div>
-</div>
-
-<div class="card" style="border-color:#4299e1;">
-  <h2 style="color:#4299e1;">GitHub Actions self-hosted runner移行プロジェクト</h2>
-  <div class="stats-grid" style="margin-bottom:12px;">
-    <div class="stat green">
-      <div class="value"><%= @github_actions_migration[:done] %></div>
-      <div class="label">完了TODO</div>
-    </div>
-    <div class="stat yellow">
-      <div class="value"><%= @github_actions_migration[:pending] %></div>
-      <div class="label">未完了TODO</div>
-    </div>
-    <div class="stat blue">
-      <div class="value"><%= @github_actions_migration[:progress_percent] %>%</div>
-      <div class="label">進捗率</div>
-    </div>
-  </div>
-  <ul class="url-list">
-    <% @github_actions_migration[:items].each do |item| %>
-      <li>
-        <span><%= item[:done] ? "✅" : "⬜" %></span>
-        <span class="note" style="color:#a0aec0;"><%= item[:text] %></span>
-      </li>
-    <% end %>
-    <% if @github_actions_migration[:items].empty? %>
-      <li><span class="note">進捗データを取得できませんでした</span></li>
-    <% end %>
+  <h2 style="font-size:16px; margin-bottom:12px;">進行中プロジェクト</h2>
+  <ul style="font-size:13px; line-height:1.8; color:#cbd5e0;">
+    <li>
+      <strong>self-hosted runner移行プロジェクト</strong>
+      — GitHub Actions の runner をさくら VPS の self-hosted runner に集約する作業。詳細は
+      <code>docs/projects/github-actions-migration.md</code> を参照。
+    </li>
+    <li>
+      <strong>Linestamp Phase 3</strong>
+      — プロンプト品質回復 + Designer Kit + brand 固有 12 構図カスタマイズ。詳細は
+      <code>docs/linestamp/16_PHASE2_GAPS_AND_FIXES.md</code> を参照。
+    </li>
   </ul>
-  <div style="margin-top:10px;">
-    <a href="https://github.com/kawauso29/myapp/blob/main/docs/projects/github-actions-migration.md" target="_blank" rel="noopener" style="color:#63b3ed; text-decoration:none;">プロジェクトドキュメントを開く →</a>
-  </div>
-</div>
-
-<div class="card">
-  <h2>Recent Failed Jobs</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>時刻</th>
-        <th>Job Class</th>
-        <th>Queue</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @recent_failed_jobs.each do |failed| %>
-        <tr>
-          <td style="white-space:nowrap; color:#a0aec0;"><%= failed.created_at.in_time_zone("Tokyo").strftime("%m/%d %H:%M") %></td>
-          <td><%= failed.job&.class_name || "-" %></td>
-          <td><%= failed.job&.queue_name || "-" %></td>
-        </tr>
-      <% end %>
-      <% if @recent_failed_jobs.empty? %>
-        <tr><td colspan="3" style="color:#4a5568; text-align:center;">失敗ジョブなし</td></tr>
-      <% end %>
-    </tbody>
-  </table>
 </div>

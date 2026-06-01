@@ -6,15 +6,13 @@ namespace :db do
   # スナップショット対象モデル（snapshot/snapshot_load で共有、外部キー依存順）
   # value は [クラス名文字列, limit]
   SNAPSHOT_MODELS = [
-    [ "users",            "User",           10 ],
-    [ "ai_users",         "AiUser",         20 ],
-    [ "ai_profiles",      "AiProfile",      20 ],
-    [ "ai_daily_states",  "AiDailyState",   20 ],
-    [ "ai_posts",         "AiPost",         20 ],
-    [ "market_snapshots", "MarketSnapshot",  5 ],
-    [ "trade_decisions",  "TradeDecision",  10 ],
-    [ "trade_results",    "TradeResult",    10 ],
-    [ "analysis_reports", "AnalysisReport",  5 ]
+    [ "users",                  "User",                 10 ],
+    [ "picro_messages",         "PicroMessage",         20 ],
+    [ "linestamp_brands",       "Linestamp::Brand",     20 ],
+    [ "linestamp_packs",        "Linestamp::Pack",      20 ],
+    [ "linestamp_stamps",       "Linestamp::Stamp",     20 ],
+    [ "linestamp_researches",   "Linestamp::Research",  20 ],
+    [ "linestamp_submissions",  "Linestamp::Submission", 20 ]
   ].freeze
 
   desc "Export DB snapshot as JSON to stdout (used by GitHub Actions for Copilot)"
@@ -22,7 +20,7 @@ namespace :db do
     require "json"
 
     conn = ActiveRecord::Base.connection
-    sensitive = %w[encrypted_password reset_password_token stripe_customer_id stripe_subscription_id]
+    sensitive = %w[encrypted_password reset_password_token]
 
     counts = {}
     conn.tables.sort.each do |table|

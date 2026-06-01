@@ -1,85 +1,21 @@
 name: "Copilot Setup Steps"
-
 on:
   workflow_dispatch:
   push:
-    paths:
-      - .github/workflows/copilot-setup-steps.yml
+    paths: [.github/workflows/copilot-setup-steps.yml]
   pull_request:
-    paths:
-      - .github/workflows/copilot-setup-steps.yml
-
+    paths: [.github/workflows/copilot-setup-steps.yml]
 jobs:
   copilot-setup-steps:
     runs-on: [self-hosted, sakura-vps]
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Verify Node.js
-        run: |
-          command -v node
-          node --version
-          command -v npm
-          npm --version
-
-      - name: Verify jq
-        run: |
-          command -v jq
-          jq --version
-
       - name: Setup Ruby via rbenv
         run: |
           echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
           echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
-
-      - name: Verify Ruby
-        run: |
-          command -v ruby
-          ruby -v
-          command -v bundle
-          bundle -v
-
       - name: Install gems
         run: bundle install --jobs 2 --retry 3
-
-      - name: Install frontend dependencies
-        env:
-          NODE_OPTIONS: --max-old-space-size=512
-        run: cd frontend && npm ci
-
-      - name: Prepare test database
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
-          POSTGRES_PASSWORD: password
-          REDIS_URL: redis://localhost:6379/0
-        run: |
-          bin/rails db:create
-          bin/rails db:migrate || bin/rails db:schema:load
-          bin/rails db:test:prepare
-
-      - name: Load production snapshot into test DB
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
-          POSTGRES_PASSWORD: password
-          REDIS_URL: redis://localhost:6379/0
-        run: |
-          if [ -f db/snapshots/db_snapshot.json ]; then
-            bin/rails db:snapshot_load
-          else
-            echo "No snapshot found, skipping load (run 'DB Snapshot for Copilot' workflow to create one)"
-          fi
-
-      - name: Check autoload integrity
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: postgres://postgres:password@localhost:5432
-          POSTGRES_PASSWORD: password
-          REDIS_URL: redis://localhost:6379/0
-        run: bin/rails zeitwerk:check

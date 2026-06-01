@@ -12,8 +12,8 @@ cd /home/ubuntu/myapp && EDITOR=nano rails credentials:edit
 
 ```yaml
 picro:
-  login_id: yuito0924
-  password: purin726
+  login_id: YOUR_PICRO_LOGIN_ID
+  password: YOUR_PICRO_PASSWORD
 
 line:
   channel_secret: YOUR_LINE_CHANNEL_SECRET
@@ -24,6 +24,8 @@ line:
     - Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # 友達2
     - Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # 友達3
 ```
+
+> ⚠️ **このファイルに実値（ログインIDやパスワード）を書かないこと。** 実値は Rails credentials または `.env` にだけ置く。
 
 ## 2. 友達のLINE User IDの取得方法
 

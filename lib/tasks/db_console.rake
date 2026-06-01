@@ -6,7 +6,7 @@
 # 使い方:
 #   RAILS_ENV=test bin/rails db:structure
 #   RAILS_ENV=test bin/rails db:sample_data
-#   RAILS_ENV=test bin/rails "db:query[SELECT * FROM ai_users LIMIT 5]"
+#   RAILS_ENV=test bin/rails "db:query[SELECT * FROM picro_messages LIMIT 5]"
 
 namespace :db do
   desc "全テーブルのカラム定義（名前・型・null許可・デフォルト値）とレコード件数を出力する"
@@ -52,7 +52,7 @@ namespace :db do
     limit = [ (args[:limit] || 5).to_i, 1000 ].min
     conn = ActiveRecord::Base.connection
     tables = conn.tables.sort
-    sensitive = %w[encrypted_password reset_password_token stripe_customer_id stripe_subscription_id]
+    sensitive = %w[encrypted_password reset_password_token]
 
     result = {}
     tables.each do |table|

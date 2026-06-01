@@ -4,31 +4,21 @@
 ## 変更内容
 - 例: 追加/変更/削除した機能・ファイルを箇条書き
 
+## 影響範囲
+- 例: Linestamp / Picro 通知 / 共通基盤（Auth・Admin・Job 等）のいずれに該当するか
+- 例: 定期実行ジョブ（`config/recurring.yml`）への影響有無
+
 ## 受入条件（Acceptance Criteria）
 - [ ] 例: ユーザーが○○できる
-- [ ] 例: 関連CIがすべて成功する
+- [ ] 例: 関連 CI がすべて成功する
 
 ## テスト
 - 実施したコマンド: 例 `bin/rubocop` / `bundle exec rspec`
-- 結果: 例 `すべて成功`
+- 結果: 例 すべて成功
 
 ## ロールアウト/デプロイ注意
-- 例: 先行リリース有無、環境変数更新、マイグレーション注意点
-
-## Ledger影響（台帳/Runner/定期実行）
-- 例: ticket_ledgers / kpi_ledgers / recurring ジョブ / docs/ai_sns_plan_status.yml への影響
+- 例: 環境変数更新の有無、マイグレーション注意点
 
 ## リスク & ロールバック
 - リスク:
 - ロールバック手順:
-
-## §31 必須メタ情報
-<!-- 設計書 §30.4 / §31 に基づく必須メタ情報。キーと値を `key: value` 形式で記入してください。 -->
-<!-- 自動運用ブランチ（copilot/auto-*, copilot/ai-sns-*, auto-fix/*, dependabot/*）は CI で検証をスキップします。 -->
-- service_id: <!-- 例: ai_sns / core / none（横断変更の場合） -->
-- linked_kpis: <!-- 例: kpi:service_health, kpi:daily_posts / none（KPI非紐付の理由をリスクに記載） -->
-- source_ticket_id: <!-- 例: ticket:2026q1-ops-12 / none -->
-- risk_level: <!-- high / medium / low -->
-- docs_update_required: <!-- true / false -->
-- tech_record_update_required: <!-- true / false -->
-

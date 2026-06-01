@@ -1,5 +1,5 @@
 class Admin::Linestamp::StampsController < Admin::BaseController
-  before_action :set_stamp, only: %i[show update upload_raw upload_processed process_image reset]
+  before_action :set_stamp, only: %i[show update upload_processed reset designer_kit]
 
   def show
     @themes = ::Linestamp::CommunicationTheme.active.ordered
@@ -15,32 +15,19 @@ class Admin::Linestamp::StampsController < Admin::BaseController
     redirect_to admin_linestamp_stamp_path(@stamp), alert: e.message
   end
 
-  def upload_raw
-    if params[:raw_image].present?
-      @stamp.raw_image.attach(params[:raw_image])
-      @stamp.upload_raw! if @stamp.may_upload_raw?
-      redirect_to admin_linestamp_stamp_path(@stamp), notice: "Raw image uploaded."
-    else
-      redirect_to admin_linestamp_stamp_path(@stamp), alert: "No file selected."
-    end
-  end
-
+  # 透過済み + LINE規格の完成画像を直接受け取る。Raw アップロード / Chroma Key 工程は廃止。
   def upload_processed
     if params[:processed_image].present?
       @stamp.processed_image.attach(params[:processed_image])
       @stamp.upload_processed_directly! if @stamp.may_upload_processed_directly?
-      redirect_to admin_linestamp_stamp_path(@stamp), notice: "Processed image uploaded directly."
-    else
-      redirect_to admin_linestamp_stamp_path(@stamp), alert: "No file selected."
-    end
-  end
 
-  def process_image
-    if @stamp.may_start_processing? || @stamp.raw_uploaded?
-      ::Linestamp::ProcessStampImageJob.perform_later(@stamp.id)
-      redirect_to admin_linestamp_stamp_path(@stamp), notice: "Processing started."
+      # パック内の全スタンプが揃ったら完成状態へ(自動 Slack 通知は廃止、状態遷移のみ維持)。
+      pack = @stamp.pack
+      pack.mark_stamps_complete! if pack.all_stamps_processed? && pack.may_mark_stamps_complete?
+
+      redirect_to admin_linestamp_stamp_path(@stamp), notice: "完成画像をアップロードしました。"
     else
-      redirect_to admin_linestamp_stamp_path(@stamp), alert: "Stamp cannot be processed in current state."
+      redirect_to admin_linestamp_stamp_path(@stamp), alert: "ファイルが選択されていません。"
     end
   end
 
@@ -48,10 +35,16 @@ class Admin::Linestamp::StampsController < Admin::BaseController
     if @stamp.may_reset?
       @stamp.processed_image.purge if @stamp.processed_image.attached?
       @stamp.reset!
-      redirect_to admin_linestamp_stamp_path(@stamp), notice: "Stamp reset to raw_uploaded."
+      redirect_to admin_linestamp_stamp_path(@stamp), notice: "スタンプをリセットしました。"
     else
       redirect_to admin_linestamp_stamp_path(@stamp), alert: "Cannot reset stamp in current state."
     end
+  end
+
+  def designer_kit
+    kit = ::Linestamp::DesignerKit::Stamp.new(@stamp)
+    zip = kit.export
+    send_data zip.read, filename: kit.filename, type: "application/zip", disposition: "attachment"
   end
 
   private

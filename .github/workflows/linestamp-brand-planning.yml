@@ -44,12 +44,65 @@ jobs:
 
           DATE=$(TZ=Asia/Tokyo date +"%Y-%m-%d")
 
+          # --- 最新の applied Research を抽出（self-hosted runner に jq が無いので python3 で）---
+          # Research → Brand 系譜: 直近の調査の brand_ideas を企画素材として Issue に埋め込み、
+          # upsert_brand!(research_slug: ...) を強制する。
+          RESEARCH_DIR="db/seeds/linestamp/imports/applied"
+          export RESEARCH_DIR
+          python3 - <<'PY' > /tmp/linestamp-latest-research.json
+          import glob
+          import json
+          import os
+          import re
+
+          files = sorted(glob.glob(os.path.join(os.environ["RESEARCH_DIR"], "*_research_*.rb")))
+          out = {"slug": "", "title": "", "brand_ideas": ""}
+          if files:
+              latest = files[-1]
+              with open(latest, encoding="utf-8") as fh:
+                  src = fh.read()
+
+              def grab(key):
+                  m = re.search(key + r'\s*:\s*"((?:[^"\\]|\\.)*)"', src)
+                  return m.group(1).replace('\\"', '"') if m else ""
+
+              out["slug"] = grab("slug")
+              out["title"] = grab("title")
+              out["brand_ideas"] = grab("brand_ideas")
+          print(json.dumps(out))
+          PY
+
+          RESEARCH_SLUG=$(python3 -c 'import json;print(json.load(open("/tmp/linestamp-latest-research.json"))["slug"])')
+          RESEARCH_TITLE=$(python3 -c 'import json;print(json.load(open("/tmp/linestamp-latest-research.json"))["title"])')
+          RESEARCH_IDEAS=$(python3 -c 'import json;print(json.load(open("/tmp/linestamp-latest-research.json"))["brand_ideas"])')
+
+          if [ -z "$RESEARCH_SLUG" ]; then
+            RESEARCH_SLUG_NOTE="(applied Research が見つかりません。先に research seed を企画・適用し、その research_slug を必ず紐づけてください)"
+          else
+            RESEARCH_SLUG_NOTE=""
+          fi
+          if [ -z "$RESEARCH_IDEAS" ]; then
+            RESEARCH_IDEAS="(brand_ideas が抽出できませんでした。applied/ の最新 research seed を直接読み、brand_ideas を起点にしてください)"
+          fi
+
+          echo "Latest applied research: slug='${RESEARCH_SLUG}' title='${RESEARCH_TITLE}'"
+
           for i in $(seq 1 "$COUNT"); do
             TIMESTAMP=$(TZ=UTC date +"%Y-%m-%d-%H%M%S")
 
             BODY=$(cat <<EOF
           ## ミッション
-          新規LINEスタンプブランドの企画を1つの Ruby seed ファイルとして作成してください。
+          新規LINEスタンプブランドの企画を **1つの Ruby seed ファイル** として作成してください。
+          このファイルには **Brand + 初回 Pack(stamps 8枚) を必ず同梱** します。Pack を別ファイルに分けないでください。
+
+          ## 起点にする調査(必須・系譜トラッキング)
+          このブランドは下記の applied Research を **起点** にしてください。\`upsert_brand!\` に **\`research_slug: "${RESEARCH_SLUG}"\` を必ず指定** します（Research→Brand の系譜をデータで追跡するため）。
+
+          - research_slug: \`${RESEARCH_SLUG}\` ${RESEARCH_SLUG_NOTE}
+          - title: ${RESEARCH_TITLE}
+
+          ### この調査の brand_ideas(ここから1案を選ぶ or 複数を合成する)
+          ${RESEARCH_IDEAS}
 
           ## 出力ファイル
           \`db/seeds/linestamp/imports/pending/${TIMESTAMP}_brand_{slug}.rb\`
@@ -57,16 +110,40 @@ jobs:
 
           ## 仕様
           - \`db/seeds/linestamp/imports/_templates/brand_template.rb\` を雛形にする
-          - \`Linestamp::Importer.run(seed_id: "${TIMESTAMP}_brand_{slug}")\` ブロック内で \`upsert_brand!\` を呼ぶ
+          - \`Linestamp::Importer.run(seed_id: "${TIMESTAMP}_brand_{slug}")\` ブロック内で:
+            1. \`upsert_brand!\` でブランド本体を作る。**\`research_slug: "${RESEARCH_SLUG}"\` を必ず渡す**
+            2. \`attach_communication_themes!\` と \`attach_attribute_values!\` でブランドにマスタを紐づける
+            3. **同じブロック内で続けて** \`create_pack!(brand: brand, slug: "pack_001", ...)\` を呼び、初回 Pack を作る
+            4. \`create_pack!\` の \`stamps:\` に **ちょうど 8 件** を列挙する(LINE 申請最小単位)
+            5. 各 stamp に \`label\` / \`primary_communication_theme\`(brand に紐づけた slug を使う)を必ず設定
+            6. Brand には \`two_part_definition\` / \`character_parts\`(eyes, mouth, ears, body, limbs, tail, collar の7パーツ) / \`font_spec\`(書体・色・フチ) / \`tone_axes\`(スコア付き jsonb) / \`target_axes\` を必ず設定
+            7. **\`identity_axes\`(signature / voice / behavior)** で他ブランドと絶対に混同されない核を埋める(使わない軸は空文字で残す)
+            8. 各 stamp には LINE アプリ内検索用の \`search_keywords\`(日本語 2〜4 個)を必ず設定
           - マスタ slug は事前に確認(\`bin/rails runner 'puts Linestamp::CommunicationTheme.pluck(:slug,:name)'\` 等)
           - 未知 slug はエラーになる
+          - 差別化は **禁止語や特定部位のハードコードで出さない**。\`research_slug\` 起点 + \`identity_axes\` の構造化スロットで出す
+          - \`background_color_for_gen\` は **書かない**。モデルが透過用シーグリーン \`#3CB371\` に固定する。世界観カラーは \`primary_color\` に入れる
+          - プロンプト(\`brand_prompt\` / \`sheet_prompt\` / stamp の \`prompt\`)は **書かない**。レコード作成時の after_commit で自動合成される
           - \`docs/linestamp/08_PLANNING_GUIDE.md\` を必読
 
           ## 完了条件
           - [ ] ruby -c で構文エラーなし
           - [ ] 未知マスタ slug を使っていない
+          - [ ] **\`research_slug\` が起点 Research(\`${RESEARCH_SLUG}\`)に設定されている**
           - [ ] character_name / series_name / concept / target_audience / persona_name が入っている
-          - [ ] communication_themes と attributes が適切に設定済み
+          - [ ] two_part_definition が 1 文で入っている
+          - [ ] character_parts に eyes / mouth / ears / body / limbs / tail / collar の7パーツが入っている
+          - [ ] font_spec に primary / color / outline が入っている
+          - [ ] tone_axes がスコア付き jsonb で入っている
+          - [ ] target_axes が入っている
+          - [ ] **identity_axes(signature / voice / behavior)で他ブランドと混同されない核を埋めた**
+          - [ ] background_color_for_gen を直接書いていない
+          - [ ] Brand に communication_themes と attributes が適切に設定済み
+          - [ ] **初回 Pack が \`purchase_unit_size: 8\` で含まれている**
+          - [ ] **Pack の stamps が ちょうど 8 枚 ある**
+          - [ ] **各 stamp の \`primary_communication_theme\` が Brand に紐づけた slug のいずれかに一致している**
+          - [ ] **各 stamp に \`search_keywords\` が 2〜4 個入っている**
+          - [ ] プロンプト系カラムを直接埋めていない(after_commit で生成)
           - [ ] PR がレビュー待ち
           EOF
             )
@@ -95,7 +172,7 @@ jobs:
             ISSUE_URL=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["html_url"])' <<<"$ISSUE_RESPONSE")
             echo "Created: $ISSUE_URL"
 
-            COMMENT_BODY="@copilot このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。"
+            COMMENT_BODY="@copilot このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。最初に docs/linestamp/08_PLANNING_GUIDE.md を読んでください。research_slug は ${RESEARCH_SLUG} を起点にしてください。"
             export COMMENT_BODY
             COMMENT_PAYLOAD=$(python3 -c 'import json, os; print(json.dumps({"body": os.environ["COMMENT_BODY"]}))')
             curl -sf -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
@@ -104,7 +181,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d "$COMMENT_PAYLOAD" >/dev/null
 
-            export AGENT_INSTRUCTIONS="このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。"
+            export AGENT_INSTRUCTIONS="このIssueに従って新ブランドの seed ファイルを作成し、copilot/linestamp-brand-${DATE//-/}-${i} ブランチでPRを作成してください。research_slug は ${RESEARCH_SLUG} を起点にしてください。"
             export TARGET_REPO="$GITHUB_REPOSITORY"
 
             python3 - <<'PY' > /tmp/linestamp-brand-assignee.json

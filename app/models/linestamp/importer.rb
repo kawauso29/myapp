@@ -17,7 +17,13 @@ module Linestamp
 
     # --- Entity upsert ---
 
-    def upsert_brand!(slug:, **attrs)
+    def upsert_brand!(slug:, research_slug: nil, **attrs)
+      if research_slug.present?
+        research = Linestamp::Research.find_by(slug: research_slug)
+        raise ArgumentError, "Unknown Research slug: '#{research_slug}'" unless research
+
+        attrs[:research] = research
+      end
       brand = Linestamp::Brand.find_or_initialize_by(slug: slug)
       brand.assign_attributes(attrs.merge(imported_from: @seed_id, synced_at: Time.current))
       brand.save!
