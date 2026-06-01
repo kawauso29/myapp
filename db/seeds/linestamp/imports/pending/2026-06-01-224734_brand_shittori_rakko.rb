@@ -22,7 +22,7 @@ Linestamp::Importer.run(seed_id: "2026-06-01-224734_brand_shittori_rakko") do
       body: "雨粒型のふっくら2.5頭身",
       limbs: "短い前脚と小さな後脚、指は省略",
       tail: "幅広の平たい尾",
-      collar: "細い水色のケアタグ付き首輪"
+      collar: "細い水色の首輪に水滴型ケアタグ"
     },
     font_spec: {
       primary: "丸ゴシック太め",
@@ -36,7 +36,11 @@ Linestamp::Importer.run(seed_id: "2026-06-01-224734_brand_shittori_rakko") do
       occupation: %w[business_user]
     },
     identity_axes: {
-      signature: "胸元の水滴型ケアタグを全構図で必ず描く",
+      silhouette: "雨粒型のふっくら2.5頭身で、尾びれを添えたラッコ輪郭",
+      name_origin: "しっとり=梅雨の湿度感、労り=短文敬語の気づかい、ラッコ=寄り添う相棒性",
+      signature: "首元の水滴型ケアタグを全構図で必ず描く",
+      signature_color: "#5A8FA0",
+      desire_weakness: "相手を気づかいたい一方で、長文連絡だと受け手の負担が増える不安がある",
       voice: "やわらかい敬語で短文、命令形を避ける",
       behavior: "相手の不調に先回りして休息を促す"
     },
@@ -183,8 +187,8 @@ Linestamp::Importer.run(seed_id: "2026-06-01-224734_brand_shittori_rakko") do
       },
       {
         label: "体調いかがですか",
-        primary_communication_theme: "confirm_meetup",
-        communication_themes: %w[confirm_meetup encouragement],
+        primary_communication_theme: "encouragement",
+        communication_themes: %w[encouragement need_break],
         attributes: { tone: %w[gentle], setting: %w[home with_family] },
         situation: "天候悪化時に様子をうかがうとき",
         intent: "相手の体調を気づかう",
