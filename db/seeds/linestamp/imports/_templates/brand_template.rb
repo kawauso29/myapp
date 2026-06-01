@@ -12,6 +12,8 @@
 #     レコード作成時の after_commit で自動合成される。
 #   - 各 stamp の primary_communication_theme は、Brand に紐づけた slug を使う。
 #   - 追加で Pack を増やしたい場合は pack_template.rb を使って別ファイルで投入する。
+#   - identity_axes は「またかわいい動物量産」を防ぐ差別化の核。投入前に
+#     `bin/rails linestamp:brand_collision` で既存ブランドとの被りを必ず検査する。
 
 Linestamp::Importer.run(seed_id: "REPLACE_WITH_UNIQUE_ID") do
   # --- Brand 本体 ---
@@ -47,9 +49,14 @@ Linestamp::Importer.run(seed_id: "REPLACE_WITH_UNIQUE_ID") do
     },
     identity_axes: {
       # 他ブランドと絶対に混同されない核。使わない軸は空文字で残す(プロンプトには出ない)。
-      signature: "首元の小さな丸いタグ(全構図で必ず描く)",
-      voice: "断定しない・語尾がやわらかい",
-      behavior: "考えるときマグカップを抱える"
+      # 投入前に `bin/rails linestamp:brand_collision` で既存ブランドとの被りを検査すること。
+      silhouette:      "2頭身・丸い輪郭・短い手足。黒塗りシルエットでも『丸い相棒』と分かる", # #1 最重要: 黒塗りで識別できる全体形
+      name_origin:     "『モカ』= マグのコーヒー由来。読み: もか",                          # #2 名前の由来・読み
+      signature:       "首元の小さな丸いタグ(全構図で必ず描く)",                           # シグネチャー(必ず出す要素)
+      signature_color: "くすみベージュ #F6E7D8 を主役色として占有(競合の白/原色と差別化)",    # #4 占有色の主張
+      desire_weakness: "求める: 静かな安心 / 苦手: 急かされること・大きな音",                # #3 欲求と弱点
+      voice:           "断定しない・語尾がやわらかい",                                    # 語り口
+      behavior:        "考えるときマグカップを抱える"                                     # ふるまい・癖
     },
     base_compositions: [
       "正面・無表情",

@@ -9,11 +9,21 @@ module Linestamp
       "両手合わせ", "サムズアップ", "軽く手を振る", "頬杖"
     ].freeze
     PART_AXES = %w[eyes mouth ears body limbs tail collar].freeze
+
+    # ブランド識別軸(他と混同されない核)。表示順 = プロンプトでの提示順。
+    #   silhouette / name_origin / signature_color / desire_weakness は C案で追加。
     IDENTITY_KEYS = {
-      "signature" => "シグネチャー(必ず出す識別要素)",
-      "voice" => "語り口・トーン",
-      "behavior" => "ふるまい・癖"
+      "silhouette"      => "シルエット・頭身(黒塗りでも識別できる全体輪郭)",
+      "name_origin"     => "名前の由来・読み",
+      "signature"       => "シグネチャー(必ず出す識別要素)",
+      "signature_color" => "占有する色(競合と被らない色の主張)",
+      "desire_weakness" => "欲求と弱点(何を求め・何が苦手か)",
+      "voice"           => "語り口・トーン",
+      "behavior"        => "ふるまい・癖"
     }.freeze
+
+    # #6 サムネ識別性: 全階層の厳守事項に共通注入する条項。
+    THUMBNAIL_NOTE = "主役サムネ 240×240 / タブ 96×74 に縮小しても、シルエットと占有色だけでこのキャラだと一目で分かること。細部の描き込みより輪郭の明快さを優先する。"
 
     # --- Brand プロンプト (base_image 生成用) ---
     def compose_brand_prompt(brand)
@@ -74,6 +84,7 @@ module Linestamp
         - 文字は丁寧に正しい漢字で。崩れたら再生成
         - キャラの解釈を加えない(髪を描く・服を着せる・装飾を増やす等)
         - スタンプ風のフラットな塗り、影や立体感は最小限
+        - #{THUMBNAIL_NOTE}
       PROMPT
       tidy(raw)
     end
@@ -125,6 +136,7 @@ module Linestamp
         - 漢字は丁寧に。崩れたら再生成、ひらがな逃げ禁止
         - 8コマ全てで「キャラの揺れ」を絶対禁止（顔・線・塗りが変わらない）#{consistency_clause(brand)}
         - 1枚画像内で完結させる(個別書き出しは別工程)
+        - #{THUMBNAIL_NOTE}
       PROMPT
       tidy(raw)
     end
@@ -178,6 +190,7 @@ module Linestamp
         - 背景: 単色グリーン #{brand.background_color_for_gen}(全領域)
         - キャラはスタンプ領域の 80% 以上を占める
         - 1画像に1スタンプのみ
+        - #{THUMBNAIL_NOTE}
       PROMPT
       tidy(raw)
     end
@@ -246,9 +259,16 @@ module Linestamp
       lines.join("\n        ")
     end
 
+    # Pack / Stamp プロンプトに継承する「視覚的に間違えられない核」。
+    #   silhouette / signature_color は C案で追加(パック内のスタンプ間一貫性に効く)。
     def identity_carry(brand)
       axes = brand.identity_axes || {}
-      pairs = { "signature" => "シグネチャー", "voice" => "語り口" }.filter_map { |key, label|
+      pairs = {
+        "silhouette"      => "シルエット",
+        "signature"       => "シグネチャー",
+        "signature_color" => "占有色",
+        "voice"           => "語り口"
+      }.filter_map { |key, label|
         val = axes[key] || axes[key.to_sym]
         "#{label}: #{val}" if val.present?
       }

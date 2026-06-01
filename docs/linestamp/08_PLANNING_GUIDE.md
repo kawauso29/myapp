@@ -245,3 +245,29 @@ PR 作成前に必ず確認:
 - [ ] description / concept など日本語フィールドが充実している
 - [ ] 1 PR に seed ファイルは 1 つだけ
 ```
+
+## 追補: ブランド差別化の identity_axes 6軸(C案)
+
+「またかわいい動物の量産」を防ぐため、`identity_axes`(jsonb)に以下の軸を持たせる。
+すべて空文字なら従来どおりプロンプトに出ない(任意)。ただし新規ブランドは
+最低でも `silhouette` / `signature` / `signature_color` を埋めること。
+
+| キー | 役割 | 例 |
+|---|---|---|
+| `silhouette` | **#1 最重要**。黒塗りシルエット・頭身でも識別できる全体輪郭 | "2頭身・丸い輪郭・短い手足" |
+| `name_origin` | #2 名前の由来・読み(character_name を補強) | "『モカ』= マグのコーヒー由来。読み: もか" |
+| `signature` | 必ず全構図で描く識別要素 | "首元の小さな丸いタグ" |
+| `signature_color` | #4 競合と被らせず占有する色の主張 | "くすみベージュ #F6E7D8 を占有" |
+| `desire_weakness` | #3 何を求め・何が苦手か(behavior より深い動機) | "求める: 静かな安心 / 苦手: 急かされること" |
+| `voice` | 語り口・トーン | "断定しない・語尾がやわらかい" |
+| `behavior` | ふるまい・癖 | "考えるときマグカップを抱える" |
+
+- `silhouette` / `signature` / `signature_color` / `voice` は Pack / Stamp プロンプトにも継承され、パック内のスタンプ間ブレを抑える。
+- **#6 サムネ識別性**: 全階層のプロンプト厳守事項に「240×240 / 96×74 に縮小しても識別できること」を自動注入済み(`PromptComposer::THUMBNAIL_NOTE`)。
+- **#5 衝突チェック**: 投入前に必ず実行する。
+
+```
+bin/rails linestamp:brand_collision
+```
+
+既存ブランドと `silhouette` / `signature` / `signature_color` / `primary_color` が被っていないかをレポートする。被りが出たら解消してから新ブランドを増やす。
