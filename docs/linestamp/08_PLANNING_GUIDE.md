@@ -18,6 +18,19 @@ DB = Single Source of Truth (SoT)
 3. seed が DB に反映され、ファイルは `applied/` に自動移動
 4. 管理画面 (Admin UI) からの直接編集も可能で、上書きされない
 
+### Research → Brand 系譜（重要）
+
+調査(Research)は捨て資産にしない。**Brand は必ず起点となった Research を `research_slug` で指す**。
+
+```
+Research(調査・brand_ideas) ──research_slug──▶ Brand(キャラ+世界観) ──▶ Pack ──▶ Stamp
+```
+
+- `linestamp-research.yml` が Research を生み、その `brand_ideas` が次のブランド企画の素材になる
+- `linestamp-brand-planning.yml` は **最新の applied Research の `brand_ideas` を Issue 本文に埋め込み**、企画者にそこからの選択・合成を強制する
+- Brand seed には採用した Research の `research_slug` を必ず書く（データで系譜を追跡する）
+- 「またかわいい動物」量産を防ぐ仕組み = **Research の brand_idea 起点 + identity_axes** の 2 段で差別化を出す
+
 ## ファイル名規約
 
 ```
@@ -69,7 +82,7 @@ remote_work_report(在宅ワーク報告) / gratitude(感謝) / apology(謝罪) 
 
 ## Research 企画
 
-リサーチは市場調査の結果を DB に保存するもの。
+リサーチは市場調査の結果を DB に保存するもの。**`brand_ideas` は後続のブランド企画が消費する**ので、具体的なブランド案を複数書く。
 
 ```ruby
 Linestamp::Importer.run(seed_id: "2026-05-26-120000_research_remote_work_trends") do
@@ -96,11 +109,14 @@ end
 
 ## Brand 企画
 
-ブランドは「キャラクター + 世界観」の単位。
+ブランドは「キャラクター + 世界観」の単位。**起点 Research の `research_slug` を必ず指定**し、設計の核（二段定義・キャラパーツ・フォント・トーン軸・ターゲット軸・識別軸）をすべて埋める。
 
 ```ruby
 Linestamp::Importer.run(seed_id: "2026-05-26-120000_brand_nemuinu") do
   brand = upsert_brand!(
+    # この案の起点になった Research の slug（系譜トラッキング・必須）
+    research_slug: "remote_work_trends_2026w22",
+
     slug: "nemuinu",
     character_name: "ねむ犬",
     series_name: "ねむ犬スタンプ",
@@ -108,8 +124,42 @@ Linestamp::Importer.run(seed_id: "2026-05-26-120000_brand_nemuinu") do
     concept: "いつも眠そうだけど仕事はきっちりこなす柴犬",
     target_audience: "20-30代 在宅ワーカー",
     description: "ゆるい表情で日常のコミュニケーションを柔らかくする",
-    primary_color: "#F5DEB3",
-    background_color_for_gen: "#3CB371"
+
+    # 二段定義「○○ではない、○○な△△」で輪郭を絞る
+    two_part_definition: "ただ眠いだけの犬ではない、仕事はきっちりこなす眠そうな柴犬",
+
+    # キャラパーツ 7 部位（持たない部位は空文字で残す＝プロンプトに出ない）
+    character_parts: {
+      eyes:   "半目・下まぶたが重い",
+      mouth:  "small",
+      ears:   "垂れ耳",
+      body:   "ずんぐり",
+      limbs:  "短い",
+      tail:   "丸まり気味",
+      collar: ""        # 例: 首輪を持たないなら空のまま
+    },
+
+    # フォント仕様
+    font_spec: {
+      primary: "丸ゴシック",
+      color:   "#5B4636",
+      outline: "白フチ 2px"
+    },
+
+    # トーン軸（スコア付き jsonb・降順で展開される）
+    tone_axes:   { gentle: 0.95, cute: 0.7, funny: 0.3 },
+    # ターゲット軸
+    target_axes: { age: %w[20s 30s], gender: "unisex", occupation: "在宅ワーカー" },
+
+    # 識別軸（他ブランドと絶対に混同されない核・fill-or-empty）
+    identity_axes: {
+      signature: "右目の下に小さなほくろ",  # 必ず出す識別要素
+      voice:     "断定しない・語尾がやわらかい",
+      behavior:  "考えるとき宙を見る"
+    },
+
+    # 世界観カラー（透過用緑とは別物）
+    primary_color: "#F5DEB3"
   )
 
   attach_communication_themes!(brand, %w[
@@ -124,6 +174,12 @@ Linestamp::Importer.run(seed_id: "2026-05-26-120000_brand_nemuinu") do
   })
 end
 ```
+
+### Brand で触ってはいけない / 書かないもの
+
+- **`background_color_for_gen` は書かない**。モデルが透過用シーグリーン `#3CB371` に固定する（ChromaKeyProcessor の緑透過パイプライン保護）。世界観の色は `primary_color` に入れる。
+- **プロンプト系カラム（`brand_prompt` / `sheet_prompt` / stamp の `prompt`）は書かない**。レコード作成時の `after_commit` で自動合成される。埋めると合成ガード（`prompt.blank?`）で何も起きなくなる。
+- 差別化は**禁止語や特定部位のハードコードで出さない**。`research_slug` 起点 + `identity_axes` の構造化スロットで出す。使わない軸は空文字で残す（プロンプトには出ない）。
 
 ## Pack 企画
 
@@ -151,13 +207,15 @@ Linestamp::Importer.run(seed_id: "2026-05-26-120000_pack_nemuinu_remote_daily") 
         label: "おはよう〜",
         primary_communication_theme: "greeting_morning",
         communication_themes: %w[remote_work_report],
-        attributes: { tone: %w[gentle], setting: %w[remote_work] }
+        attributes: { tone: %w[gentle], setting: %w[remote_work] },
+        search_keywords: %w[おはよう 朝 出社]
       },
       {
         label: "お疲れさま！",
         primary_communication_theme: "appreciation_for_effort",
         communication_themes: %w[gratitude],
-        attributes: { tone: %w[gentle], setting: %w[remote_work] }
+        attributes: { tone: %w[gentle], setting: %w[remote_work] },
+        search_keywords: %w[おつかれ ねぎらい 退勤]
       }
       # ... 8枚すべて記述
     ]
@@ -172,7 +230,18 @@ PR 作成前に必ず確認:
 - [ ] `ruby -c path/to/file.rb` で構文エラーなし
 - [ ] 使用した slug がすべてマスタに存在する
 - [ ] `seed_id` がファイル名（拡張子なし）と一致
+- [ ] **Brand に `research_slug`（起点 Research）が設定されている**
+- [ ] **`two_part_definition` が 1 文で入っている**
+- [ ] **`character_parts` の 7 部位（eyes / mouth / ears / body / limbs / tail / collar）を記述（持たない部位は空文字）**
+- [ ] **`font_spec`（primary / color / outline）が入っている**
+- [ ] **`tone_axes` がスコア付き jsonb で入っている**
+- [ ] **`target_axes` が入っている**
+- [ ] **`identity_axes`（signature / voice / behavior）で他ブランドと混同されない核を埋めた（使わない軸は空でよい）**
+- [ ] **`background_color_for_gen` を直接書いていない（モデル固定 #3CB371）**
+- [ ] プロンプト系カラムを直接埋めていない（after_commit で生成）
 - [ ] 各 stamp に `primary_communication_theme` が1つ設定済み
+- [ ] 各 stamp に `search_keywords` が 2〜4 個入っている
 - [ ] `purchase_unit_size` が 8/24/40 のいずれか
 - [ ] description / concept など日本語フィールドが充実している
 - [ ] 1 PR に seed ファイルは 1 つだけ
+```

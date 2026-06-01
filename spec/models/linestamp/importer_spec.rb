@@ -46,6 +46,56 @@ RSpec.describe Linestamp::Importer do
     end
   end
 
+  describe "#upsert_brand! with research_slug (Research→Brand lineage)" do
+    let!(:research) do
+      Linestamp::Research.find_or_create_by!(slug: "lineage_research") do |r|
+        r.title = "Lineage Research"
+      end
+    end
+
+    it "links the brand to the research identified by research_slug" do
+      described_class.run(seed_id: "test_brand_lineage") do
+        upsert_brand!(
+          slug: "lineage_brand",
+          research_slug: "lineage_research",
+          character_name: "Lineage Char",
+          series_name: "Lineage Series"
+        )
+      end
+
+      brand = Linestamp::Brand.find_by(slug: "lineage_brand")
+      expect(brand.research).to eq(research)
+      expect(brand.research_id).to eq(research.id)
+    end
+
+    it "raises ArgumentError for an unknown research_slug" do
+      expect {
+        described_class.run(seed_id: "test_brand_bad_research") do
+          upsert_brand!(
+            slug: "orphan_brand",
+            research_slug: "does_not_exist",
+            character_name: "Orphan",
+            series_name: "Orphan Series"
+          )
+        end
+      }.to raise_error(ArgumentError, /Unknown Research slug/)
+    end
+
+    it "creates a brand with no research when research_slug is omitted" do
+      described_class.run(seed_id: "test_brand_no_research") do
+        upsert_brand!(
+          slug: "no_research_brand",
+          character_name: "No Research",
+          series_name: "No Research Series"
+        )
+      end
+
+      brand = Linestamp::Brand.find_by(slug: "no_research_brand")
+      expect(brand).to be_present
+      expect(brand.research).to be_nil
+    end
+  end
+
   describe "#upsert_research!" do
     it "creates research with communication_themes and attributes" do
       described_class.run(seed_id: "test_research_001") do

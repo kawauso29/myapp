@@ -31,6 +31,24 @@ RSpec.describe Linestamp::Brand, type: :model do
 
   describe "associations" do
     it { is_expected.to have_many(:packs) }
+    it { is_expected.to belong_to(:research).class_name("Linestamp::Research").optional }
+
+    it "is valid without a research (research is optional)" do
+      brand = described_class.new(slug: "no-research", character_name: "Test", series_name: "Test Series")
+      expect(brand).to be_valid
+      expect(brand.research).to be_nil
+    end
+
+    it "can be linked to a research" do
+      research = Linestamp::Research.create!(title: "Origin Research", slug: "origin")
+      brand = described_class.create!(
+        slug: "linked",
+        character_name: "Linked",
+        series_name: "Linked Series",
+        research: research
+      )
+      expect(brand.reload.research).to eq(research)
+    end
   end
 
   describe "AASM states" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_29_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_29_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -111,11 +111,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_29_010000) do
     t.datetime "created_at", null: false
     t.text "description"
     t.jsonb "font_spec", default: {}
+    t.jsonb "identity_axes", default: {}
     t.string "imported_from"
     t.jsonb "metadata", default: {}
     t.string "persona_name", comment: "ペルソナの通称(社内コミュニケーション用)例: 在宅ワーカー田中さん"
     t.string "primary_color", default: "#FFFFFF"
     t.text "purpose_background"
+    t.bigint "research_id"
     t.string "series_name"
     t.string "slug", null: false
     t.string "status", default: "planned", null: false
@@ -125,6 +127,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_29_010000) do
     t.jsonb "tone_axes", default: {}
     t.text "two_part_definition"
     t.datetime "updated_at", null: false
+    t.index ["research_id"], name: "index_linestamp_brands_on_research_id"
     t.index ["slug"], name: "index_linestamp_brands_on_slug", unique: true
     t.index ["status"], name: "index_linestamp_brands_on_status"
   end
@@ -398,4 +401,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_29_010000) do
   add_foreign_key "linestamp_stamps", "linestamp_communication_themes", column: "primary_communication_theme_id"
   add_foreign_key "linestamp_stamps", "linestamp_packs", column: "pack_id"
   add_foreign_key "linestamp_submissions", "linestamp_packs", column: "pack_id"
+  add_foreign_key "linestamp_brands", "linestamp_researches", column: "research_id"
 end
