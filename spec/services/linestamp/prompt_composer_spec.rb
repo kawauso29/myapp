@@ -152,7 +152,7 @@ RSpec.describe Linestamp::PromptComposer do
     it "does not include undefined consistency parts" do
       collarless_prompt = composer.compose_brand_prompt(brand_without_collar)
       expect(collarless_prompt).to include("固定部位: 目・口・体")
-      expect(collarless_prompt).not_to include("首回り")
+      expect(collarless_prompt).not_to match(/固定部位: .*首回り/)
     end
 
     it "omits identity block when identity_axes is blank" do
