@@ -9,8 +9,7 @@ Linestamp::Importer.run(seed_id: "2026-05-27-041934_brand_hirune_alpaca") do
     concept: "おっとりした表情で在宅ワークの連絡をやわらかく伝え、相手の気持ちをほどくアルパカキャラクター",
     target_audience: "20〜30代の在宅/ハイブリッド勤務ユーザー、チャットで短く丁寧に連絡したいビジネス層",
     description: "「今対応中」「少し休憩」「ありがとう」を角が立たない言い回しで届ける、日常業務向けの気づかいブランド",
-    primary_color: "#D9B8A8",
-    background_color_for_gen: "#FFF6ED"
+    primary_color: "#D9B8A8"
   )
 
   attach_communication_themes!(brand, %w[

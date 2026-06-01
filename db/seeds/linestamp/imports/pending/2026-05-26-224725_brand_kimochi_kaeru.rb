@@ -9,8 +9,7 @@ Linestamp::Importer.run(seed_id: "2026-05-26-224725_brand_kimochi_kaeru") do
     concept: "疲れた気持ちや忙しさを「わかるよ」とそっと包み込む、共感力MAXのカエルキャラクター。大変な日もさりげない一言で乗り越えられる",
     target_audience: "20〜40代 仕事・家事・育児で忙しい男女。社内連絡・家族・友人グループで日常的にスタンプを使う人",
     description: "「大変だったね」「ありがとう」「ここにいるよ」をさらっと伝えられる気づかい系カエルキャラ。オフィス・在宅・プライベートの3シーンで使い回せる万能設計",
-    primary_color: "#6DBE85",
-    background_color_for_gen: "#E8F5EC"
+    primary_color: "#6DBE85"
   )
 
   attach_communication_themes!(brand, %w[

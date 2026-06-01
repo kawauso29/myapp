@@ -9,8 +9,7 @@ Linestamp::Importer.run(seed_id: "2026-05-26-224731_brand_ameagari_usagi") do
     concept: "雨の日でもやさしく状況共有し、相手の気持ちを軽くする在宅ワーク向けキャラクター",
     target_audience: "20〜30代の在宅/ハイブリッド勤務ユーザーと、その同僚・友人",
     description: "短文で使いやすい報連相とねぎらい表現を、ふんわり前向きな雰囲気で届けるブランド",
-    primary_color: "#8EC5FC",
-    background_color_for_gen: "#EAF6FF"
+    primary_color: "#8EC5FC"
   )
 
   attach_communication_themes!(brand, %w[
