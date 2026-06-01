@@ -3,7 +3,7 @@
 Linestamp::Importer.run(seed_id: "2026-06-01-224747_brand_shittori_rakko") do
   brand = upsert_brand!(
     slug: "shittori_rakko",
-    character_name: "しっとり労りラッコ",
+    character_name: "しっとり労りラッコ（しっとりいたわりらっこ）",
     persona_name: "雨の日の不調をやわらか敬語で受け止める寄り添いラッコ",
     concept: "梅雨本番のだるさや低気圧不調に、短文で気遣いと回復行動を返せる",
     series_name: "しっとり労りラッコの雨の日ことば",
@@ -37,13 +37,17 @@ Linestamp::Importer.run(seed_id: "2026-06-01-224747_brand_shittori_rakko") do
       usage_context: "rainy_day_condition_care"
     },
     identity_axes: {
+      silhouette: "丸い頭と胸前で手を合わせる楕円体の小柄ラッコシルエット",
+      name_origin: "『しっとり(梅雨の空気)』+『労り(体調気づかい)』を合わせた和語ネーミング",
+      desire_weakness: "誰かの不調を見過ごしたくないが、自分も湿気で動きがゆっくりになる",
+      signature_color: "雨雲ネイビー #2F4858 と霧水色 #6FA8DC の二色軸",
       signature: "雨粒刺繍ケープと胸前で手を合わせる仕草で『まず労る』を示す",
       voice: "やわらか敬語を基調に、1文目で共感・2文目で小さな回復行動を添える",
       behavior: "不調を否定せず受け止め、休息・水分・体温調整の次アクションへ橋渡しする"
     }
   )
 
-  attach_communication_themes!(brand, %w[greeting_morning need_break appreciation_for_effort encouragement gratitude status_busy agreement])
+  attach_communication_themes!(brand, %w[greeting_morning need_break appreciation_for_effort encouragement gratitude status_busy])
   attach_attribute_values!(brand, {
     tone: %w[gentle neat],
     demographic: %w[age_20s age_30s unisex],
