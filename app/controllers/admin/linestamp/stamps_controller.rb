@@ -44,7 +44,7 @@ class Admin::Linestamp::StampsController < Admin::BaseController
   def designer_kit
     kit = ::Linestamp::DesignerKit::Stamp.new(@stamp)
     zip = kit.export
-    send_file zip.path, filename: kit.filename, type: "application/zip", disposition: "attachment"
+    send_data zip.read, filename: kit.filename, type: "application/zip", disposition: "attachment"
   end
 
   private
