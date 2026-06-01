@@ -1,6 +1,8 @@
 class Linestamp::Brand < ApplicationRecord
   include AASM
 
+  belongs_to :research, class_name: "Linestamp::Research", optional: true
+
   has_many :packs, class_name: "Linestamp::Pack", dependent: :destroy
   has_one_attached :base_image
 

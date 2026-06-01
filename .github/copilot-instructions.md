@@ -57,6 +57,7 @@
 - `background_color_for_gen` は触らない（モデル validate で `#3CB371` 固定）。世界観カラーは `primary_color` に入れる
 - 各 stamp に `search_keywords` を入れると LINE アプリ内検索の導線になる
 - Stamp 詳細の「📥 Designer Kit DL」で prompt + 参照画像 + README を 1 zip で取得できる
+- `identity_axes`（signature / voice / behavior）で**他ブランドと混同されない核**を埋める。使わない軸は空でよい（プロンプトに出ない）。禁止語や特定部位のハードコードはしない。差別化は **Research の brand_idea を起点 + identity_axes** の 2 段で出す。
 
 ## PR 作成
 

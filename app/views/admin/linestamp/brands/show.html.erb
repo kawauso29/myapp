@@ -6,6 +6,7 @@
     <dl class="profile-grid">
       <dt>Slug</dt><dd><code><%= @brand.slug %></code></dd>
       <dt>Status</dt><dd><span class="badge info"><%= @brand.status %></span></dd>
+      <dt>起点の調査</dt><dd><%= @brand.research&.slug.presence || "なし" %></dd>
       <dt>Series Name</dt><dd><%= @brand.series_name %></dd>
       <dt>Two-Part Definition</dt><dd><%= @brand.two_part_definition %></dd>
       <dt>Concept</dt><dd><%= @brand.concept %></dd>

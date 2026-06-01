@@ -8,6 +8,12 @@ module Linestamp
       "横向き立ち", "寝そべり", "座り(マグ抱え)", "椅子に座る",
       "両手合わせ", "サムズアップ", "軽く手を振る", "頬杖"
     ].freeze
+    PART_AXES = %w[eyes mouth ears body limbs tail collar].freeze
+    IDENTITY_KEYS = {
+      "signature" => "シグネチャー(必ず出す識別要素)",
+      "voice" => "語り口・トーン",
+      "behavior" => "ふるまい・癖"
+    }.freeze
 
     # --- Brand プロンプト (base_image 生成用) ---
     def compose_brand_prompt(brand)
@@ -16,8 +22,9 @@ module Linestamp
       demo_names    = brand.attribute_values_by_axis("demographic").pluck(:name).join(", ")
       setting_names = brand.attribute_values_by_axis("setting").pluck(:name).join(", ")
       cts           = brand.communication_themes.pluck(:name).join(" / ")
+      identity_block = identity_lines(brand)
 
-      parts_text = %w[eyes mouth ears body limbs tail collar].filter_map { |key|
+      parts_text = PART_AXES.filter_map { |key|
         val = parts[key] || parts[key.to_sym]
         "- #{parts_label(key)}: #{val}" if val.present?
       }.join("\n        ")
@@ -38,6 +45,7 @@ module Linestamp
         ターゲット世代: #{demo_names.presence || "指定なし"}
         扱うコミュニケーション: #{cts.presence || "未設定"}
 
+        #{identity_block.present? ? "【ブランド識別軸(他と間違えられない核)】\n        #{identity_block}\n" : ""}
         【キャラパーツ仕様(全構図で完全統一)】
         #{parts_text}
         - 体色: #{brand.primary_color}
@@ -59,7 +67,7 @@ module Linestamp
 
         【厳守事項】
         - これは個別スタンプ集ではない。シリーズ一覧でもない。1体のキャラを12構図で描く仕様シートである
-        - 全12構図で線の太さ・色・体型・目の形・首輪を一切変えない
+        - 全12構図で線の太さ・色・塗り・体型を一切変えない#{consistency_clause(brand)}
         - 白背景禁止(白い体が透過処理で消える事故が過去にあり)
         - 文字は丁寧に正しい漢字で。崩れたら再生成
         - キャラの解釈を加えない(髪を描く・服を着せる・装飾を増やす等)
@@ -74,6 +82,7 @@ module Linestamp
       cts    = pack.communication_themes.pluck(:name).join(", ")
       scenes = (pack.usage_scenes || []).map { |s| setting_label(s) }.join(" / ")
       emos   = (pack.target_emotions || []).join(" / ")
+      identity = identity_carry(brand)
       stamps_text = pack.stamps.order(:position).map { |s|
         ct_name = s.primary_communication_theme&.name || "未設定"
         "  ##{s.position} 「#{s.display_label}」 — #{s.situation}(主テーマ: #{ct_name})"
@@ -86,7 +95,7 @@ module Linestamp
         【必ず参照する画像】
         Designer に添付する画像:
         - brand.base_image(キャラ仕様シート/12構図+3フォント基準)
-        → このパック内のキャラ造形・線・色・首輪・フォントは、すべてこの基準と完全一致させること
+        → このパック内のキャラ造形・線・色・塗り・フォントは、すべてこの基準と完全一致させること#{consistency_clause(brand)}
 
         【シリーズコンセプト】
         シリーズ名: #{pack.series_theme}
@@ -98,6 +107,7 @@ module Linestamp
         送りたい感情: #{emos.presence || "未設定"}
         扱うコミュニケーション: #{cts.presence || "未設定"}
         想定利用シーン: #{scenes.presence || "未設定"}
+        #{identity.present? ? identity : ""}
 
         【採用しない要素(派生パックへの含み)】
         #{pack.excluded_elements.presence || "なし"}
@@ -106,12 +116,12 @@ module Linestamp
         #{stamps_text}
 
         【厳守事項】
-        - キャラ仕様は brand.base_image と完全一致(線・色・体型・目・首輪)
+        - キャラ仕様は brand.base_image と完全一致（線・色・体型・塗り）#{consistency_clause(brand)}
         - 文字は brand.base_image のフォント基準と完全一致(書体・色・フチ)
         - 各コマは正方形、余白を統一
         - 背景は単色グリーン #{brand.background_color_for_gen}
         - 漢字は丁寧に。崩れたら再生成、ひらがな逃げ禁止
-        - 8コマ全てで「キャラの揺れ」を絶対禁止(顔・線・首輪が変わらない)
+        - 8コマ全てで「キャラの揺れ」を絶対禁止（顔・線・塗りが変わらない）#{consistency_clause(brand)}
         - 1枚画像内で完結させる(個別書き出しは別工程)
       PROMPT
       tidy(raw)
@@ -127,6 +137,7 @@ module Linestamp
       ct    = stamp.primary_communication_theme
       spec  = pack.effective_image_spec
       kw    = stamp.search_keywords || []
+      identity = identity_carry(brand)
 
       raw = <<~PROMPT
         あなたは個別 LINE スタンプのデザイナーです。
@@ -151,7 +162,8 @@ module Linestamp
         #{kw.present? ? "- 検索キーワード: #{kw.join(' / ')}" : ""}
 
         【キャラ仕様】
-        brand.base_image と完全一致。線・色・体型・目・首輪・しっぽを一切変えない。
+        #{identity.present? ? identity : ""}
+        brand.base_image と完全一致。線・色・体型・塗りを一切変えない#{consistency_clause(brand)}。
         新しい解釈・装飾・服装を加えない。
 
         【文字仕様】
@@ -206,6 +218,37 @@ module Linestamp
 
     def setting_label(slug)
       Linestamp::AttributeValue.for_axis("setting").find_by(slug: slug.to_s)&.name || slug.to_s
+    end
+
+    def identity_lines(brand)
+      axes = brand.identity_axes || {}
+      lines = IDENTITY_KEYS.filter_map { |key, label|
+        val = axes[key] || axes[key.to_sym]
+        "- #{label}: #{val}" if val.present?
+      }
+      lines << "- ブランドカラー(世界観): #{brand.primary_color}" if lines.any? && brand.primary_color.present?
+      lines.join("\n        ")
+    end
+
+    def identity_carry(brand)
+      axes = brand.identity_axes || {}
+      pairs = { "signature" => "シグネチャー", "voice" => "語り口" }.filter_map { |key, label|
+        val = axes[key] || axes[key.to_sym]
+        "#{label}: #{val}" if val.present?
+      }
+      pairs.empty? ? "" : "識別の継承(brand 由来・厳守): #{pairs.join(' / ')}"
+    end
+
+    def consistency_parts(brand)
+      parts = brand.character_parts || {}
+      PART_AXES.filter_map { |key|
+        parts_label(key) if (parts[key] || parts[key.to_sym]).present?
+      }.join("・")
+    end
+
+    def consistency_clause(brand)
+      parts = consistency_parts(brand)
+      parts.present? ? "（固定部位: #{parts}）" : ""
     end
 
     def parts_label(key)
