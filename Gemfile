@@ -10,17 +10,12 @@ gem "jbuilder"
 gem "devise"
 gem "devise-jwt"
 
-# Background jobs
-gem "sidekiq", "~> 8.1"
-gem "sidekiq-cron"
-gem "redis", "~> 5.0"
-
-# AI
-gem "anthropic"
-gem "ruby-openai"
+# Background jobs / Cache / Cable (Solid Stack)
+gem "solid_cache"
+gem "solid_queue"
+gem "solid_cable"
 
 # HTTP
-gem "httparty"
 gem "rack-cors"
 gem "rack-attack"
 
@@ -29,14 +24,9 @@ gem "dotenv-rails"
 
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
-gem "solid_cache"
-gem "solid_queue"
-gem "solid_cable"
-
 gem "bootsnap", require: false
 gem "kamal", require: false
 gem "thruster", require: false
-gem "image_processing", "~> 2.0"
 
 # State machine
 gem "aasm"
@@ -46,9 +36,6 @@ gem "mini_magick"
 
 # Slack API
 gem "slack-ruby-client"
-
-# Pagination
-gem "kaminari"
 
 # ZIP
 gem "rubyzip", require: "zip"
