@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_01_094500) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_02_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -127,6 +127,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_01_094500) do
     t.jsonb "tone_axes", default: {}
     t.text "two_part_definition"
     t.datetime "updated_at", null: false
+    t.string "line_category", comment: "LINE申請: キャラクター・カテゴリ"
+    t.string "line_copyright", comment: "LINE申請: コピーライト表記"
+    t.string "line_creator_name", comment: "LINE申請: クリエイター名"
     t.index ["research_id"], name: "index_linestamp_brands_on_research_id"
     t.index ["slug"], name: "index_linestamp_brands_on_slug", unique: true
     t.index ["status"], name: "index_linestamp_brands_on_status"
@@ -209,6 +212,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_01_094500) do
     t.datetime "updated_at", null: false
     t.jsonb "usage_scenes", default: []
     t.text "world_view"
+    t.text "line_desc_en", comment: "LINE申請: スタンプ説明文(英語)"
+    t.text "line_desc_ja", comment: "LINE申請: スタンプ説明文(日本語)"
+    t.string "line_title_en", comment: "LINE申請: タイトル(英語) 最大40文字"
+    t.string "line_title_ja", comment: "LINE申請: タイトル(日本語) 最大40文字"
     t.index ["approver_id"], name: "index_linestamp_packs_on_approver_id"
     t.index ["brand_id", "position"], name: "index_linestamp_packs_on_brand_id_and_position", unique: true
     t.index ["brand_id", "slug"], name: "index_linestamp_packs_on_brand_id_and_slug", unique: true

@@ -21,6 +21,7 @@
       resources :brands, only: [ :index, :show, :update ] do
         member do
           post :upload_base
+          patch :update_line_meta
           delete :purge_base
         end
       end
@@ -29,6 +30,7 @@
           post :upload_sheet
           post :approve
           get :export_for_line
+          patch :update_line_meta
           post :import_zip
           post :upload_main_image
           post :generate_main_image

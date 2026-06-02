@@ -1,5 +1,5 @@
 class Admin::Linestamp::BrandsController < Admin::BaseController
-  before_action :set_brand, only: %i[show update upload_base purge_base]
+  before_action :set_brand, only: %i[show update_line_meta update upload_base purge_base]
 
   def index
     @brands = ::Linestamp::Brand.order(updated_at: :desc)
@@ -37,10 +37,22 @@ class Admin::Linestamp::BrandsController < Admin::BaseController
     redirect_to admin_linestamp_brand_path(@brand), notice: "Base image removed."
   end
 
+  def update_line_meta
+    if @brand.update(line_meta_params)
+      redirect_to admin_linestamp_brand_path(@brand), notice: "LINE申請メタデータ(ブランド)を保存しました"
+    else
+      redirect_to admin_linestamp_brand_path(@brand), alert: "保存に失敗しました: #{@brand.errors.full_messages.join(', ')}"
+    end
+  end
+
   private
 
   def set_brand
     @brand = ::Linestamp::Brand.find(params[:id])
+  end
+
+  def line_meta_params
+    params.require(:linestamp_brand).permit(:line_creator_name, :line_copyright, :line_category)
   end
 
   def brand_params

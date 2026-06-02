@@ -101,6 +101,38 @@
   </table>
 </div>
 
+<%# LINE_BRAND_META %>
+<div class="card" style="margin-top:16px;">
+  <h2>LINE申請メタデータ（ブランド共通）</h2>
+  <p style="color:#718096; font-size:12px; margin-bottom:12px;">
+    このブランドの全パックで共通して使う申請項目です。各パック詳細画面にも表示されます。
+  </p>
+  <%= form_with url: update_line_meta_admin_linestamp_brand_path(@brand), method: :patch, scope: :linestamp_brand do |f| %>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">クリエイター名</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_field :line_creator_name, id: "brand-line-creator", value: @brand.line_creator_name, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('brand-line-creator', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">コピーライト</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_field :line_copyright, id: "brand-line-copyright", value: @brand.line_copyright, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('brand-line-copyright', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">キャラクター・カテゴリ</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_field :line_category, id: "brand-line-category", value: @brand.line_category, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('brand-line-category', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <%= f.submit "💾 保存", class: "btn btn-primary btn-sm" %>
+  <% end %>
+</div>
+
 <%# ALL_COLUMNS_DUMP %>
 <div class="card" style="margin-top:16px;">
   <h2>全カラム (All Columns)</h2>
@@ -119,3 +151,43 @@
     <% end %>
   </dl>
 </div>
+
+<%# COPY_FIELD_JS %>
+<script>
+function copyField(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) { return; }
+  var text = (el.value !== undefined && el.value !== null && el.value !== "") ? el.value : (el.textContent || "");
+
+  function flash() {
+    if (!btn) { return; }
+    var orig = btn.getAttribute("data-orig") || btn.textContent;
+    btn.setAttribute("data-orig", orig);
+    btn.textContent = "✅";
+    setTimeout(function () { btn.textContent = orig; }, 1200);
+  }
+  function legacyCopy() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) { flash(); }
+    else { alert("自動コピーできませんでした。手動でコピーしてください。"); }
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(flash, legacyCopy);
+  } else {
+    legacyCopy();
+  }
+}
+</script>

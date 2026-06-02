@@ -216,6 +216,80 @@
   <button onclick="copyPrompt('cowork-prompt', this)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Cowork Prompt</button>
 </div>
 
+<%# LINE_SUBMIT_META %>
+<div class="card" style="margin-top:16px;">
+  <h2>LINE申請メタデータ</h2>
+  <p style="color:#718096; font-size:12px; margin-bottom:12px;">
+    LINE Creators Market の新規登録フォームに貼り付ける項目です。保存しておけば申請時はコピーするだけ。
+  </p>
+
+  <%= form_with url: update_line_meta_admin_linestamp_pack_path(@pack), method: :patch, scope: :linestamp_pack do |f| %>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">タイトル（日本語）<span style="color:#718096;"> ／最大40文字</span></label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_field :line_title_ja, id: "line-title-ja", value: @pack.line_title_ja, maxlength: 40, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('line-title-ja', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">タイトル（英語）<span style="color:#718096;"> ／最大40文字</span></label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_field :line_title_en, id: "line-title-en", value: @pack.line_title_en, maxlength: 40, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('line-title-en', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">スタンプ説明文（日本語）</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_area :line_desc_ja, id: "line-desc-ja", value: @pack.line_desc_ja, rows: 3, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('line-desc-ja', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; color:#a0aec0; font-size:12px; margin-bottom:4px;">スタンプ説明文（英語）</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <%= f.text_area :line_desc_en, id: "line-desc-en", value: @pack.line_desc_en, rows: 3, style: "flex:1; background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:8px; font-size:13px;" %>
+        <button type="button" onclick="copyField('line-desc-en', this)" class="btn btn-secondary btn-sm">📋</button>
+      </div>
+    </div>
+    <%= f.submit "💾 保存", class: "btn btn-primary btn-sm" %>
+  <% end %>
+
+  <h3 style="margin-top:20px;">ブランド共通（<%= @pack.brand.character_name %>）</h3>
+  <p style="color:#718096; font-size:12px; margin-bottom:8px;">
+    クリエイター名／コピーライト／カテゴリはブランド単位です。<a href="<%= admin_linestamp_brand_path(@pack.brand) %>" style="color:#63b3ed;">ブランド画面</a>で編集できます。
+  </p>
+  <dl class="profile-grid">
+    <dt>クリエイター名</dt>
+    <dd>
+      <span id="line-brand-creator"><%= @pack.brand.line_creator_name.presence || "（未設定）" %></span>
+      <% if @pack.brand.line_creator_name.present? %><button type="button" onclick="copyField('line-brand-creator', this)" class="btn btn-secondary btn-sm">📋</button><% end %>
+    </dd>
+    <dt>コピーライト</dt>
+    <dd>
+      <span id="line-brand-copyright"><%= @pack.brand.line_copyright.presence || "（未設定）" %></span>
+      <% if @pack.brand.line_copyright.present? %><button type="button" onclick="copyField('line-brand-copyright', this)" class="btn btn-secondary btn-sm">📋</button><% end %>
+    </dd>
+    <dt>カテゴリ</dt>
+    <dd>
+      <span id="line-brand-category"><%= @pack.brand.line_category.presence || "（未設定）" %></span>
+      <% if @pack.brand.line_category.present? %><button type="button" onclick="copyField('line-brand-category', this)" class="btn btn-secondary btn-sm">📋</button><% end %>
+    </dd>
+  </dl>
+
+  <h3 style="margin-top:20px;">固定値（毎回同じ）</h3>
+  <dl class="profile-grid">
+    <dt>スタンプのタイプ</dt><dd>スタンプ</dd>
+    <dt>表現する言語</dt><dd>日本語</dd>
+    <dt>AIの利用</dt><dd>使用</dd>
+    <dt>配信エリア</dt><dd>全エリア</dd>
+    <dt>写真の有無</dt><dd>写真は含まれない</dd>
+    <dt>スタンプアレンジ機能</dt><dd>参加しない</dd>
+    <dt>LINE Creators Collaboration</dt><dd>参加しない</dd>
+    <dt>審査連携設定</dt><dd>手動で販売開始</dd>
+  </dl>
+</div>
+
 <%# ALL_COLUMNS_DUMP %>
 <div class="card" style="margin-top:16px;">
   <h2>全カラム (All Columns)</h2>
@@ -277,6 +351,46 @@ function copyPrompt(id, btn) {
     }
   }
 
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(flash, legacyCopy);
+  } else {
+    legacyCopy();
+  }
+}
+</script>
+
+<%# COPY_FIELD_JS %>
+<script>
+function copyField(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) { return; }
+  var text = (el.value !== undefined && el.value !== null && el.value !== "") ? el.value : (el.textContent || "");
+
+  function flash() {
+    if (!btn) { return; }
+    var orig = btn.getAttribute("data-orig") || btn.textContent;
+    btn.setAttribute("data-orig", orig);
+    btn.textContent = "✅";
+    setTimeout(function () { btn.textContent = orig; }, 1200);
+  }
+  function legacyCopy() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) { flash(); }
+    else { alert("自動コピーできませんでした。手動でコピーしてください。"); }
+  }
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(flash, legacyCopy);
   } else {

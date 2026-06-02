@@ -1,5 +1,5 @@
 class Admin::Linestamp::PacksController < Admin::BaseController
-  before_action :set_pack, only: %i[show update upload_sheet approve export_for_line import_zip upload_main_image generate_main_image upload_tab_image generate_tab_image]
+  before_action :set_pack, only: %i[show update_line_meta update upload_sheet approve export_for_line import_zip upload_main_image generate_main_image upload_tab_image generate_tab_image]
 
   def index
     @packs = ::Linestamp::Pack.includes(:brand).order(updated_at: :desc)
@@ -169,10 +169,22 @@ class Admin::Linestamp::PacksController < Admin::BaseController
     redirect_to admin_linestamp_pack_path(@pack), alert: "Export failed: #{e.message}"
   end
 
+  def update_line_meta
+    if @pack.update(line_meta_params)
+      redirect_to admin_linestamp_pack_path(@pack), notice: "LINE申請メタデータを保存しました"
+    else
+      redirect_to admin_linestamp_pack_path(@pack), alert: "保存に失敗しました: #{@pack.errors.full_messages.join(', ')}"
+    end
+  end
+
   private
 
   def set_pack
     @pack = ::Linestamp::Pack.find(params[:id])
+  end
+
+  def line_meta_params
+    params.require(:linestamp_pack).permit(:line_title_ja, :line_title_en, :line_desc_ja, :line_desc_en)
   end
 
   def pack_params
