@@ -182,6 +182,34 @@ jobs:
           bin/rails db:test:prepare
           bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
+  seed-check:
+    runs-on: [self-hosted, sakura-vps]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby via rbenv
+        run: |
+          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
+
+      - name: Install gems
+        run: bundle install --jobs 2 --retry 3
+
+      - name: Validate pending seed import files
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_seeds
+          QUEUE_DATABASE_URL: postgres://postgres:password@localhost:5432/myapp_test_seeds_queue
+          POSTGRES_PASSWORD: password
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          bin/rails db:create
+          bin/rails db:schema:load
+          bin/rails db:test:prepare
+          bin/rails linestamp:validate_imports
+
   test:
     runs-on: [self-hosted, sakura-vps]
 
@@ -211,7 +239,7 @@ jobs:
 
   notify:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, lint, workflow-check, job-check, route-check, test]
+    needs: [scan_ruby, lint, workflow-check, job-check, route-check, seed-check, test]
     if: always()
     steps:
       - name: Build notification label
@@ -308,7 +336,7 @@ jobs:
   # CI から直接 deploy を起動する
   dispatch_deploy:
     runs-on: [self-hosted, sakura-vps]
-    needs: [scan_ruby, lint, workflow-check, job-check, route-check, test]
+    needs: [scan_ruby, lint, workflow-check, job-check, route-check, seed-check, test]
     if: >-
       github.event_name == 'push' &&
       github.ref_name == 'main' &&
