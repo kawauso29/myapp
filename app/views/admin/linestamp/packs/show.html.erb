@@ -23,6 +23,10 @@
       <% if @pack.approved? || @pack.submitted? %>
         <a href="<%= export_for_line_admin_linestamp_pack_path(@pack) %>" class="btn btn-primary btn-sm">📦 Export ZIP for LINE</a>
       <% end %>
+      <%= form_with url: import_zip_admin_linestamp_pack_path(@pack), method: :post, multipart: true, style: "margin-top:8px;" do |f| %>
+        <%= f.file_field :line_zip, accept: ".zip,application/zip", style: "color:#a0aec0; font-size:12px;" %>
+        <%= f.submit "⬆️ Upload LINE Zip", class: "btn btn-secondary btn-sm" %>
+      <% end %>
     </div>
   </div>
 

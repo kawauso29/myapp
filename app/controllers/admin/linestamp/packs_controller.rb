@@ -1,5 +1,5 @@
 class Admin::Linestamp::PacksController < Admin::BaseController
-  before_action :set_pack, only: %i[show update upload_sheet approve export_for_line upload_main_image generate_main_image upload_tab_image generate_tab_image]
+  before_action :set_pack, only: %i[show update upload_sheet approve export_for_line import_zip upload_main_image generate_main_image upload_tab_image generate_tab_image]
 
   def index
     @packs = ::Linestamp::Pack.includes(:brand).order(updated_at: :desc)
@@ -65,6 +65,77 @@ class Admin::Linestamp::PacksController < Admin::BaseController
     redirect_to admin_linestamp_pack_path(@pack), notice: "Tab image generated from stamp ##{source_stamp.position}."
   rescue StandardError => e
     redirect_to admin_linestamp_pack_path(@pack), alert: "Generation failed: #{e.message}"
+  end
+
+  # LINE申請用 ZIP を1つ受け取り、中身を Stamp / main / tab へ一括添付する。
+  # export_for_line(LineExporter) の逆操作。命名規約は LineExporter と対称:
+  #   NN.png → position==NN の Stamp、main.png → main_image、tab.png → tab_image
+  def import_zip
+    uploaded = params[:line_zip]
+    if uploaded.blank?
+      redirect_to admin_linestamp_pack_path(@pack), alert: "ZIPファイルを選択してください。"
+      return
+    end
+
+    stamp_count = 0
+    main_done = false
+    tab_done = false
+    skipped = []
+
+    Zip::File.open(uploaded.path) do |zip|
+      zip.each do |entry|
+        next if entry.directory?
+
+        name = File.basename(entry.name.to_s)
+        next if name.start_with?(".", "__")
+
+        case name
+        when /\A0*(\d+)\.png\z/i
+          position = Regexp.last_match(1).to_i
+          stamp = @pack.stamps.find_by(position: position)
+          if stamp.nil?
+            skipped << name
+            next
+          end
+          stamp.processed_image.attach(
+            io: StringIO.new(entry.get_input_stream.read),
+            filename: format("%02d.png", position),
+            content_type: "image/png"
+          )
+          stamp.upload_processed_directly! if stamp.may_upload_processed_directly?
+          stamp_count += 1
+        when /\Amain\.png\z/i
+          @pack.main_image.attach(
+            io: StringIO.new(entry.get_input_stream.read),
+            filename: "main.png",
+            content_type: "image/png"
+          )
+          main_done = true
+        when /\Atab\.png\z/i
+          @pack.tab_image.attach(
+            io: StringIO.new(entry.get_input_stream.read),
+            filename: "tab.png",
+            content_type: "image/png"
+          )
+          tab_done = true
+        else
+          skipped << name
+        end
+      end
+    end
+
+    # 全スタンプ揃ったら Approve / Export を解放できる状態まで前進させる(各ガード付き)。
+    @pack.start_work! if @pack.may_start_work?
+    @pack.mark_stamps_complete! if @pack.all_stamps_processed? && @pack.may_mark_stamps_complete?
+
+    parts = ["スタンプ #{stamp_count} 枚"]
+    parts << "メイン画像" if main_done
+    parts << "タブ画像" if tab_done
+    notice = "ZIP取り込み完了: #{parts.join(' / ')} を登録しました。"
+    notice += " (スキップ: #{skipped.join(', ')})" if skipped.any?
+    redirect_to admin_linestamp_pack_path(@pack), notice: notice
+  rescue StandardError => e
+    redirect_to admin_linestamp_pack_path(@pack), alert: "ZIP取り込み失敗: #{e.message}"
   end
 
   def approve
