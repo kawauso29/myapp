@@ -3,7 +3,7 @@
 # しっとり労りラッコ (shittori_rakko)
 # Research: weekly_trends_2026_w23 (梅雨本番・低気圧ケアと短文気づかい需要) idea A を起点。
 
-Linestamp::Importer.run(seed_id: "2026-06-01-224734_brand_shittori_rakko") do
+Linestamp::Importer.run(seed_id: "2026-06-02-022849_brand_shittori_rakko") do
   brand = upsert_brand!(
     research_slug: "weekly_trends_2026_w23",
     slug: "shittori_rakko",
