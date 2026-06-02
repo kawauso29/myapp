@@ -29,6 +29,7 @@
           post :upload_sheet
           post :approve
           get :export_for_line
+          post :import_zip
           post :upload_main_image
           post :generate_main_image
           post :upload_tab_image
