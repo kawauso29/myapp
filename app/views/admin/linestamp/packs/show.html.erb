@@ -290,6 +290,62 @@
   </dl>
 </div>
 
+<%# LINE_META_CARD %>
+<div class="card" style="margin-top:16px;">
+  <h2>LINE Creators 固定設定(全スタンプ共通・LINECreator側で管理)</h2>
+  <dl class="profile-grid">
+    <dt>種類</dt><dd>スタンプ</dd>
+    <dt>言語</dt><dd>日本語</dd>
+    <dt>AIの使用</dt><dd>あり</dd>
+    <dt>販売エリア</dt><dd>全エリア</dd>
+    <dt>写真の使用</dt><dd>含まない</dd>
+    <dt>アレンジ</dt><dd>参加しない</dd>
+    <dt>Collaboration</dt><dd>参加しない</dd>
+    <dt>販売開始</dt><dd>手動で開始</dd>
+  </dl>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2>LINE掲載メタ情報(タイトル / 説明文 — 日本語 + 英語)</h2>
+  <%= form_with url: update_line_meta_admin_linestamp_pack_path(@pack), method: :patch do %>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">タイトル(日本語・40文字以内)</label>
+      <input type="text" name="linestamp_pack[line_title_ja]" value="<%= @pack.line_title_ja %>" maxlength="40"
+             oninput="document.getElementById('cnt-tja').textContent=this.value.length"
+             style="width:100%; padding:6px; box-sizing:border-box;">
+      <span style="font-size:11px; color:#718096;"><span id="cnt-tja"><%= @pack.line_title_ja.to_s.length %></span>/40</span>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">Title (English, max 40)</label>
+      <input type="text" name="linestamp_pack[line_title_en]" value="<%= @pack.line_title_en %>" maxlength="40"
+             oninput="document.getElementById('cnt-ten').textContent=this.value.length"
+             style="width:100%; padding:6px; box-sizing:border-box;">
+      <span style="font-size:11px; color:#718096;"><span id="cnt-ten"><%= @pack.line_title_en.to_s.length %></span>/40</span>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">説明文(日本語・160文字以内)</label>
+      <textarea name="linestamp_pack[line_desc_ja]" maxlength="160" rows="3"
+                oninput="document.getElementById('cnt-dja').textContent=this.value.length"
+                style="width:100%; padding:6px; box-sizing:border-box;"><%= @pack.line_desc_ja %></textarea>
+      <span style="font-size:11px; color:#718096;"><span id="cnt-dja"><%= @pack.line_desc_ja.to_s.length %></span>/160</span>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">Description (English, max 160)</label>
+      <textarea name="linestamp_pack[line_desc_en]" maxlength="160" rows="3"
+                oninput="document.getElementById('cnt-den').textContent=this.value.length"
+                style="width:100%; padding:6px; box-sizing:border-box;"><%= @pack.line_desc_en %></textarea>
+      <span style="font-size:11px; color:#718096;"><span id="cnt-den"><%= @pack.line_desc_en.to_s.length %></span>/160</span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">保存</button>
+  <% end %>
+
+  <% if @pack.line_meta_prompt.present? %>
+    <h3 style="margin-top:16px; font-size:13px;">英語版・タグ生成プロンプト(Cowork に貼り付けて実行)</h3>
+    <pre id="line-meta-prompt" style="background:#232637; padding:12px; border-radius:6px; white-space:pre-wrap; font-size:12px; color:#e2e8f0; max-height:260px; overflow-y:auto;"><%= @pack.line_meta_prompt %></pre>
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('line-meta-prompt').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 プロンプトをコピー</button>
+  <% end %>
+</div>
+
 <%# ALL_COLUMNS_DUMP %>
 <div class="card" style="margin-top:16px;">
   <h2>全カラム (All Columns)</h2>

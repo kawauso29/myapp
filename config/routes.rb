@@ -40,6 +40,7 @@
       end
       resources :stamps, only: [ :show, :update ] do
         member do
+          patch :update_tags
           post :upload_processed
           post :reset
           get  :designer_kit

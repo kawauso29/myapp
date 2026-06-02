@@ -195,10 +195,66 @@ module Linestamp
       tidy(raw)
     end
 
+
+    # --- LINE掲載メタ: 日本語タイトル/説明文を決定論で自動生成 ---
+    # 翻訳エンジンは Rails に無いため英語はここでは作らない(Cowork プロンプト側で生成)。
+    def compose_pack_line_meta(pack)
+      brand = pack.brand
+      title = pack.series_theme.to_s.strip
+      title = "#{brand.character_name}#{title}" if title.length < 6 && brand.character_name.present?
+
+      emos   = (pack.target_emotions || []).reject(&:blank?).join("・")
+      scenes = (pack.usage_scenes || []).map { |sc| setting_label(sc) }.reject(&:blank?).join("・")
+
+      parts = []
+      parts << "#{brand.character_name}の#{pack.series_theme}スタンプ。" if brand.character_name.present?
+      parts << "#{scenes}で使える。" if scenes.present?
+      parts << "#{emos}を伝える全8種。" if emos.present?
+      parts << pack.world_view.to_s.strip if pack.world_view.present?
+      desc = parts.join("")
+
+      { title_ja: truncate_line(title, 40), desc_ja: truncate_line(desc, 160) }
+    end
+
+    # --- 英語版タイトル/説明文 + 各スタンプ検索タグ(最大9)を作る Cowork プロンプト ---
+    def compose_pack_line_meta_prompt(pack)
+      brand = pack.brand
+      meta  = compose_pack_line_meta(pack)
+      stamps_text = pack.stamps.order(:position).map { |st|
+        "  ##{st.position} 「#{st.display_label}」 #{st.situation}"
+      }.join("\n")
+
+      raw = <<~PROMPT
+        あなたは LINE Creators Market のストア掲載文ライター兼ローカライザーです。
+        以下の日本語メタ情報をもとに、英語版のタイトル・説明文と、各スタンプの検索タグを作ってください。
+
+        【キャラクター】#{brand.character_name}(#{brand.series_name})
+        【シリーズ】#{pack.series_theme}
+        【日本語タイトル(確定・40文字以内)】#{meta[:title_ja]}
+        【日本語説明文(確定・160文字以内)】#{meta[:desc_ja]}
+
+        【8スタンプ】
+        #{stamps_text}
+
+        【出力(厳守)】
+        1. 英語タイトル: 40文字以内。日本語タイトルの意味を保つ自然な英語。
+        2. 英語説明文: 160文字以内。海外ユーザーが検索・購入したくなる自然な英語。日本語説明文の意味を保つ。
+        3. 各スタンプの検索タグ: 1スタンプにつき最大9個。送る場面・感情・あいさつ語など短い日本語。
+           「#1: タグ, タグ, ...」のように position ごとに列挙する。
+        ※ タイトル40 / 説明文160 / タグ9個 の上限を必ず守る。超えたら短くやり直す。
+      PROMPT
+      tidy(raw)
+    end
+
     private
 
     def tidy(text)
       text.gsub(/[ \t]+\n/, "\n").gsub(/\n{3,}/, "\n\n").strip
+    end
+
+    def truncate_line(str, max)
+      str = str.to_s.strip
+      str.length > max ? str[0, max] : str
     end
 
     # Research 由来のブランド案メモ(複数候補を含むテキスト)を、企画背景の参考情報として差し込む。

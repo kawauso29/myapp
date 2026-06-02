@@ -1,5 +1,5 @@
 class Admin::Linestamp::StampsController < Admin::BaseController
-  before_action :set_stamp, only: %i[show update upload_processed reset designer_kit]
+  before_action :set_stamp, only: %i[show update update_tags upload_processed reset designer_kit]
 
   def show
     @themes = ::Linestamp::CommunicationTheme.active.ordered
@@ -28,6 +28,17 @@ class Admin::Linestamp::StampsController < Admin::BaseController
       redirect_to admin_linestamp_stamp_path(@stamp), notice: "完成画像をアップロードしました。"
     else
       redirect_to admin_linestamp_stamp_path(@stamp), alert: "ファイルが選択されていません。"
+    end
+  end
+
+  # 検索タグ(search_keywords)専用更新。カンマ区切り→配列、最大9個に丸める。
+  def update_tags
+    raw = params.dig(:linestamp_stamp, :search_keywords).to_s
+    tags = raw.split(/[,\u3001\n]/).map(&:strip).reject(&:blank?).uniq.first(9)
+    if @stamp.update(search_keywords: tags)
+      redirect_to admin_linestamp_stamp_path(@stamp), notice: "タグを更新しました(#{tags.size}/9)"
+    else
+      redirect_to admin_linestamp_stamp_path(@stamp), alert: @stamp.errors.full_messages.join(", ")
     end
   end
 

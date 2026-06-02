@@ -15,6 +15,9 @@ class Linestamp::Brand < ApplicationRecord
   validates :character_name, presence: true
   validates :series_name, presence: true
 
+  # LINE_META_VALIDATIONS — コピーライト表記上限
+  validates :line_copyright, length: { maximum: 50 }, allow_blank: true
+
   CHROMA_GREEN = "#3CB371"
 
   before_validation :enforce_chroma_green

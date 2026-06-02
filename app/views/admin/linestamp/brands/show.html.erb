@@ -133,6 +133,26 @@
   <% end %>
 </div>
 
+<%# LINE_META_BRAND_CARD %>
+<div class="card" style="margin-top:16px;">
+  <h2>LINE クリエイター情報(ブランド共通)</h2>
+  <%= form_with url: update_line_meta_admin_linestamp_brand_path(@brand), method: :patch do %>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">クリエイター名</label>
+      <input type="text" name="linestamp_brand[line_creator_name]" value="<%= @brand.line_creator_name %>"
+             style="width:100%; padding:6px; box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="display:block; font-size:12px; color:#a0aec0;">コピーライト(50文字以内)</label>
+      <input type="text" name="linestamp_brand[line_copyright]" value="<%= @brand.line_copyright %>" maxlength="50"
+             oninput="document.getElementById('cnt-cr').textContent=this.value.length"
+             style="width:100%; padding:6px; box-sizing:border-box;">
+      <span style="font-size:11px; color:#718096;"><span id="cnt-cr"><%= @brand.line_copyright.to_s.length %></span>/50</span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">保存</button>
+  <% end %>
+</div>
+
 <%# ALL_COLUMNS_DUMP %>
 <div class="card" style="margin-top:16px;">
   <h2>全カラム (All Columns)</h2>

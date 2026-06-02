@@ -81,6 +81,21 @@
   </div>
 </div>
 
+<%# LINE_TAGS_CARD %>
+<div class="card" style="margin-top:16px;">
+  <h2>検索タグ(最大9個 / LINEトークのサジェスト用)</h2>
+  <%= form_with url: update_tags_admin_linestamp_stamp_path(@stamp), method: :patch do %>
+    <input type="text" name="linestamp_stamp[search_keywords]"
+           value="<%= (@stamp.search_keywords || []).join(', ') %>"
+           placeholder="カンマ区切りで入力(例: おつかれ, 在宅, ねこ)"
+           style="width:100%; padding:6px; box-sizing:border-box;">
+    <p style="font-size:11px; color:#718096; margin-top:4px;">
+      カンマ区切り。10個目以降は自動で切り捨てられます。現在: <%= (@stamp.search_keywords || []).size %>/9
+    </p>
+    <button type="submit" class="btn btn-primary btn-sm">タグを保存</button>
+  <% end %>
+</div>
+
 <%# ALL_COLUMNS_DUMP %>
 <div class="card" style="margin-top:16px;">
   <h2>全カラム (All Columns)</h2>

@@ -11,6 +11,14 @@ module Linestamp
       prompt = composer.compose_pack_sheet_prompt(pack)
 
       pack.update!(sheet_prompt: prompt)
+
+      # LINE掲載メタ(日本語)と Cowork 用英語プロンプトを未設定時のみ自動生成
+      meta = composer.compose_pack_line_meta(pack)
+      pack.update_columns(
+        line_title_ja: pack.line_title_ja.presence || meta[:title_ja],
+        line_desc_ja:  pack.line_desc_ja.presence  || meta[:desc_ja],
+        line_meta_prompt: pack.line_meta_prompt.presence || composer.compose_pack_line_meta_prompt(pack)
+      )
       pack.mark_prompt_ready! if pack.may_mark_prompt_ready?
 
       Linestamp::SlackNotifier.notify(

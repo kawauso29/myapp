@@ -30,6 +30,12 @@ class Linestamp::Pack < ApplicationRecord
   validates :purchase_unit_size, inclusion: { in: ALLOWED_PURCHASE_UNIT_SIZES }
   validates :sales_count, numericality: { greater_than_or_equal_to: 0, only_integer: true }
 
+  # LINE_META_VALIDATIONS — LINE Creators Market 文字数制限
+  validates :line_title_ja, length: { maximum: 40 }, allow_blank: true
+  validates :line_title_en, length: { maximum: 40 }, allow_blank: true
+  validates :line_desc_ja, length: { maximum: 160 }, allow_blank: true
+  validates :line_desc_en, length: { maximum: 160 }, allow_blank: true
+
   scope :published, -> { where.not(published_at: nil) }
   scope :unpublished, -> { where(published_at: nil) }
   scope :best_sellers, ->(limit = 10) { published.order(sales_count: :desc).limit(limit) }

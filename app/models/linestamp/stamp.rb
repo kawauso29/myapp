@@ -15,6 +15,9 @@ class Linestamp::Stamp < ApplicationRecord
 
   validates :position, presence: true, numericality: { greater_than: 0 }
   validates :position, uniqueness: { scope: :pack_id }
+
+  # LINE_TAGS_VALIDATION — LINE 検索タグは最大9個
+  validate :search_keywords_within_limit
   validate :exactly_one_primary_communication_theme,
            if: -> { !skip_primary_theme_guard && stamp_communication_themes.any? }
 
@@ -71,6 +74,11 @@ class Linestamp::Stamp < ApplicationRecord
   def exactly_one_primary_communication_theme
     primaries = stamp_communication_themes.select(&:primary?).count
     errors.add(:base, "primary な communication_theme は1つだけ必要") if primaries != 1
+  end
+
+  def search_keywords_within_limit
+    return if search_keywords.blank?
+    errors.add(:search_keywords, "は最大9個までです") if Array(search_keywords).size > 9
   end
 
   def has_prompt?
