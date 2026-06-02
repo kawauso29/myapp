@@ -151,7 +151,7 @@
   <h2>Sheet Prompt</h2>
   <% if @pack.sheet_prompt.present? %>
     <pre id="sheet-prompt" style="background:#232637; padding:12px; border-radius:6px; white-space:pre-wrap; font-size:12px; color:#e2e8f0; max-height:300px; overflow-y:auto;"><%= @pack.sheet_prompt %></pre>
-    <button onclick="navigator.clipboard.writeText(document.getElementById('sheet-prompt').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Prompt</button>
+    <button onclick="copyPrompt('sheet-prompt', this)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Prompt</button>
   <% else %>
     <p style="color:#718096;">Prompt not yet composed.</p>
   <% end %>
@@ -213,7 +213,7 @@
     __cowork_prompt = __lines.join("\n")
   %>
   <pre id="cowork-prompt" style="background:#232637; padding:12px; border-radius:6px; white-space:pre-wrap; font-size:12px; color:#e2e8f0; max-height:360px; overflow-y:auto;"><%= __cowork_prompt %></pre>
-  <button onclick="navigator.clipboard.writeText(document.getElementById('cowork-prompt').textContent)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Cowork Prompt</button>
+  <button onclick="copyPrompt('cowork-prompt', this)" class="btn btn-primary btn-sm" style="margin-top:8px;">📋 Copy Cowork Prompt</button>
 </div>
 
 <%# ALL_COLUMNS_DUMP %>
