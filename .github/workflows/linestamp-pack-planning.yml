@@ -7,9 +7,9 @@ on:
         description: "Pack企画数(default=10)"
         required: false
         default: "10"
-  schedule:
-    - cron: '30 22 * * *' # 22:30 UTC = 翌7:30 JST
-
+#  schedule:
+#    - cron: '30 22 * * *' # 22:30 UTC = 翌7:30 JST
+#
 jobs:
   create-pack-issues:
     runs-on: [self-hosted, sakura-vps]

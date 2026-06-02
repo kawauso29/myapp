@@ -7,9 +7,9 @@ on:
         description: "今週の調査フォーカス(空でも可)"
         required: false
         default: ""
-  schedule:
-    - cron: '0 0 * * 1' # 月曜 0:00 UTC = 月曜 9:00 JST
-
+#  schedule:
+#    - cron: '0 0 * * 1' # 月曜 0:00 UTC = 月曜 9:00 JST
+#
 jobs:
   create-research-issue:
     runs-on: [self-hosted, sakura-vps]
