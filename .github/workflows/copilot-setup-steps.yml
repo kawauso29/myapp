@@ -1,10 +1,16 @@
 name: "Copilot Setup Steps"
+
+# GitHub Copilot コーディングエージェント専用。エージェントは PR 作業前に、
+# ここに書かれた手順で自分の開発環境を構築する。job 名は必ず copilot-setup-steps。
+# Ruby は rbenv 前提(VPS限定)にすると、エージェント環境で Ruby が入らず
+# 検証できないため 0 ファイル PR になる。→ 公式 setup-ruby で環境非依存に用意する。
 on:
   workflow_dispatch:
   push:
     paths: [.github/workflows/copilot-setup-steps.yml]
   pull_request:
     paths: [.github/workflows/copilot-setup-steps.yml]
+
 jobs:
   copilot-setup-steps:
     runs-on: [self-hosted, sakura-vps]
@@ -13,9 +19,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup Ruby via rbenv
-        run: |
-          echo "$HOME/.rbenv/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.rbenv/shims" >> "$GITHUB_PATH"
-      - name: Install gems
-        run: bundle install --jobs 2 --retry 3
+
+      # .ruby-version(3.3.7) を読み、Ruby を入れて bundle install + キャッシュ。
+      # rbenv の有無に関係なく動くので、エージェントの自前環境でも Ruby が揃う。
+      - name: Setup Ruby 3.3.7 and install gems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.7"
+          bundler-cache: true
