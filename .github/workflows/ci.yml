@@ -152,6 +152,7 @@ jobs:
           bin/rails db:create
           bin/rails db:schema:load
           bin/rails db:test:prepare
+          bin/rails db:migrate
           bin/rails zeitwerk:check && bundle exec rspec spec/jobs
 
   route-check:
@@ -180,6 +181,7 @@ jobs:
           bin/rails db:create
           bin/rails db:schema:load
           bin/rails db:test:prepare
+          bin/rails db:migrate
           bundle exec rspec spec/routing/controller_action_integrity_spec.rb
 
   seed-check:
@@ -208,6 +210,7 @@ jobs:
           bin/rails db:create
           bin/rails db:schema:load
           bin/rails db:test:prepare
+          bin/rails db:migrate
           bin/rails linestamp:validate_imports
 
   test:
@@ -235,6 +238,7 @@ jobs:
           bin/rails db:create
           bin/rails db:schema:load
           bin/rails db:test:prepare
+          bin/rails db:migrate
           bundle exec rspec
 
   notify:
