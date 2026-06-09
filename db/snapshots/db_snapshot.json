@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-09T06:36:54+09:00",
+  "generated_at": "2026-06-10T06:37:30+09:00",
   "environment": "production",
   "counts": {
     "active_storage_attachments": 24,
@@ -74,7 +74,7 @@
     "operator_override_ledgers": 0,
     "org_change_ledgers": 0,
     "organization_roles": 12,
-    "picro_messages": 31,
+    "picro_messages": 32,
     "portfolio_strategy_ledgers": 2,
     "post_interest_tags": 12059,
     "post_reports": 0,
@@ -105,6 +105,17 @@
   "recent": {
     "users": [],
     "picro_messages": [
+      {
+        "id": 32,
+        "created_at": "2026-06-09 09:15:01 +0900",
+        "message_id": "100584086",
+        "notified": true,
+        "preview": "&lt;p style=&quot;font-size:17px;color:rgb(0,0,0);&quot;&gt;&lt;span&gt;お世話になっております。&lt;/span&gt;&lt;br /&gt;&lt;/p&gt;&lt;p style=&quot;font-size:17px;color:rgb(0,0,0);&quot;&gt;&lt;span&gt;アミティエス...",
+        "received_at": "2026-06-09 09:00:22 +0900",
+        "sender_name": null,
+        "title": "夏合宿 先行予約タイプ締切間近のお知らせ",
+        "updated_at": "2026-06-09 09:15:01 +0900"
+      },
       {
         "id": 31,
         "created_at": "2026-05-25 12:15:01 +0900",
@@ -312,17 +323,6 @@
         "received_at": "2026-01-01 09:04:54 +0900",
         "sender_name": null,
         "title": "新年あけましておめでとうございます。",
-        "updated_at": "2026-03-19 13:00:01 +0900"
-      },
-      {
-        "id": 12,
-        "created_at": "2026-03-19 13:00:01 +0900",
-        "message_id": "96059849",
-        "notified": true,
-        "preview": "栗東会場会員様各位\r\n\r\nお世話になっております。\r\n本年もどうぞ宜しくお願い致します。\r\n\r\n本日ご連絡させていただきましたのは、\r\n年末にご連絡させていただいておりました年始最初の練習のお日にちが間違っておりましたのでご連絡させていただきました。\r\n文面に1月8日（木）と記載しておりました。\r\n大変申し訳ありませんでした。\r\n\r\n正しくは明日の1月9日（金）からとなります。\r\n本日は練習...",
-        "received_at": "2026-01-08 16:29:54 +0900",
-        "sender_name": null,
-        "title": "【重要】年始の練習開始日訂正及びお詫びの連絡",
         "updated_at": "2026-03-19 13:00:01 +0900"
       }
     ],
