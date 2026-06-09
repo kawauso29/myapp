@@ -1,0 +1,375 @@
+diff --git a/app/controllers/admin/linestamp/researches_controller.rb b/app/controllers/admin/linestamp/researches_controller.rb
+index 8c0fc0c..ac43591 100644
+--- a/app/controllers/admin/linestamp/researches_controller.rb
++++ b/app/controllers/admin/linestamp/researches_controller.rb
+@@ -6,4 +6,22 @@ class Admin::Linestamp::ResearchesController < Admin::BaseController
+   def show
+     @research = ::Linestamp::Research.find(params[:id])
+   end
++
++  # Cowork(対話AI)に渡す「週次リサーチ依頼プロンプト」を表示する。
++  # 過去の調査履歴・既存ブランド・master slug 辞書を実行時に注入する。
++  def request_prompt
++    @target_date = parse_target_date(params[:date])
++    @composer = ::Linestamp::ResearchRequestPrompt.new(target_date: @target_date)
++    @prompt = @composer.compose
++  end
++
++  private
++
++  def parse_target_date(raw)
++    return Date.current.next_week if raw.blank?
++
++    Date.parse(raw)
++  rescue ArgumentError
++    Date.current.next_week
++  end
+ end
+diff --git a/app/services/linestamp/research_request_prompt.rb b/app/services/linestamp/research_request_prompt.rb
+new file mode 100644
+index 0000000..7173912
+--- /dev/null
++++ b/app/services/linestamp/research_request_prompt.rb
+@@ -0,0 +1,156 @@
++# frozen_string_literal: true
++
++# Cowork(対話AI)に週次リサーチを依頼するためのプロンプトを合成するサービス。
++#
++# 設計方針(2026-06 の運用転換):
++#   - プロンプトの実態は Rails 側が握り、Cowork は触らない。
++#   - 過去のリサーチ履歴・既存ブランドの差別化情報・master slug 辞書を
++#     実行時に PG から注入し、「既存と被らない」新規リサーチを生成させる。
++#   - 出力フォーマットは Importer DSL seed(research_template.rb 準拠)で固定する。
++#
++# 使い方:
++#   Linestamp::ResearchRequestPrompt.new(target_date: Date.current.next_week).compose
++class Linestamp::ResearchRequestPrompt
++  AXES = %w[tone motif demographic setting].freeze
++
++  def initialize(target_date: Date.current.next_week)
++    @target_date = target_date
++  end
++
++  def week_label
++    format("%<year>d-W%<week>02d", year: @target_date.cwyear, week: @target_date.cweek)
++  end
++
++  def research_slug
++    "weekly_trends_#{@target_date.cwyear}_w#{@target_date.cweek}"
++  end
++
++  def target_range
++    monday = @target_date.beginning_of_week(:monday)
++    sunday = monday + 6
++    "#{monday.strftime('%-m/%-d')}〜#{sunday.strftime('%-m/%-d')}"
++  end
++
++  def seed_id
++    "#{Time.current.strftime('%Y-%m-%d-%H%M%S')}_research_#{week_label}"
++  end
++
++  def brands_count
++    existing_brands.size
++  end
++
++  def researches_count
++    research_history.size
++  end
++
++  def compose
++    <<~PROMPT
++      # 役割
++      あなたはLINEスタンプ事業の週次リサーチ担当。目的は、後続のブランド企画が
++      消費する「素材」を作ること。最終成果物は Rails の Importer DSL seed ファイル1本。
++
++      # 対象週
++      - 今日: #{Date.current.strftime('%Y-%m-%d')}
++      - 対象週: #{week_label}(#{target_range})
++
++      # やること
++      1. web_search で対象週の日本の文脈を調査する:
++         季節・天候(梅雨/猛暑など)・行事/記念日・SNSで増える定番セリフ・
++         気分/体調の話題・LINEスタンプ市場で伸びる用途。
++      2. 「見た目のかわいさ」ではなく「どの場面で即決で使うか(用途設計)」を軸に分析する。
++      3. 後続のブランド企画用に、差別化された候補ブランド案を A〜D で出す。
++         各案は silhouette(黒塗りでも識別できる全体形)と 中心CT を必ず添える。
++
++      # 重複回避(重要)
++      以下と被るテーマ／シルエット／占有色は避けること。
++
++      ## これまでの調査履歴(#{researches_count}件)
++      #{research_history_block}
++
++      ## 既存ブランド(#{brands_count}件 / slug ・ キャラ ・ silhouette ・ 占有色 ・ CT)
++      #{existing_brands_block}
++
++      # 使ってよい slug 辞書(これ以外を書くと apply が ArgumentError で失敗する)
++      ## communication_themes
++      #{ct_dictionary_block}
++      ## attribute values
++      #{attribute_dictionary_block}
++      ※ keywords / emotions / seasons は自由記述。
++        communication_themes と attributes は必ず上の辞書内の slug のみを使う。
++
++      # 出力フォーマット(厳守)
++      - 返答は seed ファイルの中身のみ。前後に説明文を付けない。
++      - 保存先: db/seeds/linestamp/imports/pending/#{seed_id}.rb
++      - brand_ideas は A〜D を具体的に(過去の実績と同等の密度で)。
++      - prompt 系カラムや background_color は研究 seed には存在しない。触らない。
++
++      ```ruby
++      # frozen_string_literal: true
++      Linestamp::Importer.run(seed_id: "#{seed_id}") do
++        upsert_research!(
++          slug: "#{research_slug}",
++          title: "LINEスタンプ週次調査 #{week_label}(…要点…)",
++          body: "…対象週の状況を3〜5文で…",
++          findings: "1) … 2) … 3) … 4) … 5) …(用途×CTで)",
++          brand_ideas: "A) …(silhouette/中心CT) B) … C) … D) …",
++          line_market_insights: "…市場の用途設計の洞察…",
++          communication_substitute_needs: "…『〜したい』の代替ニーズを列挙…",
++          source_url: "https://…",
++          keywords: %w[…],
++          emotions: %w[…],
++          seasons: %w[…],
++          communication_themes: %w[…辞書から…],
++          attributes: {
++            tone: %w[…], motif: %w[…], demographic: %w[…], setting: %w[…]
++          }
++        )
++      end
++      ```
++    PROMPT
++  end
++
++  private
++
++  def existing_brands
++    @existing_brands ||= ::Linestamp::Brand
++      .includes(:communication_themes)
++      .order(:slug)
++      .to_a
++  end
++
++  def research_history
++    @research_history ||= ::Linestamp::Research
++      .order(created_at: :desc)
++      .to_a
++  end
++
++  def existing_brands_block
++    return "(まだ既存ブランドはありません)" if existing_brands.empty?
++
++    existing_brands.map do |b|
++      ax = b.identity_axes || {}
++      silhouette = ax["silhouette"].presence || "(未設定)"
++      color = ax["signature_color"].presence || b.primary_color
++      cts = b.communication_themes.map(&:slug).sort.join(", ")
++      cts = "(なし)" if cts.blank?
++      "- #{b.slug} / #{b.character_name} / silhouette: #{silhouette} / 占有色: #{color} / CT: #{cts}"
++    end.join("\n")
++  end
++
++  def research_history_block
++    return "(まだ調査履歴はありません)" if research_history.empty?
++
++    research_history.map { |r| "- #{r.slug.presence || '(slug未設定)'}: #{r.title}" }.join("\n")
++  end
++
++  def ct_dictionary_block
++    ::Linestamp::CommunicationTheme.active.ordered.map { |ct| "  #{ct.slug} — #{ct.name}" }.join("\n")
++  end
++
++  def attribute_dictionary_block
++    AXES.map do |axis|
++      slugs = ::Linestamp::AttributeValue.for_axis(axis).active.ordered.pluck(:slug).join(" ")
++      format("  %-12s %s", "#{axis}:", slugs)
++    end.join("\n")
++  end
++end
+diff --git a/app/views/admin/linestamp/researches/index.html.erb b/app/views/admin/linestamp/researches/index.html.erb
+index cb2be7c..73d480b 100644
+--- a/app/views/admin/linestamp/researches/index.html.erb
++++ b/app/views/admin/linestamp/researches/index.html.erb
+@@ -1,4 +1,7 @@
+-<h1 style="font-size:20px; margin-bottom:20px;">Researches</h1>
++<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
++  <h1 style="font-size:20px;">Researches</h1>
++  <a href="<%= request_prompt_admin_linestamp_researches_path %>" class="btn btn-success btn-sm">🔍 Coworkリサーチ依頼プロンプト</a>
++</div>
+ 
+ <table>
+   <thead>
+diff --git a/app/views/admin/linestamp/researches/request_prompt.html.erb b/app/views/admin/linestamp/researches/request_prompt.html.erb
+new file mode 100644
+index 0000000..7dd3ea0
+--- /dev/null
++++ b/app/views/admin/linestamp/researches/request_prompt.html.erb
+@@ -0,0 +1,77 @@
++<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
++  <h1 style="font-size:20px;">Coworkリサーチ依頼プロンプト</h1>
++  <a href="<%= admin_linestamp_researches_path %>" class="btn btn-sm" style="background:#232637; color:#a0aec0;">← Researches一覧</a>
++</div>
++
++<div class="card">
++  <h2>対象週</h2>
++  <%= form_with url: request_prompt_admin_linestamp_researches_path, method: :get, local: true,
++        style: "display:flex; gap:10px; align-items:center; flex-wrap:wrap;" do %>
++    <label style="color:#a0aec0;">対象週に含む日付</label>
++    <%= date_field_tag :date, @target_date.to_s,
++          style: "background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:6px 10px; font-size:13px;" %>
++    <%= submit_tag "更新", class: "btn btn-primary btn-sm" %>
++    <span style="color:#718096; font-size:12px;">
++      週: <strong style="color:#63b3ed;"><%= @composer.week_label %></strong>(<%= @composer.target_range %>)
++    </span>
++  <% end %>
++</div>
++
++<div class="card">
++  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
++    <h2 style="margin:0;">プロンプト</h2>
++    <div style="display:flex; align-items:center; gap:10px;">
++      <span style="color:#718096; font-size:12px;">
++        注入: 既存ブランド <strong style="color:#63b3ed;"><%= @composer.brands_count %></strong> 件 /
++        調査履歴 <strong style="color:#63b3ed;"><%= @composer.researches_count %></strong> 件
++      </span>
++      <button type="button" onclick="copyField('research-prompt', this)" class="btn btn-success btn-sm">📋 コピー</button>
++    </div>
++  </div>
++  <textarea id="research-prompt" readonly
++            style="width:100%; height:560px; background:#0f1117; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:12px; font-family:monospace; font-size:12px; line-height:1.5; white-space:pre; overflow:auto;"><%= @prompt %></textarea>
++  <p style="color:#718096; font-size:12px; margin-top:8px;">
++    コピーして Cowork に貼り付け → 返ってきた seed を
++    <code style="color:#9ae6b4;">db/seeds/linestamp/imports/pending/</code> に置いて apply。
++  </p>
++</div>
++
++<%# COPY_FIELD_JS %>
++<script>
++function copyField(id, btn) {
++  var el = document.getElementById(id);
++  if (!el) { return; }
++  var text = (el.value !== undefined && el.value !== null && el.value !== "") ? el.value : (el.textContent || "");
++
++  function flash() {
++    if (!btn) { return; }
++    var orig = btn.getAttribute("data-orig") || btn.textContent;
++    btn.setAttribute("data-orig", orig);
++    btn.textContent = "✅ コピーしました";
++    setTimeout(function () { btn.textContent = orig; }, 1200);
++  }
++  function legacyCopy() {
++    var ta = document.createElement("textarea");
++    ta.value = text;
++    ta.setAttribute("readonly", "");
++    ta.style.position = "fixed";
++    ta.style.top = "0";
++    ta.style.left = "0";
++    ta.style.opacity = "0";
++    document.body.appendChild(ta);
++    ta.focus();
++    ta.select();
++    try { ta.setSelectionRange(0, text.length); } catch (e) {}
++    var ok = false;
++    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
++    document.body.removeChild(ta);
++    if (ok) { flash(); }
++    else { alert("自動コピーできませんでした。手動でコピーしてください。"); }
++  }
++  if (navigator.clipboard && window.isSecureContext) {
++    navigator.clipboard.writeText(text).then(flash, legacyCopy);
++  } else {
++    legacyCopy();
++  }
++}
++</script>
+diff --git a/config/routes.rb b/config/routes.rb
+index 1e0abfe..c75ec50 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -46,7 +46,11 @@
+           get  :designer_kit
+         end
+       end
+-      resources :researches, only: [ :index, :show ]
++      resources :researches, only: [ :index, :show ] do
++        collection do
++          get :request_prompt
++        end
++      end
+       resources :submissions, only: [ :index ]
+       resources :communication_themes, only: [ :index, :new, :create, :edit, :update ]
+       resources :attribute_axes, only: [ :index, :new, :create, :edit, :update ]
+diff --git a/spec/services/linestamp/research_request_prompt_spec.rb b/spec/services/linestamp/research_request_prompt_spec.rb
+new file mode 100644
+index 0000000..2741017
+--- /dev/null
++++ b/spec/services/linestamp/research_request_prompt_spec.rb
+@@ -0,0 +1,67 @@
++# frozen_string_literal: true
++
++require "rails_helper"
++
++RSpec.describe Linestamp::ResearchRequestPrompt do
++  before do
++    load Rails.root.join("db/seeds/linestamp/masters.rb")
++    Linestamp::Seeds.call
++  end
++
++  subject(:composer) { described_class.new(target_date: Date.new(2026, 6, 15)) }
++
++  describe "#week_label / #research_slug / #target_range" do
++    it "ISO週とレンジを算出する" do
++      expect(composer.week_label).to eq("2026-W25")
++      expect(composer.research_slug).to eq("weekly_trends_2026_w25")
++      expect(composer.target_range).to eq("6/15〜6/21")
++    end
++  end
++
++  describe "#compose" do
++    let(:research) do
++      Linestamp::Research.create!(slug: "weekly_trends_2026_w24", title: "週次調査 W24")
++    end
++
++    let(:brand) do
++      b = Linestamp::Brand.create!(
++        slug: "moka_kuma",
++        character_name: "モカ",
++        series_name: "モカのシリーズ",
++        identity_axes: { "silhouette" => "2頭身の丸い相棒", "signature_color" => "#F6E7D8" },
++        primary_color: "#F6E7D8"
++      )
++      ct = Linestamp::CommunicationTheme.find_by!(slug: "gratitude")
++      b.brand_communication_themes.create!(communication_theme: ct)
++      b
++    end
++
++    before do
++      research
++      brand
++    end
++
++    it "対象週・既存ブランド・調査履歴・slug辞書を注入する" do
++      prompt = composer.compose
++
++      expect(prompt).to include("対象週: 2026-W25(6/15〜6/21)")
++      # 既存ブランドの差別化情報
++      expect(prompt).to include("moka_kuma")
++      expect(prompt).to include("2頭身の丸い相棒")
++      expect(prompt).to include("#F6E7D8")
++      # 調査履歴(重複回避)
++      expect(prompt).to include("weekly_trends_2026_w24: 週次調査 W24")
++      # master slug 辞書
++      expect(prompt).to include("gratitude")
++      expect(prompt).to include("tone:")
++      # 出力フォーマット
++      expect(prompt).to include('Linestamp::Importer.run')
++      expect(prompt).to include("imports/pending/")
++    end
++
++    it "件数を数えられる" do
++      expect(composer.brands_count).to eq(1)
++      expect(composer.researches_count).to eq(1)
++    end
++  end
++end

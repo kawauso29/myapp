@@ -1,0 +1,77 @@
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+  <h1 style="font-size:20px;">Coworkリサーチ依頼プロンプト</h1>
+  <a href="<%= admin_linestamp_researches_path %>" class="btn btn-sm" style="background:#232637; color:#a0aec0;">← Researches一覧</a>
+</div>
+
+<div class="card">
+  <h2>対象週</h2>
+  <%= form_with url: request_prompt_admin_linestamp_researches_path, method: :get, local: true,
+        style: "display:flex; gap:10px; align-items:center; flex-wrap:wrap;" do %>
+    <label style="color:#a0aec0;">対象週に含む日付</label>
+    <%= date_field_tag :date, @target_date.to_s,
+          style: "background:#1a1d2b; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:6px 10px; font-size:13px;" %>
+    <%= submit_tag "更新", class: "btn btn-primary btn-sm" %>
+    <span style="color:#718096; font-size:12px;">
+      週: <strong style="color:#63b3ed;"><%= @composer.week_label %></strong>(<%= @composer.target_range %>)
+    </span>
+  <% end %>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <h2 style="margin:0;">プロンプト</h2>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="color:#718096; font-size:12px;">
+        注入: 既存ブランド <strong style="color:#63b3ed;"><%= @composer.brands_count %></strong> 件 /
+        調査履歴 <strong style="color:#63b3ed;"><%= @composer.researches_count %></strong> 件
+      </span>
+      <button type="button" onclick="copyField('research-prompt', this)" class="btn btn-success btn-sm">📋 コピー</button>
+    </div>
+  </div>
+  <textarea id="research-prompt" readonly
+            style="width:100%; height:560px; background:#0f1117; color:#e2e8f0; border:1px solid #2d3748; border-radius:6px; padding:12px; font-family:monospace; font-size:12px; line-height:1.5; white-space:pre; overflow:auto;"><%= @prompt %></textarea>
+  <p style="color:#718096; font-size:12px; margin-top:8px;">
+    コピーして Cowork に貼り付け → 返ってきた seed を
+    <code style="color:#9ae6b4;">db/seeds/linestamp/imports/pending/</code> に置いて apply。
+  </p>
+</div>
+
+<%# COPY_FIELD_JS %>
+<script>
+function copyField(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) { return; }
+  var text = (el.value !== undefined && el.value !== null && el.value !== "") ? el.value : (el.textContent || "");
+
+  function flash() {
+    if (!btn) { return; }
+    var orig = btn.getAttribute("data-orig") || btn.textContent;
+    btn.setAttribute("data-orig", orig);
+    btn.textContent = "✅ コピーしました";
+    setTimeout(function () { btn.textContent = orig; }, 1200);
+  }
+  function legacyCopy() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) { flash(); }
+    else { alert("自動コピーできませんでした。手動でコピーしてください。"); }
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(flash, legacyCopy);
+  } else {
+    legacyCopy();
+  }
+}
+</script>

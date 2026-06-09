@@ -46,7 +46,11 @@
           get  :designer_kit
         end
       end
-      resources :researches, only: [ :index, :show ]
+      resources :researches, only: [ :index, :show ] do
+        collection do
+          get :request_prompt
+        end
+      end
       resources :submissions, only: [ :index ]
       resources :communication_themes, only: [ :index, :new, :create, :edit, :update ]
       resources :attribute_axes, only: [ :index, :new, :create, :edit, :update ]
