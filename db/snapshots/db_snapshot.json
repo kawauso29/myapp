@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T06:44:05+09:00",
+  "generated_at": "2026-06-13T06:37:39+09:00",
   "environment": "production",
   "counts": {
     "active_storage_attachments": 24,
@@ -74,7 +74,7 @@
     "operator_override_ledgers": 0,
     "org_change_ledgers": 0,
     "organization_roles": 12,
-    "picro_messages": 32,
+    "picro_messages": 33,
     "portfolio_strategy_ledgers": 2,
     "post_interest_tags": 12059,
     "post_reports": 0,
@@ -105,6 +105,17 @@
   "recent": {
     "users": [],
     "picro_messages": [
+      {
+        "id": 33,
+        "created_at": "2026-06-12 19:30:01 +0900",
+        "message_id": "100709663",
+        "notified": true,
+        "preview": "&lt;p style=&quot;font-size:18.4px;color:rgb(0,0,0);&quot;&gt;&lt;span style=&quot;font-size:18.44px;&quot;&gt;お世話になっております。&lt;/span&gt;&lt;br /&gt;&lt;/p&gt;&lt;p style=&quot;font-size:18.4px;colo...",
+        "received_at": "2026-06-12 19:21:03 +0900",
+        "sender_name": null,
+        "title": "ゆいとくんへ　夏合宿のご案内",
+        "updated_at": "2026-06-12 19:30:01 +0900"
+      },
       {
         "id": 32,
         "created_at": "2026-06-09 09:15:01 +0900",
@@ -312,17 +323,6 @@
         "received_at": "2025-12-27 12:00:18 +0900",
         "sender_name": null,
         "title": "【重要】春合宿の日程のご案内",
-        "updated_at": "2026-03-19 13:00:01 +0900"
-      },
-      {
-        "id": 13,
-        "created_at": "2026-03-19 13:00:01 +0900",
-        "message_id": "95929394",
-        "notified": true,
-        "preview": "\r\n保護者の皆様へ\r\n\r\n新年あけましておめでとうございます。\r\n旧年中は、スクール活動に多大なるご理解とご協力を賜り、誠にありがとうございました。\r\n\r\n本年も、子どもたち一人ひとりの「今」と「これから」に真摯に向き合いながら、サッカーを通じて成長を支えてまいります。\r\n上達のスピードや得意・不得意はそれぞれ異なりますが、積み重ねた経験は必ず子どもたちの自信となり、将来の土台になります。\r...",
-        "received_at": "2026-01-01 09:04:54 +0900",
-        "sender_name": null,
-        "title": "新年あけましておめでとうございます。",
         "updated_at": "2026-03-19 13:00:01 +0900"
       }
     ],
