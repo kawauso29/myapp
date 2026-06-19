@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19T06:44:45+09:00",
+  "generated_at": "2026-06-20T06:28:59+09:00",
   "environment": "production",
   "counts": {
     "active_storage_attachments": 24,
@@ -74,7 +74,7 @@
     "operator_override_ledgers": 0,
     "org_change_ledgers": 0,
     "organization_roles": 12,
-    "picro_messages": 33,
+    "picro_messages": 34,
     "portfolio_strategy_ledgers": 2,
     "post_interest_tags": 12059,
     "post_reports": 0,
@@ -105,6 +105,17 @@
   "recent": {
     "users": [],
     "picro_messages": [
+      {
+        "id": 34,
+        "created_at": "2026-06-19 12:15:01 +0900",
+        "message_id": "100886505",
+        "notified": true,
+        "preview": "&lt;br /&gt;いつもアミティエスポーツクラブへご参加いただきありがとうございます。&lt;br /&gt;&lt;br /&gt;アミティエでは、会員の皆さまへより早く・便利に情報をお届けするため、公式LINEを運用しております。&lt;br /&gt;&lt;br /&gt;LINEにご登録いただくと、&lt;br /&gt;&lt;br /&gt;・イベント情報をいち早くお届け...",
+        "received_at": "2026-06-19 12:00:28 +0900",
+        "sender_name": null,
+        "title": "アミティエスポーツクラブ滋賀　公式LINEお友達登録のお願い",
+        "updated_at": "2026-06-19 12:15:01 +0900"
+      },
       {
         "id": 33,
         "created_at": "2026-06-12 19:30:01 +0900",
@@ -312,17 +323,6 @@
         "received_at": "2025-12-26 12:00:34 +0900",
         "sender_name": null,
         "title": "本日の練習についての連絡",
-        "updated_at": "2026-03-19 13:00:01 +0900"
-      },
-      {
-        "id": 14,
-        "created_at": "2026-03-19 13:00:01 +0900",
-        "message_id": "95865312",
-        "notified": true,
-        "preview": "お世話になっております。\r\n日頃よりアミティエスポーツクラブの活動にご理解とご協力を頂きありがとうございます。\r\nさて、本日は来春実施の春合宿日程・内容が決定しましたのでご案内致します！\r\n\r\n\r\n毎年春合宿といえば\r\n『年間チャンピオンを決めるサッカー大会』と\r\n『6年生を送る会』です！\r\n\r\n\r\nまた、今回の春合宿より参加者全員にアミティエ特製缶バッジを参加記念グッズとして配布させていた...",
-        "received_at": "2025-12-27 12:00:18 +0900",
-        "sender_name": null,
-        "title": "【重要】春合宿の日程のご案内",
         "updated_at": "2026-03-19 13:00:01 +0900"
       }
     ],
