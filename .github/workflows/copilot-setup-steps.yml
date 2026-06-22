@@ -18,7 +18,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # .ruby-version(3.3.7) を読み、Ruby を入れて bundle install + キャッシュ。
       # rbenv の有無に関係なく動くので、エージェントの自前環境でも Ruby が揃う。
