@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T06:34:38+09:00",
+  "generated_at": "2026-07-03T06:27:56+09:00",
   "environment": "production",
   "counts": {
     "active_storage_attachments": 24,
@@ -74,7 +74,7 @@
     "operator_override_ledgers": 0,
     "org_change_ledgers": 0,
     "organization_roles": 12,
-    "picro_messages": 37,
+    "picro_messages": 38,
     "portfolio_strategy_ledgers": 2,
     "post_interest_tags": 12059,
     "post_reports": 0,
@@ -105,6 +105,17 @@
   "recent": {
     "users": [],
     "picro_messages": [
+      {
+        "id": 38,
+        "created_at": "2026-07-02 14:45:01 +0900",
+        "message_id": "101339700",
+        "notified": true,
+        "preview": "いつもアミティエスポーツクラブをご利用いただき、ありがとうございます。&lt;br /&gt;&lt;br /&gt;この度、アミティエスポーツクラブの姉妹クラブ「チアクラブ」の無料体験会を開催いたします✨&lt;br /&gt;&lt;br /&gt;「チアダンスに興味がある！」&lt;br /&gt;「新しいことにチャレンジしてみたい！」&lt;br /&gt;そんなお子さまは、この機会...",
+        "received_at": "2026-07-02 14:36:04 +0900",
+        "sender_name": null,
+        "title": "【アミティエスポーツクラブ】姉妹クラブ「チアクラブ」無料体験会のご案内",
+        "updated_at": "2026-07-02 14:45:01 +0900"
+      },
       {
         "id": 37,
         "created_at": "2026-06-27 08:30:01 +0900",
@@ -312,17 +323,6 @@
         "received_at": "2025-11-20 14:35:24 +0900",
         "sender_name": null,
         "title": "11月21日(金)の練習について",
-        "updated_at": "2026-03-19 13:00:01 +0900"
-      },
-      {
-        "id": 18,
-        "created_at": "2026-03-19 13:00:01 +0900",
-        "message_id": "95483320",
-        "notified": true,
-        "preview": "栗東会場会員様各位\r\n\r\nお世話になっております。\r\n年末年始休暇についてご連絡させていただきます。\r\n\r\n2025年12月26日（金）〜2026年1月4日（日）まで年末年始休暇とさせていただきます。\r\n\r\nつきましては、今週の練習が本年最後の練習となります。\r\n今年1年、大変お世話になりました。\r\n\r\n今週の練習もどうぞよろしくお願い致します。\r\n\r\n立花",
-        "received_at": "2025-12-15 14:36:28 +0900",
-        "sender_name": null,
-        "title": "年末年始休暇のご連絡",
         "updated_at": "2026-03-19 13:00:01 +0900"
       }
     ],
