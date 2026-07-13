@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T06:19:06+09:00",
+  "generated_at": "2026-07-14T06:57:25+09:00",
   "environment": "production",
   "counts": {
     "active_storage_attachments": 24,
@@ -74,7 +74,7 @@
     "operator_override_ledgers": 0,
     "org_change_ledgers": 0,
     "organization_roles": 12,
-    "picro_messages": 38,
+    "picro_messages": 39,
     "portfolio_strategy_ledgers": 2,
     "post_interest_tags": 12059,
     "post_reports": 0,
@@ -105,6 +105,17 @@
   "recent": {
     "users": [],
     "picro_messages": [
+      {
+        "id": 39,
+        "created_at": "2026-07-13 10:15:01 +0900",
+        "message_id": "101578257",
+        "notified": true,
+        "preview": "会員保護者各位&lt;br /&gt;&lt;br /&gt;いつも大変お世話になっております。&lt;br /&gt;アミティエスポーツクラブ事務局です。&lt;br /&gt;&lt;br /&gt;日頃は当スクールの運営にご理解とご協力をいただき、誠にありがとうございます。&lt;br /&gt;&lt;br /&gt;さて、昨今の諸物価高騰に伴い、指導・サービス品質を維持・向上させる...",
+        "received_at": "2026-07-13 10:00:50 +0900",
+        "sender_name": null,
+        "title": "【重要】月会費（運営協力費）改定のお知らせ",
+        "updated_at": "2026-07-13 10:15:01 +0900"
+      },
       {
         "id": 38,
         "created_at": "2026-07-02 14:45:01 +0900",
@@ -312,17 +323,6 @@
         "received_at": "2025-11-12 13:26:54 +0900",
         "sender_name": null,
         "title": "冬季ユニフォーム割引期間締切について",
-        "updated_at": "2026-03-19 13:00:01 +0900"
-      },
-      {
-        "id": 19,
-        "created_at": "2026-03-19 13:00:01 +0900",
-        "message_id": "94764904",
-        "notified": true,
-        "preview": "\r\nお世話になっております。\r\n明日の練習ですが、先日お伝えしましたように\r\n体育館での練習となります。\r\n\r\nその為、持ち物のご案内をさせていただきますのでご確認の上ご参加お願いします！\r\n\r\n【持ち物】\r\n上履き(体育館シューズ or 綺麗なシューズ)\r\n水分\r\n※サッカーボールは必要ありません。\r\n\r\nなお、時間は通常通りのお時間で開催致します。\r\n\r\nご参加よろしくお願い致します。\r...",
-        "received_at": "2025-11-20 14:35:24 +0900",
-        "sender_name": null,
-        "title": "11月21日(金)の練習について",
         "updated_at": "2026-03-19 13:00:01 +0900"
       }
     ],
