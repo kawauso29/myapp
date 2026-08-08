@@ -25,7 +25,7 @@ jobs:
     env:
       COMMIT_MSG: ${{ github.event.inputs.reason || 'Auto-deploy from CI' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Notify Slack (deploy start)
         env:
