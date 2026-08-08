@@ -183,7 +183,7 @@ GEM
     jbuilder (2.15.1)
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
-    json (2.19.7)
+    json (2.19.9)
     json-schema (6.2.0)
       addressable (~> 2.8)
       bigdecimal (>= 3.1, < 5)
@@ -423,8 +423,8 @@ GEM
       rexml (~> 3.2, >= 3.2.5)
       rubyzip (>= 1.2.2, < 4.0)
       websocket (~> 1.0)
-    shoulda-matchers (6.5.0)
-      activesupport (>= 5.2.0)
+    shoulda-matchers (8.0.1)
+      activesupport (>= 7.2)
     slack-ruby-client (3.1.0)
       faraday (>= 2.0.1)
       faraday-mashify
@@ -533,7 +533,7 @@ DEPENDENCIES
   rubocop-rails-omakase
   rubyzip
   selenium-webdriver
-  shoulda-matchers (~> 6.0)
+  shoulda-matchers (~> 8.0)
   slack-ruby-client
   solid_cable
   solid_cache
