@@ -44,7 +44,7 @@ gem "rubyzip", require: "zip"
 gem "mechanize"
 
 # LINE Messaging API
-gem "line-bot-api", "~> 2.8"
+gem "line-bot-api", "~> 2.9"
 
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
